@@ -155,15 +155,33 @@ uv run eidos codex-proxy .eidos/traces.db -- codex app-server --listen stdio://
 
 The proxy is transport-level: stdin/stdout semantics stay app-server-native while both directions are persisted.
 
-## Retrospective semantic rewriting
+## Hindsight-first semantic tree
 
-`codex-observe` uses `thread/fork` with a completed `lastTurnId`, `ephemeral=true`, a read-only sandbox, and structured output. The fork inherits native Codex history through that horizon.
+`codex-observe` now builds a recursive retrospective tree rather than walking
+raw-record windows sequentially.
 
-The structural window planner is **plumbing, not authorship**. Before the model sees the local window, Eidos turns raw records into a weighted story substrate: dialogue/final answers are foregrounded, routine tool churn is collapsed, and only salient execution outcomes survive as compact support.
+The pipeline first creates a weighted story substrate in which dialogue/final
+answers form the default spine and routine execution collapses into support
+episodes. It then runs one medium-effort global hindsight pass over the full
+native history.
 
-The model then rewrites the semantic map from the endpoint: what turned out to matter, what became a dead end, what earlier material meant in light of later evidence. Maps are normally two-level trees, and importance is expected to sharpen upward.
+Leaf windows are planned by **semantic mass rather than event count**. Every
+region is processed, but long low-value tool stretches do not receive extra
+model calls merely because they emitted many records. Low-effort leaf workers
+run in bounded parallel and receive both the global hindsight brief and their
+local substrate. They may return no durable episode.
 
-Each horizon publishes an immutable revision. Older revisions remain inspectable; hindsight changes interpretation, not evidence.
+Surviving leaf Values roll upward through medium-effort reducers. Reducer groups
+are also packed by semantic mass: low-value children are processed more densely,
+while important children consume more reducer bandwidth. Reducers may discard
+children entirely. Parent support is derived from child provenance, so every
+surviving abstract node remains grounded in the raw trace.
+
+The final result is persisted as a `retrospective-tree` semantic revision.
+Older sequential/experimental maps remain queryable as legacy revisions.
+
+The UI reports build phase/progress, hides empty reasoning cards, and can descend
+from tree nodes into focused supporting evidence.
 
 
 ## Things v0 explicitly does not solve yet
@@ -176,7 +194,9 @@ Each horizon publishes an immutable revision. Older revisions remain inspectable
 - cross-host Trusted Machinery / consensus;
 - Codex Place migration and reconciliation of outcome-unknown effects;
 - persistent tabs/splits/compositor state;
-- recursive summary trees above the current two-level map;
+- incremental reuse/recomputation of stable semantic subtrees as live evidence arrives;
+- cross-thread semantic trees and reconciliation;
+- high-effort adjudication triggers for genuinely unstable/disagreeing summaries;
 - long-running trace auditors that proactively suggest experiments or reinterpret old material;
 - actual terminal/process multiplexing outside the Codex events we already observe.
 
