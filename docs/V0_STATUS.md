@@ -135,7 +135,9 @@ RPC correlation may enrich the projections on an earlier record (for example, at
 
 `eidos serve TRACE.db` renders threads from **our** store. It already has independent renderings for user messages, assistant messages, command executions, file changes, tool calls, and the raw native event spine; unknown items fall back to inspectable JSON.
 
-This is intentionally not yet a general compositor. A real trace should tell us what the first useful split/tab/window primitives need to be.
+The renderer now also has a semantic-map rail. A selected semantic node may cite multiple disjoint trace ranges; clicking it highlights all overlapping regions and dims the rest. This is intentionally still not a general compositor: the trace should tell us which richer split/tab/window primitives are actually demanded.
+
+Live reasoning is treated opportunistically. When a completed Codex reasoning item contains no text, Eidos can reconstruct summary/content from observed `item/reasoning/*Delta` notifications. Absence of such text is not interpreted as absence of reasoning.
 
 ## Try the real boundary
 
@@ -158,6 +160,14 @@ uv run eidos codex-proxy .eidos/traces.db -- codex app-server --listen stdio://
 
 The proxy is transport-level: stdin/stdout semantics stay app-server-native while both directions are persisted.
 
+## Shadow semantic observers
+
+`codex-observe` uses `thread/fork` with a completed `lastTurnId`, `ephemeral=true`, a read-only sandbox, and structured output. The fork inherits native Codex history through that horizon; Eidos also supplies a sequence-numbered evidence window plus the observer's previous semantic map.
+
+The structural window planner is intentionally **plumbing, not authorship**. It proposes overlapping windows near useful native boundaries. The observer is responsible for semantic chunking and may produce nodes that cross windows or point back to non-contiguous earlier ranges.
+
+Each observer publishes immutable revisions. Different angles can coexist; current selection is only a presentation policy.
+
 ## Things v0 explicitly does not solve yet
 
 - exact Responses API **request** capture from the native Codex harness;
@@ -168,7 +178,8 @@ The proxy is transport-level: stdin/stdout semantics stay app-server-native whil
 - cross-host Trusted Machinery / consensus;
 - Codex Place migration and reconciliation of outcome-unknown effects;
 - persistent tabs/splits/compositor state;
-- automated trace auditors / suggestion agents;
+- mature observer ensembles / node-level reconciliation across competing semantic maps;
+- long-running trace auditors that proactively suggest experiments or reinterpret old material;
 - actual terminal/process multiplexing outside the Codex events we already observe.
 
 Those are now relatively crisp seams rather than one undifferentiated architecture problem.
@@ -181,8 +192,9 @@ The highest-information next step is not another abstraction pass. It is:
 2. look at what our renderer loses or improves relative to Codex Desktop;
 3. run one new thread through the traced client/proxy;
 4. compare imported history with the live event stream;
-5. add the first compositor/windowing primitive demanded by that evidence;
-6. only then deepen the Codex continuation mapping or provider-bound instrumentation.
+5. run `codex-observe` over a large imported thread and test whether the semantic rail is actually useful for navigation;
+6. let that evidence demand the first compositor/windowing primitive;
+7. only then deepen the Codex continuation mapping or provider-bound instrumentation.
 
 The working maxim remains:
 
