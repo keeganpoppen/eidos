@@ -8,6 +8,7 @@
     ObserverJob,
     SemanticNode,
     SupportSpan,
+    ThreadItem,
     ThreadPayload,
     ThreadSummary
   } from '#lib/types.ts';
@@ -105,6 +106,7 @@
       });
       selectedThread = result.threadId;
       selectedRevision = '';
+      selectedSemanticNode = null;
       focusSpans = [];
       status = 'new Codex thread started';
       await loadThreads();
@@ -182,6 +184,14 @@
     selectedSemanticNode = null;
     focusSpans = [];
     await loadThread();
+  }
+
+  function jumpToItem(item: ThreadItem) {
+    const selector = `.workspace [data-item-id="${CSS.escape(item.id)}"]`;
+    document.querySelector<HTMLElement>(selector)?.scrollIntoView({
+      behavior: 'smooth',
+      block: 'center'
+    });
   }
 
   async function runObserver(pool: boolean) {
