@@ -17,7 +17,7 @@
   let showFullOutput = $state(false);
   let showFullText = $state(false);
   let showFullRaw = $state(false);
-  let inspectOpen = $state(item.type === 'plan');
+  let inspectOpen = $state(false);
 
   const textContent = $derived(
     Array.isArray(item.content)
