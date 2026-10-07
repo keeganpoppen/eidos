@@ -92,11 +92,11 @@ def choose_leaf_model(client: Any) -> str | None:
     positive = {
         "mini": 6,
         "small": 5,
-        "fast": 4,
-        "efficient": 4,
-        "low latency": 4,
-        "lightweight": 4,
-        "light": 2,
+        "fast": 2,
+        "efficient": 5,
+        "low latency": 2,
+        "lightweight": 5,
+        "light": 1,
     }
     negative = {
         "pro": -5,
