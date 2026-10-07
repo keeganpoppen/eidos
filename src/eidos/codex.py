@@ -204,6 +204,22 @@ class AppServerClient:
     def thread_fork(self, thread_id: str, **params: Any) -> dict[str, Any]:
         return self.request("thread/fork", {"threadId": thread_id, "excludeTurns": True, **params})
 
+    def model_list(
+        self,
+        *,
+        cursor: str | None = None,
+        limit: int | None = 100,
+        include_hidden: bool = False,
+    ) -> dict[str, Any]:
+        return self.request(
+            "model/list",
+            {
+                "cursor": cursor,
+                "limit": limit,
+                "includeHidden": include_hidden,
+            },
+        )
+
     def thread_list(
         self,
         *,
