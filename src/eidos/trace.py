@@ -54,6 +54,19 @@ def _extract_coordinates(message: Mapping[str, Any]) -> tuple[str | None, str | 
         if isinstance(turn, Mapping):
             turn_id = turn_id or _nested_id(turn, "id")
 
+    method = message.get("method")
+    if item_type is None and isinstance(method, str):
+        if method.startswith("item/reasoning/"):
+            item_type = "reasoning"
+        elif method.startswith("item/agentMessage/"):
+            item_type = "agentMessage"
+        elif method.startswith("item/commandExecution/"):
+            item_type = "commandExecution"
+        elif method.startswith("item/fileChange/"):
+            item_type = "fileChange"
+        elif method.startswith("item/mcpToolCall/"):
+            item_type = "mcpToolCall"
+
     return thread_id, turn_id, item_id, item_type
 
 
