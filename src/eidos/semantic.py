@@ -289,6 +289,14 @@ Angle for this observer:
 Rules:
 - Use natural titles. Do NOT force nodes into categories such as finding,
   decision, artifact, or task.
+- Optimize for navigation, not prose. Titles should usually be 3-7 words.
+  Summaries should be ONE terse sentence, normally under 160 characters. Do not
+  restate implementation chronology that the evidence already shows.
+- Prefer a TWO-LEVEL map: a small set of top-level arcs/topics, with direct
+  children for specific episodes or recurring subtopics. Avoid deeper nesting
+  unless the history genuinely requires it.
+- At a whole-thread horizon, prefer roughly 4-10 useful top-level nodes over a
+  comprehensive inventory. Omit low-value procedural churn.
 - A node may cite multiple disjoint support ranges. This is important: ideas and
   episodes may disappear and recur later.
 - Support ranges are inclusive Eidos trace sequence numbers and must not exceed
