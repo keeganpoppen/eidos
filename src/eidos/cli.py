@@ -1,8 +1,11 @@
 from __future__ import annotations
 
 import argparse
+from datetime import datetime
 from pathlib import Path
 import sys
+import threading
+import time
 
 from .codex import AppServerClient, CodexPlace
 from .codex_proxy import proxy_stdio
@@ -107,18 +110,33 @@ def main(argv: list[str] | None = None) -> None:
                 command=[args.codex, "app-server", "--listen", "stdio://"],
             )
 
-            def progress(stage: str, current: int, total: int, detail: str) -> None:
-                print(f"[{stage}] {current}/{total} {detail}", file=sys.stderr)
+            started_at = time.monotonic()
+            print_lock = threading.Lock()
 
+            def progress(stage: str, current: int, total: int, detail: str) -> None:
+                wall = datetime.now().astimezone().strftime("%H:%M:%S")
+                elapsed = time.monotonic() - started_at
+                with print_lock:
+                    print(
+                        f"{wall} +{elapsed:7.2f}s [{stage}] "
+                        f"{current}/{total} {detail}",
+                        file=sys.stderr,
+                        flush=True,
+                    )
+
+            progress("start", 0, 1, f"thread {args.thread_id}")
             result = builder.build(args.thread_id, progress=progress)
+            elapsed = time.monotonic() - started_at
             print(result.revision_id)
             print(
-                f"tree: {result.leaf_windows} windows, "
-                f"{result.leaf_episodes} surviving episodes, "
-                f"{result.levels} rollup levels, "
-                f"model={result.model or 'default/inherited'}, "
+                f"done +{elapsed:.2f}s · "
+                f"{result.leaf_windows} windows · "
+                f"{result.leaf_episodes} surviving episodes · "
+                f"{result.levels} rollup levels · "
+                f"leaf-model={result.model or 'default'} · "
                 f"effort={result.leaf_effort}->{result.synthesis_effort}",
                 file=sys.stderr,
+                flush=True,
             )
         finally:
             store.close()
