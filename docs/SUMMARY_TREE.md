@@ -1,7 +1,7 @@
 # Semantic hierarchy / summary tree
 
-This is the intended next shape for Eidos's derived semantic layer. It is a
-design constraint, not yet the complete implementation.
+This is now the implemented v0 shape for Eidos's derived semantic layer, plus
+the constraints for how it should evolve incrementally.
 
 ## Principle
 
@@ -16,7 +16,7 @@ branches that were locally busy but globally irrelevant.
 The raw trace remains immutable evidence. Every semantic layer is replaceable,
 versioned interpretation.
 
-## Proposed levels
+## Implemented levels
 
 ```text
 raw native evidence
@@ -34,6 +34,15 @@ cross-thread structures
 
 Each derived node retains support into the layer below. Support may be
 non-contiguous. Ultimately every path can descend to raw trace sequence ranges.
+
+
+## Global hindsight before local enrichment
+
+Before any leaf worker runs, one medium-effort retrospective pass produces a
+compact global prior: durable arcs, dead ends, surprises, and attention guidance.
+Every parallel leaf receives that ex-post wisdom plus only its local weighted
+evidence. The brief is explicitly defeasible: a local worker can rescue a small
+moment that the global pass underestimated.
 
 ## Reasoning-effort budget
 
@@ -61,8 +70,8 @@ all re-reading the same history.
 
 ### Leaf stage
 
-Several Eidos-managed ephemeral forks can independently process disjoint or
-overlapping candidate windows:
+Several Eidos-managed ephemeral workers independently process overlapping
+semantic-mass windows in parallel:
 
 ```text
 history
@@ -132,13 +141,21 @@ This should eventually look more like incremental compilation than periodic
 
 ## Current v0 relation
 
-The current `retrospective` observer is still sequential across candidate
-windows because each horizon explicitly revises its previous map. It uses
-`low` effort.
+The current `SemanticTreeBuilder` performs:
 
-The next tree implementation should split that mechanism:
+1. one medium-effort global hindsight pass over the source history;
+2. deterministic semantic-mass window planning;
+3. bounded parallel low-effort leaf enrichment over every region;
+4. recursive medium-effort reducers whose groups are packed by semantic mass;
+5. one final medium-effort thread synthesis;
+6. persistence of the surviving recursive tree with raw trace support.
 
-1. parallel low-effort leaf interpreters;
-2. one medium-effort retrospective merge;
-3. preserve the sequential horizon revision mechanism at the merge level, where
-   hindsight is semantically useful and much cheaper.
+A leaf may produce no episode. Reducers may discard low-value children. This is
+intentional: coverage is exhaustive at the evidence-reading layer, while
+narrative bandwidth becomes increasingly selective upward.
+
+The older sequential-horizon observer remains in the codebase as an experiment
+and primitive, but it is no longer the default `codex-observe` path.
+
+The next major step is incremental reuse: preserve stable leaf/subtree Values
+across new live evidence instead of rebuilding the whole tree.
