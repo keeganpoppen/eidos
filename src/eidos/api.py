@@ -7,7 +7,7 @@ from pathlib import Path
 import threading
 import time
 import uuid
-from typing import Any, Mapping
+from typing import Any, Mapping, Sequence
 from urllib.parse import unquote
 
 from .codex import AppServerClient, CodexPlace
@@ -155,9 +155,21 @@ def thread_payload(store: TraceStore, thread_id: str, *, revision_id: str | None
 class LiveCodex:
     """One lazily-started app-server evaluator for interactive Eidos chat."""
 
-    def __init__(self, store: TraceStore, *, codex: str = "codex") -> None:
+    def __init__(
+        self,
+        store: TraceStore,
+        *,
+        codex: str = "codex",
+        command: Sequence[str] | None = None,
+    ) -> None:
         self.store = store
         self.codex = codex
+        self.command = tuple(command) if command is not None else (
+            codex,
+            "app-server",
+            "--listen",
+            "stdio://",
+        )
         self._lock = threading.RLock()
         self._client: AppServerClient | None = None
         self._place: CodexPlace | None = None
@@ -169,7 +181,7 @@ class LiveCodex:
             if self._place is not None:
                 return self._place
             client = AppServerClient(
-                [self.codex, "app-server", "--listen", "stdio://"],
+                self.command,
                 trace=self.store,
                 source="codex-live",
             )
