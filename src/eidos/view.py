@@ -163,8 +163,13 @@ def _render_item(item: ItemView) -> str:
     )
 
 
-def _outline_html(store: TraceStore, thread_id: str) -> str:
-    outline = store.semantic_outline(thread_id)
+def _outline_html(
+    store: TraceStore,
+    thread_id: str,
+    *,
+    revision_id: str | None = None,
+) -> str:
+    outline = store.semantic_outline(thread_id, revision_id=revision_id)
     alternatives = store.semantic_revisions(thread_id, lens="thread")
     if outline is None:
         return (
@@ -205,6 +210,17 @@ def _outline_html(store: TraceStore, thread_id: str) -> str:
         )
 
     alt_count = max(0, len(alternatives) - 1)
+    options = ['<option value="">auto-select</option>']
+    for revision in alternatives:
+        selected = " selected" if revision["revision_id"] == outline["revision_id"] else ""
+        label = (
+            f'{revision["observer"]} · h{revision["horizon_seq"]} · '
+            f'{float(revision["score"]):.2f}'
+        )
+        options.append(
+            f'<option value="{escape(str(revision["revision_id"]), quote=True)}"{selected}>'
+            f'{escape(label)}</option>'
+        )
     header = (
         f'<div class="outline-head">semantic map '
         f'<button id="clear-focus" title="show all">all</button></div>'
@@ -212,11 +228,19 @@ def _outline_html(store: TraceStore, thread_id: str) -> str:
         f'horizon {outline["horizon_seq"]} · score {float(outline["score"]):.2f}'
         + (f" · {alt_count} alternate" + ("s" if alt_count != 1 else "") if alt_count else "")
         + "</div>"
+        + '<select id="outline-revision" class="outline-select">'
+        + "".join(options)
+        + "</select>"
     )
     return f'<aside class="outline">{header}{"".join(nodes)}</aside>'
 
 
-def render_thread_html(store: TraceStore, thread_id: str) -> str:
+def render_thread_html(
+    store: TraceStore,
+    thread_id: str,
+    *,
+    revision_id: str | None = None,
+) -> str:
     view = project_thread(store, thread_id)
     nav = "".join(
         f'<a class="thread {"active" if t["thread_id"] == thread_id else ""}" '
@@ -240,7 +264,7 @@ def render_thread_html(store: TraceStore, thread_id: str) -> str:
             f'<pre>{escape(raw)}</pre></details></section>'
         )
     body = "".join(turns) or '<div class="empty">No turn-scoped events yet.</div>'
-    outline = _outline_html(store, thread_id)
+    outline = _outline_html(store, thread_id, revision_id=revision_id)
     return f'''<!doctype html>
 <html><head><meta charset="utf-8"><title>Eidos · {escape(thread_id)}</title>
 <style>
@@ -255,7 +279,8 @@ nav {{ border-right:1px solid #333; padding:12px; position:sticky; top:0; height
 .outline {{ border-right:1px solid #333; padding:12px; position:sticky; top:0; height:100vh; overflow:auto; background:#0a0a0a }}
 .outline-head {{ font-weight:800; font-size:12px; text-transform:uppercase; letter-spacing:.08em; margin:4px 4px 6px }}
 .outline-head button {{ float:right; background:#151515; color:#888; border:1px solid #333; cursor:pointer }}
-.outline-provenance,.outline-empty {{ color:#666; font-size:10px; line-height:1.5; margin:0 4px 14px }}
+.outline-provenance,.outline-empty {{ color:#666; font-size:10px; line-height:1.5; margin:0 4px 10px }}
+.outline-select {{ width:calc(100% - 8px); margin:0 4px 12px; background:#111; color:#999; border:1px solid #333; font:10px ui-monospace,monospace; padding:5px }}
 .outline-node {{ width:100%; display:block; text-align:left; border:0; border-left:1px solid #333; background:transparent; color:#ddd; cursor:pointer; padding:8px 8px 8px calc(8px + var(--depth) * 14px); margin:1px 0 }}
 .outline-node:hover,.outline-node.active {{ background:#171717; border-left-color:#ddd }}
 .outline-title {{ display:block; font-weight:700; font-size:12px; line-height:1.3 }}
@@ -299,6 +324,13 @@ document.querySelectorAll('.outline-node').forEach(node=>node.addEventListener('
 }}));
 const clear=document.getElementById('clear-focus');
 if(clear) clear.addEventListener('click', clearFocus);
+const revision=document.getElementById('outline-revision');
+if(revision) revision.addEventListener('change',()=>{{
+  const url=new URL(window.location.href);
+  if(revision.value) url.searchParams.set('revision', revision.value);
+  else url.searchParams.delete('revision');
+  window.location.href=url.toString();
+}});
 </script></body></html>'''
 
 
