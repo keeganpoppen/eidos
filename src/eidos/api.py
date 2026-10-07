@@ -220,7 +220,11 @@ class LiveCodex:
         with self._lock:
             if thread_id in self._loaded:
                 return
-        place.resume_thread(thread_id)
+        place.resume_thread(
+            thread_id,
+            approvalPolicy="never",
+            sandbox="workspace-write",
+        )
         with self._lock:
             self._loaded.add(thread_id)
 
