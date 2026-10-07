@@ -254,7 +254,11 @@ class LiveCodex:
     def send(self, thread_id: str, text: str) -> str:
         self._ensure_thread(thread_id)
         assert self._client is not None
-        result = self._client.turn_start_text(thread_id, text)
+        result = self._client.turn_start_text(
+            thread_id,
+            text,
+            summary="detailed",
+        )
         turn = result.get("turn")
         if not isinstance(turn, Mapping) or not isinstance(turn.get("id"), str):
             raise ValueError(f"turn/start returned no turn id: {result!r}")
