@@ -84,30 +84,52 @@ The old Python-rendered trace pages remain available at `http://127.0.0.1:8765` 
 
 The live UI is still driven entirely by Eidos-persisted data: user/assistant messages, command executions, file changes, tool calls, live reasoning deltas when Codex exposes them, and the native event spine. Imported old history and future live observations use the same projection path while retaining their different evidence sources.
 
-### Retrospective semantic maps
+### Hindsight-first semantic tree
 
-A semantic map is a **versioned retrospective interpretation over the evidence**, not a replacement transcript. Eidos asks an ephemeral Codex fork to rewrite the history from the perspective of someone who already knows how it turned out.
+A semantic tree is a **versioned retrospective interpretation over the evidence**, not a replacement transcript. The current build pipeline is:
 
-The observer does **not** receive an egalitarian dump of raw events. Eidos first builds a weighted story substrate:
-
-- user messages and final assistant answers form the default semantic spine;
-- plans and reasoning summaries are intermediate evidence;
-- repetitive command/tool/file activity is collapsed into low-prior execution-support episodes;
-- those priors are defeasible when later consequences show that a tiny tool result actually mattered.
-
-The output is normally a two-level tree: a few durable top-level arcs with specific episodes/subtopics beneath them. Importance should sharpen upward; roots should omit procedural mechanics unless the mechanics themselves became the point.
-
-Run a full retrospective rewrite with:
-
-```bash
-uv run eidos codex-observe .eidos/traces.db THREAD_ID --max-windows 0
+```text
+raw trace
+  ↓ deterministic weighted story substrate
+global hindsight brief                     medium
+  ↓
+parallel retrospective leaf enrichment     low
+  ↓
+importance-weighted parallel rollups        medium
+  ↓
+final retrospective synthesis              medium
+  ↓
+provenance tree → raw support ranges
 ```
 
-Each later horizon receives the prior map and may split, merge, rename, or reinterpret older nodes with hindsight. Old revisions remain stored, so the system can distinguish what an episode looked like earlier from what it later came to mean.
+The deterministic substrate deliberately foregrounds user messages and final assistant answers and collapses routine command/tool/file churn. Leaf windows are planned by **semantic mass**, not raw record count, so a 500-record tool detour does not automatically earn five times the inference budget of a short conceptual exchange.
 
-Leaf/window rewrites default to `low` reasoning effort. Eidos consults `model/list` and only switches to another model when the catalog clearly advertises it as a fast/small/efficient option that supports low effort; otherwise it safely inherits the source model. Set `EIDOS_SUMMARY_MODEL` to explicitly pin the summarizer model. The planned hierarchy reserves `medium` for synthesis and `high` for rare adjudication rather than routine summarization.
+Every semantic region is still inspected. Leaf workers may explicitly return no durable episode when a region has little to offer. Surviving nodes carry importance, confidence, and trace support; low-importance nodes pack more densely in reducer groups while important nodes receive more synthesis bandwidth. At every rollup the governing question is:
 
-Nodes may overlap, nest, or cite several non-contiguous trace ranges. Observer forks are internal and hidden from the normal thread list, but their native traces remain in the evidence store.
+> Given the final state of the story, what information from these children is still necessary to understand this region at the next scale?
+
+The result is a recursive tree, not merely a two-level outline. Importance should sharpen upward. The Svelte focus pane lets you descend through child nodes and back to their supporting transcript regions.
+
+Run it with:
+
+```bash
+uv run eidos codex-observe .eidos/traces.db THREAD_ID
+```
+
+or use **REWRITE WITH HINDSIGHT** in the UI. Progress reports the current global/enrichment/reducer stage rather than an opaque spinner.
+
+Leaf workers default to `low` reasoning effort; global and rollup synthesis use `medium`. Eidos only auto-selects another model when `model/list` clearly advertises a small/mini/efficient option that supports low effort; otherwise it uses the default/inherited model rather than guessing. Overrides:
+
+```bash
+EIDOS_SUMMARY_MODEL=<leaf-model>
+EIDOS_SYNTHESIS_MODEL=<merge-model>
+EIDOS_SUMMARY_CONCURRENCY=4
+```
+
+Concurrency is bounded to at most 8 workers. Semantic worker threads are ephemeral, read-only, hidden from the ordinary thread list, and still fully traced.
+
+Old sequential retrospective/experimental maps remain queryable as legacy revisions, but the hindsight tree is the default semantic interpretation.
+
 
 
 ## Develop / test
