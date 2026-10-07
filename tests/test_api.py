@@ -165,6 +165,13 @@ def test_live_codex_round_trip_is_rendered_from_persisted_trace(tmp_path: Path):
         turn_id = live.send(thread_id, "say hello")
         assert turn_id == "live-turn"
 
+        turn_start = next(
+            record
+            for record in store.records(thread_id=thread_id)
+            if record.method == "turn/start"
+        )
+        assert turn_start.message["params"]["summary"] == "detailed"
+
         deadline = time.monotonic() + 2
         payload = thread_payload(store, thread_id)
         while time.monotonic() < deadline:
