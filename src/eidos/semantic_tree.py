@@ -175,6 +175,7 @@ class TreeBuildResult:
     leaf_episodes: int
     levels: int
     model: str | None
+    synthesis_model: str | None
     leaf_effort: str
     synthesis_effort: str
 
@@ -1097,6 +1098,7 @@ class SemanticTreeBuilder:
                 leaf_episodes=0,
                 levels=0,
                 model=leaf_model,
+                synthesis_model=synthesis_model,
                 leaf_effort=LEAF_REASONING_EFFORT,
                 synthesis_effort=SYNTHESIS_REASONING_EFFORT,
             )
@@ -1116,6 +1118,14 @@ class SemanticTreeBuilder:
                 f"rollup level {level} · {len(current)} children -> {len(groups)} reducer groups · "
                 f"{synthesis_model or 'default model'} / {SYNTHESIS_REASONING_EFFORT}",
             )
+            for group_index, group in enumerate(groups):
+                progress(
+                    "reduce:queue",
+                    group_index + 1,
+                    len(groups),
+                    f"level {level} · {len(group)} children · "
+                    f"mass {sum(max(0.15, node.importance) for node in group):.2f}",
+                )
             next_level: list[TreeNode] = []
             completed = 0
             with ThreadPoolExecutor(max_workers=min(self.max_workers, len(groups) or 1)) as executor:
@@ -1208,6 +1218,7 @@ class SemanticTreeBuilder:
             leaf_episodes=len(leaves),
             levels=level,
             model=leaf_model,
+            synthesis_model=synthesis_model,
             leaf_effort=LEAF_REASONING_EFFORT,
             synthesis_effort=SYNTHESIS_REASONING_EFFORT,
         )
