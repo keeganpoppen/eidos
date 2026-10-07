@@ -7,6 +7,7 @@ import sys
 from .codex import AppServerClient, CodexPlace
 from .codex_proxy import proxy_stdio
 from .serve import serve
+from .semantic import CodexShadowObserver, ObserverSpec, plan_candidate_windows
 from .trace import TraceStore
 from .view import render_thread_html
 
@@ -45,6 +46,25 @@ def main(argv: list[str] | None = None) -> None:
     p_proxy = sub.add_parser("codex-proxy", help="transparent recorded JSONL proxy")
     p_proxy.add_argument("db")
     p_proxy.add_argument("child", nargs=argparse.REMAINDER)
+
+    p_observe = sub.add_parser("codex-observe", help="run an ephemeral semantic observer over a persisted thread")
+    p_observe.add_argument("db")
+    p_observe.add_argument("thread_id")
+    p_observe.add_argument("--name", default="cartographer")
+    p_observe.add_argument(
+        "--angle",
+        default=(
+            "Build a navigational semantic map of the important episodes, recurring threads, "
+            "and conceptual developments. Prefer what became important over turn-by-turn narration."
+        ),
+    )
+    p_observe.add_argument("--lens", default="thread")
+    p_observe.add_argument("--reliability", type=float, default=1.0)
+    p_observe.add_argument("--effort", default="low")
+    p_observe.add_argument("--target-records", type=int, default=220)
+    p_observe.add_argument("--overlap-records", type=int, default=32)
+    p_observe.add_argument("--max-windows", type=int, default=4)
+    p_observe.add_argument("--codex", default="codex")
 
     args = parser.parse_args(argv)
     if args.command == "serve":
@@ -87,6 +107,42 @@ def main(argv: list[str] | None = None) -> None:
                 for thread_id in ids:
                     counts = place.sync_thread_history(thread_id, page_size=args.page_size)
                     print(f"{thread_id}: {counts['turns']} turns, {counts['items']} items")
+        finally:
+            store.close()
+        return
+    if args.command == "codex-observe":
+        store = TraceStore(args.db)
+        windows = plan_candidate_windows(
+            store,
+            args.thread_id,
+            target_records=args.target_records,
+            overlap_records=args.overlap_records,
+            max_windows=args.max_windows,
+        )
+        if not windows:
+            parser.error("thread has no persisted Eidos records; run codex-sync first")
+        client = AppServerClient([args.codex, "app-server", "--listen", "stdio://"], trace=store)
+        try:
+            with client:
+                place = CodexPlace("observer-place", client).start()
+                observer = CodexShadowObserver(place, store)
+                spec = ObserverSpec(
+                    name=args.name,
+                    angle=args.angle,
+                    lens=args.lens,
+                    reliability=args.reliability,
+                    effort=args.effort,
+                )
+                revisions = observer.observe_windows(
+                    source_thread_id=args.thread_id,
+                    windows=windows,
+                    spec=spec,
+                )
+                for window, revision in zip(windows, revisions, strict=True):
+                    print(
+                        f"{revision}: {window.start_seq}..{window.end_seq} "
+                        f"({window.record_count} records)"
+                    )
         finally:
             store.close()
         return
