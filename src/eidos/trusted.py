@@ -249,12 +249,15 @@ class TrustedMachinery:
         frame: Frame,
         offers: list[OfferSpec],
         request_id: str,
+        consume_receipts: list[str] | None = None,
     ) -> dict[str, Any]:
+        consume_receipts = list(consume_receipts or [])
         payload = {
             "nema": nema,
             "expected_meta_socket": expected_meta_socket,
             "frame": asdict(frame),
             "offers": [asdict(o) for o in offers],
+            "consume_receipts": consume_receipts,
         }
         with self._tx() as db:
             old = self._idem(db, request_id, "publish_frame", payload)
@@ -266,6 +269,15 @@ class TrustedMachinery:
             meta_row = db.execute("SELECT disposition,session_name FROM sockets WHERE name=?", (expected_meta_socket,)).fetchone()
             if meta_row is None or meta_row["disposition"] != "live":
                 raise StaleSocket("meta socket is not live")
+
+            receipt_rows: list[sqlite3.Row] = []
+            for receipt_name in consume_receipts:
+                receipt = db.execute("SELECT * FROM receipts WHERE name=?", (receipt_name,)).fetchone()
+                if receipt is None or receipt["holder"] != nema:
+                    raise TrustedError(f"receipt {receipt_name} is not available to {nema}")
+                if receipt["incorporated"]:
+                    raise Conflict(f"receipt {receipt_name} was already incorporated")
+                receipt_rows.append(receipt)
 
             fcid = self._put_frame(db, frame)
             offer_names: list[str] = []
@@ -306,6 +318,8 @@ class TrustedMachinery:
                 (next_meta, meta_row["session_name"], "self", "q", nema, "live"),
             )
             db.execute("UPDATE nemata SET frame_cid=?,meta_socket=? WHERE name=?", (fcid, next_meta, nema))
+            for receipt in receipt_rows:
+                db.execute("UPDATE receipts SET incorporated=1 WHERE name=?", (receipt["name"],))
             self._event(
                 db,
                 "frame_published",
@@ -315,10 +329,16 @@ class TrustedMachinery:
                     "next_meta": next_meta,
                     "frame": fcid,
                     "offers": offer_names,
+                    "consumed_receipts": consume_receipts,
                     "new_names": new_names,
                 },
             )
-            result = {"frame": fcid, "meta_socket": next_meta, "offers": offer_names}
+            result = {
+                "frame": fcid,
+                "meta_socket": next_meta,
+                "offers": offer_names,
+                "consumed_receipts": consume_receipts,
+            }
             self._idem_put(db, request_id, "publish_frame", payload, result)
             return result
 
@@ -420,11 +440,51 @@ class TrustedMachinery:
             raise KeyError(nema)
         return dict(row)
 
+    def frame(self, cid: str) -> Frame:
+        row = self.db.execute("SELECT body_json FROM frames WHERE cid=?", (cid,)).fetchone()
+        if row is None:
+            raise KeyError(cid)
+        raw = json.loads(row["body_json"])
+        return Frame(bindings=raw.get("bindings", {}), residuals=tuple(raw.get("residuals", [])))
+
     def socket(self, socket: str) -> dict[str, Any]:
         row = self.db.execute("SELECT * FROM sockets WHERE name=?", (socket,)).fetchone()
         if row is None:
             raise KeyError(socket)
         return dict(row)
+
+    def expected_transition(self, socket: str) -> Transition:
+        row = self.db.execute(
+            "SELECT s.role,s.protocol_state,se.protocol_cid FROM sockets s "
+            "JOIN sessions se ON se.name=s.session_name WHERE s.name=?",
+            (socket,),
+        ).fetchone()
+        if row is None:
+            raise KeyError(socket)
+        protocol = self._load_protocol(self.db, row["protocol_cid"])
+        return protocol.transition(row["role"], row["protocol_state"])
+
+    def open_offers(self) -> list[dict[str, Any]]:
+        rows = self.db.execute(
+            "SELECT o.*,s.session_name,s.role,s.holder,s.protocol_state "
+            "FROM offers o JOIN sockets s ON s.name=o.socket_name "
+            "WHERE o.state='open' AND s.disposition='offered' ORDER BY o.rowid"
+        ).fetchall()
+        out: list[dict[str, Any]] = []
+        for row in rows:
+            item = dict(row)
+            item["payload"] = json.loads(item.pop("payload_json"))
+            item["continuation"] = json.loads(item.pop("continuation_json"))
+            out.append(item)
+        return out
+
+    def receipt(self, receipt: str) -> dict[str, Any]:
+        row = self.db.execute("SELECT * FROM receipts WHERE name=?", (receipt,)).fetchone()
+        if row is None:
+            raise KeyError(receipt)
+        item = dict(row)
+        item["payload"] = json.loads(item.pop("payload_json"))
+        return item
 
     def receipts(self, holder: str, *, unincorporated_only: bool = True) -> list[dict[str, Any]]:
         sql = "SELECT * FROM receipts WHERE holder=?"
