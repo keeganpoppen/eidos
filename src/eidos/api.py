@@ -416,7 +416,10 @@ class EidosAPI:
                     job["status"] = "completed"
                     job["phase"] = "completed"
                     job["revisions"] = [result.revision_id]
-                    job["model"] = result.model or "default/inherited"
+                    job["model"] = (
+                        f"leaf={result.model or 'default'}; "
+                        f"synthesis={result.synthesis_model or 'default'}"
+                    )
                     job["effort"] = (
                         f"{result.leaf_effort} leaves → "
                         f"{result.synthesis_effort} synthesis"
