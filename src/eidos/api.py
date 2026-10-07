@@ -208,10 +208,21 @@ class LiveCodex:
                 return
 
             # For this first chat slice we intentionally run with approvals
-            # disabled. If app-server still emits a server request, preserve it
-            # in TraceStore (already done by AppServerClient) rather than
-            # fabricating authority or auto-approving it.
+            # disabled and do not fabricate answers to interactive server
+            # requests. Explicitly reject any that still arrive so Codex can
+            # observe a failed request rather than hanging forever. Both sides
+            # of the exchange are persisted by AppServerClient.
             if "id" in event and "method" in event:
+                client.respond(
+                    event["id"],
+                    error={
+                        "code": -32000,
+                        "message": (
+                            "Eidos live chat does not yet support interactive "
+                            f"server request {event['method']!r}"
+                        ),
+                    },
+                )
                 continue
 
     def start_thread(self, *, cwd: str | None = None) -> str:
