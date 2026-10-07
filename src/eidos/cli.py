@@ -7,7 +7,7 @@ import sys
 from .codex import AppServerClient, CodexPlace
 from .codex_proxy import proxy_stdio
 from .serve import serve
-from .semantic import CodexShadowObserver, choose_leaf_model, observer_preset, plan_candidate_windows
+from .semantic_tree import SemanticTreeBuilder
 from .trace import TraceStore
 from .view import render_thread_html
 
@@ -102,40 +102,25 @@ def main(argv: list[str] | None = None) -> None:
         return
     if args.command == "codex-observe":
         store = TraceStore(args.db)
-        windows = plan_candidate_windows(
-            store,
-            args.thread_id,
-            target_records=args.target_records,
-            overlap_records=args.overlap_records,
-            max_windows=None if args.max_windows == 0 else args.max_windows,
-        )
-        if not windows:
-            parser.error("thread has no persisted Eidos records; run codex-sync first")
-        client = AppServerClient([args.codex, "app-server", "--listen", "stdio://"], trace=store)
         try:
-            with client:
-                place = CodexPlace("observer-place", client).start()
-                observer = CodexShadowObserver(place, store)
-                summary_model = choose_leaf_model(client)
-                spec = observer_preset(
-                    "retrospective",
-                    effort=args.effort,
-                    model=summary_model,
-                )
-                if summary_model is not None:
-                    print(f"semantic model: {summary_model} / effort={args.effort}", file=sys.stderr)
-                else:
-                    print(f"semantic model: inherited / effort={args.effort}", file=sys.stderr)
-                revisions = observer.observe_windows(
-                    source_thread_id=args.thread_id,
-                    windows=windows,
-                    spec=spec,
-                )
-                for window, revision in zip(windows, revisions, strict=True):
-                    print(
-                        f"{revision}: {window.start_seq}..{window.end_seq} "
-                        f"({window.record_count} records)"
-                    )
+            builder = SemanticTreeBuilder(
+                store,
+                command=[args.codex, "app-server", "--listen", "stdio://"],
+            )
+
+            def progress(stage: str, current: int, total: int, detail: str) -> None:
+                print(f"[{stage}] {current}/{total} {detail}", file=sys.stderr)
+
+            result = builder.build(args.thread_id, progress=progress)
+            print(result.revision_id)
+            print(
+                f"tree: {result.leaf_windows} windows, "
+                f"{result.leaf_episodes} surviving episodes, "
+                f"{result.levels} rollup levels, "
+                f"model={result.model or 'default/inherited'}, "
+                f"effort={result.leaf_effort}->{result.synthesis_effort}",
+                file=sys.stderr,
+            )
         finally:
             store.close()
         return
