@@ -84,29 +84,29 @@ The old Python-rendered trace pages remain available at `http://127.0.0.1:8765` 
 
 The live UI is still driven entirely by Eidos-persisted data: user/assistant messages, command executions, file changes, tool calls, live reasoning deltas when Codex exposes them, and the native event spine. Imported old history and future live observations use the same projection path while retaining their different evidence sources.
 
-### Semantic maps / shadow observers
+### Retrospective semantic maps
 
-A semantic map is a **versioned interpretation over the evidence**, not a replacement transcript. Nodes may overlap, nest, or cite several non-contiguous trace ranges. Several observers may maintain competing maps; the currently displayed map is selected by horizon plus confidence/reliability, while alternatives remain stored.
+A semantic map is a **versioned retrospective interpretation over the evidence**, not a replacement transcript. Eidos asks an ephemeral Codex fork to rewrite the history from the perspective of someone who already knows how it turned out.
 
-Run an ephemeral Codex fork as a semantic observer:
+The observer does **not** receive an egalitarian dump of raw events. Eidos first builds a weighted story substrate:
+
+- user messages and final assistant answers form the default semantic spine;
+- plans and reasoning summaries are intermediate evidence;
+- repetitive command/tool/file activity is collapsed into low-prior execution-support episodes;
+- those priors are defeasible when later consequences show that a tiny tool result actually mattered.
+
+The output is normally a two-level tree: a few durable top-level arcs with specific episodes/subtopics beneath them. Importance should sharpen upward; roots should omit procedural mechanics unless the mechanics themselves became the point.
+
+Run a full retrospective rewrite with:
 
 ```bash
-uv run eidos codex-observe .eidos/traces.db THREAD_ID \
-  --target-records 220 \
-  --overlap-records 32 \
-  --max-windows 4
+uv run eidos codex-observe .eidos/traces.db THREAD_ID --max-windows 0
 ```
 
-For a full retrospective pass over a large thread, `--max-windows 0` means all windows. To run a small pool of differently angled observers and keep their competing revisions:
+Each later horizon receives the prior map and may split, merge, rename, or reinterpret older nodes with hindsight. Old revisions remain stored, so the system can distinguish what an episode looked like earlier from what it later came to mean.
 
-```bash
-uv run eidos codex-observe .eidos/traces.db THREAD_ID \
-  --pool --max-windows 0
-```
+Nodes may overlap, nest, or cite several non-contiguous trace ranges. Observer forks are internal and hidden from the normal thread list, but their native traces remain in the evidence store.
 
-The deterministic window planner only decides where the observer should look. The model authors the semantic chunking, titles, summaries, and retrospective revisions. Each later window receives the observer's prior map and may split, merge, rename, or reconnect older nodes with hindsight.
-
-Observer forks are tagged as internal and hidden from the normal thread list, but their raw native traces remain in the same evidence store for inspection.
 
 ## Develop / test
 
