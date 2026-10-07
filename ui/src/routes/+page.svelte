@@ -9,7 +9,7 @@
     SupportSpan,
     ThreadPayload,
     ThreadSummary
-  } from '#lib/types';
+  } from '#lib/types.ts';
 
   let threads = $state<ThreadSummary[]>([]);
   let selectedThread = $state('');
