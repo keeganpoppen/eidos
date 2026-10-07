@@ -313,6 +313,16 @@ class CodexShadowObserver:
         if last_turn_id is not None:
             fork_args["lastTurnId"] = last_turn_id
         fork_thread = self.place.fork_thread(source_thread_id, **fork_args)
+        self.store.annotate_thread(
+            fork_thread,
+            kind="semantic-observer",
+            parent_thread_id=source_thread_id,
+            metadata={
+                "observer": spec.name,
+                "lens": spec.lens,
+                "horizon_seq": window.end_seq,
+            },
+        )
         prompt = _observer_prompt(self.store, window, spec, previous)
         started = self.place.client.turn_start_text(
             fork_thread,
