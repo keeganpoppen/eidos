@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import FocusPane from '#lib/FocusPane.svelte';
   import Markdown from '#lib/Markdown.svelte';
   import SemanticRail from '#lib/SemanticRail.svelte';
   import ThreadItemCard from '#lib/ThreadItem.svelte';
@@ -17,6 +18,7 @@
   let composer = $state('');
   let cwd = $state('');
   let selectedRevision = $state('');
+  let selectedSemanticNode = $state<SemanticNode | null>(null);
   let focusSpans = $state<SupportSpan[]>([]);
   let sending = $state(false);
   let startingThread = $state(false);
@@ -26,6 +28,18 @@
 
   let threadPoll: ReturnType<typeof setInterval> | undefined;
   let listPoll: ReturnType<typeof setInterval> | undefined;
+
+  const focusedItems = $derived(
+    thread && selectedSemanticNode
+      ? thread.turns
+          .flatMap((turn) => turn.items)
+          .filter((item) =>
+            selectedSemanticNode?.support.some((span) =>
+              item.startSeq <= span.end && span.start <= item.endSeq
+            )
+          )
+      : []
+  );
 
   async function api<T>(path: string, init?: RequestInit): Promise<T> {
     const response = await fetch(path, {
@@ -76,6 +90,7 @@
   async function chooseThread(id: string) {
     selectedThread = id;
     selectedRevision = '';
+    selectedSemanticNode = null;
     focusSpans = [];
     await loadThread();
   }
@@ -145,6 +160,7 @@
   }
 
   function selectSemanticNode(node: SemanticNode | null) {
+    selectedSemanticNode = node;
     focusSpans = node?.support ?? [];
     if (!focusSpans.length) return;
 
@@ -163,6 +179,7 @@
 
   async function selectRevision(revision: string) {
     selectedRevision = revision;
+    selectedSemanticNode = null;
     focusSpans = [];
     await loadThread();
   }
@@ -227,7 +244,7 @@
   />
 </svelte:head>
 
-<div class="shell">
+<div class:focus-mode={selectedSemanticNode !== null} class="shell">
   <aside class="thread-rail">
     <div class="brand-block">
       <h1>EIDOS</h1>
@@ -260,11 +277,22 @@
     outline={thread?.outline ?? null}
     revisions={thread?.revisions ?? []}
     {selectedRevision}
+    selectedNodeId={selectedSemanticNode?.node_id ?? null}
     onSelectNode={selectSemanticNode}
     onSelectRevision={selectRevision}
     onObserve={runObserver}
     {observerBusy}
   />
+
+  {#if selectedSemanticNode}
+    <FocusPane
+      node={selectedSemanticNode}
+      outline={thread?.outline ?? null}
+      items={focusedItems}
+      onSelectNode={selectSemanticNode}
+      onJump={jumpToItem}
+    />
+  {/if}
 
   <main class="workspace">
     {#if thread}
