@@ -476,8 +476,9 @@ class TraceStore:
         """Return one selected semantic revision plus its nodes/support.
 
         Selection is intentionally simple in v0: among revisions at the most
-        recent horizon, prefer the observer confidence weighted by its current
-        reliability prior. All alternatives remain queryable.
+        recent horizon, prefer the current retrospective lineage when present,
+        then observer confidence weighted by its reliability prior. Historical
+        experimental lineages remain queryable.
         """
 
         with self._lock:
@@ -495,7 +496,10 @@ class TraceStore:
                     LEFT JOIN semantic_observers o ON o.name=r.observer
                     JOIN horizon ON r.horizon_seq=horizon.h
                     WHERE r.thread_id=? AND r.lens=?
-                    ORDER BY score DESC, r.created_at_ms DESC
+                    ORDER BY
+                      CASE WHEN r.observer='retrospective' THEN 1 ELSE 0 END DESC,
+                      score DESC,
+                      r.created_at_ms DESC
                     LIMIT 1
                     """,
                     (thread_id, lens, thread_id, lens),
