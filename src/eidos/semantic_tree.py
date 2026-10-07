@@ -968,7 +968,7 @@ class SemanticTreeBuilder:
 
         # Repeatedly reduce importance-weighted groups. Low-value nodes pack more
         # densely; important nodes consume more of a reducer group's semantic mass.
-        while len(current) > 6:
+        while len(current) > 6 and level <= 4:
             groups = pack_nodes_by_mass(current)
             progress(
                 "reduce",
@@ -1013,6 +1013,13 @@ class SemanticTreeBuilder:
                         f"rollup level {level} · group {completed}/{len(groups)} committed",
                     )
             if not next_level:
+                break
+            if len(next_level) >= len(current):
+                # The reducer preserved too many distinctions to make this level
+                # useful. Stop recursing and let the final synthesis adjudicate
+                # the remaining semantic Values in one pass.
+                current = sorted(next_level, key=lambda node: (node.first_seq, node.node_id))
+                level += 1
                 break
             current = sorted(next_level, key=lambda node: (node.first_seq, node.node_id))
             level += 1
