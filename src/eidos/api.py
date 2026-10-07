@@ -1,0 +1,391 @@
+from __future__ import annotations
+
+from dataclasses import asdict
+import json
+import os
+from pathlib import Path
+import threading
+import time
+import uuid
+from typing import Any, Mapping
+from urllib.parse import unquote
+
+from .codex import AppServerClient, CodexPlace
+from .semantic import CodexShadowObserver, ObserverSpec, observer_preset, plan_candidate_windows
+from .trace import TraceStore
+from .view import ItemView, project_thread
+
+
+def _json_body(handler: Any) -> dict[str, Any]:
+    length = int(handler.headers.get("Content-Length", "0") or 0)
+    if not length:
+        return {}
+    raw = handler.rfile.read(length)
+    value = json.loads(raw)
+    if not isinstance(value, dict):
+        raise ValueError("request body must be a JSON object")
+    return value
+
+
+def _item_bounds(item: ItemView) -> tuple[int, int]:
+    if not item.events:
+        return (0, 0)
+    return min(event.seq for event in item.events), max(event.seq for event in item.events)
+
+
+def _join_deltas(item: ItemView, method: str) -> str:
+    chunks: list[str] = []
+    for event in item.events:
+        if event.method != method:
+            continue
+        params = event.message.get("params")
+        if isinstance(params, Mapping) and isinstance(params.get("delta"), str):
+            chunks.append(str(params["delta"]))
+    return "".join(chunks)
+
+
+def _reasoning_parts(item: ItemView, *, summary: bool) -> list[str]:
+    raw = item.final_item or {}
+    key = "summary" if summary else "content"
+    final = raw.get(key)
+    if isinstance(final, list) and final:
+        return [str(value) for value in final]
+
+    prefix = "item/reasoning/summary" if summary else "item/reasoning/text"
+    index_key = "summaryIndex" if summary else "contentIndex"
+    parts: dict[int, str] = {}
+    for event in item.events:
+        if not event.method or not event.method.startswith(prefix):
+            continue
+        params = event.message.get("params")
+        if not isinstance(params, Mapping) or not isinstance(params.get(index_key), int):
+            continue
+        index = int(params[index_key])
+        parts.setdefault(index, "")
+        if isinstance(params.get("delta"), str):
+            parts[index] += str(params["delta"])
+    return [parts[index] for index in sorted(parts) if parts[index]]
+
+
+def _project_item(item: ItemView) -> dict[str, Any]:
+    raw = item.final_item or {}
+    kind = item.item_type or str(raw.get("type") or "item")
+    start, end = _item_bounds(item)
+    projected: dict[str, Any] = {
+        "id": item.item_id,
+        "type": kind,
+        "startSeq": start,
+        "endSeq": end,
+        "complete": any(event.method in {"item/completed", "$history/item"} for event in item.events),
+        "raw": raw,
+    }
+    if kind == "agentMessage":
+        text = raw.get("text")
+        if not isinstance(text, str) or not text:
+            text = _join_deltas(item, "item/agentMessage/delta")
+        projected["text"] = text or ""
+        projected["phase"] = raw.get("phase")
+    elif kind == "reasoning":
+        projected["summary"] = _reasoning_parts(item, summary=True)
+        projected["content"] = _reasoning_parts(item, summary=False)
+    elif kind == "commandExecution":
+        projected["command"] = str(raw.get("command") or "")
+        output = raw.get("aggregatedOutput")
+        if not isinstance(output, str) or not output:
+            output = _join_deltas(item, "item/commandExecution/outputDelta")
+        projected["output"] = output or ""
+        projected["status"] = raw.get("status")
+        projected["exitCode"] = raw.get("exitCode")
+    elif kind == "fileChange":
+        projected["changes"] = raw.get("changes") or []
+        projected["status"] = raw.get("status")
+    elif kind == "userMessage":
+        projected["content"] = raw.get("content") or []
+    elif kind in {"mcpToolCall", "dynamicToolCall", "collabAgentToolCall", "functionCallOutput", "webSearch"}:
+        projected["detail"] = raw
+    return projected
+
+
+def _thread_preview(store: TraceStore, thread_id: str) -> str:
+    for record in store.records(thread_id=thread_id):
+        message = record.message
+        params = message.get("params")
+        if record.method == "turn/start" and isinstance(params, Mapping):
+            for value in params.get("input") or []:
+                if isinstance(value, Mapping) and value.get("type") == "text" and value.get("text"):
+                    return str(value["text"])[:100]
+        if record.method in {"item/completed", "$history/item"} and isinstance(params, Mapping):
+            item = params.get("item")
+            if isinstance(item, Mapping) and item.get("type") == "userMessage":
+                for value in item.get("content") or []:
+                    if isinstance(value, Mapping) and value.get("type") == "text" and value.get("text"):
+                        return str(value["text"])[:100]
+    return thread_id
+
+
+def thread_payload(store: TraceStore, thread_id: str, *, revision_id: str | None = None) -> dict[str, Any]:
+    view = project_thread(store, thread_id)
+    turns: list[dict[str, Any]] = []
+    for turn in view.turns:
+        seqs = [event.seq for event in turn.events]
+        turns.append(
+            {
+                "id": turn.turn_id,
+                "inputs": turn.inputs,
+                "items": [_project_item(item) for item in turn.items.values()],
+                "startSeq": min(seqs) if seqs else 0,
+                "endSeq": max(seqs) if seqs else 0,
+                "eventCount": len(turn.events),
+            }
+        )
+    records = store.records(thread_id=thread_id)
+    outline = store.semantic_outline(thread_id, revision_id=revision_id)
+    revisions = store.semantic_revisions(thread_id, lens="thread")
+    return {
+        "id": thread_id,
+        "preview": _thread_preview(store, thread_id),
+        "turns": turns,
+        "outline": outline,
+        "revisions": revisions,
+        "recordCount": len(records),
+        "lastSeq": records[-1].seq if records else 0,
+    }
+
+
+class LiveCodex:
+    """One lazily-started app-server evaluator for interactive Eidos chat."""
+
+    def __init__(self, store: TraceStore, *, codex: str = "codex") -> None:
+        self.store = store
+        self.codex = codex
+        self._lock = threading.RLock()
+        self._client: AppServerClient | None = None
+        self._place: CodexPlace | None = None
+        self._loaded: set[str] = set()
+        self._pump: threading.Thread | None = None
+
+    def _ensure_started(self) -> CodexPlace:
+        with self._lock:
+            if self._place is not None:
+                return self._place
+            client = AppServerClient(
+                [self.codex, "app-server", "--listen", "stdio://"],
+                trace=self.store,
+                source="codex-live",
+            )
+            client.start()
+            place = CodexPlace("live", client).start()
+            self._client = client
+            self._place = place
+            self._pump = threading.Thread(target=self._pump_events, daemon=True, name="eidos-live-events")
+            self._pump.start()
+            return place
+
+    def _pump_events(self) -> None:
+        client = self._client
+        if client is None:
+            return
+        while True:
+            try:
+                event = client.recv_event(timeout=1.0)
+            except TimeoutError:
+                if client.process is None:
+                    return
+                continue
+            except Exception:
+                return
+
+            # For this first chat slice we intentionally run with approvals
+            # disabled. If app-server still emits a server request, preserve it
+            # in TraceStore (already done by AppServerClient) rather than
+            # fabricating authority or auto-approving it.
+            if "id" in event and "method" in event:
+                continue
+
+    def start_thread(self, *, cwd: str | None = None) -> str:
+        place = self._ensure_started()
+        params: dict[str, Any] = {
+            "cwd": cwd or os.getcwd(),
+            "approvalPolicy": "never",
+            "sandbox": "workspace-write",
+            "threadSource": "eidos-live",
+        }
+        thread_id = place.start_thread(**params)
+        with self._lock:
+            self._loaded.add(thread_id)
+        return thread_id
+
+    def _ensure_thread(self, thread_id: str) -> None:
+        place = self._ensure_started()
+        with self._lock:
+            if thread_id in self._loaded:
+                return
+        place.resume_thread(thread_id)
+        with self._lock:
+            self._loaded.add(thread_id)
+
+    def send(self, thread_id: str, text: str) -> str:
+        self._ensure_thread(thread_id)
+        assert self._client is not None
+        result = self._client.turn_start_text(thread_id, text)
+        turn = result.get("turn")
+        if not isinstance(turn, Mapping) or not isinstance(turn.get("id"), str):
+            raise ValueError(f"turn/start returned no turn id: {result!r}")
+        return str(turn["id"])
+
+    def close(self) -> None:
+        with self._lock:
+            if self._client is not None:
+                self._client.close()
+            self._client = None
+            self._place = None
+            self._loaded.clear()
+
+
+class EidosAPI:
+    def __init__(self, store: TraceStore, *, codex: str = "codex") -> None:
+        self.store = store
+        self.codex = codex
+        self.live = LiveCodex(store, codex=codex)
+        self._jobs: dict[str, dict[str, Any]] = {}
+        self._jobs_lock = threading.RLock()
+
+    def close(self) -> None:
+        self.live.close()
+
+    def dispatch(self, handler: Any, method: str, path: str, query: dict[str, list[str]]) -> tuple[int, Any]:
+        parts = [unquote(part) for part in path.split("/") if part]
+        if parts == ["api", "health"] and method == "GET":
+            return 200, {"ok": True}
+
+        if parts == ["api", "threads"]:
+            if method == "GET":
+                rows = []
+                for thread in self.store.threads():
+                    thread_id = str(thread["thread_id"])
+                    rows.append(
+                        {
+                            **thread,
+                            "preview": _thread_preview(self.store, thread_id),
+                            "hasSemanticMap": self.store.semantic_outline(thread_id) is not None,
+                        }
+                    )
+                return 200, {"threads": rows}
+            if method == "POST":
+                body = _json_body(handler)
+                thread_id = self.live.start_thread(cwd=body.get("cwd") if isinstance(body.get("cwd"), str) else None)
+                return 201, {"threadId": thread_id}
+
+        if len(parts) >= 3 and parts[:2] == ["api", "threads"]:
+            thread_id = parts[2]
+            if len(parts) == 3 and method == "GET":
+                revision = query.get("revision", [None])[0]
+                return 200, thread_payload(self.store, thread_id, revision_id=revision)
+            if len(parts) == 4 and parts[3] == "messages" and method == "POST":
+                body = _json_body(handler)
+                text = body.get("text")
+                if not isinstance(text, str) or not text.strip():
+                    return 400, {"error": "text is required"}
+                turn_id = self.live.send(thread_id, text.strip())
+                return 202, {"turnId": turn_id}
+            if len(parts) == 4 and parts[3] == "observe" and method == "POST":
+                body = _json_body(handler)
+                job_id = self.start_observer(
+                    thread_id,
+                    pool=bool(body.get("pool", False)),
+                    max_windows=int(body.get("maxWindows", 0) or 0),
+                    effort=str(body.get("effort") or "low"),
+                )
+                return 202, {"jobId": job_id}
+
+        if len(parts) == 3 and parts[:2] == ["api", "jobs"] and method == "GET":
+            job = self.job(parts[2])
+            if job is None:
+                return 404, {"error": "job not found"}
+            return 200, job
+
+        return 404, {"error": "not found"}
+
+    def job(self, job_id: str) -> dict[str, Any] | None:
+        with self._jobs_lock:
+            job = self._jobs.get(job_id)
+            return dict(job) if job is not None else None
+
+    def start_observer(
+        self,
+        thread_id: str,
+        *,
+        pool: bool,
+        max_windows: int,
+        effort: str,
+    ) -> str:
+        job_id = f"job_{uuid.uuid4().hex}"
+        with self._jobs_lock:
+            self._jobs[job_id] = {
+                "id": job_id,
+                "threadId": thread_id,
+                "status": "queued",
+                "createdAtMs": int(time.time() * 1000),
+                "revisions": [],
+                "error": None,
+            }
+
+        def run() -> None:
+            with self._jobs_lock:
+                self._jobs[job_id]["status"] = "running"
+            client: AppServerClient | None = None
+            try:
+                windows = plan_candidate_windows(
+                    self.store,
+                    thread_id,
+                    max_windows=None if max_windows == 0 else max_windows,
+                )
+                if not windows:
+                    raise ValueError("thread has no persisted Eidos evidence")
+                client = AppServerClient(
+                    [self.codex, "app-server", "--listen", "stdio://"],
+                    trace=self.store,
+                    source="codex-observer",
+                )
+                with client:
+                    place = CodexPlace("observer", client).start()
+                    observer = CodexShadowObserver(place, self.store)
+                    specs = (
+                        [
+                            observer_preset("cartographer", effort=effort),
+                            observer_preset("consequence", effort=effort),
+                            observer_preset("skeptic", effort=effort),
+                        ]
+                        if pool
+                        else [
+                            ObserverSpec(
+                                name="cartographer",
+                                angle=(
+                                    "Build a navigational semantic map of the important episodes, recurring threads, "
+                                    "and conceptual developments. Prefer what became important over turn-by-turn narration."
+                                ),
+                                effort=effort,
+                            )
+                        ]
+                    )
+                    revisions: list[str] = []
+                    for spec in specs:
+                        revisions.extend(
+                            observer.observe_windows(
+                                source_thread_id=thread_id,
+                                windows=windows,
+                                spec=spec,
+                            )
+                        )
+                with self._jobs_lock:
+                    self._jobs[job_id]["status"] = "completed"
+                    self._jobs[job_id]["revisions"] = revisions
+                    self._jobs[job_id]["completedAtMs"] = int(time.time() * 1000)
+            except Exception as exc:
+                with self._jobs_lock:
+                    self._jobs[job_id]["status"] = "failed"
+                    self._jobs[job_id]["error"] = f"{type(exc).__name__}: {exc}"
+                    self._jobs[job_id]["completedAtMs"] = int(time.time() * 1000)
+
+        threading.Thread(target=run, daemon=True, name=f"eidos-observer-{job_id[-8:]}").start()
+        return job_id
