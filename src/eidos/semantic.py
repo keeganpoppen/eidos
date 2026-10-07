@@ -8,6 +8,16 @@ from .codex import CodexPlace
 from .trace import TraceRecord, TraceStore
 
 
+# Deliberate reasoning-effort policy for semantic derivation.
+#
+# Leaf/window work is numerous and structurally constrained, so keep it cheap.
+# Higher synthesis levels see already-condensed Values and earn more reasoning.
+# "high" is reserved for explicit adjudication/instability, not routine summaries.
+LEAF_REASONING_EFFORT = "low"
+SYNTHESIS_REASONING_EFFORT = "medium"
+ADJUDICATION_REASONING_EFFORT = "high"
+
+
 @dataclass(frozen=True)
 class CandidateWindow:
     thread_id: str
@@ -23,7 +33,7 @@ class ObserverSpec:
     angle: str
     lens: str = "thread"
     reliability: float = 1.0
-    effort: str = "low"
+    effort: str = LEAF_REASONING_EFFORT
     timeout: float = 120.0
 
 
@@ -38,7 +48,7 @@ OBSERVER_PRESETS: dict[str, tuple[str, float]] = {
 }
 
 
-def observer_preset(name: str = "retrospective", *, effort: str = "low", lens: str = "thread") -> ObserverSpec:
+def observer_preset(name: str = "retrospective", *, effort: str = LEAF_REASONING_EFFORT, lens: str = "thread") -> ObserverSpec:
     angle, reliability = OBSERVER_PRESETS[name]
     return ObserverSpec(
         name=name,
