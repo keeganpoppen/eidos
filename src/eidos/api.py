@@ -67,7 +67,7 @@ def _reasoning_parts(item: ItemView, *, summary: bool) -> list[str]:
     return [parts[index] for index in sorted(parts) if parts[index]]
 
 
-def _project_item(item: ItemView) -> dict[str, Any]:
+def _project_item(item: ItemView) -> dict[str, Any] | None:
     raw = item.final_item or {}
     kind = item.item_type or str(raw.get("type") or "item")
     start, end = _item_bounds(item)
@@ -86,8 +86,12 @@ def _project_item(item: ItemView) -> dict[str, Any]:
         projected["text"] = text or ""
         projected["phase"] = raw.get("phase")
     elif kind == "reasoning":
-        projected["summary"] = _reasoning_parts(item, summary=True)
-        projected["content"] = _reasoning_parts(item, summary=False)
+        summary = _reasoning_parts(item, summary=True)
+        content = _reasoning_parts(item, summary=False)
+        if not summary and not content:
+            return None
+        projected["summary"] = summary
+        projected["content"] = content
     elif kind == "commandExecution":
         projected["command"] = str(raw.get("command") or "")
         output = raw.get("aggregatedOutput")
@@ -132,7 +136,11 @@ def thread_payload(store: TraceStore, thread_id: str, *, revision_id: str | None
             {
                 "id": turn.turn_id,
                 "inputs": turn.inputs,
-                "items": [_project_item(item) for item in turn.items.values()],
+                "items": [
+                    projected
+                    for item in turn.items.values()
+                    if (projected := _project_item(item)) is not None
+                ],
                 "startSeq": min(seqs) if seqs else 0,
                 "endSeq": max(seqs) if seqs else 0,
                 "eventCount": len(turn.events),
@@ -350,18 +358,30 @@ class EidosAPI:
     ) -> str:
         job_id = f"job_{uuid.uuid4().hex}"
         with self._jobs_lock:
+            now = int(time.time() * 1000)
             self._jobs[job_id] = {
                 "id": job_id,
                 "threadId": thread_id,
                 "status": "queued",
-                "createdAtMs": int(time.time() * 1000),
+                "createdAtMs": now,
+                "startedAtMs": None,
+                "completedAtMs": None,
+                "lastProgressAtMs": now,
+                "currentWindow": 0,
+                "totalWindows": 0,
+                "horizonSeq": None,
+                "detail": "planning retrospective windows",
                 "revisions": [],
                 "error": None,
             }
 
         def run() -> None:
             with self._jobs_lock:
+                now = int(time.time() * 1000)
                 self._jobs[job_id]["status"] = "running"
+                self._jobs[job_id]["startedAtMs"] = now
+                self._jobs[job_id]["lastProgressAtMs"] = now
+                self._jobs[job_id]["detail"] = "planning retrospective windows"
             client: AppServerClient | None = None
             try:
                 windows = plan_candidate_windows(
@@ -371,29 +391,62 @@ class EidosAPI:
                 )
                 if not windows:
                     raise ValueError("thread has no persisted Eidos evidence")
+                with self._jobs_lock:
+                    now = int(time.time() * 1000)
+                    self._jobs[job_id]["totalWindows"] = len(windows)
+                    self._jobs[job_id]["lastProgressAtMs"] = now
+                    self._jobs[job_id]["detail"] = f"ready to rewrite {len(windows)} windows"
+
                 client = AppServerClient(
                     [self.codex, "app-server", "--listen", "stdio://"],
                     trace=self.store,
                     source="codex-observer",
                 )
+                revisions: list[str] = []
                 with client:
                     place = CodexPlace("observer", client).start()
                     observer = CodexShadowObserver(place, self.store)
                     spec = observer_preset("retrospective", effort=effort)
-                    revisions = observer.observe_windows(
-                        source_thread_id=thread_id,
-                        windows=windows,
-                        spec=spec,
-                    )
+                    for index, window in enumerate(windows, start=1):
+                        with self._jobs_lock:
+                            now = int(time.time() * 1000)
+                            self._jobs[job_id]["currentWindow"] = index
+                            self._jobs[job_id]["horizonSeq"] = window.end_seq
+                            self._jobs[job_id]["lastProgressAtMs"] = now
+                            self._jobs[job_id]["detail"] = (
+                                f"window {index}/{len(windows)} · horizon {window.end_seq} · waiting on Codex"
+                            )
+
+                        revision = observer.observe_window(
+                            source_thread_id=thread_id,
+                            window=window,
+                            spec=spec,
+                        )
+                        revisions.append(revision)
+
+                        with self._jobs_lock:
+                            now = int(time.time() * 1000)
+                            self._jobs[job_id]["revisions"] = list(revisions)
+                            self._jobs[job_id]["lastProgressAtMs"] = now
+                            self._jobs[job_id]["detail"] = (
+                                f"window {index}/{len(windows)} committed · horizon {window.end_seq}"
+                            )
+
                 with self._jobs_lock:
+                    now = int(time.time() * 1000)
                     self._jobs[job_id]["status"] = "completed"
                     self._jobs[job_id]["revisions"] = revisions
-                    self._jobs[job_id]["completedAtMs"] = int(time.time() * 1000)
+                    self._jobs[job_id]["completedAtMs"] = now
+                    self._jobs[job_id]["lastProgressAtMs"] = now
+                    self._jobs[job_id]["detail"] = f"completed {len(revisions)} retrospective horizons"
             except Exception as exc:
                 with self._jobs_lock:
                     self._jobs[job_id]["status"] = "failed"
                     self._jobs[job_id]["error"] = f"{type(exc).__name__}: {exc}"
-                    self._jobs[job_id]["completedAtMs"] = int(time.time() * 1000)
+                    now = int(time.time() * 1000)
+                    self._jobs[job_id]["completedAtMs"] = now
+                    self._jobs[job_id]["lastProgressAtMs"] = now
+                    self._jobs[job_id]["detail"] = "rewrite failed"
 
         threading.Thread(target=run, daemon=True, name=f"eidos-observer-{job_id[-8:]}").start()
         return job_id
