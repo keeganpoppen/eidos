@@ -5,6 +5,7 @@
     outline,
     revisions,
     selectedRevision = '',
+    selectedNodeId = null,
     onSelectNode,
     onSelectRevision,
     onObserve,
@@ -13,36 +14,41 @@
     outline: SemanticRevision | null;
     revisions: SemanticRevision[];
     selectedRevision?: string;
+    selectedNodeId?: string | null;
     onSelectNode: (node: SemanticNode | null) => void;
     onSelectRevision: (revision: string) => void;
     onObserve: (pool: boolean) => void;
     observerBusy?: boolean;
   } = $props();
 
-  let activeNode = $state<string | null>(null);
-
   const nodes = $derived(outline?.nodes ?? []);
   const byId = $derived(new Map(nodes.map((node) => [node.node_id, node])));
 
-  function depth(node: SemanticNode): number {
-    let parent = node.parent_node_id ?? null;
-    let d = 0;
+  const displayNodes = $derived.by(() => {
+    const top = nodes.filter((node) => !node.parent_node_id);
+    return top.length ? top : nodes;
+  });
+
+  function childCount(node: SemanticNode): number {
+    return nodes.filter((candidate) => candidate.parent_node_id === node.node_id).length;
+  }
+
+  function selectedRootId(): string | null {
+    if (!selectedNodeId) return null;
+    let current = byId.get(selectedNodeId);
     const seen = new Set<string>();
-    while (parent && byId.has(parent) && !seen.has(parent) && d < 8) {
-      seen.add(parent);
-      d += 1;
-      parent = byId.get(parent)?.parent_node_id ?? null;
+    while (current?.parent_node_id && byId.has(current.parent_node_id) && !seen.has(current.parent_node_id)) {
+      seen.add(current.parent_node_id);
+      current = byId.get(current.parent_node_id);
     }
-    return d;
+    return current?.node_id ?? selectedNodeId;
   }
 
   function select(node: SemanticNode) {
-    if (activeNode === node.node_id) {
-      activeNode = null;
+    if (selectedNodeId === node.node_id) {
       onSelectNode(null);
       return;
     }
-    activeNode = node.node_id;
     onSelectNode(node);
   }
 </script>
@@ -55,7 +61,7 @@
         <strong>{outline.observer}</strong>
       {/if}
     </div>
-    <button class="tiny" onclick={() => { activeNode = null; onSelectNode(null); }}>ALL</button>
+    <button class="tiny" onclick={() => onSelectNode(null)}>ALL</button>
   </div>
 
   <div class="observer-actions">
@@ -86,17 +92,17 @@
     </div>
 
     <div class="nodes">
-      {#each nodes as node}
+      {#each displayNodes as node}
         <button
-          class:active={activeNode === node.node_id}
+          class:active={selectedRootId() === node.node_id}
           class="semantic-node"
-          style:--depth={depth(node)}
           onclick={() => select(node)}
         >
           <strong>{node.title}</strong>
-          <span>{node.summary}</span>
+          {#if node.summary}<span>{node.summary}</span>{/if}
           <small>
-            {node.support.length} region{node.support.length === 1 ? '' : 's'} · {node.confidence.toFixed(2)}
+            {childCount(node) ? `${childCount(node)} topics · ` : ''}
+            {node.support.length} region{node.support.length === 1 ? '' : 's'}
           </small>
         </button>
       {/each}
