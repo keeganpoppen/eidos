@@ -212,8 +212,16 @@ code, pre, .mono {
 }
 
 .observe:disabled {
-  opacity: .45;
+  opacity: .55;
   cursor: wait;
+}
+
+.observer-progress {
+  border: 2px solid #111;
+  background: #fff7e8;
+  padding: 6px 7px;
+  margin: -2px 0 10px;
+  font: 9px/1.35 "SFMono-Regular", monospace;
 }
 
 .semantic-rail select {
