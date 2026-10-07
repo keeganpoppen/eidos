@@ -60,6 +60,32 @@ def test_thread_payload_projects_live_partial_evidence():
     assert agent["complete"] is False
 
 
+
+def test_empty_reasoning_items_are_not_projected_into_chat():
+    store = TraceStore()
+    thread_id = "reasoning-empty"
+    store.append(
+        source="test",
+        direction="appserver_to_client",
+        message={
+            "method": "item/completed",
+            "params": {
+                "threadId": thread_id,
+                "turnId": "turn-r",
+                "item": {
+                    "id": "reason-r",
+                    "type": "reasoning",
+                    "summary": [],
+                    "content": [],
+                },
+            },
+        },
+    )
+    payload = thread_payload(store, thread_id)
+    assert len(payload["turns"]) == 1
+    assert payload["turns"][0]["items"] == []
+
+
 class DummyHandler:
     def __init__(self, body: dict | None = None) -> None:
         raw = json.dumps(body or {}).encode()
