@@ -429,6 +429,121 @@ def _run_fresh_worker(
         return _extract_structured_message(store, thread_id=thread_id, turn_id=turn_id)
 
 
+def _run_truncated_leaf_worker(
+    *,
+    command: Sequence[str],
+    store: TraceStore,
+    source_thread_id: str,
+    window: SemanticWindow,
+    global_retro: Mapping[str, Any],
+    model: str | None,
+    progress: ProgressCallback,
+    total_windows: int,
+    timeout: float = 150.0,
+) -> dict[str, Any]:
+    """Fork the native source history at the local cutoff, then inject hindsight.
+
+    The worker sees the actual historical prefix as Codex saw it then, while the
+    global retrospective brief supplies ex-post information from the future.
+    Local weighted evidence pins attention to the region being enriched.
+    """
+
+    ordinal = window.index + 1
+    progress(
+        "leaf:start",
+        ordinal,
+        total_windows,
+        f"seq {window.start_seq}..{window.end_seq} · mass {window.semantic_mass:.2f}",
+    )
+    client = AppServerClient(
+        command,
+        trace=store,
+        source="codex-semantic-leaf",
+    )
+    with client:
+        place = CodexPlace("leaf", client).start()
+        cutoff_turn = _latest_completed_turn(
+            store,
+            source_thread_id,
+            window.end_seq,
+        )
+
+        metadata = {
+            "window_index": window.index,
+            "start_seq": window.start_seq,
+            "end_seq": window.end_seq,
+            "semantic_mass": window.semantic_mass,
+            "cutoff_turn_id": cutoff_turn,
+        }
+
+        if cutoff_turn is not None:
+            fork_args: dict[str, Any] = {
+                "lastTurnId": cutoff_turn,
+                "ephemeral": True,
+                "threadSource": "eidos-semantic-leaf",
+                "sandbox": "read-only",
+                "approvalPolicy": "never",
+            }
+            if model is not None:
+                fork_args["model"] = model
+            worker_thread = place.fork_thread(source_thread_id, **fork_args)
+            store.annotate_thread(
+                worker_thread,
+                kind="semantic-leaf",
+                parent_thread_id=source_thread_id,
+                metadata=metadata,
+            )
+            mode = f"forked at {cutoff_turn}"
+        else:
+            worker_thread = _start_worker_thread(
+                place,
+                store,
+                source_thread_id=source_thread_id,
+                stage="leaf",
+                metadata=metadata,
+                model=model,
+            )
+            mode = "fresh worker; no completed cutoff turn"
+
+        progress(
+            "leaf:fork",
+            ordinal,
+            total_windows,
+            f"{mode} · worker {worker_thread[:12]}",
+        )
+        started = client.turn_start_text(
+            worker_thread,
+            _leaf_prompt(store, source_thread_id, window, global_retro),
+            effort=LEAF_REASONING_EFFORT,
+            outputSchema=LEAF_SCHEMA,
+            turnTrigger="eidos-semantic-leaf",
+        )
+        turn = started.get("turn")
+        if not isinstance(turn, Mapping) or not isinstance(turn.get("id"), str):
+            raise ValueError(f"leaf turn/start returned no turn id: {started!r}")
+        turn_id = str(turn["id"])
+        progress(
+            "leaf:turn",
+            ordinal,
+            total_windows,
+            f"turn {turn_id[:12]} started · waiting for structured enrichment",
+        )
+        client.wait_for("turn/completed", thread_id=worker_thread, timeout=timeout)
+        value = _extract_structured_message(
+            store,
+            thread_id=worker_thread,
+            turn_id=turn_id,
+        )
+        progress(
+            "leaf:done",
+            ordinal,
+            total_windows,
+            f"signal {float(value.get('signal', 0.0)):.2f} · "
+            f"{len(value.get('episodes') or [])} episode(s)",
+        )
+        return value
+
+
 def _global_story_scaffold(store: TraceStore, thread_id: str) -> str:
     whole = _full_window(store, thread_id)
     beats = build_story_beats(store, whole)
@@ -513,7 +628,11 @@ Important:
 - Episodes should say what the activity TURNED OUT TO MEAN, not narrate commands.
 - Titles: 3-7 words. Summary: one terse sentence.
 - Support ranges must lie inside {window.start_seq}..{window.end_seq}.
-- Non-contiguous support is allowed.
+- Make support TIGHT. Cite the smallest trace spans that materially establish the
+  episode, especially user/final-assistant beats and decisive execution results.
+  Do not cite the whole window merely because the episode occurred somewhere in it.
+- Prefer multiple small non-contiguous support spans over one huge span when an
+  idea recurs or when only a few moments in the interval actually matter.
 - Do not call tools.
 
 LOCAL WEIGHTED STORY SUBSTRATE:
@@ -662,22 +781,18 @@ class SemanticTreeBuilder:
         global_retro: Mapping[str, Any],
         *,
         model: str | None,
+        progress: ProgressCallback,
+        total_windows: int,
     ) -> tuple[SemanticWindow, dict[str, Any]]:
-        value = _run_fresh_worker(
+        value = _run_truncated_leaf_worker(
             command=self.command,
             store=self.store,
             source_thread_id=thread_id,
-            stage="leaf",
-            metadata={
-                "window_index": window.index,
-                "start_seq": window.start_seq,
-                "end_seq": window.end_seq,
-                "semantic_mass": window.semantic_mass,
-            },
-            prompt=_leaf_prompt(self.store, thread_id, window, global_retro),
-            schema=LEAF_SCHEMA,
+            window=window,
+            global_retro=global_retro,
             model=model,
-            effort=LEAF_REASONING_EFFORT,
+            progress=progress,
+            total_windows=total_windows,
             timeout=150.0,
         )
         return window, value
@@ -883,6 +998,7 @@ class SemanticTreeBuilder:
     ) -> TreeBuildResult:
         progress = progress or (lambda stage, current, total, detail: None)
 
+        progress("plan", 0, 1, "discovering semantic worker models")
         discovery = AppServerClient(
             self.command,
             trace=self.store,
@@ -892,7 +1008,14 @@ class SemanticTreeBuilder:
             CodexPlace("semantic-discovery", discovery).start()
             leaf_model = choose_leaf_model(discovery)
 
-        synthesis_model = os.environ.get("EIDOS_SYNTHESIS_MODEL") or leaf_model
+        synthesis_model = os.environ.get("EIDOS_SYNTHESIS_MODEL")
+        progress(
+            "plan",
+            1,
+            1,
+            f"leaf={leaf_model or 'default'} / {LEAF_REASONING_EFFORT} · "
+            f"synthesis={synthesis_model or 'default'} / {SYNTHESIS_REASONING_EFFORT}",
+        )
         global_retro = self._global_retro(
             thread_id,
             model=synthesis_model,
@@ -900,6 +1023,20 @@ class SemanticTreeBuilder:
         )
 
         windows = plan_semantic_windows(self.store, thread_id)
+        progress(
+            "windows",
+            0,
+            len(windows),
+            f"planned {len(windows)} semantic-mass windows",
+        )
+        for window in windows:
+            progress(
+                "windows",
+                window.index + 1,
+                len(windows),
+                f"seq {window.start_seq}..{window.end_seq} · "
+                f"{window.beat_count} beats · mass {window.semantic_mass:.2f}",
+            )
         progress(
             "enrich",
             0,
@@ -920,6 +1057,8 @@ class SemanticTreeBuilder:
                     window,
                     global_retro,
                     model=leaf_model,
+                    progress=progress,
+                    total_windows=len(windows),
                 ): window
                 for window in windows
             }
@@ -932,8 +1071,8 @@ class SemanticTreeBuilder:
                         "enrich",
                         completed,
                         len(windows),
-                        f"enriched {completed}/{len(windows)} · "
-                        f"window {window.index + 1} signal {float(value.get('signal', 0.0)):.2f}",
+                        f"completed {completed}/{len(windows)} leaf workers · "
+                        f"latest window {window.index + 1}",
                     )
 
         leaves: list[TreeNode] = []
