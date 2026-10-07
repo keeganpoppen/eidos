@@ -143,17 +143,17 @@ Once `codex` is available on the machine where Eidos runs:
 
 ```bash
 # Pull a few existing threads into our own evidence store.
-eidos codex-sync .eidos/traces.db --recent 3
+uv run eidos codex-sync .eidos/traces.db --recent 3
 
 # Render them with our own UI.
-eidos serve .eidos/traces.db
+uv run eidos serve .eidos/traces.db
 # -> http://127.0.0.1:8765
 ```
 
 To record a JSONL client transparently instead:
 
 ```bash
-eidos codex-proxy .eidos/traces.db -- codex app-server --listen stdio://
+uv run eidos codex-proxy .eidos/traces.db -- codex app-server --listen stdio://
 ```
 
 The proxy is transport-level: stdin/stdout semantics stay app-server-native while both directions are persisted.
