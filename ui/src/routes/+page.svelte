@@ -24,6 +24,7 @@
   let sending = $state(false);
   let startingThread = $state(false);
   let observerBusy = $state(false);
+  let observerProgress = $state('');
   let status = $state('');
   let error = $state('');
 
@@ -197,6 +198,7 @@
   async function runObserver() {
     if (!selectedThread || observerBusy) return;
     observerBusy = true;
+    observerProgress = 'planning retrospective windows';
     error = '';
     status = 'rewriting history with hindsight…';
     try {
@@ -208,24 +210,40 @@
         }
       );
 
+      let seenRevisionCount = 0;
       while (true) {
         await new Promise((resolve) => setTimeout(resolve, 900));
         const job = await api<ObserverJob>(`/api/jobs/${encodeURIComponent(started.jobId)}`);
+
+        observerProgress = job.detail || (
+          job.totalWindows
+            ? `window ${job.currentWindow}/${job.totalWindows}`
+            : 'planning retrospective windows'
+        );
+        status = observerProgress;
+
+        if (job.revisions.length > seenRevisionCount) {
+          seenRevisionCount = job.revisions.length;
+          selectedRevision = '';
+          await loadThread();
+          await loadThreads();
+        }
+
         if (job.status === 'completed') {
           status = `retrospective map updated · ${job.revisions.length} horizon${job.revisions.length === 1 ? '' : 's'}`;
-          selectedRevision = '';
           await loadThread();
           await loadThreads();
           break;
         }
         if (job.status === 'failed') {
-          throw new Error(job.error ?? 'semantic observer failed');
+          throw new Error(job.error ?? job.detail ?? 'retrospective rewrite failed');
         }
       }
     } catch (cause) {
       error = cause instanceof Error ? cause.message : String(cause);
     } finally {
       observerBusy = false;
+      observerProgress = '';
     }
   }
 
@@ -292,6 +310,7 @@
     onSelectRevision={selectRevision}
     onObserve={runObserver}
     {observerBusy}
+    {observerProgress}
   />
 
   {#if selectedSemanticNode}
