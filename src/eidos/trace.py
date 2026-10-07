@@ -497,7 +497,11 @@ class TraceStore:
                     JOIN horizon ON r.horizon_seq=horizon.h
                     WHERE r.thread_id=? AND r.lens=?
                     ORDER BY
-                      CASE WHEN r.observer='retrospective' THEN 1 ELSE 0 END DESC,
+                      CASE
+                        WHEN r.observer='retrospective-tree' THEN 2
+                        WHEN r.observer='retrospective' THEN 1
+                        ELSE 0
+                      END DESC,
                       score DESC,
                       r.created_at_ms DESC
                     LIMIT 1
