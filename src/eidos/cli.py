@@ -134,6 +134,7 @@ def main(argv: list[str] | None = None) -> None:
                 f"{result.leaf_episodes} surviving episodes · "
                 f"{result.levels} rollup levels · "
                 f"leaf-model={result.model or 'default'} · "
+                f"synthesis-model={result.synthesis_model or 'default'} · "
                 f"effort={result.leaf_effort}->{result.synthesis_effort}",
                 file=sys.stderr,
                 flush=True,
