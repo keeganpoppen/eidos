@@ -87,6 +87,8 @@ class TraceStore:
     """
 
     def __init__(self, path: str | Path = ":memory:") -> None:
+        if str(path) != ":memory:":
+            Path(path).expanduser().parent.mkdir(parents=True, exist_ok=True)
         self.db = sqlite3.connect(str(path), isolation_level=None, check_same_thread=False)
         self.db.row_factory = sqlite3.Row
         self._lock = threading.RLock()
@@ -113,6 +115,49 @@ class TraceStore:
             CREATE INDEX IF NOT EXISTS trace_turn_seq ON trace_records(turn_id, seq);
             CREATE INDEX IF NOT EXISTS trace_item_seq ON trace_records(item_id, seq);
             CREATE INDEX IF NOT EXISTS trace_rpc ON trace_records(rpc_id, seq);
+
+            CREATE TABLE IF NOT EXISTS semantic_observers(
+              name TEXT PRIMARY KEY,
+              lens TEXT NOT NULL,
+              reliability REAL NOT NULL DEFAULT 1.0,
+              prompt TEXT
+            );
+            CREATE TABLE IF NOT EXISTS semantic_revisions(
+              revision_id TEXT PRIMARY KEY,
+              thread_id TEXT NOT NULL,
+              lens TEXT NOT NULL,
+              observer TEXT NOT NULL,
+              horizon_seq INTEGER NOT NULL,
+              parent_revision TEXT,
+              confidence REAL NOT NULL,
+              created_at_ms INTEGER NOT NULL,
+              note TEXT
+            );
+            CREATE INDEX IF NOT EXISTS semantic_revision_thread
+              ON semantic_revisions(thread_id, lens, horizon_seq);
+            CREATE TABLE IF NOT EXISTS semantic_nodes(
+              revision_id TEXT NOT NULL,
+              node_id TEXT NOT NULL,
+              parent_node_id TEXT,
+              ordinal INTEGER NOT NULL,
+              title TEXT NOT NULL,
+              summary TEXT NOT NULL,
+              confidence REAL NOT NULL,
+              PRIMARY KEY(revision_id, node_id),
+              FOREIGN KEY(revision_id) REFERENCES semantic_revisions(revision_id)
+            );
+            CREATE TABLE IF NOT EXISTS semantic_support(
+              revision_id TEXT NOT NULL,
+              node_id TEXT NOT NULL,
+              ordinal INTEGER NOT NULL,
+              start_seq INTEGER NOT NULL,
+              end_seq INTEGER NOT NULL,
+              weight REAL NOT NULL,
+              label TEXT,
+              PRIMARY KEY(revision_id, node_id, ordinal),
+              FOREIGN KEY(revision_id, node_id)
+                REFERENCES semantic_nodes(revision_id, node_id)
+            );
             """
         )
 
@@ -237,6 +282,218 @@ class TraceStore:
                     """
                 ).fetchall()
             ]
+
+    def register_semantic_observer(
+        self,
+        *,
+        name: str,
+        lens: str,
+        reliability: float = 1.0,
+        prompt: str | None = None,
+    ) -> None:
+        with self._lock:
+            self.db.execute(
+                """
+                INSERT INTO semantic_observers(name,lens,reliability,prompt)
+                VALUES (?,?,?,?)
+                ON CONFLICT(name) DO UPDATE SET
+                  lens=excluded.lens,
+                  reliability=excluded.reliability,
+                  prompt=excluded.prompt
+                """,
+                (name, lens, float(reliability), prompt),
+            )
+
+    def put_semantic_revision(
+        self,
+        *,
+        thread_id: str,
+        lens: str,
+        observer: str,
+        horizon_seq: int,
+        nodes: Iterable[Mapping[str, Any]],
+        confidence: float = 1.0,
+        parent_revision: str | None = None,
+        note: str | None = None,
+        revision_id: str | None = None,
+        created_at_ms: int | None = None,
+    ) -> str:
+        """Persist one immutable semantic interpretation of a thread.
+
+        A revision is a proposal, not truth. Several observers may publish
+        competing or overlapping revisions for the same lens and horizon.
+        Support is represented as one or more trace ranges per node, so a
+        semantic node may be non-contiguous in the native transcript.
+        """
+
+        import uuid
+
+        revision_id = revision_id or f"sem_{uuid.uuid4().hex}"
+        created = int(created_at_ms if created_at_ms is not None else time.time() * 1000)
+        node_values = [dict(node) for node in nodes]
+        with self._lock:
+            self.db.execute("BEGIN IMMEDIATE")
+            try:
+                self.db.execute(
+                    """
+                    INSERT INTO semantic_revisions(
+                      revision_id,thread_id,lens,observer,horizon_seq,parent_revision,
+                      confidence,created_at_ms,note
+                    ) VALUES (?,?,?,?,?,?,?,?,?)
+                    """,
+                    (
+                        revision_id,
+                        thread_id,
+                        lens,
+                        observer,
+                        int(horizon_seq),
+                        parent_revision,
+                        float(confidence),
+                        created,
+                        note,
+                    ),
+                )
+                for ordinal, node in enumerate(node_values):
+                    node_id = str(node.get("id") or f"node-{ordinal}")
+                    self.db.execute(
+                        """
+                        INSERT INTO semantic_nodes(
+                          revision_id,node_id,parent_node_id,ordinal,title,summary,confidence
+                        ) VALUES (?,?,?,?,?,?,?)
+                        """,
+                        (
+                            revision_id,
+                            node_id,
+                            node.get("parent"),
+                            int(node.get("ordinal", ordinal)),
+                            str(node.get("title") or "Untitled"),
+                            str(node.get("summary") or ""),
+                            float(node.get("confidence", 1.0)),
+                        ),
+                    )
+                    for support_ordinal, span in enumerate(node.get("support") or []):
+                        start = int(span["start"])
+                        end = int(span.get("end", start))
+                        if start > end:
+                            raise ValueError(f"semantic support starts after it ends: {start}>{end}")
+                        self.db.execute(
+                            """
+                            INSERT INTO semantic_support(
+                              revision_id,node_id,ordinal,start_seq,end_seq,weight,label
+                            ) VALUES (?,?,?,?,?,?,?)
+                            """,
+                            (
+                                revision_id,
+                                node_id,
+                                support_ordinal,
+                                start,
+                                end,
+                                float(span.get("weight", 1.0)),
+                                span.get("label"),
+                            ),
+                        )
+                self.db.execute("COMMIT")
+            except Exception:
+                self.db.execute("ROLLBACK")
+                raise
+        return revision_id
+
+    def semantic_revisions(
+        self,
+        thread_id: str,
+        *,
+        lens: str | None = None,
+    ) -> list[dict[str, Any]]:
+        with self._lock:
+            sql = """
+                SELECT r.*, COALESCE(o.reliability,1.0) AS reliability,
+                       r.confidence * COALESCE(o.reliability,1.0) AS score
+                FROM semantic_revisions r
+                LEFT JOIN semantic_observers o ON o.name=r.observer
+                WHERE r.thread_id=?
+            """
+            args: list[Any] = [thread_id]
+            if lens is not None:
+                sql += " AND r.lens=?"
+                args.append(lens)
+            sql += " ORDER BY r.horizon_seq DESC, r.created_at_ms DESC"
+            return [dict(row) for row in self.db.execute(sql, args).fetchall()]
+
+    def semantic_outline(
+        self,
+        thread_id: str,
+        *,
+        lens: str = "thread",
+        revision_id: str | None = None,
+    ) -> dict[str, Any] | None:
+        """Return one selected semantic revision plus its nodes/support.
+
+        Selection is intentionally simple in v0: among revisions at the most
+        recent horizon, prefer the observer confidence weighted by its current
+        reliability prior. All alternatives remain queryable.
+        """
+
+        with self._lock:
+            if revision_id is None:
+                row = self.db.execute(
+                    """
+                    WITH horizon AS (
+                      SELECT MAX(horizon_seq) AS h
+                      FROM semantic_revisions
+                      WHERE thread_id=? AND lens=?
+                    )
+                    SELECT r.*, COALESCE(o.reliability,1.0) AS reliability,
+                           r.confidence * COALESCE(o.reliability,1.0) AS score
+                    FROM semantic_revisions r
+                    LEFT JOIN semantic_observers o ON o.name=r.observer
+                    JOIN horizon ON r.horizon_seq=horizon.h
+                    WHERE r.thread_id=? AND r.lens=?
+                    ORDER BY score DESC, r.created_at_ms DESC
+                    LIMIT 1
+                    """,
+                    (thread_id, lens, thread_id, lens),
+                ).fetchone()
+            else:
+                row = self.db.execute(
+                    """
+                    SELECT r.*, COALESCE(o.reliability,1.0) AS reliability,
+                           r.confidence * COALESCE(o.reliability,1.0) AS score
+                    FROM semantic_revisions r
+                    LEFT JOIN semantic_observers o ON o.name=r.observer
+                    WHERE r.revision_id=? AND r.thread_id=?
+                    """,
+                    (revision_id, thread_id),
+                ).fetchone()
+            if row is None:
+                return None
+            revision = dict(row)
+            nodes = []
+            node_rows = self.db.execute(
+                "SELECT * FROM semantic_nodes WHERE revision_id=? ORDER BY ordinal,node_id",
+                (revision["revision_id"],),
+            ).fetchall()
+            for node_row in node_rows:
+                node = dict(node_row)
+                supports = [
+                    {
+                        "start": support["start_seq"],
+                        "end": support["end_seq"],
+                        "weight": support["weight"],
+                        "label": support["label"],
+                    }
+                    for support in self.db.execute(
+                        """
+                        SELECT * FROM semantic_support
+                        WHERE revision_id=? AND node_id=?
+                        ORDER BY ordinal
+                        """,
+                        (revision["revision_id"], node["node_id"]),
+                    ).fetchall()
+                ]
+                node["support"] = supports
+                nodes.append(node)
+            revision["nodes"] = nodes
+            return revision
 
     def import_jsonl(
         self,
