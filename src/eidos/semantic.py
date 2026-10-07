@@ -27,6 +27,38 @@ class ObserverSpec:
     timeout: float = 120.0
 
 
+OBSERVER_PRESETS: dict[str, tuple[str, float]] = {
+    "cartographer": (
+        "Build a navigational semantic map of the important episodes, recurring threads, "
+        "and conceptual developments. Prefer what became important over turn-by-turn narration.",
+        1.0,
+    ),
+    "consequence": (
+        "Track what materially changed across the history: ideas that survived, conclusions that "
+        "altered later work, new constraints, commitments, abandoned paths, and consequences. "
+        "Organize them as natural semantic episodes rather than fixed categories.",
+        1.0,
+    ),
+    "skeptic": (
+        "Look for misleading boundaries, premature interpretations, unresolved branches, later "
+        "evidence that changes the meaning of earlier work, and important recurrences across "
+        "non-contiguous regions. Produce a navigational map, not a critique report.",
+        0.85,
+    ),
+}
+
+
+def observer_preset(name: str, *, effort: str = "low", lens: str = "thread") -> ObserverSpec:
+    angle, reliability = OBSERVER_PRESETS[name]
+    return ObserverSpec(
+        name=name,
+        angle=angle,
+        lens=lens,
+        reliability=reliability,
+        effort=effort,
+    )
+
+
 OUTLINE_SCHEMA: dict[str, Any] = {
     "type": "object",
     "additionalProperties": False,
