@@ -47,13 +47,12 @@ def main(argv: list[str] | None = None) -> None:
     p_proxy.add_argument("db")
     p_proxy.add_argument("child", nargs=argparse.REMAINDER)
 
-    p_observe = sub.add_parser("codex-observe", help="run an ephemeral semantic observer over a persisted thread")
+    p_observe = sub.add_parser(
+        "codex-observe",
+        help="build a hindsight-first semantic tree over a persisted thread",
+    )
     p_observe.add_argument("db")
     p_observe.add_argument("thread_id")
-    p_observe.add_argument("--effort", default="low")
-    p_observe.add_argument("--target-records", type=int, default=220)
-    p_observe.add_argument("--overlap-records", type=int, default=32)
-    p_observe.add_argument("--max-windows", type=int, default=4, help="0 means all candidate windows")
     p_observe.add_argument("--codex", default="codex")
 
     args = parser.parse_args(argv)
