@@ -374,21 +374,26 @@ class CodexShadowObserver:
             thread_id=fork_thread,
             timeout=spec.timeout,
         )
-        page = self.place.client.thread_items_list(
-            fork_thread,
-            turn_id=turn_id,
-            limit=200,
-            sort_direction="asc",
-        )
-        messages = []
-        for entry in page.get("data") or []:
-            if not isinstance(entry, Mapping):
+
+        # Do not re-read the observer turn through thread/items/list. Some local
+        # app-server/history modes intentionally do not support that RPC, and we
+        # already own the authoritative live evidence: item/completed was traced
+        # before turn/completed. Read the observer result from TraceStore.
+        messages: list[Mapping[str, Any]] = []
+        for record in self.store.records(thread_id=fork_thread):
+            if record.turn_id != turn_id or record.method != "item/completed":
                 continue
-            item = entry.get("item")
+            params = record.message.get("params")
+            if not isinstance(params, Mapping):
+                continue
+            item = params.get("item")
             if isinstance(item, Mapping) and item.get("type") == "agentMessage":
                 messages.append(item)
         if not messages:
-            raise ValueError("shadow observer produced no agentMessage")
+            raise ValueError(
+                "shadow observer completed without a traced agentMessage; "
+                "inspect the internal observer thread evidence"
+            )
         final = next(
             (item for item in reversed(messages) if item.get("phase") == "final"),
             messages[-1],
