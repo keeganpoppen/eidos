@@ -230,7 +230,7 @@
         }
 
         if (job.status === 'completed') {
-          status = `retrospective map updated · ${job.revisions.length} horizon${job.revisions.length === 1 ? '' : 's'}`;
+          status = job.detail || 'retrospective semantic tree updated';
           await loadThread();
           await loadThreads();
           break;
