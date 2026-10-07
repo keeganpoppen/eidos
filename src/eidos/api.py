@@ -11,12 +11,7 @@ from typing import Any, Mapping, Sequence
 from urllib.parse import unquote
 
 from .codex import AppServerClient, CodexPlace
-from .semantic import (
-    CodexShadowObserver,
-    choose_leaf_model,
-    observer_preset,
-    plan_candidate_windows,
-)
+from .semantic_tree import SemanticTreeBuilder
 from .trace import TraceStore
 from .view import ItemView, project_thread
 
@@ -361,6 +356,9 @@ class EidosAPI:
         max_windows: int,
         effort: str,
     ) -> str:
+        # max_windows/effort are retained in the API shape for compatibility.
+        # The tree builder owns its own deliberately asymmetric effort policy:
+        # low leaf enrichment, medium synthesis.
         job_id = f"job_{uuid.uuid4().hex}"
         with self._jobs_lock:
             now = int(time.time() * 1000)
@@ -372,15 +370,31 @@ class EidosAPI:
                 "startedAtMs": None,
                 "completedAtMs": None,
                 "lastProgressAtMs": now,
+                "phase": "queued",
+                "current": 0,
+                "total": 0,
                 "currentWindow": 0,
                 "totalWindows": 0,
                 "horizonSeq": None,
-                "detail": "planning retrospective windows",
+                "detail": "queued retrospective tree build",
                 "model": None,
-                "effort": effort,
+                "effort": "low→medium",
                 "revisions": [],
                 "error": None,
             }
+
+        def update_progress(stage: str, current: int, total: int, detail: str) -> None:
+            with self._jobs_lock:
+                now = int(time.time() * 1000)
+                job = self._jobs[job_id]
+                job["phase"] = stage
+                job["current"] = int(current)
+                job["total"] = int(total)
+                # Backwards-compatible fields consumed by the current UI type.
+                job["currentWindow"] = int(current)
+                job["totalWindows"] = int(total)
+                job["lastProgressAtMs"] = now
+                job["detail"] = detail
 
         def run() -> None:
             with self._jobs_lock:
@@ -388,81 +402,46 @@ class EidosAPI:
                 self._jobs[job_id]["status"] = "running"
                 self._jobs[job_id]["startedAtMs"] = now
                 self._jobs[job_id]["lastProgressAtMs"] = now
-                self._jobs[job_id]["detail"] = "planning retrospective windows"
-            client: AppServerClient | None = None
+                self._jobs[job_id]["detail"] = "starting hindsight-first semantic tree"
+
             try:
-                windows = plan_candidate_windows(
+                builder = SemanticTreeBuilder(
                     self.store,
-                    thread_id,
-                    max_windows=None if max_windows == 0 else max_windows,
+                    command=[self.codex, "app-server", "--listen", "stdio://"],
                 )
-                if not windows:
-                    raise ValueError("thread has no persisted Eidos evidence")
+                result = builder.build(thread_id, progress=update_progress)
                 with self._jobs_lock:
                     now = int(time.time() * 1000)
-                    self._jobs[job_id]["totalWindows"] = len(windows)
-                    self._jobs[job_id]["lastProgressAtMs"] = now
-                    self._jobs[job_id]["detail"] = f"ready to rewrite {len(windows)} windows"
-
-                client = AppServerClient(
-                    [self.codex, "app-server", "--listen", "stdio://"],
-                    trace=self.store,
-                    source="codex-observer",
-                )
-                revisions: list[str] = []
-                with client:
-                    place = CodexPlace("observer", client).start()
-                    observer = CodexShadowObserver(place, self.store)
-                    summary_model = choose_leaf_model(client)
-                    spec = observer_preset(
-                        "retrospective",
-                        effort=effort,
-                        model=summary_model,
+                    job = self._jobs[job_id]
+                    job["status"] = "completed"
+                    job["phase"] = "completed"
+                    job["revisions"] = [result.revision_id]
+                    job["model"] = result.model or "default/inherited"
+                    job["effort"] = (
+                        f"{result.leaf_effort} leaves → "
+                        f"{result.synthesis_effort} synthesis"
                     )
-                    with self._jobs_lock:
-                        self._jobs[job_id]["model"] = summary_model or "inherited"
-                        self._jobs[job_id]["effort"] = effort
-                    for index, window in enumerate(windows, start=1):
-                        with self._jobs_lock:
-                            now = int(time.time() * 1000)
-                            self._jobs[job_id]["currentWindow"] = index
-                            self._jobs[job_id]["horizonSeq"] = window.end_seq
-                            self._jobs[job_id]["lastProgressAtMs"] = now
-                            self._jobs[job_id]["detail"] = (
-                                f"window {index}/{len(windows)} · horizon {window.end_seq} · "
-                                f"{summary_model or 'inherited model'} / {effort} · waiting on Codex"
-                            )
-
-                        revision = observer.observe_window(
-                            source_thread_id=thread_id,
-                            window=window,
-                            spec=spec,
-                        )
-                        revisions.append(revision)
-
-                        with self._jobs_lock:
-                            now = int(time.time() * 1000)
-                            self._jobs[job_id]["revisions"] = list(revisions)
-                            self._jobs[job_id]["lastProgressAtMs"] = now
-                            self._jobs[job_id]["detail"] = (
-                                f"window {index}/{len(windows)} committed · horizon {window.end_seq}"
-                            )
-
-                with self._jobs_lock:
-                    now = int(time.time() * 1000)
-                    self._jobs[job_id]["status"] = "completed"
-                    self._jobs[job_id]["revisions"] = revisions
-                    self._jobs[job_id]["completedAtMs"] = now
-                    self._jobs[job_id]["lastProgressAtMs"] = now
-                    self._jobs[job_id]["detail"] = f"completed {len(revisions)} retrospective horizons"
+                    job["completedAtMs"] = now
+                    job["lastProgressAtMs"] = now
+                    job["detail"] = (
+                        f"tree committed · {result.leaf_windows} windows · "
+                        f"{result.leaf_episodes} surviving episodes · "
+                        f"{result.levels} rollup levels"
+                    )
             except Exception as exc:
                 with self._jobs_lock:
-                    self._jobs[job_id]["status"] = "failed"
-                    self._jobs[job_id]["error"] = f"{type(exc).__name__}: {exc}"
                     now = int(time.time() * 1000)
-                    self._jobs[job_id]["completedAtMs"] = now
-                    self._jobs[job_id]["lastProgressAtMs"] = now
-                    self._jobs[job_id]["detail"] = "rewrite failed"
+                    job = self._jobs[job_id]
+                    job["status"] = "failed"
+                    job["phase"] = "failed"
+                    job["error"] = f"{type(exc).__name__}: {exc}"
+                    job["completedAtMs"] = now
+                    job["lastProgressAtMs"] = now
+                    job["detail"] = "retrospective tree build failed"
 
-        threading.Thread(target=run, daemon=True, name=f"eidos-observer-{job_id[-8:]}").start()
+        threading.Thread(
+            target=run,
+            daemon=True,
+            name=f"eidos-semantic-tree-{job_id[-8:]}",
+        ).start()
         return job_id
