@@ -48,8 +48,13 @@
       <p>{node.summary}</p>
     {/if}
     <small>
-      {node.support.length} support region{node.support.length === 1 ? '' : 's'}
-      · {items.length} matching item{items.length === 1 ? '' : 's'}
+      {#if directChildren.length}
+        {directChildren.length} child topic{directChildren.length === 1 ? '' : 's'}
+        · {node.support.length} descendant support region{node.support.length === 1 ? '' : 's'}
+      {:else}
+        {node.support.length} support region{node.support.length === 1 ? '' : 's'}
+        · {items.length} matching item{items.length === 1 ? '' : 's'}
+      {/if}
     </small>
   </div>
 
@@ -69,16 +74,24 @@
   {/if}
 
   <section class="focus-evidence">
-    <span class="eyebrow">matching evidence</span>
-    {#if items.length}
-      {#each items as item (item.id)}
-        <div class="focus-item-wrap">
-          <button class="jump-button" onclick={() => onJump(item)}>JUMP ↗</button>
-          <ThreadItemCard {item} compact />
-        </div>
-      {/each}
+    {#if directChildren.length}
+      <span class="eyebrow">evidence</span>
+      <div class="empty-focus">
+        This is an aggregate node. Pick a child topic above to narrow the lens;
+        raw transcript matching begins at leaf nodes.
+      </div>
     {:else}
-      <div class="empty-focus">No projected item overlaps this support yet.</div>
+      <span class="eyebrow">matching evidence</span>
+      {#if items.length}
+        {#each items as item (item.id)}
+          <div class="focus-item-wrap">
+            <button class="jump-button" onclick={() => onJump(item)}>JUMP ↗</button>
+            <ThreadItemCard {item} compact />
+          </div>
+        {/each}
+      {:else}
+        <div class="empty-focus">No projected item overlaps this tight support yet.</div>
+      {/if}
     {/if}
   </section>
 </aside>
