@@ -179,11 +179,6 @@ for line in sys.stdin:
         print(json.dumps({"jsonrpc":"2.0","id":ident,"result":{"thread":{"id":"observer-thread"}}}), flush=True)
     elif method == "turn/start":
         print(json.dumps({"jsonrpc":"2.0","id":ident,"result":{"turn":{"id":"observer-turn"}}}), flush=True)
-        print(json.dumps({
-          "jsonrpc":"2.0","method":"turn/completed",
-          "params":{"threadId":"observer-thread","turn":{"id":"observer-turn","status":"completed"}}
-        }), flush=True)
-    elif method == "thread/items/list":
         proposal={
           "confidence":0.93,
           "note":"",
@@ -195,10 +190,18 @@ for line in sys.stdin:
             "support":[{"start":1,"end":3,"weight":1.0,"label":None}]
           }]
         }
-        print(json.dumps({"jsonrpc":"2.0","id":ident,"result":{"data":[{
-          "turnId":"observer-turn",
-          "item":{"id":"observer-message","type":"agentMessage","phase":"final","text":json.dumps(proposal)}
-        }],"nextCursor":None,"backwardsCursor":None}}), flush=True)
+        print(json.dumps({
+          "jsonrpc":"2.0","method":"item/completed",
+          "params":{
+            "threadId":"observer-thread",
+            "turnId":"observer-turn",
+            "item":{"id":"observer-message","type":"agentMessage","phase":"final","text":json.dumps(proposal)}
+          }
+        }), flush=True)
+        print(json.dumps({
+          "jsonrpc":"2.0","method":"turn/completed",
+          "params":{"threadId":"observer-thread","turn":{"id":"observer-turn","status":"completed"}}
+        }), flush=True)
 """
 
 
