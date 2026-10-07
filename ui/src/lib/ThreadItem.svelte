@@ -17,6 +17,7 @@
   let showFullOutput = $state(false);
   let showFullText = $state(false);
   let showFullRaw = $state(false);
+  let inspectOpen = $state(item.type === 'plan');
 
   const textContent = $derived(
     Array.isArray(item.content)
@@ -127,7 +128,7 @@
       {/each}
     </ul>
   {:else}
-    <details open={item.type === 'plan'}>
+    <details bind:open={inspectOpen}>
       <summary>
         {item.type === 'plan'
           ? 'plan'
