@@ -41,6 +41,10 @@ code, pre, .mono {
   min-height: 100vh;
 }
 
+.shell.focus-mode {
+  grid-template-columns: 180px 270px minmax(320px, .82fr) minmax(420px, 1.18fr);
+}
+
 .thread-rail,
 .semantic-rail {
   height: 100vh;
@@ -259,6 +263,10 @@ code, pre, .mono {
   line-height: 1.35;
   margin-top: 4px;
   opacity: .78;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .semantic-node small {
@@ -281,6 +289,115 @@ code, pre, .mono {
 .workspace {
   min-width: 0;
   padding: 20px 24px 145px;
+}
+
+.focus-pane {
+  height: 100vh;
+  position: sticky;
+  top: 0;
+  overflow: auto;
+  border-right: 3px solid #111;
+  background: #fff7e8;
+  padding: 14px;
+}
+
+.focus-head {
+  border: 3px solid #111;
+  background: #ffd95a;
+  box-shadow: 5px 5px 0 #111;
+  padding: 12px;
+  margin-bottom: 15px;
+}
+
+.focus-head h2 {
+  margin: 4px 0 8px;
+  font-size: 18px;
+  line-height: 1.05;
+  letter-spacing: -.035em;
+}
+
+.focus-head p {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.focus-head small {
+  display: block;
+  margin-top: 9px;
+  font: 9px "SFMono-Regular", monospace;
+  opacity: .6;
+}
+
+.focus-outline,
+.focus-evidence {
+  margin-top: 14px;
+}
+
+.focus-topics {
+  display: grid;
+  gap: 6px;
+}
+
+.focus-topics button {
+  border: 3px solid #111;
+  background: #d7ff4f;
+  box-shadow: 3px 3px 0 #111;
+  padding: 8px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.focus-topics button:hover {
+  transform: translate(1px, 1px);
+  box-shadow: 2px 2px 0 #111;
+}
+
+.focus-topics strong,
+.focus-topics span,
+.focus-topics small {
+  display: block;
+}
+
+.focus-topics strong {
+  font-size: 11px;
+  line-height: 1.2;
+}
+
+.focus-topics span {
+  margin-top: 3px;
+  font-size: 10px;
+  line-height: 1.35;
+  opacity: .72;
+}
+
+.focus-topics small {
+  margin-top: 5px;
+  font: 8px "SFMono-Regular", monospace;
+  opacity: .55;
+}
+
+.focus-item-wrap {
+  position: relative;
+  margin-top: 11px;
+}
+
+.jump-button {
+  position: relative;
+  z-index: 1;
+  margin: 0 0 -3px 8px;
+  border: 2px solid #111;
+  background: #ff675f;
+  padding: 3px 6px;
+  font: 8px "SFMono-Regular", monospace;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.empty-focus {
+  border: 3px dashed #111;
+  padding: 10px;
+  font-size: 11px;
 }
 
 .thread-header {
@@ -335,6 +452,22 @@ code, pre, .mono {
   padding: 13px 15px;
   margin: 0 0 13px;
   overflow: hidden;
+}
+
+.item-card.compact {
+  box-shadow: 3px 3px 0 #111;
+  padding: 9px 10px;
+  margin-bottom: 9px;
+}
+
+.item-card.compact .markdown {
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.item-card.compact pre {
+  max-height: 260px;
+  overflow: auto;
 }
 
 .item-card.user {
@@ -450,6 +583,22 @@ code, pre, .mono {
   margin-bottom: 8px;
 }
 
+.inline-control {
+  border: 2px solid #111;
+  background: #fff;
+  box-shadow: 2px 2px 0 #111;
+  padding: 4px 7px;
+  margin: 0 0 9px;
+  font: 8px "SFMono-Regular", monospace;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.inline-control:hover {
+  transform: translate(1px, 1px);
+  box-shadow: 1px 1px 0 #111;
+}
+
 .item-card footer {
   display: flex;
   gap: 12px;
@@ -541,13 +690,16 @@ code, pre, .mono {
 }
 
 @media (max-width: 1050px) {
-  .shell {
+  .shell,
+  .shell.focus-mode {
     grid-template-columns: 220px minmax(0,1fr);
   }
-  .semantic-rail {
+  .semantic-rail,
+  .focus-pane {
     display: none;
   }
-  .composer {
+  .composer,
+  .shell.focus-mode + .composer {
     left: 220px;
   }
 }
@@ -567,4 +719,9 @@ code, pre, .mono {
   .composer {
     left: 0;
   }
+}
+
+
+.shell.focus-mode + .composer {
+  left: 450px;
 }
