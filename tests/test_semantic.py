@@ -6,6 +6,8 @@ from eidos.semantic import (
     CandidateWindow,
     CodexShadowObserver,
     ObserverSpec,
+    build_story_beats,
+    format_story_window,
     plan_candidate_windows,
 )
 from eidos.trace import TraceStore
@@ -101,6 +103,81 @@ def test_semantic_revisions_preserve_competing_noncontiguous_maps():
     html = render_thread_html(store, "thread-main")
     assert "Returned to the same issue" in html
     assert "[[1,1],[3,3]]" in html
+
+
+
+def test_story_substrate_foregrounds_dialogue_and_collapses_execution_churn():
+    store = TraceStore()
+    thread_id = "story-thread"
+    turn_id = "turn-story"
+
+    store.append(
+        source="seed",
+        direction="internal",
+        message={
+            "method": "item/completed",
+            "params": {
+                "threadId": thread_id,
+                "turnId": turn_id,
+                "item": {
+                    "id": "user-story",
+                    "type": "userMessage",
+                    "content": [{"type": "text", "text": "Why is the cache invalidation wrong?"}],
+                },
+            },
+        },
+    )
+    for index in range(8):
+        store.append(
+            source="seed",
+            direction="internal",
+            message={
+                "method": "item/completed",
+                "params": {
+                    "threadId": thread_id,
+                    "turnId": turn_id,
+                    "item": {
+                        "id": f"cmd-{index}",
+                        "type": "commandExecution",
+                        "command": f"rg pattern-{index} src/",
+                        "aggregatedOutput": f"ordinary search output {index}",
+                        "status": "completed",
+                    },
+                },
+            },
+        )
+    store.append(
+        source="seed",
+        direction="internal",
+        message={
+            "method": "item/completed",
+            "params": {
+                "threadId": thread_id,
+                "turnId": turn_id,
+                "item": {
+                    "id": "assistant-story",
+                    "type": "agentMessage",
+                    "phase": "final",
+                    "text": "The invalidation key omitted the namespace, so unrelated entries collided.",
+                },
+            },
+        },
+    )
+
+    records = store.records(thread_id=thread_id)
+    window = CandidateWindow(thread_id, records[0].seq, records[-1].seq, len(records))
+    beats = build_story_beats(store, window)
+
+    assert [beat.kind for beat in beats] == ["user", "execution-support", "assistant-final"]
+    assert beats[0].importance == 1.0
+    assert beats[1].importance < beats[2].importance
+    assert "8 execution items" in beats[1].text
+
+    rendered = format_story_window(store, window)
+    assert "SPINE · USER" in rendered
+    assert "SPINE · ASSISTANT FINAL" in rendered
+    assert rendered.count("EXECUTION SUPPORT") == 1
+    assert "item/completed" not in rendered
 
 
 def test_candidate_windows_are_plumbing_not_turn_boundaries():
