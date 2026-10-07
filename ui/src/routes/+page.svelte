@@ -31,8 +31,15 @@
   let threadPoll: ReturnType<typeof setInterval> | undefined;
   let listPoll: ReturnType<typeof setInterval> | undefined;
 
+  function hasSemanticChildren(node: SemanticNode | null): boolean {
+    if (!node || !thread?.outline?.nodes) return false;
+    return thread.outline.nodes.some(
+      (candidate) => candidate.parent_node_id === node.node_id
+    );
+  }
+
   const focusedItems = $derived(
-    thread && selectedSemanticNode
+    thread && selectedSemanticNode && !hasSemanticChildren(selectedSemanticNode)
       ? thread.turns
           .flatMap((turn) => turn.items)
           .filter((item) =>
@@ -164,12 +171,15 @@
 
   function selectSemanticNode(node: SemanticNode | null) {
     selectedSemanticNode = node;
-    focusSpans = node?.support ?? [];
+
+    // Aggregate tree nodes are navigation, not giant raw-trace selections.
+    // Only leaves project their tight support back onto transcript items.
+    focusSpans = node && !hasSemanticChildren(node) ? node.support : [];
     if (!focusSpans.length) return;
 
     requestAnimationFrame(() => {
       const regions = [
-        ...document.querySelectorAll<HTMLElement>('[data-start][data-end]')
+        ...document.querySelectorAll<HTMLElement>('.workspace [data-start][data-end]')
       ];
       const first = regions.find((element) => {
         const start = Number(element.dataset.start ?? 0);
