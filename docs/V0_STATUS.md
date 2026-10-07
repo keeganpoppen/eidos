@@ -105,12 +105,7 @@ Eidos does **not** claim these observations expose every intermediate Codex cont
 
 Future traffic can be recorded by `AppServerClient` or the transparent JSONL proxy.
 
-Persisted old threads can be hydrated with the current paginated app-server APIs:
-
-```text
-thread/turns/list
-thread/items/list
-```
+Persisted old threads can be hydrated from app-server history. Eidos prefers the paginated history APIs when the local thread/history mode supports them, but does not assume every local app-server build implements every history RPC. Live traced evidence is the stronger substrate when available.
 
 The native RPC request/response records are kept. The history importer additionally emits explicitly derived `$history/turn` and `$history/item` records so the same renderer can consume live observations and imported history.
 
@@ -160,13 +155,16 @@ uv run eidos codex-proxy .eidos/traces.db -- codex app-server --listen stdio://
 
 The proxy is transport-level: stdin/stdout semantics stay app-server-native while both directions are persisted.
 
-## Shadow semantic observers
+## Retrospective semantic rewriting
 
-`codex-observe` uses `thread/fork` with a completed `lastTurnId`, `ephemeral=true`, a read-only sandbox, and structured output. The fork inherits native Codex history through that horizon; Eidos also supplies a sequence-numbered evidence window plus the observer's previous semantic map.
+`codex-observe` uses `thread/fork` with a completed `lastTurnId`, `ephemeral=true`, a read-only sandbox, and structured output. The fork inherits native Codex history through that horizon.
 
-The structural window planner is intentionally **plumbing, not authorship**. It proposes overlapping windows near useful native boundaries. The observer is responsible for semantic chunking and may produce nodes that cross windows or point back to non-contiguous earlier ranges.
+The structural window planner is **plumbing, not authorship**. Before the model sees the local window, Eidos turns raw records into a weighted story substrate: dialogue/final answers are foregrounded, routine tool churn is collapsed, and only salient execution outcomes survive as compact support.
 
-Each observer publishes immutable revisions. Different angles can coexist; current selection is only a presentation policy.
+The model then rewrites the semantic map from the endpoint: what turned out to matter, what became a dead end, what earlier material meant in light of later evidence. Maps are normally two-level trees, and importance is expected to sharpen upward.
+
+Each horizon publishes an immutable revision. Older revisions remain inspectable; hindsight changes interpretation, not evidence.
+
 
 ## Things v0 explicitly does not solve yet
 
@@ -178,7 +176,7 @@ Each observer publishes immutable revisions. Different angles can coexist; curre
 - cross-host Trusted Machinery / consensus;
 - Codex Place migration and reconciliation of outcome-unknown effects;
 - persistent tabs/splits/compositor state;
-- mature observer ensembles / node-level reconciliation across competing semantic maps;
+- recursive summary trees above the current two-level map;
 - long-running trace auditors that proactively suggest experiments or reinterpret old material;
 - actual terminal/process multiplexing outside the Codex events we already observe.
 
