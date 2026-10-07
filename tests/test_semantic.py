@@ -11,7 +11,13 @@ from eidos.semantic import (
     format_story_window,
     plan_candidate_windows,
 )
-from eidos.semantic_tree import TreeNode, pack_nodes_by_mass, plan_semantic_windows
+from eidos.semantic_tree import (
+    SemanticWindow,
+    TreeNode,
+    _run_truncated_leaf_worker,
+    pack_nodes_by_mass,
+    plan_semantic_windows,
+)
 from eidos.trace import TraceStore
 from eidos.view import render_thread_html
 
@@ -237,6 +243,123 @@ def test_story_substrate_foregrounds_dialogue_and_collapses_execution_churn():
     assert rendered.count("EXECUTION SUPPORT") == 1
     assert "item/completed" not in rendered
 
+
+
+
+FAKE_TRUNCATED_LEAF = r"""
+import json, sys
+for line in sys.stdin:
+    msg=json.loads(line)
+    method=msg.get("method")
+    ident=msg.get("id")
+    if method == "initialize":
+        print(json.dumps({"jsonrpc":"2.0","id":ident,"result":{}}), flush=True)
+    elif method == "initialized":
+        pass
+    elif method == "thread/fork":
+        print(json.dumps({
+          "jsonrpc":"2.0","id":ident,
+          "result":{"thread":{"id":"leaf-thread"}}
+        }), flush=True)
+    elif method == "turn/start":
+        print(json.dumps({
+          "jsonrpc":"2.0","id":ident,
+          "result":{"turn":{"id":"leaf-turn"}}
+        }), flush=True)
+        proposal={
+          "signal":0.8,
+          "assessment":"This region mattered.",
+          "episodes":[{
+            "id":"ep",
+            "title":"Bug becomes boundary",
+            "summary":"The failure exposed the real boundary.",
+            "importance":0.9,
+            "confidence":0.9,
+            "support":[{"start":1,"end":2,"weight":1.0,"label":None}],
+            "arcHints":["boundary"]
+          }]
+        }
+        print(json.dumps({
+          "jsonrpc":"2.0","method":"item/completed",
+          "params":{
+            "threadId":"leaf-thread","turnId":"leaf-turn",
+            "item":{"id":"leaf-message","type":"agentMessage","phase":"final","text":json.dumps(proposal)}
+          }
+        }), flush=True)
+        print(json.dumps({
+          "jsonrpc":"2.0","method":"turn/completed",
+          "params":{"threadId":"leaf-thread","turn":{"id":"leaf-turn","status":"completed"}}
+        }), flush=True)
+"""
+
+
+def test_leaf_enrichment_forks_source_at_historical_cutoff(tmp_path: Path):
+    store = TraceStore(tmp_path / "trace.db")
+    thread_id = "source-thread"
+    store.append(
+        source="seed",
+        direction="internal",
+        message={
+            "method": "item/completed",
+            "params": {
+                "threadId": thread_id,
+                "turnId": "turn-1",
+                "item": {
+                    "id": "user-1",
+                    "type": "userMessage",
+                    "content": [{"type": "text", "text": "investigate"}],
+                },
+            },
+        },
+    )
+    store.append(
+        source="seed",
+        direction="internal",
+        message={
+            "method": "turn/completed",
+            "params": {
+                "threadId": thread_id,
+                "turn": {"id": "turn-1", "status": "completed"},
+            },
+        },
+    )
+
+    fake = tmp_path / "fake_leaf.py"
+    fake.write_text(FAKE_TRUNCATED_LEAF)
+    events = []
+    value = _run_truncated_leaf_worker(
+        command=[sys.executable, str(fake)],
+        store=store,
+        source_thread_id=thread_id,
+        window=SemanticWindow(
+            index=0,
+            start_seq=1,
+            end_seq=2,
+            beat_count=1,
+            semantic_mass=1.0,
+        ),
+        global_retro={
+            "confidence": 1.0,
+            "narrative": "The bug mattered.",
+            "durableArcs": [],
+            "deadEnds": [],
+            "surprises": [],
+            "attentionGuidance": [],
+        },
+        model=None,
+        progress=lambda *args: events.append(args),
+        total_windows=1,
+    )
+
+    fork = next(
+        record.message
+        for record in store.records()
+        if record.method == "thread/fork"
+    )
+    assert fork["params"]["threadId"] == thread_id
+    assert fork["params"]["lastTurnId"] == "turn-1"
+    assert value["episodes"][0]["title"] == "Bug becomes boundary"
+    assert any(event[0] == "leaf:fork" for event in events)
 
 
 def test_semantic_window_planner_is_not_raw_record_count_biased():
