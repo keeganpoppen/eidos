@@ -30,7 +30,7 @@ class ObserverSpec:
 OUTLINE_SCHEMA: dict[str, Any] = {
     "type": "object",
     "additionalProperties": False,
-    "required": ["confidence", "nodes"],
+    "required": ["confidence", "note", "nodes"],
     "properties": {
         "confidence": {"type": "number", "minimum": 0, "maximum": 1},
         "note": {"type": "string"},
@@ -39,7 +39,7 @@ OUTLINE_SCHEMA: dict[str, Any] = {
             "items": {
                 "type": "object",
                 "additionalProperties": False,
-                "required": ["id", "title", "summary", "confidence", "support"],
+                "required": ["id", "parent", "ordinal", "title", "summary", "confidence", "support"],
                 "properties": {
                     "id": {"type": "string"},
                     "parent": {"type": ["string", "null"]},
@@ -52,7 +52,7 @@ OUTLINE_SCHEMA: dict[str, Any] = {
                         "items": {
                             "type": "object",
                             "additionalProperties": False,
-                            "required": ["start", "end", "weight"],
+                            "required": ["start", "end", "weight", "label"],
                             "properties": {
                                 "start": {"type": "integer"},
                                 "end": {"type": "integer"},
@@ -309,6 +309,8 @@ class CodexShadowObserver:
         fork_args: dict[str, Any] = {
             "ephemeral": True,
             "threadSource": "eidos-semantic-observer",
+            "sandbox": "read-only",
+            "approvalPolicy": "never",
         }
         if last_turn_id is not None:
             fork_args["lastTurnId"] = last_turn_id
