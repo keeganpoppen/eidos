@@ -17,7 +17,7 @@
     selectedNodeId?: string | null;
     onSelectNode: (node: SemanticNode | null) => void;
     onSelectRevision: (revision: string) => void;
-    onObserve: (pool: boolean) => void;
+    onObserve: () => void;
     observerBusy?: boolean;
   } = $props();
 
@@ -58,17 +58,16 @@
     <div>
       <span class="eyebrow">semantic map</span>
       {#if outline}
-        <strong>{outline.observer}</strong>
+        <strong>retrospective</strong>
       {/if}
     </div>
     <button class="tiny" onclick={() => onSelectNode(null)}>ALL</button>
   </div>
 
-  <div class="observer-actions">
-    <button class="observe" disabled={observerBusy} onclick={() => onObserve(false)}>
-      {observerBusy ? 'OBSERVING…' : 'OBSERVE'}
+  <div class="observer-actions single">
+    <button class="observe" disabled={observerBusy} onclick={onObserve}>
+      {observerBusy ? 'REWRITING…' : 'REWRITE WITH HINDSIGHT'}
     </button>
-    <button class="observe alt" disabled={observerBusy} onclick={() => onObserve(true)}>POOL ×3</button>
   </div>
 
   {#if revisions.length}
@@ -80,7 +79,7 @@
       <option value="">auto-select</option>
       {#each revisions as revision}
         <option value={revision.revision_id}>
-          {revision.observer} · h{revision.horizon_seq} · {revision.score.toFixed(2)}
+          horizon {revision.horizon_seq} · score {revision.score.toFixed(2)}
         </option>
       {/each}
     </select>
@@ -88,7 +87,7 @@
 
   {#if outline}
     <div class="provenance">
-      horizon {outline.horizon_seq} · score {outline.score.toFixed(2)}
+      rewritten through horizon {outline.horizon_seq}
     </div>
 
     <div class="nodes">
