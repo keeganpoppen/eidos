@@ -60,7 +60,7 @@ The primary UI is now a SvelteKit 3 / Svelte 5 client. It talks to a small Pytho
 The easiest development path is:
 
 ```bash
-./scripts/dev.sh
+bash scripts/dev.sh
 # -> Eidos UI: http://127.0.0.1:5173
 ```
 
