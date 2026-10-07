@@ -7,7 +7,7 @@ import sys
 from .codex import AppServerClient, CodexPlace
 from .codex_proxy import proxy_stdio
 from .serve import serve
-from .semantic import CodexShadowObserver, ObserverSpec, plan_candidate_windows
+from .semantic import CodexShadowObserver, ObserverSpec, observer_preset, plan_candidate_windows
 from .trace import TraceStore
 from .view import render_thread_html
 
@@ -64,6 +64,7 @@ def main(argv: list[str] | None = None) -> None:
     p_observe.add_argument("--target-records", type=int, default=220)
     p_observe.add_argument("--overlap-records", type=int, default=32)
     p_observe.add_argument("--max-windows", type=int, default=4)
+    p_observe.add_argument("--pool", action="store_true", help="run cartographer, consequence, and skeptic observers")
     p_observe.add_argument("--codex", default="codex")
 
     args = parser.parse_args(argv)
@@ -126,23 +127,34 @@ def main(argv: list[str] | None = None) -> None:
             with client:
                 place = CodexPlace("observer-place", client).start()
                 observer = CodexShadowObserver(place, store)
-                spec = ObserverSpec(
-                    name=args.name,
-                    angle=args.angle,
-                    lens=args.lens,
-                    reliability=args.reliability,
-                    effort=args.effort,
+                specs = (
+                    [
+                        observer_preset("cartographer", effort=args.effort, lens=args.lens),
+                        observer_preset("consequence", effort=args.effort, lens=args.lens),
+                        observer_preset("skeptic", effort=args.effort, lens=args.lens),
+                    ]
+                    if args.pool
+                    else [
+                        ObserverSpec(
+                            name=args.name,
+                            angle=args.angle,
+                            lens=args.lens,
+                            reliability=args.reliability,
+                            effort=args.effort,
+                        )
+                    ]
                 )
-                revisions = observer.observe_windows(
-                    source_thread_id=args.thread_id,
-                    windows=windows,
-                    spec=spec,
-                )
-                for window, revision in zip(windows, revisions, strict=True):
-                    print(
-                        f"{revision}: {window.start_seq}..{window.end_seq} "
-                        f"({window.record_count} records)"
+                for spec in specs:
+                    revisions = observer.observe_windows(
+                        source_thread_id=args.thread_id,
+                        windows=windows,
+                        spec=spec,
                     )
+                    for window, revision in zip(windows, revisions, strict=True):
+                        print(
+                            f"{spec.name} {revision}: {window.start_seq}..{window.end_seq} "
+                            f"({window.record_count} records)"
+                        )
         finally:
             store.close()
         return
