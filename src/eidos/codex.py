@@ -201,6 +201,9 @@ class AppServerClient:
     def thread_resume(self, thread_id: str, **params: Any) -> dict[str, Any]:
         return self.request("thread/resume", {"threadId": thread_id, "excludeTurns": True, **params})
 
+    def thread_fork(self, thread_id: str, **params: Any) -> dict[str, Any]:
+        return self.request("thread/fork", {"threadId": thread_id, "excludeTurns": True, **params})
+
     def thread_list(
         self,
         *,
@@ -341,6 +344,13 @@ class CodexPlace:
         thread = result.get("thread")
         if not isinstance(thread, dict) or not isinstance(thread.get("id"), str):
             raise ValueError(f"thread/resume returned no thread id: {result!r}")
+        return thread["id"]
+
+    def fork_thread(self, thread_id: str, **params: Any) -> str:
+        result = self.client.thread_fork(thread_id, **params)
+        thread = result.get("thread")
+        if not isinstance(thread, dict) or not isinstance(thread.get("id"), str):
+            raise ValueError(f"thread/fork returned no thread id: {result!r}")
         return thread["id"]
 
     def list_threads(self, *, limit: int = 50) -> list[dict[str, Any]]:
