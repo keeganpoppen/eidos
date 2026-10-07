@@ -11,7 +11,12 @@ from typing import Any, Mapping, Sequence
 from urllib.parse import unquote
 
 from .codex import AppServerClient, CodexPlace
-from .semantic import CodexShadowObserver, observer_preset, plan_candidate_windows
+from .semantic import (
+    CodexShadowObserver,
+    choose_leaf_model,
+    observer_preset,
+    plan_candidate_windows,
+)
 from .trace import TraceStore
 from .view import ItemView, project_thread
 
@@ -371,6 +376,8 @@ class EidosAPI:
                 "totalWindows": 0,
                 "horizonSeq": None,
                 "detail": "planning retrospective windows",
+                "model": None,
+                "effort": effort,
                 "revisions": [],
                 "error": None,
             }
@@ -406,7 +413,15 @@ class EidosAPI:
                 with client:
                     place = CodexPlace("observer", client).start()
                     observer = CodexShadowObserver(place, self.store)
-                    spec = observer_preset("retrospective", effort=effort)
+                    summary_model = choose_leaf_model(client)
+                    spec = observer_preset(
+                        "retrospective",
+                        effort=effort,
+                        model=summary_model,
+                    )
+                    with self._jobs_lock:
+                        self._jobs[job_id]["model"] = summary_model or "inherited"
+                        self._jobs[job_id]["effort"] = effort
                     for index, window in enumerate(windows, start=1):
                         with self._jobs_lock:
                             now = int(time.time() * 1000)
@@ -414,7 +429,8 @@ class EidosAPI:
                             self._jobs[job_id]["horizonSeq"] = window.end_seq
                             self._jobs[job_id]["lastProgressAtMs"] = now
                             self._jobs[job_id]["detail"] = (
-                                f"window {index}/{len(windows)} · horizon {window.end_seq} · waiting on Codex"
+                                f"window {index}/{len(windows)} · horizon {window.end_seq} · "
+                                f"{summary_model or 'inherited model'} / {effort} · waiting on Codex"
                             )
 
                         revision = observer.observe_window(
