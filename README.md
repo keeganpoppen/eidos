@@ -44,31 +44,37 @@ The end-to-end Runtime now runs a two-party program through `perform -> Frame ->
 Existing Codex threads can be hydrated into our store:
 
 ```bash
-eidos codex-sync .eidos/traces.db --recent 3
+uv run eidos codex-sync .eidos/traces.db --recent 3
 ```
 
 Future JSONL traffic can be recorded transparently:
 
 ```bash
-eidos codex-proxy .eidos/traces.db -- codex app-server --listen stdio://
+uv run eidos codex-proxy .eidos/traces.db -- codex app-server --listen stdio://
 ```
 
 ### Our conversation renderer
 
 ```bash
-eidos serve .eidos/traces.db
+uv run eidos serve .eidos/traces.db
 # open http://127.0.0.1:8765
 ```
 
 The UI is driven entirely by Eidos-persisted data: user/assistant messages, command executions, file changes, tool calls, and the native event spine. Imported old history and future live observations use the same renderer while retaining their different evidence sources.
 
-## Install / test
+## Develop / test
+
+Eidos uses [uv](https://docs.astral.sh/uv/) for the Python environment, dependency resolution, and command execution. There is no manual virtualenv activation or pip workflow.
 
 ```bash
-python -m venv .venv
-source .venv/bin/activate
-pip install -e '.[dev]'
-pytest
+uv sync
+uv run pytest
+```
+
+Run project commands through uv as well:
+
+```bash
+uv run eidos --help
 ```
 
 ## Current semantic vocabulary
