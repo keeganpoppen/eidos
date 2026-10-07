@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import json
+import os
 from typing import Any, Iterable, Mapping
 
 from .codex import CodexPlace
@@ -34,6 +35,7 @@ class ObserverSpec:
     lens: str = "thread"
     reliability: float = 1.0
     effort: str = LEAF_REASONING_EFFORT
+    model: str | None = None
     timeout: float = 120.0
 
 
@@ -48,7 +50,13 @@ OBSERVER_PRESETS: dict[str, tuple[str, float]] = {
 }
 
 
-def observer_preset(name: str = "retrospective", *, effort: str = LEAF_REASONING_EFFORT, lens: str = "thread") -> ObserverSpec:
+def observer_preset(
+    name: str = "retrospective",
+    *,
+    effort: str = LEAF_REASONING_EFFORT,
+    lens: str = "thread",
+    model: str | None = None,
+) -> ObserverSpec:
     angle, reliability = OBSERVER_PRESETS[name]
     return ObserverSpec(
         name=name,
@@ -56,7 +64,80 @@ def observer_preset(name: str = "retrospective", *, effort: str = LEAF_REASONING
         lens=lens,
         reliability=reliability,
         effort=effort,
+        model=model,
     )
+
+
+def choose_leaf_model(client: Any) -> str | None:
+    """Conservatively choose a clearly advertised cheap/fast model.
+
+    We do not guess from opaque model ordering. An explicit EIDOS_SUMMARY_MODEL
+    wins. Otherwise a catalog model must clearly advertise low-cost/latency
+    intent in its public name/description and support low reasoning effort.
+    If no such model is obvious, return None and inherit the source model.
+    """
+
+    override = os.environ.get("EIDOS_SUMMARY_MODEL")
+    if override:
+        return override
+
+    try:
+        page = client.model_list(limit=100, include_hidden=False)
+    except Exception:
+        return None
+    models = page.get("data")
+    if not isinstance(models, list):
+        return None
+
+    positive = {
+        "mini": 6,
+        "small": 5,
+        "fast": 4,
+        "efficient": 4,
+        "low latency": 4,
+        "lightweight": 4,
+        "light": 2,
+    }
+    negative = {
+        "pro": -5,
+        "max": -5,
+        "research": -3,
+        "cyber": -8,
+    }
+
+    best: tuple[int, str] | None = None
+    for raw in models:
+        if not isinstance(raw, Mapping) or raw.get("hidden"):
+            continue
+        specialty = raw.get("modelSpecialty")
+        if specialty not in {None, ""}:
+            continue
+
+        efforts = raw.get("supportedReasoningEfforts")
+        effort_names = {
+            str(option.get("reasoningEffort"))
+            for option in efforts or []
+            if isinstance(option, Mapping)
+        }
+        if effort_names and LEAF_REASONING_EFFORT not in effort_names:
+            continue
+
+        model = raw.get("model")
+        if not isinstance(model, str) or not model:
+            continue
+        haystack = " ".join(
+            str(raw.get(key) or "")
+            for key in ("model", "id", "displayName", "description")
+        ).lower()
+        score = sum(weight for token, weight in positive.items() if token in haystack)
+        score += sum(weight for token, weight in negative.items() if token in haystack)
+        if score < 3:
+            continue
+        candidate = (score, model)
+        if best is None or candidate > best:
+            best = candidate
+
+    return best[1] if best is not None else None
 
 
 OUTLINE_SCHEMA: dict[str, Any] = {
@@ -539,6 +620,8 @@ class CodexShadowObserver:
             "sandbox": "read-only",
             "approvalPolicy": "never",
         }
+        if spec.model is not None:
+            fork_args["model"] = spec.model
         if last_turn_id is not None:
             fork_args["lastTurnId"] = last_turn_id
         fork_thread = self.place.fork_thread(source_thread_id, **fork_args)
