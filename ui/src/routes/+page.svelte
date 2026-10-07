@@ -1,15 +1,15 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import Markdown from '$lib/Markdown.svelte';
-  import SemanticRail from '$lib/SemanticRail.svelte';
-  import ThreadItemCard from '$lib/ThreadItem.svelte';
+  import Markdown from '#lib/Markdown.svelte';
+  import SemanticRail from '#lib/SemanticRail.svelte';
+  import ThreadItemCard from '#lib/ThreadItem.svelte';
   import type {
     ObserverJob,
     SemanticNode,
     SupportSpan,
     ThreadPayload,
     ThreadSummary
-  } from '$lib/types';
+  } from '#lib/types';
 
   let threads = $state<ThreadSummary[]>([]);
   let selectedThread = $state('');
