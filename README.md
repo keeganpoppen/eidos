@@ -105,6 +105,8 @@ uv run eidos codex-observe .eidos/traces.db THREAD_ID --max-windows 0
 
 Each later horizon receives the prior map and may split, merge, rename, or reinterpret older nodes with hindsight. Old revisions remain stored, so the system can distinguish what an episode looked like earlier from what it later came to mean.
 
+Leaf/window rewrites default to `low` reasoning effort. Eidos consults `model/list` and only switches to another model when the catalog clearly advertises it as a fast/small/efficient option that supports low effort; otherwise it safely inherits the source model. Set `EIDOS_SUMMARY_MODEL` to explicitly pin the summarizer model. The planned hierarchy reserves `medium` for synthesis and `high` for rare adjudication rather than routine summarization.
+
 Nodes may overlap, nest, or cite several non-contiguous trace ranges. Observer forks are internal and hidden from the normal thread list, but their native traces remain in the evidence store.
 
 
@@ -139,4 +141,5 @@ A binding is ordinary immutable Frame data. Changing a binding means constructin
 See:
 
 - [`docs/SEMANTICS.md`](docs/SEMANTICS.md) — compact semantic contract;
-- [`docs/V0_STATUS.md`](docs/V0_STATUS.md) — what survived first contact with implementation/Codex and what remains open.
+- [`docs/V0_STATUS.md`](docs/V0_STATUS.md) — what survived first contact with implementation/Codex and what remains open;
+- [`docs/SUMMARY_TREE.md`](docs/SUMMARY_TREE.md) — planned recursive semantic hierarchy, effort budget, and subagent/map-reduce strategy.
