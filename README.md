@@ -75,6 +75,13 @@ uv run eidos codex-observe .eidos/traces.db THREAD_ID \
   --max-windows 4
 ```
 
+For a full retrospective pass over a large thread, `--max-windows 0` means all windows. To run a small pool of differently angled observers and keep their competing revisions:
+
+```bash
+uv run eidos codex-observe .eidos/traces.db THREAD_ID \
+  --pool --max-windows 0
+```
+
 The deterministic window planner only decides where the observer should look. The model authors the semantic chunking, titles, summaries, and retrospective revisions. Each later window receives the observer's prior map and may split, merge, rename, or reconnect older nodes with hindsight.
 
 Observer forks are tagged as internal and hidden from the normal thread list, but their raw native traces remain in the same evidence store for inspection.
