@@ -27,28 +27,18 @@ class ObserverSpec:
     timeout: float = 120.0
 
 
+RETROSPECTIVE_ANGLE = (
+    "Rewrite the thread retrospectively from the perspective of someone who knows how it "
+    "turned out. Identify the few semantic arcs that ultimately mattered, how their meaning "
+    "changed with later evidence, and the specific episodes that support them."
+)
+
 OBSERVER_PRESETS: dict[str, tuple[str, float]] = {
-    "cartographer": (
-        "Build a navigational semantic map of the important episodes, recurring threads, "
-        "and conceptual developments. Prefer what became important over turn-by-turn narration.",
-        1.0,
-    ),
-    "consequence": (
-        "Track what materially changed across the history: ideas that survived, conclusions that "
-        "altered later work, new constraints, commitments, abandoned paths, and consequences. "
-        "Organize them as natural semantic episodes rather than fixed categories.",
-        1.0,
-    ),
-    "skeptic": (
-        "Look for misleading boundaries, premature interpretations, unresolved branches, later "
-        "evidence that changes the meaning of earlier work, and important recurrences across "
-        "non-contiguous regions. Produce a navigational map, not a critique report.",
-        0.85,
-    ),
+    "retrospective": (RETROSPECTIVE_ANGLE, 1.0),
 }
 
 
-def observer_preset(name: str, *, effort: str = "low", lens: str = "thread") -> ObserverSpec:
+def observer_preset(name: str = "retrospective", *, effort: str = "low", lens: str = "thread") -> ObserverSpec:
     angle, reliability = OBSERVER_PRESETS[name]
     return ObserverSpec(
         name=name,
@@ -174,74 +164,255 @@ def plan_candidate_windows(
     return windows
 
 
-def _compact_item(item: Mapping[str, Any]) -> str:
+@dataclass(frozen=True)
+class StoryBeat:
+    start_seq: int
+    end_seq: int
+    kind: str
+    importance: float
+    text: str
+
+
+def _input_text(values: Any) -> str:
+    if not isinstance(values, list):
+        return ""
+    return "\n".join(
+        str(value.get("text"))
+        for value in values
+        if isinstance(value, Mapping)
+        and value.get("type") == "text"
+        and value.get("text")
+    )
+
+
+def _salient_output(output: str) -> str:
+    if not output:
+        return ""
+    lines = [line.strip() for line in output.splitlines() if line.strip()]
+    if not lines:
+        return ""
+    needles = (
+        "error",
+        "failed",
+        "failure",
+        "traceback",
+        "passed",
+        "success",
+        "warning",
+        "assert",
+    )
+    interesting = [
+        line
+        for line in lines
+        if any(needle in line.lower() for needle in needles)
+    ]
+    selected = interesting[-6:] if interesting else lines[-2:]
+    return " | ".join(selected)[:900]
+
+
+def _execution_fragment(item: Mapping[str, Any]) -> tuple[str, str, bool]:
     kind = str(item.get("type") or "item")
-    if kind == "userMessage":
-        content = item.get("content") or []
-        text = " ".join(
-            str(x.get("text"))
-            for x in content
-            if isinstance(x, Mapping) and x.get("type") == "text" and x.get("text")
-        )
-        return f"user: {text[:4000]}"
-    if kind == "agentMessage":
-        return "agent: " + str(item.get("text") or "")[:4000]
     if kind == "commandExecution":
-        command = str(item.get("command") or "")
+        command = str(item.get("command") or "").strip().replace("\n", " ")
         output = str(item.get("aggregatedOutput") or "")
-        return f"command: {command[:1200]}\noutput: {output[-1800:]}"
+        salient = _salient_output(output)
+        text = f"command: {command[:420]}" if command else "command execution"
+        if salient:
+            text += f" => {salient}"
+        important = any(
+            needle in salient.lower()
+            for needle in ("error", "failed", "failure", "traceback", "assert")
+        )
+        return "command", text, important
     if kind == "fileChange":
         paths = [
             str(change.get("path"))
             for change in item.get("changes") or []
             if isinstance(change, Mapping) and change.get("path")
         ]
-        return "file changes: " + ", ".join(paths[:40])
-    if kind == "reasoning":
-        summary = item.get("summary") or []
-        content = item.get("content") or []
-        text = "\n".join(str(x) for x in (summary or content))
-        return "reasoning: " + text[:2400]
-    if kind in {"mcpToolCall", "dynamicToolCall", "collabAgentToolCall"}:
-        return kind + ": " + json.dumps(item, ensure_ascii=False, separators=(",", ":"))[:2200]
-    return kind + ": " + json.dumps(item, ensure_ascii=False, separators=(",", ":"))[:1800]
+        return "file", "changed: " + ", ".join(paths[:12]), bool(paths)
+    if kind in {"mcpToolCall", "dynamicToolCall", "collabAgentToolCall", "functionCallOutput", "webSearch"}:
+        name = item.get("tool") or item.get("name") or item.get("server") or kind
+        return "tool", f"{kind}: {name}", False
+    return "tool", kind, False
 
 
-def format_trace_window(store: TraceStore, window: CandidateWindow) -> str:
+def build_story_beats(store: TraceStore, window: CandidateWindow) -> list[StoryBeat]:
+    """Compose a weighted story substrate from raw evidence.
+
+    The raw trace remains egalitarian. This projection intentionally does not:
+    dialogue and final answers form the semantic spine, while routine execution
+    churn is collapsed into support episodes. These are priors, not truth; later
+    consequences may make a tiny tool result more important than a long message.
+    """
+
     records = [
         record
         for record in store.records(thread_id=window.thread_id)
         if window.start_seq <= record.seq <= window.end_seq
     ]
-    lines: list[str] = []
+    if not records:
+        return []
+
+    user_item_turns: set[str] = set()
+    for record in records:
+        if record.method not in {"item/completed", "$history/item"}:
+            continue
+        params = record.message.get("params")
+        item = params.get("item") if isinstance(params, Mapping) else None
+        if isinstance(item, Mapping) and item.get("type") == "userMessage" and record.turn_id:
+            user_item_turns.add(record.turn_id)
+
+    beats: list[StoryBeat] = []
+    execution: list[tuple[int, str, str, bool]] = []
+    seen_items: set[str] = set()
+
+    def flush_execution() -> None:
+        nonlocal execution
+        if not execution:
+            return
+        start = execution[0][0]
+        end = execution[-1][0]
+        count = len(execution)
+        commands = [text for _, kind, text, _ in execution if kind == "command"][:5]
+        files = [text for _, kind, text, _ in execution if kind == "file"][:4]
+        tools = [text for _, kind, text, _ in execution if kind == "tool"][:5]
+        important = any(flag for *_, flag in execution)
+        parts = [f"{count} execution item{'s' if count != 1 else ''}"]
+        if commands:
+            parts.append("commands: " + " ; ".join(commands))
+        if files:
+            parts.append("files: " + " ; ".join(files))
+        if tools:
+            parts.append("tools: " + " ; ".join(tools))
+        beats.append(
+            StoryBeat(
+                start_seq=start,
+                end_seq=end,
+                kind="execution-support",
+                importance=0.45 if important else 0.20,
+                text="\n".join(parts),
+            )
+        )
+        execution = []
+
     for record in records:
         message = record.message
         params = message.get("params") if isinstance(message, Mapping) else None
-        detail = ""
+
+        if record.method == "turn/start" and isinstance(params, Mapping):
+            if record.turn_id not in user_item_turns:
+                text = _input_text(params.get("input"))
+                if text:
+                    flush_execution()
+                    beats.append(
+                        StoryBeat(record.seq, record.seq, "user", 1.0, text[:7000])
+                    )
+            continue
+
         if record.method in {"item/completed", "$history/item"} and isinstance(params, Mapping):
             item = params.get("item")
-            if isinstance(item, Mapping):
-                detail = _compact_item(item)
-        elif record.method == "turn/start" and isinstance(params, Mapping):
-            inputs = params.get("input") or []
-            texts = [
-                str(x.get("text"))
-                for x in inputs
-                if isinstance(x, Mapping) and x.get("type") == "text" and x.get("text")
-            ]
-            detail = "user input: " + "\n".join(texts)[:4000]
-        elif record.method and record.method.startswith("item/reasoning/") and isinstance(params, Mapping):
-            delta = params.get("delta")
-            if isinstance(delta, str) and delta:
-                detail = "reasoning delta: " + delta[:1000]
-        elif record.method == "thread/compacted":
-            detail = "context compaction boundary"
-        method = record.method or (f"response:{record.response_to}" if record.response_to else "record")
-        prefix = f"[{record.seq}] {method}"
-        if record.item_type:
-            prefix += f" <{record.item_type}>"
-        lines.append(prefix + (f"\n{detail}" if detail else ""))
-    return "\n\n".join(lines)
+            if not isinstance(item, Mapping):
+                continue
+            item_id = str(item.get("id") or record.item_id or "")
+            if item_id and item_id in seen_items:
+                continue
+            if item_id:
+                seen_items.add(item_id)
+            kind = str(item.get("type") or "")
+
+            if kind == "userMessage":
+                text = _input_text(item.get("content"))
+                if text:
+                    flush_execution()
+                    beats.append(
+                        StoryBeat(record.seq, record.seq, "user", 1.0, text[:7000])
+                    )
+                continue
+
+            if kind == "agentMessage":
+                text = str(item.get("text") or "").strip()
+                phase = item.get("phase")
+                if text:
+                    flush_execution()
+                    beats.append(
+                        StoryBeat(
+                            record.seq,
+                            record.seq,
+                            "assistant-final" if phase in {None, "final"} else "assistant-intermediate",
+                            0.95 if phase in {None, "final"} else 0.55,
+                            text[:7000],
+                        )
+                    )
+                continue
+
+            if kind == "plan":
+                text = str(item.get("text") or "").strip()
+                if text:
+                    flush_execution()
+                    beats.append(StoryBeat(record.seq, record.seq, "plan", 0.62, text[:3500]))
+                continue
+
+            if kind == "reasoning":
+                summary = item.get("summary") or []
+                text = "\n".join(str(value) for value in summary if value)
+                if text:
+                    flush_execution()
+                    beats.append(
+                        StoryBeat(record.seq, record.seq, "reasoning-summary", 0.52, text[:3000])
+                    )
+                continue
+
+            if kind in {
+                "commandExecution",
+                "fileChange",
+                "mcpToolCall",
+                "dynamicToolCall",
+                "collabAgentToolCall",
+                "functionCallOutput",
+                "webSearch",
+            }:
+                ekind, text, important = _execution_fragment(item)
+                execution.append((record.seq, ekind, text, important))
+                continue
+
+        if record.method == "thread/compacted":
+            flush_execution()
+            beats.append(
+                StoryBeat(record.seq, record.seq, "compaction-boundary", 0.12, "context compaction")
+            )
+
+    flush_execution()
+    return beats
+
+
+def format_story_window(store: TraceStore, window: CandidateWindow) -> str:
+    beats = build_story_beats(store, window)
+    rendered: list[str] = []
+    for beat in beats:
+        if beat.kind == "user":
+            label = "SPINE · USER"
+        elif beat.kind == "assistant-final":
+            label = "SPINE · ASSISTANT FINAL"
+        elif beat.kind == "assistant-intermediate":
+            label = "ASSISTANT INTERMEDIATE"
+        elif beat.kind == "execution-support":
+            label = "EXECUTION SUPPORT"
+        elif beat.kind == "reasoning-summary":
+            label = "REASONING SUMMARY"
+        elif beat.kind == "plan":
+            label = "PLAN"
+        else:
+            label = beat.kind.upper()
+        span = str(beat.start_seq) if beat.start_seq == beat.end_seq else f"{beat.start_seq}-{beat.end_seq}"
+        rendered.append(
+            f"[{label} | seq {span} | prior {beat.importance:.2f}]\n{beat.text}"
+        )
+    return "\n\n".join(rendered)
+
+
+# Backwards-compatible name for callers/tests while the story projection settles.
+format_trace_window = format_story_window
 
 
 def _latest_completed_turn(store: TraceStore, thread_id: str, horizon_seq: int) -> str | None:
@@ -276,47 +447,53 @@ def _observer_prompt(
     previous: dict[str, Any] | None,
 ) -> str:
     previous_nodes = previous["nodes"] if previous is not None else []
-    return f"""You are an Eidos shadow semantic observer.
+    story = format_story_window(store, window)
+    return f"""You are Eidos's retrospective narrator.
 
-Your job is semantic chunking and navigational interpretation, not transcript
-compression. Produce a COMPLETE semantic map of the source thread through trace
-sequence {window.end_seq}. You may revise, split, merge, rename, nest, or retain
-older nodes in light of later evidence.
+You inherit the native Codex thread through trace horizon {window.end_seq}. Write
+the semantic map as someone who already knows how this part of the movie ends.
+Your job is not to describe the log. It is to rewrite the history around what
+eventually mattered.
 
-Angle for this observer:
+The supplied story substrate is an ATTENTION SCAFFOLD, not ground truth:
+- USER messages and FINAL ASSISTANT answers are the default semantic spine.
+- Plans and reasoning summaries are useful intermediate evidence.
+- Routine tool/command/file activity is collapsed into EXECUTION SUPPORT and has
+  a deliberately low prior.
+- Those priors are defeasible. A one-line test failure or tool result can become
+  central if later events show that it changed the direction of the work.
+
+Perspective:
 {spec.angle}
 
 Rules:
-- Use natural titles. Do NOT force nodes into categories such as finding,
-  decision, artifact, or task.
-- Optimize for navigation, not prose. Titles should usually be 3-7 words.
-  Summaries should be ONE terse sentence, normally under 160 characters. Do not
-  restate implementation chronology that the evidence already shows.
-- Prefer a TWO-LEVEL map: a small set of top-level arcs/topics, with direct
-  children for specific episodes or recurring subtopics. Avoid deeper nesting
-  unless the history genuinely requires it.
-- At a whole-thread horizon, prefer roughly 4-10 useful top-level nodes over a
-  comprehensive inventory. Omit low-value procedural churn.
-- A node may cite multiple disjoint support ranges. This is important: ideas and
-  episodes may disappear and recur later.
-- Support ranges are inclusive Eidos trace sequence numbers and must not exceed
-  the current horizon ({window.end_seq}).
-- Prefer semantically meaningful episodes/threads of development over native
-  Codex turn boundaries.
-- Tool-call bursts are evidence. Describe what they were *for* and what became
-  important, rather than narrating every command.
-- Preserve genuinely useful older nodes even when the current window is about
-  something else.
-- Use confidence to express uncertainty. Do not manufacture support.
-- Do not call tools. The inherited thread context and the supplied Eidos trace
-  window are the complete evidence for this observer turn.
+- Retrospective importance is the organizing principle. Prefer "what this turned
+  out to mean" over "what happened next."
+- Use natural titles; never expose categories like finding/decision/artifact.
+- Titles should usually be 3-7 words. Summaries are ONE terse sentence, normally
+  under 150 characters.
+- Produce a TWO-LEVEL tree. Roots are durable arcs/topics; direct children are
+  the specific episodes, recurrences, or turns of thought that made those arcs.
+- IMPORTANCE MUST SHARPEN UPWARD. A root should be more selective and abstract
+  than its children. Do not mention grep/sed/cat/build chatter or tool names in
+  roots unless that mechanism itself became conceptually important.
+- Prefer roughly 3-8 roots. Omit procedural churn and dead ends unless knowing
+  they were dead ends is itself important to understanding the history.
+- A node may cite multiple disjoint support ranges; this is expected for ideas
+  that disappear and recur.
+- Support ranges are inclusive Eidos trace sequence numbers and cannot exceed
+  horizon {window.end_seq}.
+- Rewrite older nodes when later evidence changes their meaning. Preserve them
+  only when they remain useful from the current endpoint.
+- Use confidence for epistemic uncertainty, not importance.
+- Do not call tools.
 
-Previous map by this observer:
+Previous retrospective map (produced at an earlier horizon):
 {json.dumps(previous_nodes, ensure_ascii=False, separators=(",", ":"))}
 
-Current candidate window (plumbing only; its edges are NOT presumed episode
-boundaries):
-{format_trace_window(store, window)}
+Current weighted story substrate. Its boundaries are scheduling hints, NOT
+semantic episode boundaries:
+{story}
 
 Return only the structured value required by the output schema.
 """
