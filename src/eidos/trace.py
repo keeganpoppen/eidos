@@ -129,6 +129,13 @@ class TraceStore:
             CREATE INDEX IF NOT EXISTS trace_item_seq ON trace_records(item_id, seq);
             CREATE INDEX IF NOT EXISTS trace_rpc ON trace_records(rpc_id, seq);
 
+            CREATE TABLE IF NOT EXISTS thread_annotations(
+              thread_id TEXT PRIMARY KEY,
+              kind TEXT NOT NULL,
+              parent_thread_id TEXT,
+              metadata_json TEXT NOT NULL
+            );
+
             CREATE TABLE IF NOT EXISTS semantic_observers(
               name TEXT PRIMARY KEY,
               lens TEXT NOT NULL,
@@ -279,22 +286,48 @@ class TraceStore:
                 rows = self.db.execute("SELECT * FROM trace_records WHERE thread_id=? ORDER BY seq", (thread_id,)).fetchall()
             return [TraceRecord(**dict(row)) for row in rows]
 
-    def threads(self) -> list[dict[str, Any]]:
+    def annotate_thread(
+        self,
+        thread_id: str,
+        *,
+        kind: str,
+        parent_thread_id: str | None = None,
+        metadata: Mapping[str, Any] | None = None,
+    ) -> None:
         with self._lock:
-            return [
-                dict(row)
-                for row in self.db.execute(
-                    """
-                    SELECT thread_id, MIN(seq) AS first_seq, MAX(seq) AS last_seq,
-                           COUNT(*) AS record_count,
-                           COUNT(DISTINCT turn_id) AS turn_count
-                    FROM trace_records
-                    WHERE thread_id IS NOT NULL
-                    GROUP BY thread_id
-                    ORDER BY last_seq DESC
-                    """
-                ).fetchall()
-            ]
+            self.db.execute(
+                """
+                INSERT INTO thread_annotations(thread_id,kind,parent_thread_id,metadata_json)
+                VALUES (?,?,?,?)
+                ON CONFLICT(thread_id) DO UPDATE SET
+                  kind=excluded.kind,
+                  parent_thread_id=excluded.parent_thread_id,
+                  metadata_json=excluded.metadata_json
+                """,
+                (
+                    thread_id,
+                    kind,
+                    parent_thread_id,
+                    json.dumps(dict(metadata or {}), sort_keys=True, separators=(",", ":")),
+                ),
+            )
+
+    def threads(self, *, include_internal: bool = False) -> list[dict[str, Any]]:
+        with self._lock:
+            internal_clause = "" if include_internal else "AND a.thread_id IS NULL"
+            rows = self.db.execute(
+                f"""
+                SELECT r.thread_id, MIN(r.seq) AS first_seq, MAX(r.seq) AS last_seq,
+                       COUNT(*) AS record_count,
+                       COUNT(DISTINCT r.turn_id) AS turn_count
+                FROM trace_records r
+                LEFT JOIN thread_annotations a ON a.thread_id=r.thread_id
+                WHERE r.thread_id IS NOT NULL {internal_clause}
+                GROUP BY r.thread_id
+                ORDER BY last_seq DESC
+                """
+            ).fetchall()
+            return [dict(row) for row in rows]
 
     def register_semantic_observer(
         self,
