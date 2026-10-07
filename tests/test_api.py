@@ -2,8 +2,11 @@ from __future__ import annotations
 
 import io
 import json
+from pathlib import Path
+import sys
+import time
 
-from eidos.api import EidosAPI, thread_payload
+from eidos.api import EidosAPI, LiveCodex, thread_payload
 from eidos.trace import TraceStore
 
 
@@ -106,3 +109,83 @@ def test_api_create_thread_and_send_message_without_frontend_state():
     assert status == 202
     assert payload == {"turnId": "turn-new"}
     assert fake.sent == [("new-thread", "do the thing")]
+
+
+FAKE_LIVE_SERVER = r"""
+import json, sys
+for line in sys.stdin:
+    msg=json.loads(line)
+    method=msg.get("method")
+    ident=msg.get("id")
+    if method == "initialize":
+        print(json.dumps({"jsonrpc":"2.0","id":ident,"result":{"userAgent":"fake"}}), flush=True)
+    elif method == "initialized":
+        pass
+    elif method == "thread/start":
+        thread={"id":"live-thread","status":{"type":"idle"},"turns":[]}
+        print(json.dumps({"jsonrpc":"2.0","id":ident,"result":{"thread":thread}}), flush=True)
+    elif method == "turn/start":
+        turn={"id":"live-turn","status":"inProgress","items":[],"error":None}
+        print(json.dumps({"jsonrpc":"2.0","id":ident,"result":{"turn":turn}}), flush=True)
+        print(json.dumps({
+          "jsonrpc":"2.0","method":"turn/started",
+          "params":{"threadId":"live-thread","turn":turn}
+        }), flush=True)
+        print(json.dumps({
+          "jsonrpc":"2.0","method":"item/agentMessage/delta",
+          "params":{"threadId":"live-thread","turnId":"live-turn","itemId":"agent-1","delta":"hello "}
+        }), flush=True)
+        print(json.dumps({
+          "jsonrpc":"2.0","method":"item/agentMessage/delta",
+          "params":{"threadId":"live-thread","turnId":"live-turn","itemId":"agent-1","delta":"from live"}
+        }), flush=True)
+        print(json.dumps({
+          "jsonrpc":"2.0","method":"item/completed",
+          "params":{
+            "threadId":"live-thread","turnId":"live-turn",
+            "item":{"id":"agent-1","type":"agentMessage","text":"hello from live","phase":"final"}
+          }
+        }), flush=True)
+        turn["status"]="completed"
+        print(json.dumps({
+          "jsonrpc":"2.0","method":"turn/completed",
+          "params":{"threadId":"live-thread","turn":turn}
+        }), flush=True)
+"""
+
+
+def test_live_codex_round_trip_is_rendered_from_persisted_trace(tmp_path: Path):
+    fake = tmp_path / "fake_live_server.py"
+    fake.write_text(FAKE_LIVE_SERVER)
+    store = TraceStore(tmp_path / "live.db")
+    live = LiveCodex(store, command=[sys.executable, str(fake)])
+    try:
+        thread_id = live.start_thread(cwd=str(tmp_path))
+        assert thread_id == "live-thread"
+        turn_id = live.send(thread_id, "say hello")
+        assert turn_id == "live-turn"
+
+        deadline = time.monotonic() + 2
+        payload = thread_payload(store, thread_id)
+        while time.monotonic() < deadline:
+            items = [
+                item
+                for turn in payload["turns"]
+                for item in turn["items"]
+                if item["type"] == "agentMessage"
+            ]
+            if items and items[-1].get("text") == "hello from live":
+                break
+            time.sleep(0.01)
+            payload = thread_payload(store, thread_id)
+
+        agent = next(
+            item
+            for turn in payload["turns"]
+            for item in turn["items"]
+            if item["type"] == "agentMessage"
+        )
+        assert agent["text"] == "hello from live"
+        assert agent["complete"] is True
+    finally:
+        live.close()
