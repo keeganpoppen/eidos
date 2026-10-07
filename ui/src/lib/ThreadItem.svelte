@@ -5,12 +5,18 @@
   let {
     item,
     dimmed = false,
-    highlighted = false
+    highlighted = false,
+    compact = false
   }: {
     item: ThreadItem;
     dimmed?: boolean;
     highlighted?: boolean;
+    compact?: boolean;
   } = $props();
+
+  let showFullOutput = $state(false);
+  let showFullText = $state(false);
+  let showFullRaw = $state(false);
 
   const textContent = $derived(
     Array.isArray(item.content)
@@ -20,11 +26,40 @@
           .map((part) => String(part.text ?? ''))
       : []
   );
+
+  const outputText = $derived(item.output ?? '');
+  const outputLines = $derived(outputText ? outputText.split('\n') : []);
+  const largeOutput = $derived(outputText.length > 4200 || outputLines.length > 70);
+
+  const outputPreview = $derived.by(() => {
+    if (!largeOutput) return outputText;
+    const headCount = compact ? 8 : 18;
+    const tailCount = compact ? 4 : 8;
+    const head = outputLines.slice(0, headCount);
+    const tail = outputLines.slice(-tailCount);
+    const hidden = Math.max(0, outputLines.length - head.length - tail.length);
+    return [...head, `… ${hidden} lines hidden …`, ...tail].join('\n');
+  });
+
+  const agentText = $derived(item.text ?? '');
+  const compactAgent = $derived(compact && agentText.length > 1100);
+  const agentPreview = $derived(
+    compactAgent ? agentText.slice(0, 1100).trimEnd() + '…' : agentText
+  );
+
+  const rawText = $derived(
+    JSON.stringify(item.detail ?? item.raw, null, 2)
+  );
+  const largeRaw = $derived(rawText.length > 5000);
+  const rawPreview = $derived(
+    largeRaw ? rawText.slice(0, compact ? 1800 : 3200).trimEnd() + '\n…' : rawText
+  );
 </script>
 
 <article
   class:dimmed
   class:highlighted
+  class:compact
   class:assistant={item.type === 'agentMessage'}
   class:user={item.type === 'userMessage'}
   class:reasoning={item.type === 'reasoning'}
@@ -32,6 +67,7 @@
   class="item-card"
   data-start={item.startSeq}
   data-end={item.endSeq}
+  data-item-id={item.id}
 >
   <header>
     <span>{item.type}</span>
@@ -40,7 +76,12 @@
   </header>
 
   {#if item.type === 'agentMessage'}
-    <Markdown source={item.text ?? ''} />
+    <Markdown source={showFullText ? agentText : agentPreview} />
+    {#if compactAgent}
+      <button class="inline-control" onclick={() => showFullText = !showFullText}>
+        {showFullText ? 'COLLAPSE' : 'FULL MESSAGE'}
+      </button>
+    {/if}
   {:else if item.type === 'userMessage'}
     {#each textContent as text}
       <Markdown source={text} />
@@ -65,8 +106,13 @@
     {/if}
   {:else if item.type === 'commandExecution'}
     <div class="command-line">$ {item.command}</div>
-    {#if item.output}
-      <pre>{item.output}</pre>
+    {#if outputText}
+      <pre>{showFullOutput ? outputText : outputPreview}</pre>
+      {#if largeOutput}
+        <button class="inline-control" onclick={() => showFullOutput = !showFullOutput}>
+          {showFullOutput ? 'COLLAPSE OUTPUT' : `FULL OUTPUT · ${outputLines.length} LINES`}
+        </button>
+      {/if}
     {/if}
     <footer>
       <span>{item.status ?? (item.complete ? 'completed' : 'running')}</span>
@@ -82,8 +128,17 @@
     </ul>
   {:else}
     <details open={item.type === 'plan'}>
-      <summary>{item.type === 'plan' ? 'plan' : 'inspect'}</summary>
-      <pre>{JSON.stringify(item.detail ?? item.raw, null, 2)}</pre>
+      <summary>
+        {item.type === 'plan'
+          ? 'plan'
+          : `inspect · ${Math.max(1, Math.round(rawText.length / 1024))} KB raw`}
+      </summary>
+      <pre>{showFullRaw ? rawText : rawPreview}</pre>
+      {#if largeRaw}
+        <button class="inline-control" onclick={() => showFullRaw = !showFullRaw}>
+          {showFullRaw ? 'COLLAPSE RAW' : 'FULL RAW'}
+        </button>
+      {/if}
     </details>
   {/if}
 </article>
