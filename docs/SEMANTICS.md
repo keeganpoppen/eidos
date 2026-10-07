@@ -62,9 +62,13 @@ A semantic revision names:
 - confidence;
 - nodes with one or more supporting trace ranges.
 
-Support ranges may overlap and may be non-contiguous. Several observers can disagree without requiring the raw trace to change.
+Support ranges may overlap and may be non-contiguous.
 
-The default UI may select one revision by a simple confidence/reliability policy, but selection is a lens decision rather than an ontological merge.
+Interpretation is intentionally **not** egalitarian even though evidence is. The current retrospective projection gives a strong prior to user messages and final assistant answers, treats plans/reasoning as intermediate evidence, and collapses routine execution into supporting episodes. Later consequences may overturn those priors.
+
+Successive revisions are normally produced by one retrospective narrator at increasing evidence horizons. A later revision may reinterpret, split, merge, or rename earlier semantic nodes without changing the underlying trace.
+
+Higher levels should become more selective, not merely shorter: child nodes may retain operational detail while roots preserve only the durable arcs that remain important after the outcome is known.
 
 This preserves a useful asymmetry:
 
