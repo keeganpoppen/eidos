@@ -84,7 +84,12 @@
       <option value="">auto-select</option>
       {#each revisions as revision}
         <option value={revision.revision_id}>
-          horizon {revision.horizon_seq} · score {revision.score.toFixed(2)}
+          {revision.observer === 'retrospective-tree'
+            ? 'tree'
+            : revision.observer === 'retrospective'
+              ? 'legacy retrospective'
+              : 'legacy map'}
+          · horizon {revision.horizon_seq}
         </option>
       {/each}
     </select>
