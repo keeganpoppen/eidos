@@ -47,3 +47,25 @@ This is intentionally log-structured / write-ahead in spirit:
 4. each holder independently incorporates its receipt and publishes a later Frame.
 
 No simultaneous remote observation is assumed.
+
+
+## Interpretation over evidence
+
+Semantic outlines, episode maps, and other condensations are **derived Values**, not Trusted-Machinery facts.
+
+A semantic revision names:
+
+- the source thread;
+- an observer/lens;
+- the evidence horizon available when it was produced;
+- optional ancestry to an earlier revision;
+- confidence;
+- nodes with one or more supporting trace ranges.
+
+Support ranges may overlap and may be non-contiguous. Several observers can disagree without requiring the raw trace to change.
+
+The default UI may select one revision by a simple confidence/reliability policy, but selection is a lens decision rather than an ontological merge.
+
+This preserves a useful asymmetry:
+
+> evidence is durable; interpretation may improve with hindsight.
