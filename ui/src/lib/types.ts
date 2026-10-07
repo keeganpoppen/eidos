@@ -85,10 +85,15 @@ export type ObserverJob = {
   startedAtMs: number | null;
   completedAtMs: number | null;
   lastProgressAtMs: number;
+  phase: string;
+  current: number;
+  total: number;
   currentWindow: number;
   totalWindows: number;
   horizonSeq: number | null;
   detail: string;
+  model: string | null;
+  effort: string;
   revisions: string[];
   error: string | null;
 };
