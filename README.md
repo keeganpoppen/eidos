@@ -53,14 +53,36 @@ Future JSONL traffic can be recorded transparently:
 uv run eidos codex-proxy .eidos/traces.db -- codex app-server --listen stdio://
 ```
 
-### Our conversation renderer
+### Live SvelteKit chat + trace surface
+
+The primary UI is now a SvelteKit 3 / Svelte 5 client. It talks to a small Python API that owns the live Codex app-server process and projects only from persisted Eidos evidence.
+
+The easiest development path is:
 
 ```bash
-uv run eidos serve .eidos/traces.db
-# open http://127.0.0.1:8765
+./scripts/dev.sh
+# -> Eidos UI: http://127.0.0.1:5173
 ```
 
-The UI is driven entirely by Eidos-persisted data: user/assistant messages, command executions, file changes, tool calls, live reasoning deltas when Codex exposes them, and the native event spine. Imported old history and future live observations use the same renderer while retaining their different evidence sources.
+Or run the two halves separately:
+
+```bash
+# terminal 1
+uv run eidos serve .eidos/traces.db
+
+# terminal 2
+cd ui
+bun install
+bun run dev
+```
+
+The Vite dev server proxies `/api` to Eidos on `127.0.0.1:8765`.
+
+From the UI you can start a native Codex thread, resume an imported thread, send messages, watch persisted agent/reasoning/tool activity appear live, run semantic observers, and navigate their non-contiguous support ranges. Obvious Markdown in user/assistant/reasoning text is rendered and sanitized.
+
+The old Python-rendered trace pages remain available at `http://127.0.0.1:8765` as a fallback/debug surface.
+
+The live UI is still driven entirely by Eidos-persisted data: user/assistant messages, command executions, file changes, tool calls, live reasoning deltas when Codex exposes them, and the native event spine. Imported old history and future live observations use the same projection path while retaining their different evidence sources.
 
 ### Semantic maps / shadow observers
 
