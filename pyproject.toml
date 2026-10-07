@@ -12,8 +12,11 @@ license = { text = "Apache-2.0" }
 authors = [{ name = "kosmourgia" }]
 dependencies = []
 
-[project.optional-dependencies]
+[dependency-groups]
 dev = ["pytest>=8.0"]
+
+[tool.uv]
+default-groups = ["dev"]
 
 [project.scripts]
 eidos = "eidos.cli:main"
