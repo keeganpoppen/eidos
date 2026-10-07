@@ -3,7 +3,7 @@ from __future__ import annotations
 import argparse
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import unquote, urlparse
+from urllib.parse import parse_qs, unquote, urlparse
 
 from .trace import TraceStore
 from .view import render_index_html, render_thread_html
@@ -14,11 +14,17 @@ def serve(db: str | Path, *, host: str = "127.0.0.1", port: int = 8765) -> None:
 
     class Handler(BaseHTTPRequestHandler):
         def do_GET(self) -> None:  # noqa: N802
-            path = urlparse(self.path).path
+            parsed = urlparse(self.path)
+            path = parsed.path
             if path == "/":
                 html = render_index_html(store)
             elif path.startswith("/thread/"):
-                html = render_thread_html(store, unquote(path[len("/thread/") :]))
+                revision = parse_qs(parsed.query).get("revision", [None])[0]
+                html = render_thread_html(
+                    store,
+                    unquote(path[len("/thread/") :]),
+                    revision_id=revision,
+                )
             else:
                 self.send_error(404)
                 return
