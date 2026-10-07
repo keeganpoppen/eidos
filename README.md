@@ -60,7 +60,24 @@ uv run eidos serve .eidos/traces.db
 # open http://127.0.0.1:8765
 ```
 
-The UI is driven entirely by Eidos-persisted data: user/assistant messages, command executions, file changes, tool calls, and the native event spine. Imported old history and future live observations use the same renderer while retaining their different evidence sources.
+The UI is driven entirely by Eidos-persisted data: user/assistant messages, command executions, file changes, tool calls, live reasoning deltas when Codex exposes them, and the native event spine. Imported old history and future live observations use the same renderer while retaining their different evidence sources.
+
+### Semantic maps / shadow observers
+
+A semantic map is a **versioned interpretation over the evidence**, not a replacement transcript. Nodes may overlap, nest, or cite several non-contiguous trace ranges. Several observers may maintain competing maps; the currently displayed map is selected by horizon plus confidence/reliability, while alternatives remain stored.
+
+Run an ephemeral Codex fork as a semantic observer:
+
+```bash
+uv run eidos codex-observe .eidos/traces.db THREAD_ID \
+  --target-records 220 \
+  --overlap-records 32 \
+  --max-windows 4
+```
+
+The deterministic window planner only decides where the observer should look. The model authors the semantic chunking, titles, summaries, and retrospective revisions. Each later window receives the observer's prior map and may split, merge, rename, or reconnect older nodes with hindsight.
+
+Observer forks are tagged as internal and hidden from the normal thread list, but their raw native traces remain in the same evidence store for inspection.
 
 ## Develop / test
 
