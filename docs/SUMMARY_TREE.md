@@ -71,18 +71,29 @@ all re-reading the same history.
 ### Leaf stage
 
 Several Eidos-managed ephemeral workers independently process overlapping
-semantic-mass windows in parallel:
+semantic-mass windows in parallel. Each worker is preferably a **historical
+fork of the original Codex thread truncated at the latest completed turn at or
+before that region's end**:
 
 ```text
-history
- ├─ fork A → leaf nodes
- ├─ fork B → leaf nodes
- ├─ fork C → leaf nodes
- └─ fork D → leaf nodes
+full source history ───────────────────────────────────────▶
+                     ▲          ▲          ▲
+                   cutoff A   cutoff B   cutoff C
+                     │          │          │
+                  fork A     fork B     fork C
+                     │          │          │
+             + global retro + local weighted evidence
+                     │          │          │
+                  leaf A     leaf B     leaf C
 ```
 
-These are cheap, low-effort, read-only semantic workers. They should not call
-tools or mutate the source world. Parallelism is bounded.
+The fork therefore carries the real native past as it existed then, while the
+global hindsight brief injects ex-post knowledge from the future. Local weighted
+evidence tells the worker which interval to reinterpret. If no completed cutoff
+turn exists, Eidos falls back to a fresh read-only worker.
+
+These are cheap, low-effort workers. They should not call tools or mutate the
+source world. Parallelism is bounded.
 
 ### Merge stage
 
