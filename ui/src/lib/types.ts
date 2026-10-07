@@ -81,6 +81,14 @@ export type ObserverJob = {
   id: string;
   threadId: string;
   status: 'queued' | 'running' | 'completed' | 'failed';
+  createdAtMs: number;
+  startedAtMs: number | null;
+  completedAtMs: number | null;
+  lastProgressAtMs: number;
+  currentWindow: number;
+  totalWindows: number;
+  horizonSeq: number | null;
+  detail: string;
   revisions: string[];
   error: string | null;
 };
