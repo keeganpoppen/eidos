@@ -7,7 +7,7 @@ import sys
 from .codex import AppServerClient, CodexPlace
 from .codex_proxy import proxy_stdio
 from .serve import serve
-from .semantic import CodexShadowObserver, observer_preset, plan_candidate_windows
+from .semantic import CodexShadowObserver, choose_leaf_model, observer_preset, plan_candidate_windows
 from .trace import TraceStore
 from .view import render_thread_html
 
@@ -116,7 +116,16 @@ def main(argv: list[str] | None = None) -> None:
             with client:
                 place = CodexPlace("observer-place", client).start()
                 observer = CodexShadowObserver(place, store)
-                spec = observer_preset("retrospective", effort=args.effort)
+                summary_model = choose_leaf_model(client)
+                spec = observer_preset(
+                    "retrospective",
+                    effort=args.effort,
+                    model=summary_model,
+                )
+                if summary_model is not None:
+                    print(f"semantic model: {summary_model} / effort={args.effort}", file=sys.stderr)
+                else:
+                    print(f"semantic model: inherited / effort={args.effort}", file=sys.stderr)
                 revisions = observer.observe_windows(
                     source_thread_id=args.thread_id,
                     windows=windows,
