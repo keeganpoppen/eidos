@@ -7,6 +7,7 @@ from eidos.semantic import (
     CodexShadowObserver,
     ObserverSpec,
     build_story_beats,
+    choose_leaf_model,
     format_story_window,
     plan_candidate_windows,
 )
@@ -104,6 +105,62 @@ def test_semantic_revisions_preserve_competing_noncontiguous_maps():
     assert "Returned to the same issue" in html
     assert "[[1,1],[3,3]]" in html
 
+
+
+
+class FakeModelClient:
+    def __init__(self, models):
+        self.models = models
+
+    def model_list(self, *, limit=100, include_hidden=False):
+        return {"data": self.models}
+
+
+def test_leaf_model_selection_only_switches_on_clear_catalog_signal(monkeypatch):
+    monkeypatch.delenv("EIDOS_SUMMARY_MODEL", raising=False)
+    client = FakeModelClient(
+        [
+            {
+                "model": "gpt-expensive-pro",
+                "displayName": "GPT Pro",
+                "description": "deep high-capability model",
+                "modelSpecialty": None,
+                "hidden": False,
+                "supportedReasoningEfforts": [{"reasoningEffort": "low"}],
+            },
+            {
+                "model": "gpt-fast-mini",
+                "displayName": "Fast Mini",
+                "description": "small efficient low latency model",
+                "modelSpecialty": None,
+                "hidden": False,
+                "supportedReasoningEfforts": [{"reasoningEffort": "low"}],
+            },
+        ]
+    )
+    assert choose_leaf_model(client) == "gpt-fast-mini"
+
+
+def test_leaf_model_selection_inherits_when_catalog_is_ambiguous(monkeypatch):
+    monkeypatch.delenv("EIDOS_SUMMARY_MODEL", raising=False)
+    client = FakeModelClient(
+        [
+            {
+                "model": "model-a",
+                "displayName": "Model A",
+                "description": "general model",
+                "modelSpecialty": None,
+                "hidden": False,
+                "supportedReasoningEfforts": [{"reasoningEffort": "low"}],
+            }
+        ]
+    )
+    assert choose_leaf_model(client) is None
+
+
+def test_leaf_model_selection_respects_explicit_override(monkeypatch):
+    monkeypatch.setenv("EIDOS_SUMMARY_MODEL", "my-summary-model")
+    assert choose_leaf_model(FakeModelClient([])) == "my-summary-model"
 
 
 def test_story_substrate_foregrounds_dialogue_and_collapses_execution_churn():
