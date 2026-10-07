@@ -11,6 +11,7 @@ from eidos.semantic import (
     format_story_window,
     plan_candidate_windows,
 )
+from eidos.semantic_tree import TreeNode, pack_nodes_by_mass, plan_semantic_windows
 from eidos.trace import TraceStore
 from eidos.view import render_thread_html
 
@@ -235,6 +236,132 @@ def test_story_substrate_foregrounds_dialogue_and_collapses_execution_churn():
     assert "SPINE · ASSISTANT FINAL" in rendered
     assert rendered.count("EXECUTION SUPPORT") == 1
     assert "item/completed" not in rendered
+
+
+
+def test_semantic_window_planner_is_not_raw_record_count_biased():
+    store = TraceStore()
+    thread_id = "mass-thread"
+    turn_id = "turn-mass"
+
+    store.append(
+        source="seed",
+        direction="internal",
+        message={
+            "method": "item/completed",
+            "params": {
+                "threadId": thread_id,
+                "turnId": turn_id,
+                "item": {
+                    "id": "user-mass-1",
+                    "type": "userMessage",
+                    "content": [{"type": "text", "text": "figure out the deployment issue"}],
+                },
+            },
+        },
+    )
+    for index in range(120):
+        store.append(
+            source="seed",
+            direction="internal",
+            message={
+                "method": "item/completed",
+                "params": {
+                    "threadId": thread_id,
+                    "turnId": turn_id,
+                    "item": {
+                        "id": f"cmd-mass-{index}",
+                        "type": "commandExecution",
+                        "command": f"rg clue-{index} src/",
+                        "aggregatedOutput": "ordinary search output",
+                        "status": "completed",
+                    },
+                },
+            },
+        )
+    store.append(
+        source="seed",
+        direction="internal",
+        message={
+            "method": "item/completed",
+            "params": {
+                "threadId": thread_id,
+                "turnId": turn_id,
+                "item": {
+                    "id": "assistant-mass-1",
+                    "type": "agentMessage",
+                    "phase": "final",
+                    "text": "The deploy path was using the wrong environment binding.",
+                },
+            },
+        },
+    )
+    store.append(
+        source="seed",
+        direction="internal",
+        message={
+            "method": "item/completed",
+            "params": {
+                "threadId": thread_id,
+                "turnId": "turn-mass-2",
+                "item": {
+                    "id": "user-mass-2",
+                    "type": "userMessage",
+                    "content": [{"type": "text", "text": "make that binding explicit"}],
+                },
+            },
+        },
+    )
+    store.append(
+        source="seed",
+        direction="internal",
+        message={
+            "method": "item/completed",
+            "params": {
+                "threadId": thread_id,
+                "turnId": "turn-mass-2",
+                "item": {
+                    "id": "assistant-mass-2",
+                    "type": "agentMessage",
+                    "phase": "final",
+                    "text": "The explicit binding fixed the deployment path.",
+                },
+            },
+        },
+    )
+
+    assert len(store.records(thread_id=thread_id)) > 120
+    windows = plan_semantic_windows(
+        store,
+        thread_id,
+        target_mass=2.0,
+        overlap_beats=0,
+    )
+    # The 120-command burst is one low-prior execution beat, not 120 windows.
+    assert len(windows) <= 3
+    assert any(window.end_seq - window.start_seq > 100 for window in windows)
+
+
+def test_rollup_packs_low_importance_nodes_more_densely():
+    def nodes(importance: float):
+        return [
+            TreeNode(
+                node_id=f"n-{importance}-{index}",
+                title=f"node {index}",
+                summary="summary",
+                importance=importance,
+                confidence=1.0,
+                support=[{"start": index + 1, "end": index + 1, "weight": 1.0, "label": None}],
+            )
+            for index in range(6)
+        ]
+
+    low_groups = pack_nodes_by_mass(nodes(0.15), target_mass=1.0, max_items=10)
+    high_groups = pack_nodes_by_mass(nodes(0.8), target_mass=1.0, max_items=10)
+
+    assert len(low_groups) < len(high_groups)
+    assert sum(len(group) for group in low_groups) == 6
+    assert sum(len(group) for group in high_groups) == 6
 
 
 def test_candidate_windows_are_plumbing_not_turn_boundaries():
