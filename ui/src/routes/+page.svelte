@@ -194,17 +194,17 @@
     });
   }
 
-  async function runObserver(pool: boolean) {
+  async function runObserver() {
     if (!selectedThread || observerBusy) return;
     observerBusy = true;
     error = '';
-    status = pool ? 'observer pool running…' : 'semantic observer running…';
+    status = 'rewriting history with hindsight…';
     try {
       const started = await api<{ jobId: string }>(
         `/api/threads/${encodeURIComponent(selectedThread)}/observe`,
         {
           method: 'POST',
-          body: JSON.stringify({ pool, maxWindows: 0, effort: 'low' })
+          body: JSON.stringify({ maxWindows: 0, effort: 'low' })
         }
       );
 
@@ -212,7 +212,7 @@
         await new Promise((resolve) => setTimeout(resolve, 900));
         const job = await api<ObserverJob>(`/api/jobs/${encodeURIComponent(started.jobId)}`);
         if (job.status === 'completed') {
-          status = `semantic map updated · ${job.revisions.length} revision${job.revisions.length === 1 ? '' : 's'}`;
+          status = `retrospective map updated · ${job.revisions.length} horizon${job.revisions.length === 1 ? '' : 's'}`;
           selectedRevision = '';
           await loadThread();
           await loadThreads();
