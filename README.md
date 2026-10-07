@@ -104,7 +104,7 @@ provenance tree → raw support ranges
 
 The deterministic substrate deliberately foregrounds user messages and final assistant answers and collapses routine command/tool/file churn. Leaf windows are planned by **semantic mass**, not raw record count, so a 500-record tool detour does not automatically earn five times the inference budget of a short conceptual exchange.
 
-Every semantic region is still inspected. Leaf workers may explicitly return no durable episode when a region has little to offer. Surviving nodes carry importance, confidence, and trace support; low-importance nodes pack more densely in reducer groups while important nodes receive more synthesis bandwidth. At every rollup the governing question is:
+Every semantic region is still inspected. Leaf workers are historical forks truncated at local completed-turn cutoffs whenever possible, so they inherit the real native past while the global retro injects future knowledge. They may explicitly return no durable episode when a region has little to offer. Surviving nodes carry importance, confidence, and trace support; low-importance nodes pack more densely in reducer groups while important nodes receive more synthesis bandwidth. At every rollup the governing question is:
 
 > Given the final state of the story, what information from these children is still necessary to understand this region at the next scale?
 
