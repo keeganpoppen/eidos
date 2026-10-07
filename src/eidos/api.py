@@ -11,7 +11,7 @@ from typing import Any, Mapping, Sequence
 from urllib.parse import unquote
 
 from .codex import AppServerClient, CodexPlace
-from .semantic import CodexShadowObserver, ObserverSpec, observer_preset, plan_candidate_windows
+from .semantic import CodexShadowObserver, observer_preset, plan_candidate_windows
 from .trace import TraceStore
 from .view import ItemView, project_thread
 
@@ -323,7 +323,6 @@ class EidosAPI:
                 body = _json_body(handler)
                 job_id = self.start_observer(
                     thread_id,
-                    pool=bool(body.get("pool", False)),
                     max_windows=int(body.get("maxWindows", 0) or 0),
                     effort=str(body.get("effort") or "low"),
                 )
@@ -346,7 +345,6 @@ class EidosAPI:
         self,
         thread_id: str,
         *,
-        pool: bool,
         max_windows: int,
         effort: str,
     ) -> str:
@@ -381,33 +379,12 @@ class EidosAPI:
                 with client:
                     place = CodexPlace("observer", client).start()
                     observer = CodexShadowObserver(place, self.store)
-                    specs = (
-                        [
-                            observer_preset("cartographer", effort=effort),
-                            observer_preset("consequence", effort=effort),
-                            observer_preset("skeptic", effort=effort),
-                        ]
-                        if pool
-                        else [
-                            ObserverSpec(
-                                name="cartographer",
-                                angle=(
-                                    "Build a navigational semantic map of the important episodes, recurring threads, "
-                                    "and conceptual developments. Prefer what became important over turn-by-turn narration."
-                                ),
-                                effort=effort,
-                            )
-                        ]
+                    spec = observer_preset("retrospective", effort=effort)
+                    revisions = observer.observe_windows(
+                        source_thread_id=thread_id,
+                        windows=windows,
+                        spec=spec,
                     )
-                    revisions: list[str] = []
-                    for spec in specs:
-                        revisions.extend(
-                            observer.observe_windows(
-                                source_thread_id=thread_id,
-                                windows=windows,
-                                spec=spec,
-                            )
-                        )
                 with self._jobs_lock:
                     self._jobs[job_id]["status"] = "completed"
                     self._jobs[job_id]["revisions"] = revisions
