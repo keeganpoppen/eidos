@@ -186,6 +186,7 @@ for line in sys.stdin:
     elif method == "thread/items/list":
         proposal={
           "confidence":0.93,
+          "note":"",
           "nodes":[{
             "id":"episode-1","parent":None,"ordinal":0,
             "title":"Investigated the bug",
@@ -223,3 +224,5 @@ def test_shadow_observer_persists_structured_revision(tmp_path: Path):
     assert outline is not None
     assert outline["observer"] == "cartographer"
     assert outline["nodes"][0]["title"] == "Investigated the bug"
+    assert all(t["thread_id"] != "observer-thread" for t in store.threads())
+    assert any(t["thread_id"] == "observer-thread" for t in store.threads(include_internal=True))
