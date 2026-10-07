@@ -9,7 +9,8 @@
     onSelectNode,
     onSelectRevision,
     onObserve,
-    observerBusy = false
+    observerBusy = false,
+    observerProgress = ''
   }: {
     outline: SemanticRevision | null;
     revisions: SemanticRevision[];
@@ -19,6 +20,7 @@
     onSelectRevision: (revision: string) => void;
     onObserve: () => void;
     observerBusy?: boolean;
+    observerProgress?: string;
   } = $props();
 
   const nodes = $derived(outline?.nodes ?? []);
@@ -69,6 +71,9 @@
       {observerBusy ? 'REWRITING…' : 'REWRITE WITH HINDSIGHT'}
     </button>
   </div>
+  {#if observerBusy && observerProgress}
+    <div class="observer-progress">{observerProgress}</div>
+  {/if}
 
   {#if revisions.length}
     <select
