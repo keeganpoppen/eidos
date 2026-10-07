@@ -63,7 +63,7 @@ def main(argv: list[str] | None = None) -> None:
     p_observe.add_argument("--effort", default="low")
     p_observe.add_argument("--target-records", type=int, default=220)
     p_observe.add_argument("--overlap-records", type=int, default=32)
-    p_observe.add_argument("--max-windows", type=int, default=4)
+    p_observe.add_argument("--max-windows", type=int, default=4, help="0 means all candidate windows")
     p_observe.add_argument("--pool", action="store_true", help="run cartographer, consequence, and skeptic observers")
     p_observe.add_argument("--codex", default="codex")
 
@@ -118,7 +118,7 @@ def main(argv: list[str] | None = None) -> None:
             args.thread_id,
             target_records=args.target_records,
             overlap_records=args.overlap_records,
-            max_windows=args.max_windows,
+            max_windows=None if args.max_windows == 0 else args.max_windows,
         )
         if not windows:
             parser.error("thread has no persisted Eidos records; run codex-sync first")
