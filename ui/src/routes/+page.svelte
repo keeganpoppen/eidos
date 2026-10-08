@@ -6,6 +6,7 @@
   import ThreadItemCard from '#lib/ThreadItem.svelte';
   import type {
     ObserverJob,
+    ObserverJobEvent,
     SemanticNode,
     SupportSpan,
     ThreadItem,
@@ -25,6 +26,7 @@
   let startingThread = $state(false);
   let observerBusy = $state(false);
   let observerProgress = $state('');
+  let observerEvents = $state<ObserverJobEvent[]>([]);
   let status = $state('');
   let error = $state('');
 
@@ -209,6 +211,7 @@
     if (!selectedThread || observerBusy) return;
     observerBusy = true;
     observerProgress = 'planning';
+    observerEvents = [];
     error = '';
     status = 'building map…';
     try {
@@ -225,6 +228,7 @@
         await new Promise((resolve) => setTimeout(resolve, 900));
         const job = await api<ObserverJob>(`/api/jobs/${encodeURIComponent(started.jobId)}`);
 
+        observerEvents = job.events ?? [];
         observerProgress = job.detail || (
           job.totalWindows
             ? `window ${job.currentWindow}/${job.totalWindows}`
@@ -321,6 +325,7 @@
     onObserve={runObserver}
     {observerBusy}
     {observerProgress}
+    {observerEvents}
   />
 
   {#if selectedSemanticNode}
