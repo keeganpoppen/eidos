@@ -96,7 +96,7 @@ code, pre, .mono {
 }
 
 .shell.focus-mode {
-  grid-template-columns: 180px 250px 360px minmax(420px, 1fr);
+  grid-template-columns: 170px 290px minmax(440px, .95fr) minmax(520px, 1.2fr);
 }
 
 .thread-rail,
@@ -427,6 +427,20 @@ code, pre, .mono {
   font: 9px "SFMono-Regular", monospace;
 }
 
+.thread-recap {
+  margin: 4px 0 16px;
+  padding: 11px 0 13px;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line-dark);
+}
+
+.thread-recap p {
+  margin: 0;
+  color: #3f3e39;
+  font-size: 12px;
+  line-height: 1.48;
+}
+
 .nodes {
   display: grid;
 }
@@ -559,8 +573,8 @@ code, pre, .mono {
 }
 
 .focus-head h2 {
-  margin: 3px 0 7px;
-  font-size: 18px;
+  margin: 3px 0 8px;
+  font-size: 23px;
   line-height: 1.08;
   font-weight: 600;
   letter-spacing: -.025em;
@@ -568,9 +582,10 @@ code, pre, .mono {
 
 .focus-head p {
   margin: 0;
-  color: #4e4d48;
-  font-size: 12px;
-  line-height: 1.45;
+  max-width: 42em;
+  color: #3f3e39;
+  font-size: 14px;
+  line-height: 1.52;
 }
 
 .focus-head small {
@@ -630,6 +645,26 @@ code, pre, .mono {
 .focus-item-wrap {
   position: relative;
   padding-top: 8px;
+}
+
+.implementation-evidence {
+  margin-top: 18px;
+  border-top: 1px solid var(--line-dark);
+}
+
+.implementation-evidence > summary {
+  padding: 9px 0 7px;
+  color: var(--muted);
+  font: 9px "SFMono-Regular", monospace;
+  cursor: pointer;
+}
+
+.implementation-evidence-list {
+  padding-bottom: 10px;
+}
+
+.human-evidence {
+  padding-top: 3px;
 }
 
 .jump-button {
@@ -736,6 +771,32 @@ code, pre, .mono {
   padding: 8px 10px;
   border-top: 0;
   background: var(--code);
+}
+
+.item-card.semantic-focus.tool {
+  padding: 5px 8px;
+  background: rgba(0,0,0,.025);
+  color: var(--muted);
+}
+
+.item-card.semantic-focus.tool > header {
+  display: none;
+}
+
+.item-card.semantic-focus.tool:hover {
+  background: var(--code);
+  color: var(--ink);
+}
+
+.semantic-tool-detail > summary {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.semantic-tool-detail[open] > summary {
+  margin-bottom: 7px;
+  white-space: normal;
 }
 
 .item-card.highlighted {
@@ -899,7 +960,7 @@ details > summary {
 }
 
 .shell.focus-mode + .composer {
-  left: 790px;
+  left: 900px;
 }
 
 .composer-inner {
