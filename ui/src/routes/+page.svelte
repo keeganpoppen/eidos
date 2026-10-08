@@ -208,9 +208,9 @@
   async function runObserver() {
     if (!selectedThread || observerBusy) return;
     observerBusy = true;
-    observerProgress = 'planning retrospective windows';
+    observerProgress = 'planning';
     error = '';
-    status = 'rewriting history with hindsight…';
+    status = 'building map…';
     try {
       const started = await api<{ jobId: string }>(
         `/api/threads/${encodeURIComponent(selectedThread)}/observe`,
@@ -285,14 +285,14 @@
 <div class:focus-mode={selectedSemanticNode !== null} class="shell">
   <aside class="thread-rail">
     <div class="brand-block">
-      <h1>EIDOS</h1>
-      <p>LIVE CODEX / PERSISTED TRACE / SEMANTIC MAP</p>
+      <h1>eidos</h1>
+      <p>threads · outline · trace</p>
     </div>
 
     <div class="new-thread">
       <input bind:value={cwd} placeholder="cwd (optional)" aria-label="working directory" />
       <button disabled={startingThread} onclick={newThread}>
-        {startingThread ? 'STARTING…' : '+ NEW THREAD'}
+        {startingThread ? 'starting…' : 'new thread'}
       </button>
     </div>
 
@@ -397,11 +397,11 @@
       disabled={!selectedThread || sending}
       onkeydown={handleComposerKeydown}
       placeholder={selectedThread
-        ? 'Talk to Codex. ⌘↵ / Ctrl↵ to send.'
+        ? 'Message Codex · ⌘↵ / Ctrl↵ to send'
         : 'Select or start a thread first.'}
     ></textarea>
     <button disabled={!selectedThread || !composer.trim() || sending} onclick={send}>
-      {sending ? 'SENDING…' : 'SEND'}
+      {sending ? 'sending…' : 'send'}
     </button>
   </div>
   {#if error}
