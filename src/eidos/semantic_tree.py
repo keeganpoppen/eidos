@@ -196,9 +196,10 @@ def plan_semantic_windows(
     store: TraceStore,
     thread_id: str,
     *,
-    target_mass: float = 8.0,
+    target_mass: float | None = None,
     overlap_beats: int = 2,
-    max_beats: int = 18,
+    max_beats: int = 28,
+    max_windows: int | None = None,
 ) -> list[SemanticWindow]:
     """Partition history by semantic mass rather than raw event count.
 
@@ -221,9 +222,17 @@ def plan_semantic_windows(
             )
         ]
 
-    target_mass = max(2.0, float(target_mass))
     overlap_beats = max(0, int(overlap_beats))
     max_beats = max(4, int(max_beats))
+    configured_max = int(os.environ.get("EIDOS_SUMMARY_MAX_LEAVES", "12"))
+    desired_windows = max(2, min(24, int(max_windows or configured_max)))
+    total_mass = sum(max(0.12, float(beat.importance)) for beat in beats)
+    if target_mass is None:
+        target_mass = max(4.0, total_mass / desired_windows)
+    else:
+        target_mass = max(2.0, float(target_mass))
+    # Avoid an unrelated beat-count ceiling defeating the semantic-mass budget.
+    max_beats = max(max_beats, (len(beats) + desired_windows - 1) // desired_windows + overlap_beats)
 
     windows: list[SemanticWindow] = []
     start = 0
@@ -575,10 +584,10 @@ def _global_story_scaffold(store: TraceStore, thread_id: str) -> str:
 def _global_prompt(store: TraceStore, thread_id: str, horizon_seq: int) -> str:
     return f"""You are preparing the global hindsight brief for an Eidos semantic tree.
 
-You have inherited the native Codex history through trace horizon {horizon_seq}.
-Read it as someone who already knows how the movie ends. Do NOT create the final
-outline yet. Produce a compact prior that independent local workers can use to
-reinterpret their own regions without needing the entire future transcript.
+The scaffold below covers the source history through trace horizon {horizon_seq}.
+Read it knowing how the conversation ends. Do not create the final outline yet.
+Produce a compact prior that independent local workers can use to reinterpret
+their regions without rereading the whole future transcript.
 
 Identify:
 - what ultimately became the durable story;
@@ -587,8 +596,9 @@ Identify:
 - small/surprising moments whose later consequences made them important;
 - attention guidance for local workers.
 
-The deterministic scaffold below foregrounds dialogue and compresses routine
-execution. It is an attention hint, not a substitute for the inherited history.
+The deterministic scaffold foregrounds dialogue and compresses routine
+execution. It is the input to this global pass; detailed native history is
+reintroduced later through truncated historical leaf forks.
 
 {_global_story_scaffold(store, thread_id)}
 
@@ -719,60 +729,76 @@ class SemanticTreeBuilder:
             "global",
             0,
             1,
-            f"global hindsight · {model or 'inherited model'} / {SYNTHESIS_REASONING_EFFORT}",
+            f"global pass · {model or 'default model'} / {SYNTHESIS_REASONING_EFFORT}",
         )
-        client = AppServerClient(
-            self.command,
-            trace=self.store,
-            source="codex-semantic-global",
-        )
-        with client:
-            place = CodexPlace("semantic-global", client).start()
-            last_turn = _latest_completed_turn(self.store, thread_id, whole.end_seq)
-            if last_turn is not None:
-                args: dict[str, Any] = {
-                    "lastTurnId": last_turn,
-                    "ephemeral": True,
-                    "threadSource": "eidos-semantic-global",
-                    "sandbox": "read-only",
-                    "approvalPolicy": "never",
-                }
-                if model is not None:
-                    args["model"] = model
-                worker_thread = place.fork_thread(thread_id, **args)
-            else:
-                worker_thread = _start_worker_thread(
-                    place,
-                    self.store,
-                    source_thread_id=thread_id,
-                    stage="global",
-                    metadata={"horizon_seq": whole.end_seq},
-                    model=model,
+
+        if os.environ.get("EIDOS_GLOBAL_NATIVE_HISTORY") == "1":
+            client = AppServerClient(
+                self.command,
+                trace=self.store,
+                source="codex-semantic-global",
+            )
+            with client:
+                place = CodexPlace("semantic-global", client).start()
+                last_turn = _latest_completed_turn(self.store, thread_id, whole.end_seq)
+                if last_turn is not None:
+                    args: dict[str, Any] = {
+                        "lastTurnId": last_turn,
+                        "ephemeral": True,
+                        "threadSource": "eidos-semantic-global",
+                        "sandbox": "read-only",
+                        "approvalPolicy": "never",
+                    }
+                    if model is not None:
+                        args["model"] = model
+                    worker_thread = place.fork_thread(thread_id, **args)
+                    self.store.annotate_thread(
+                        worker_thread,
+                        kind="semantic-global",
+                        parent_thread_id=thread_id,
+                        metadata={"horizon_seq": whole.end_seq, "native_history": True},
+                    )
+                else:
+                    worker_thread = _start_worker_thread(
+                        place,
+                        self.store,
+                        source_thread_id=thread_id,
+                        stage="global",
+                        metadata={"horizon_seq": whole.end_seq, "native_history": True},
+                        model=model,
+                    )
+                started = client.turn_start_text(
+                    worker_thread,
+                    _global_prompt(self.store, thread_id, whole.end_seq),
+                    effort=SYNTHESIS_REASONING_EFFORT,
+                    outputSchema=GLOBAL_RETRO_SCHEMA,
+                    turnTrigger="eidos-semantic-global",
                 )
-            self.store.annotate_thread(
-                worker_thread,
-                kind="semantic-global",
-                parent_thread_id=thread_id,
-                metadata={"horizon_seq": whole.end_seq},
-            )
-            started = client.turn_start_text(
-                worker_thread,
-                _global_prompt(self.store, thread_id, whole.end_seq),
+                turn = started.get("turn")
+                if not isinstance(turn, Mapping) or not isinstance(turn.get("id"), str):
+                    raise ValueError(f"global turn/start returned no turn id: {started!r}")
+                turn_id = str(turn["id"])
+                client.wait_for("turn/completed", thread_id=worker_thread, timeout=180.0)
+                value = _extract_structured_message(
+                    self.store,
+                    thread_id=worker_thread,
+                    turn_id=turn_id,
+                )
+        else:
+            value = _run_fresh_worker(
+                command=self.command,
+                store=self.store,
+                source_thread_id=thread_id,
+                stage="global",
+                metadata={"horizon_seq": whole.end_seq, "native_history": False},
+                prompt=_global_prompt(self.store, thread_id, whole.end_seq),
+                schema=GLOBAL_RETRO_SCHEMA,
+                model=model,
                 effort=SYNTHESIS_REASONING_EFFORT,
-                outputSchema=GLOBAL_RETRO_SCHEMA,
-                turnTrigger="eidos-semantic-global",
+                timeout=180.0,
             )
-            turn = started.get("turn")
-            if not isinstance(turn, Mapping) or not isinstance(turn.get("id"), str):
-                raise ValueError(f"global hindsight turn/start returned no turn id: {started!r}")
-            turn_id = str(turn["id"])
-            client.wait_for("turn/completed", thread_id=worker_thread, timeout=180.0)
-            value = _extract_structured_message(
-                self.store,
-                thread_id=worker_thread,
-                turn_id=turn_id,
-            )
-        progress("global", 1, 1, "global hindsight committed")
+
+        progress("global", 1, 1, "global pass complete")
         return value
 
     def _enrich_one(
