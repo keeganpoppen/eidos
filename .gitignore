@@ -12,3 +12,7 @@ build/
 node_modules/
 .svelte-kit/
 ui/build/
+
+# macOS resource-fork sidecars
+._*
+**/._*
