@@ -347,7 +347,11 @@ class EidosAPI:
     def job(self, job_id: str) -> dict[str, Any] | None:
         with self._jobs_lock:
             job = self._jobs.get(job_id)
-            return dict(job) if job is not None else None
+            if job is None:
+                return None
+            copy = dict(job)
+            copy["events"] = [dict(event) for event in job.get("events", [])]
+            return copy
 
     def start_observer(
         self,
@@ -380,8 +384,35 @@ class EidosAPI:
                 "model": None,
                 "effort": "low→medium",
                 "revisions": [],
+                "events": [],
                 "error": None,
             }
+
+        def append_event(
+            job: dict[str, Any],
+            *,
+            stage: str,
+            current: int,
+            total: int,
+            detail: str,
+            now: int,
+        ) -> None:
+            started = job.get("startedAtMs") or job["createdAtMs"]
+            events = job.setdefault("events", [])
+            events.append(
+                {
+                    "seq": len(events) + 1,
+                    "atMs": now,
+                    "elapsedMs": max(0, now - int(started)),
+                    "stage": stage,
+                    "current": int(current),
+                    "total": int(total),
+                    "detail": detail,
+                }
+            )
+            # Enough for a very long build while keeping job payloads bounded.
+            if len(events) > 500:
+                del events[:-500]
 
         def update_progress(stage: str, current: int, total: int, detail: str) -> None:
             with self._jobs_lock:
@@ -395,14 +426,31 @@ class EidosAPI:
                 job["totalWindows"] = int(total)
                 job["lastProgressAtMs"] = now
                 job["detail"] = detail
+                append_event(
+                    job,
+                    stage=stage,
+                    current=current,
+                    total=total,
+                    detail=detail,
+                    now=now,
+                )
 
         def run() -> None:
             with self._jobs_lock:
                 now = int(time.time() * 1000)
-                self._jobs[job_id]["status"] = "running"
-                self._jobs[job_id]["startedAtMs"] = now
-                self._jobs[job_id]["lastProgressAtMs"] = now
-                self._jobs[job_id]["detail"] = "starting hindsight-first semantic tree"
+                job = self._jobs[job_id]
+                job["status"] = "running"
+                job["startedAtMs"] = now
+                job["lastProgressAtMs"] = now
+                job["detail"] = "starting semantic tree"
+                append_event(
+                    job,
+                    stage="start",
+                    current=0,
+                    total=1,
+                    detail="starting semantic tree",
+                    now=now,
+                )
 
             try:
                 builder = SemanticTreeBuilder(
@@ -431,6 +479,14 @@ class EidosAPI:
                         f"{result.leaf_episodes} surviving episodes · "
                         f"{result.levels} rollup levels"
                     )
+                    append_event(
+                        job,
+                        stage="done",
+                        current=1,
+                        total=1,
+                        detail=job["detail"],
+                        now=now,
+                    )
             except Exception as exc:
                 with self._jobs_lock:
                     now = int(time.time() * 1000)
@@ -440,7 +496,15 @@ class EidosAPI:
                     job["error"] = f"{type(exc).__name__}: {exc}"
                     job["completedAtMs"] = now
                     job["lastProgressAtMs"] = now
-                    job["detail"] = "retrospective tree build failed"
+                    job["detail"] = "semantic tree build failed"
+                    append_event(
+                        job,
+                        stage="failed",
+                        current=0,
+                        total=1,
+                        detail=job["error"],
+                        now=now,
+                    )
 
         threading.Thread(
             target=run,
