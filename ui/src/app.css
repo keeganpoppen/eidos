@@ -711,8 +711,16 @@ code, pre, .mono {
   margin: 7px 0 8px 34px;
   padding: 10px 12px;
   border-top: 0;
-  border-left: 2px solid var(--accent);
-  background: rgba(154,63,42,.04);
+  background: rgba(154,63,42,.045);
+}
+
+.item-card.user header::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  flex: 0 0 8px;
+  background: var(--accent);
+  transform: rotate(45deg);
 }
 
 .item-card.assistant {
