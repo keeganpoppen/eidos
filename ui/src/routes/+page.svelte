@@ -375,6 +375,7 @@
               {item}
               dimmed={isDimmed(item.startSeq, item.endSeq)}
               highlighted={isHighlighted(item.startSeq, item.endSeq)}
+              semanticFocus={selectedSemanticNode !== null}
             />
           {/each}
         </section>
