@@ -63,10 +63,11 @@
   class:dimmed
   class:highlighted
   class:compact
+  class:semantic-focus={semanticFocus}
   class:assistant={item.type === 'agentMessage'}
   class:user={item.type === 'userMessage'}
   class:reasoning={item.type === 'reasoning'}
-  class:tool={['commandExecution', 'mcpToolCall', 'dynamicToolCall', 'collabAgentToolCall', 'functionCallOutput', 'webSearch'].includes(item.type)}
+  class:tool={['commandExecution', 'fileChange', 'mcpToolCall', 'dynamicToolCall', 'collabAgentToolCall', 'functionCallOutput', 'webSearch'].includes(item.type)}
   class="item-card"
   data-start={item.startSeq}
   data-end={item.endSeq}
