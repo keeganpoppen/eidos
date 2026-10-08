@@ -23,6 +23,17 @@
     nodes.filter((candidate) => candidate.parent_node_id === node.node_id)
   );
 
+  const conversationItems = $derived(
+    items.filter((item) =>
+      item.type === 'userMessage' ||
+      (item.type === 'agentMessage' && (!item.phase || item.phase === 'final' || item.phase === 'final_answer'))
+    )
+  );
+
+  const implementationItems = $derived(
+    items.filter((item) => !conversationItems.includes(item))
+  );
+
   const related = $derived.by(() => {
     if (directChildren.length) {
       return { label: 'children', nodes: directChildren };
@@ -89,21 +100,39 @@
 
   <section class="focus-evidence">
     {#if directChildren.length}
-      <span class="eyebrow">evidence</span>
+      <span class="eyebrow">next</span>
       <div class="empty-focus">
-        Choose a child to see its transcript evidence.
+        Choose a child to get closer to the conversation.
       </div>
     {:else}
-      <span class="eyebrow">evidence</span>
-      {#if items.length}
-        {#each items as item (item.id)}
-          <div class="focus-item-wrap">
+      <span class="eyebrow">conversation</span>
+      {#if conversationItems.length}
+        {#each conversationItems as item (item.id)}
+          <div class="focus-item-wrap human-evidence">
             <button class="jump-button" onclick={() => onJump(item)}>jump</button>
             <ThreadItemCard {item} compact />
           </div>
         {/each}
       {:else}
-        <div class="empty-focus">No projected item overlaps this support.</div>
+        <div class="empty-focus">
+          This memory is supported mostly by implementation evidence.
+        </div>
+      {/if}
+
+      {#if implementationItems.length}
+        <details class="implementation-evidence">
+          <summary>
+            implementation evidence · {implementationItems.length}
+          </summary>
+          <div class="implementation-evidence-list">
+            {#each implementationItems as item (item.id)}
+              <div class="focus-item-wrap">
+                <button class="jump-button" onclick={() => onJump(item)}>jump</button>
+                <ThreadItemCard {item} compact semanticFocus />
+              </div>
+            {/each}
+          </div>
+        </details>
       {/if}
     {/if}
   </section>
