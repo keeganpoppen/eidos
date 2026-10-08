@@ -600,12 +600,27 @@ Writing style:
 - If a shorter label carries the same information, use it.
 
 
+Write for the USER returning to this conversation days or weeks later.
+
+The narrative should let them quickly remember:
+- what they were trying to accomplish;
+- what was discovered, decided, or changed;
+- the few turns that changed the direction of the work;
+- where things ended up, including anything still unresolved.
+
+Do not treat tools, commands, files, or tests as story events unless the user
+would actually need to remember that mechanism. They are usually evidence for
+a human-scale conclusion.
+
 Identify:
-- what ultimately mattered;
-- the few recurring topics or decisions that still matter;
-- dead ends or busy-looking activity that turned out not to matter;
-- small/surprising moments whose later consequences made them important;
+- what ultimately mattered to the user's goal;
+- the few recurring topics or decisions worth remembering;
+- dead ends or busy-looking activity that can safely disappear;
+- small moments whose later consequences made them important;
 - attention guidance for local workers.
+
+The narrative field should be 3-6 plain sentences that read like a useful
+"here's where we left this" recap, not a taxonomy or project report.
 
 The deterministic scaffold foregrounds dialogue and compresses routine
 execution. It is the input to this global pass; detailed native history is
@@ -652,13 +667,18 @@ Writing style:
   equal narrative weight merely because it occupies a window.
 - It is correct to return signal near 0 and episodes=[] when little survives at
   the larger scale.
-- User messages and final assistant answers are the default semantic spine.
-- Routine commands/tools are supporting evidence unless their consequences made
-  them important later.
+- User messages and final assistant answers are the PRIMARY story.
+- Commands, files, tests, and tool calls are normally provenance: use them to
+  understand what happened, but summarize the human-scale conclusion instead.
+- If a region contains lots of implementation activity but no meaningful change
+  in goal, understanding, decision, or outcome, it is correct to emit no episode.
 - Rescue surprises the global brief underestimated. The global brief is a prior,
   not an oracle.
-- Episodes should say what the activity turned out to mean, not narrate commands.
-- Titles: usually 2-6 words. Summary: one plain sentence.
+- Episodes should answer "what would I, the user, want to remember about this
+  part later?" rather than narrating execution.
+- Preserve the user's intent, corrections, preferences, conclusions, and the
+  state the work reached. Suppress mechanics that do not help reconstruct that.
+- Titles: usually 2-6 words. Summary: one plain sentence in human terms.
 - Support ranges must lie inside {window.start_seq}..{window.end_seq}.
 - Make support TIGHT. Cite the smallest trace spans that materially establish the
   episode, especially user/final-assistant beats and decisive execution results.
@@ -701,11 +721,11 @@ GLOBAL HINDSIGHT BRIEF:
 CHILD SEMANTIC VALUES:
 {json.dumps(payload, ensure_ascii=False, separators=(",", ":"))}
 
-Reduce these children with ex-post wisdom.
+Reduce these children with ex-post wisdom for the user who will return later.
 
 The question is NOT "summarize each child." Ask:
-  Given the final state of the story, what information from these children is
-  still necessary to understand this region at the next scale?
+  Given how this ended, what would the user need to remember from these children
+  to recover their mental model and continue the work?
 
 Rules:
 Writing style:
@@ -719,8 +739,12 @@ Writing style:
 - If a shorter label carries the same information, use it.
 
 - Importance must sharpen upward.
-- Low-value children may be listed in discarded and disappear entirely from the
-  parent narrative. Reading everything does not imply sampling everything evenly.
+- Low-value children may disappear entirely. Reading everything does not imply
+  giving everything equal narrative weight.
+- Preserve goals, decisions, discoveries, corrections, outcomes, and unresolved
+  questions before implementation mechanics.
+- Tool/file/test details should survive only when they explain an important
+  constraint or decision the user is likely to care about later.
 - Important children deserve finer distinctions; routine siblings may collapse
   together or vanish.
 - Each parent must name one or more child ids from the supplied set.
@@ -728,7 +752,10 @@ Writing style:
 - Parent titles: usually 2-6 words. Summaries: one plain sentence.
 - The global brief is a prior. Correct it when child evidence reveals something
   the global pass underestimated.
-- Prefer a few durable parents to exhaustive coverage.
+- Prefer a few useful memories to exhaustive coverage.
+- For the final narrative, write 3-6 plain sentences that answer "what happened,
+  what did we learn/decide, and where did we leave it?" Keep enough chronology
+  to reorient a returning user.
 - Do not call tools.
 
 Return only the structured value required by the output schema.
