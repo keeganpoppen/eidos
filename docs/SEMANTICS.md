@@ -2,7 +2,13 @@
 
 This is deliberately a small executable hypothesis, not a final ontology.
 
-## Vocabulary
+> **Scope note:** this document describes the existing executable authority
+> runtime. [`CORE.md`](CORE.md) explores a smaller language nucleus in which
+> Frame and Protocol are derived constructions and Reaction generalizes Match.
+> The two documents are complementary; the core experiment does not yet replace
+> the runtime below.
+
+## Runtime vocabulary
 
 - **Value** — immutable structural data.
 - **Name** — permanent opaque identity. Names contain no routing semantics.
@@ -34,6 +40,10 @@ Bindings remain ordinary Eidos data. Rebinding constructs another immutable Fram
 Praxis performs local reduction until it encounters `perform`. The remainder is represented explicitly as a serializable continuation (`Await`). Trusted Machinery determines whether the named socket can legally participate in an external transition.
 
 The v0 implementation intentionally keeps `reserve_name`, `open_session`, `publish_frame`, `match`, and `transfer_socket` explicit. A later calculus may desugar them through the meta protocol once we have proved the collapse rather than merely admired it.
+
+The language-nucleus experiment in `eidos.core` further distinguishes local
+Roles/Bindings and makes the successor Socket from a Reaction explicit. It is
+kept beside, rather than silently replacing, this tested runtime path.
 
 ## Causal durability
 
