@@ -589,9 +589,20 @@ Read it knowing how the conversation ends. Do not create the final outline yet.
 Produce a compact prior that independent local workers can use to reinterpret
 their regions without rereading the whole future transcript.
 
+Writing style:
+- Use plain technical language, as if annotating a diagram for an expert.
+- Prefer concrete noun/verb phrases in sentence case.
+- Avoid slogans, chapter-title phrasing, metaphor, stacked abstract nouns, and
+  ceremonial words like "preserved", "established", "foundation", "journey",
+  "strategy", or "transformation" unless they are literally necessary.
+- Prefer "Guest/host isolation" or "Keep guest isolated from host" over
+  "Guest Independence Preserved Host Protection".
+- If a shorter label carries the same information, use it.
+
+
 Identify:
-- what ultimately became the durable story;
-- likely durable arcs and concepts;
+- what ultimately mattered;
+- the few recurring topics or decisions that still matter;
 - dead ends or busy-looking activity that turned out not to matter;
 - small/surprising moments whose later consequences made them important;
 - attention guidance for local workers.
@@ -627,7 +638,17 @@ Your local evidence covers Eidos trace seq {window.start_seq}..{window.end_seq}.
 Interpret this region knowing the ending summarized above.
 
 Important:
-- READ the whole supplied local substrate, but do not assume this region deserves
+Writing style:
+- Use plain technical language, as if annotating a diagram for an expert.
+- Prefer concrete noun/verb phrases in sentence case.
+- Avoid slogans, chapter-title phrasing, metaphor, stacked abstract nouns, and
+  ceremonial words like "preserved", "established", "foundation", "journey",
+  "strategy", or "transformation" unless they are literally necessary.
+- Prefer "Guest/host isolation" or "Keep guest isolated from host" over
+  "Guest Independence Preserved Host Protection".
+- If a shorter label carries the same information, use it.
+
+- Read the whole supplied local substrate, but do not assume this region deserves
   equal narrative weight merely because it occupies a window.
 - It is correct to return signal near 0 and episodes=[] when little survives at
   the larger scale.
@@ -636,8 +657,8 @@ Important:
   them important later.
 - Rescue surprises the global brief underestimated. The global brief is a prior,
   not an oracle.
-- Episodes should say what the activity TURNED OUT TO MEAN, not narrate commands.
-- Titles: 3-7 words. Summary: one terse sentence.
+- Episodes should say what the activity turned out to mean, not narrate commands.
+- Titles: usually 2-6 words. Summary: one plain sentence.
 - Support ranges must lie inside {window.start_seq}..{window.end_seq}.
 - Make support TIGHT. Cite the smallest trace spans that materially establish the
   episode, especially user/final-assistant beats and decisive execution results.
@@ -687,14 +708,24 @@ The question is NOT "summarize each child." Ask:
   still necessary to understand this region at the next scale?
 
 Rules:
-- IMPORTANCE MUST SHARPEN UPWARD.
+Writing style:
+- Use plain technical language, as if annotating a diagram for an expert.
+- Prefer concrete noun/verb phrases in sentence case.
+- Avoid slogans, chapter-title phrasing, metaphor, stacked abstract nouns, and
+  ceremonial words like "preserved", "established", "foundation", "journey",
+  "strategy", or "transformation" unless they are literally necessary.
+- Prefer "Guest/host isolation" or "Keep guest isolated from host" over
+  "Guest Independence Preserved Host Protection".
+- If a shorter label carries the same information, use it.
+
+- Importance must sharpen upward.
 - Low-value children may be listed in discarded and disappear entirely from the
   parent narrative. Reading everything does not imply sampling everything evenly.
 - Important children deserve finer distinctions; routine siblings may collapse
   together or vanish.
 - Each parent must name one or more child ids from the supplied set.
 - Do not invent support ranges; Eidos derives parent support from children.
-- Parent titles: 3-7 words. Summaries: one terse sentence.
+- Parent titles: usually 2-6 words. Summaries: one plain sentence.
 - The global brief is a prior. Correct it when child evidence reveals something
   the global pass underestimated.
 - Prefer a few durable parents to exhaustive coverage.
