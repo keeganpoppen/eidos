@@ -678,7 +678,11 @@ Writing style:
   part later?" rather than narrating execution.
 - Preserve the user's intent, corrections, preferences, conclusions, and the
   state the work reached. Suppress mechanics that do not help reconstruct that.
-- Titles: usually 2-6 words. Summary: one plain sentence in human terms.
+- Titles: usually 3-8 words. Prefer a goal, outcome, or conclusion the user
+  would naturally say to themselves later. For example, prefer "Make guest
+  Neovim match host" over "Working Neovim parity", and "Keep guest from writing
+  to host" over "Guest/host isolation".
+- Summary: one plain sentence in human terms.
 - Support ranges must lie inside {window.start_seq}..{window.end_seq}.
 - Make support TIGHT. Cite the smallest trace spans that materially establish the
   episode, especially user/final-assistant beats and decisive execution results.
@@ -749,7 +753,8 @@ Writing style:
   together or vanish.
 - Each parent must name one or more child ids from the supplied set.
 - Do not invent support ranges; Eidos derives parent support from children.
-- Parent titles: usually 2-6 words. Summaries: one plain sentence.
+- Parent titles: usually 3-8 words. Prefer goals/outcomes/conclusions over
+  abstract category names. Summaries: one plain sentence.
 - The global brief is a prior. Correct it when child evidence reveals something
   the global pass underestimated.
 - Prefer a few useful memories to exhaustive coverage.
