@@ -36,7 +36,7 @@
 
   const related = $derived.by(() => {
     if (directChildren.length) {
-      return { label: 'children', nodes: directChildren };
+      return { label: 'parts', nodes: directChildren };
     }
     if (node.parent_node_id) {
       return {
@@ -48,7 +48,7 @@
         )
       };
     }
-    return { label: 'children', nodes: [] as SemanticNode[] };
+    return { label: 'parts', nodes: [] as SemanticNode[] };
   });
 
   function supportStyle(span: SupportSpan): string {
@@ -60,7 +60,7 @@
 
 <aside class="focus-pane">
   <div class="focus-head">
-    <span class="eyebrow">selection</span>
+    <span class="eyebrow">topic</span>
     <h2>{node.title}</h2>
     {#if node.summary}
       <p>{node.summary}</p>
@@ -72,7 +72,7 @@
     </div>
     <small>
       {#if directChildren.length}
-        {directChildren.length} child topic{directChildren.length === 1 ? '' : 's'}
+        {directChildren.length} part{directChildren.length === 1 ? '' : 's'}
       {:else}
         {items.length} matching item{items.length === 1 ? '' : 's'}
       {/if}
