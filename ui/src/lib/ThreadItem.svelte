@@ -6,12 +6,14 @@
     item,
     dimmed = false,
     highlighted = false,
-    compact = false
+    compact = false,
+    semanticFocus = false
   }: {
     item: ThreadItem;
     dimmed?: boolean;
     highlighted?: boolean;
     compact?: boolean;
+    semanticFocus?: boolean;
   } = $props();
 
   let showFullOutput = $state(false);
@@ -106,27 +108,58 @@
       <p class="empty-note">reasoning activity recorded; no text exposed</p>
     {/if}
   {:else if item.type === 'commandExecution'}
-    <div class="command-line">$ {item.command}</div>
-    {#if outputText}
-      <pre>{showFullOutput ? outputText : outputPreview}</pre>
-      {#if largeOutput}
-        <button class="inline-control" onclick={() => showFullOutput = !showFullOutput}>
-          {showFullOutput ? 'COLLAPSE OUTPUT' : `FULL OUTPUT · ${outputLines.length} LINES`}
-        </button>
+    {#if semanticFocus}
+      <details bind:open={inspectOpen} class="semantic-tool-detail">
+        <summary>
+          command · {item.status ?? (item.complete ? 'completed' : 'running')}
+          {#if item.exitCode !== null && item.exitCode !== undefined}
+            · exit {item.exitCode}
+          {/if}
+        </summary>
+        <div class="command-line">$ {item.command}</div>
+        {#if outputText}
+          <pre>{showFullOutput ? outputText : outputPreview}</pre>
+          {#if largeOutput}
+            <button class="inline-control" onclick={() => showFullOutput = !showFullOutput}>
+              {showFullOutput ? 'collapse output' : `full output · ${outputLines.length} lines`}
+            </button>
+          {/if}
+        {/if}
+      </details>
+    {:else}
+      <div class="command-line">$ {item.command}</div>
+      {#if outputText}
+        <pre>{showFullOutput ? outputText : outputPreview}</pre>
+        {#if largeOutput}
+          <button class="inline-control" onclick={() => showFullOutput = !showFullOutput}>
+            {showFullOutput ? 'COLLAPSE OUTPUT' : `FULL OUTPUT · ${outputLines.length} LINES`}
+          </button>
+        {/if}
       {/if}
+      <footer>
+        <span>{item.status ?? (item.complete ? 'completed' : 'running')}</span>
+        {#if item.exitCode !== null && item.exitCode !== undefined}
+          <span>exit {item.exitCode}</span>
+        {/if}
+      </footer>
     {/if}
-    <footer>
-      <span>{item.status ?? (item.complete ? 'completed' : 'running')}</span>
-      {#if item.exitCode !== null && item.exitCode !== undefined}
-        <span>exit {item.exitCode}</span>
-      {/if}
-    </footer>
   {:else if item.type === 'fileChange'}
-    <ul class="changes">
-      {#each item.changes ?? [] as change}
-        <li>{String(change.path ?? JSON.stringify(change))}</li>
-      {/each}
-    </ul>
+    {#if semanticFocus}
+      <details bind:open={inspectOpen} class="semantic-tool-detail">
+        <summary>file changes · {(item.changes ?? []).length}</summary>
+        <ul class="changes">
+          {#each item.changes ?? [] as change}
+            <li>{String(change.path ?? JSON.stringify(change))}</li>
+          {/each}
+        </ul>
+      </details>
+    {:else}
+      <ul class="changes">
+        {#each item.changes ?? [] as change}
+          <li>{String(change.path ?? JSON.stringify(change))}</li>
+        {/each}
+      </ul>
+    {/if}
   {:else}
     <details bind:open={inspectOpen}>
       <summary>
