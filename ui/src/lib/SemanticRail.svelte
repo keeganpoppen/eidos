@@ -178,6 +178,13 @@
   {#if outline}
     <div class="provenance">through seq {outline.horizon_seq}</div>
 
+    {#if outline.note}
+      <section class="thread-recap">
+        <span class="eyebrow">recap</span>
+        <p>{outline.note}</p>
+      </section>
+    {/if}
+
     <div class="nodes">
       {#each displayNodes as node, index}
         <button
