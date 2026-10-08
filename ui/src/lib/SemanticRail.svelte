@@ -31,7 +31,7 @@
   } = $props();
 
   let logOpen = $state(true);
-  let logEl: HTMLDivElement | undefined;
+  let logEl = $state<HTMLDivElement | undefined>(undefined);
   let previousEventCount = 0;
 
   const nodes = $derived(outline?.nodes ?? []);
