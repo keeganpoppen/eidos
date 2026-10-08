@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { SemanticNode, SemanticRevision } from './types';
+  import type { SemanticNode, SemanticRevision, SupportSpan } from './types';
 
   let {
     outline,
@@ -25,6 +25,7 @@
 
   const nodes = $derived(outline?.nodes ?? []);
   const byId = $derived(new Map(nodes.map((node) => [node.node_id, node])));
+  const horizon = $derived(Math.max(1, outline?.horizon_seq ?? 1));
 
   const displayNodes = $derived.by(() => {
     const top = nodes.filter((node) => !node.parent_node_id);
@@ -53,24 +54,32 @@
     }
     onSelectNode(node);
   }
+
+  function supportStyle(span: SupportSpan): string {
+    const left = Math.max(0, Math.min(100, (span.start / horizon) * 100));
+    const right = Math.max(left, Math.min(100, (span.end / horizon) * 100));
+    const width = Math.max(0.8, right - left);
+    return `left:${left}%;width:${width}%`;
+  }
 </script>
 
 <aside class="semantic-rail">
   <div class="rail-head">
     <div>
-      <span class="eyebrow">semantic map</span>
+      <span class="eyebrow">outline</span>
       {#if outline}
-        <strong>retrospective</strong>
+        <strong>retrospective map</strong>
       {/if}
     </div>
-    <button class="tiny" onclick={() => onSelectNode(null)}>ALL</button>
+    <button class="tiny" onclick={() => onSelectNode(null)}>clear</button>
   </div>
 
   <div class="observer-actions single">
     <button class="observe" disabled={observerBusy} onclick={onObserve}>
-      {observerBusy ? 'REWRITING…' : 'REWRITE WITH HINDSIGHT'}
+      {observerBusy ? 'working…' : 'rebuild map'}
     </button>
   </div>
+
   {#if observerBusy && observerProgress}
     <div class="observer-progress">{observerProgress}</div>
   {/if}
@@ -81,24 +90,22 @@
       value={selectedRevision}
       onchange={(event) => onSelectRevision((event.currentTarget as HTMLSelectElement).value)}
     >
-      <option value="">auto-select</option>
+      <option value="">latest</option>
       {#each revisions as revision}
         <option value={revision.revision_id}>
           {revision.observer === 'retrospective-tree'
             ? 'tree'
             : revision.observer === 'retrospective'
-              ? 'legacy retrospective'
-              : 'legacy map'}
-          · horizon {revision.horizon_seq}
+              ? 'older retrospective'
+              : 'older map'}
+          · seq {revision.horizon_seq}
         </option>
       {/each}
     </select>
   {/if}
 
   {#if outline}
-    <div class="provenance">
-      rewritten through horizon {outline.horizon_seq}
-    </div>
+    <div class="provenance">through seq {outline.horizon_seq}</div>
 
     <div class="nodes">
       {#each displayNodes as node}
@@ -109,17 +116,21 @@
         >
           <strong>{node.title}</strong>
           {#if node.summary}<span>{node.summary}</span>{/if}
+          <div class="support-track" aria-hidden="true">
+            {#each node.support as span}
+              <i style={supportStyle(span)}></i>
+            {/each}
+          </div>
           <small>
-            {childCount(node) ? `${childCount(node)} topics · ` : ''}
-            {node.support.length} region{node.support.length === 1 ? '' : 's'}
+            {childCount(node) ? `${childCount(node)} children` : `${node.support.length} regions`}
           </small>
         </button>
       {/each}
     </div>
   {:else}
     <div class="empty-map">
-      <strong>NO MAP YET</strong>
-      <p>Run an observer. Its map will appear here without replacing the underlying trace.</p>
+      <strong>No map yet.</strong>
+      <p>Build one from the full conversation history.</p>
     </div>
   {/if}
 </aside>
