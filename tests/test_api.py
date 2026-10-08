@@ -137,6 +137,51 @@ def test_api_create_thread_and_send_message_without_frontend_state():
     assert fake.sent == [("new-thread", "do the thing")]
 
 
+
+def test_semantic_job_retains_progress_events(monkeypatch):
+    class FakeTreeResult:
+        revision_id = "sem-tree"
+        model = "leaf-mini"
+        synthesis_model = None
+        leaf_effort = "low"
+        synthesis_effort = "medium"
+        leaf_windows = 3
+        leaf_episodes = 2
+        levels = 1
+
+    class FakeTreeBuilder:
+        def __init__(self, store, *, command):
+            self.store = store
+            self.command = command
+
+        def build(self, thread_id, *, progress):
+            progress("plan", 0, 1, "choosing models")
+            progress("global", 1, 1, "global pass complete")
+            progress("leaf:start", 1, 3, "seq 1..20")
+            progress("leaf:done", 1, 3, "signal 0.8 · 1 episode")
+            return FakeTreeResult()
+
+    monkeypatch.setattr("eidos.api.SemanticTreeBuilder", FakeTreeBuilder)
+
+    api = EidosAPI(TraceStore())
+    job_id = api.start_observer("thread-test", max_windows=0, effort="low")
+
+    deadline = time.monotonic() + 2
+    job = api.job(job_id)
+    while time.monotonic() < deadline and job and job["status"] not in {"completed", "failed"}:
+        time.sleep(0.01)
+        job = api.job(job_id)
+
+    assert job is not None
+    assert job["status"] == "completed"
+    stages = [event["stage"] for event in job["events"]]
+    assert stages[0] == "start"
+    assert stages[1:5] == ["plan", "global", "leaf:start", "leaf:done"]
+    assert stages[-1] == "done"
+    assert all(event["elapsedMs"] >= 0 for event in job["events"])
+    assert [event["seq"] for event in job["events"]] == list(range(1, len(job["events"]) + 1))
+
+
 FAKE_LIVE_SERVER = r"""
 import json, sys
 for line in sys.stdin:
