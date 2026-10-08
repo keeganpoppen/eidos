@@ -77,6 +77,16 @@ export type ThreadPayload = {
   lastSeq: number;
 };
 
+export type ObserverJobEvent = {
+  seq: number;
+  atMs: number;
+  elapsedMs: number;
+  stage: string;
+  current: number;
+  total: number;
+  detail: string;
+};
+
 export type ObserverJob = {
   id: string;
   threadId: string;
@@ -95,5 +105,6 @@ export type ObserverJob = {
   model: string | null;
   effort: string;
   revisions: string[];
+  events: ObserverJobEvent[];
   error: string | null;
 };
