@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Any, Iterator
 
 from .model import Frame, OfferSpec, ProtocolSpec, Transition, canonical_bytes, content_id
-from .occurrence import InstanceBlueprint
+from .occurrence import FrontierBlueprint, InstanceBlueprint
 
 
 class TrustedError(RuntimeError):
@@ -125,12 +125,34 @@ class TrustedMachinery:
               holder TEXT NOT NULL,
               disposition TEXT NOT NULL CHECK(disposition IN ('live','spent'))
             );
+            CREATE TABLE IF NOT EXISTS protocol_frontiers(
+              name TEXT PRIMARY KEY REFERENCES names(name),
+              instance_name TEXT NOT NULL REFERENCES occurrence_instances(name),
+              protocol_cid TEXT NOT NULL,
+              parent_occurrence TEXT,
+              generation INTEGER NOT NULL,
+              state TEXT NOT NULL CHECK(state IN ('open','elaborated','spent'))
+            );
+            CREATE TABLE IF NOT EXISTS frontier_members(
+              frontier_name TEXT NOT NULL REFERENCES protocol_frontiers(name),
+              projection_name TEXT NOT NULL REFERENCES projections(name),
+              PRIMARY KEY(frontier_name,projection_name)
+            );
             CREATE TABLE IF NOT EXISTS reaction_possibilities(
               name TEXT PRIMARY KEY REFERENCES names(name),
               instance_name TEXT NOT NULL REFERENCES occurrence_instances(name),
               seed_key TEXT NOT NULL,
               reaction TEXT NOT NULL,
               state TEXT NOT NULL CHECK(state IN ('open','occurred','precluded'))
+            );
+            CREATE TABLE IF NOT EXISTS possibility_frontiers(
+              possibility_name TEXT PRIMARY KEY REFERENCES reaction_possibilities(name),
+              frontier_name TEXT NOT NULL REFERENCES protocol_frontiers(name)
+            );
+            CREATE TABLE IF NOT EXISTS frontier_admissions(
+              frontier_name TEXT PRIMARY KEY REFERENCES protocol_frontiers(name),
+              proof TEXT NOT NULL,
+              blueprint_json TEXT NOT NULL
             );
             CREATE TABLE IF NOT EXISTS reaction_inputs(
               possibility_name TEXT NOT NULL REFERENCES reaction_possibilities(name),
@@ -162,6 +184,10 @@ class TrustedMachinery:
               projection_name TEXT NOT NULL REFERENCES projections(name),
               ordinal INTEGER NOT NULL,
               PRIMARY KEY(occurrence_name,projection_name)
+            );
+            CREATE TABLE IF NOT EXISTS occurrence_frontiers(
+              occurrence_name TEXT PRIMARY KEY REFERENCES occurrences(name),
+              frontier_name TEXT NOT NULL REFERENCES protocol_frontiers(name)
             );
             CREATE TABLE IF NOT EXISTS events(
               seq INTEGER PRIMARY KEY AUTOINCREMENT,
