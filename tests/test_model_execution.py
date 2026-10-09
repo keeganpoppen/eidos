@@ -12,6 +12,7 @@ from eidos.core import (
     Lit,
     Name,
     Need,
+    Perform,
     PraxisCore,
     Record,
     RecordValue,
@@ -457,3 +458,101 @@ def test_attention_does_not_call_unneeded_delegated_model():
     assert result.inferences[0].engine == "rules"
     assert calls == []
     assert len(result.derivations) == 1
+
+
+
+def test_model_closure_cannot_smuggle_relational_perform_into_inference():
+    tm, p, cut, refs = world()
+    impure = Closure(
+        parameters=("request",),
+        body=Perform(
+            socket=Lit(Socket(Name("socket:outside-the-context"))),
+            operation=Name("external:send"),
+            argument=Lit("hello"),
+            result_as="reply",
+            successor_as="next",
+            then=Var("reply"),
+        ),
+        lexical=LexicalEnv(),
+    )
+    model = persist(
+        tm, "model",
+        model_value("impure-closure", implementation=impure),
+    )
+    context = persist(
+        tm, "context",
+        context_value(
+            cuts=(cut["cut"],),
+            knowledge=(refs["claim"],),
+            models=(model,),
+            attention=refs["attention"],
+        ),
+    )
+    before = authority_snapshot(tm)
+    with pytest.raises(ModelExecutionError, match="without unbound Roles or perform"):
+        derive(tm, p, cut, context)
+    assert authority_snapshot(tm) == before
+
+
+def test_delegated_model_receives_facts_derived_by_an_earlier_model():
+    tm, p, cut, refs = world()
+    first = persist(
+        tm, "model",
+        model_value(
+            "triangulate",
+            rules=(
+                implication_value(("sky:pattern",), "sky:triangulated"),
+            ),
+        ),
+    )
+    attention = persist(
+        tm, "attention", attention_value(inference_budget=2),
+    )
+    context = persist(
+        tm, "context",
+        context_value(
+            cuts=(cut["cut"],),
+            knowledge=(refs["claim"],),
+            models=(first, refs["model:delegated"]),
+            attention=attention,
+        ),
+    )
+
+    inputs = []
+
+    def specialist(request):
+        inputs.append(request)
+        assert "sky:triangulated" in request.get("facts")
+        return model_proposal(
+            request.get("context"),
+            (model_claim(
+                "sky:recognized",
+                premises=("sky:triangulated",),
+                witness="delegated-step",
+            ),),
+            receipt="specialist-received-triangulation",
+        )
+
+    result = derive(
+        tm,
+        p,
+        cut,
+        context,
+        {refs["executor"]: specialist},
+    )
+    assert len(inputs) == 1
+    assert [inference.fact for inference in result.inferences] == [
+        "sky:triangulated",
+        "sky:recognized",
+    ]
+    assert [inference.engine for inference in result.inferences] == [
+        "rules",
+        "delegated",
+    ]
+    assert len(result.derivations) == 2
+    assert result.derivations[1].get("input").get("facts") == (
+        "sky:pattern", "sky:triangulated",
+    )
+    assert [possibility.reaction for possibility in result.possibilities] == [
+        "recognize"
+    ]
