@@ -175,6 +175,9 @@ def test_model_process_checkpoints_inspects_consults_and_survives_restart():
     runner = ModelProcessRunner(
         tm, executors={refs["executor"]: responder(calls)}
     )
+    runner.authorize_consultation(
+        model=refs["model"], executor=refs["executor"]
+    )
     started = runner.start(
         name=refs["model"],
         program=refs["program"],
@@ -234,6 +237,9 @@ def test_process_model_integrates_with_real_elaborate_and_actualize():
     driver = MetaProtocolDriver(tm)
     driver.register(protocol)
     driver.register_executor(refs["executor"], responder(calls))
+    driver.authorize_model_consultation(
+        model=refs["model"], executor=refs["executor"]
+    )
     praxis = PraxisCore()
 
     elaborating = elaborate_operation(
@@ -354,6 +360,32 @@ def test_inspection_cannot_escape_its_scoped_context():
     )
     with pytest.raises(ModelExecutionError, match="outside scoped Context"):
         runner.advance(progress.checkpoint)
+    assert snapshot_world(tm, refs) == {
+        "projection:A": "live", "projection:B": "live"
+    }
+
+
+
+def test_registered_executor_name_alone_does_not_authorize_consultation():
+    tm, _, _, refs = world()
+    calls = []
+    runner = ModelProcessRunner(
+        tm, executors={refs["executor"]: responder(calls)}
+    )
+    started = runner.start(
+        name=refs["model"], program=refs["program"],
+        request=refs["request"], request_id="model-without-consultation-grant",
+    )
+    first = runner.advance(started.checkpoint)
+    with pytest.raises(
+        ModelExecutionError, match="explicitly delegated executor authority"
+    ):
+        runner.advance(first.checkpoint)
+    assert calls == []
+    assert tm.projection(
+        tm.named_eidos_value(first.checkpoint)["value"]
+        .get("suspension").socket.name.value
+    )["disposition"] == "live"
     assert snapshot_world(tm, refs) == {
         "projection:A": "live", "projection:B": "live"
     }
