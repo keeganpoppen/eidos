@@ -123,23 +123,44 @@ occurrence with spent Elaborator / participant projections. This is tested:
 
 > **Later understanding may improve the model of an old world; it does not resurrect the authority that world once contained.**
 
-## Current limitations
+## Executable Models
 
-This is intentionally one tiny model interpreter: propositional, positive,
-monotonic implications, ordered deterministically and bounded by Attention.
-It is not yet a language for uncertainty, negation, confidence propagation,
-proof checking, or arbitrary executable Models.
+The limited implication interpreter remains available, but it is no longer the
+only inhabitant of the Model Role.
 
-Similarly, provenance records which named evidence and models informed an
-elaboration, but does not establish the external truth of the initial claims.
-Trusted Machinery still relies on the legitimate holder of the Elaborator
-projection to supply an admissible semantic derivation.
+See [`MODEL_EXECUTION.md`](MODEL_EXECUTION.md) for the common
+`ModelInput -> ModelProposal -> ModelDerivation` contract. Its current
+implementations are:
 
-A future Elaborator could be a local model, subagent, remote process, human, or
-a composition of those, all interpreting the *same* named Context and producing
-ordinary Eidos Values. Placement remains separate from semantics.
+- declarative implications;
+- a first-class serializable Eidos Closure realized under situated Model Roles;
+- an explicitly registered delegated executor, including a subprocess adapter.
 
-The next good pressure test is not a more elaborate fact ontology. It is to
-make one Eidos Closure or external model executor occupy the same Model Role,
-while preserving the same addressable input/output contract, inference
-provenance, and authority boundary.
+They can derive the same epistemic fact from the same Context without creating
+or transferring any world projection authority. An Elaboration commits their
+derivation Values as separately named, inspectable provenance.
+
+The generic semantic lens now traverses first-class Role Bindings, closures,
+and other Eidos dataclasses as well as RecordValues, so the input context,
+selected Model, actual inference steps, and executor receipts are addressable
+after the fact.
+
+## Current limits
+
+The declarative interpreter remains a small positive propositional calculus.
+The Closure/external execution bridge is deliberately not a full proof checker:
+proposed conclusions require *recognized premises*, but those premises alone
+do not mechanically establish entailment for arbitrary executable Models.
+Such results are attributable assertions by an admitted Elaborator, not
+infallible descriptions of external reality.
+
+Delegated execution is selected by an explicit host-side registration. A Model
+Executor Value is a description, **not** automatic permission to run remote
+code. The subprocess transport is not sandboxed; external execution can be
+nondeterministic or side-effecting, and exactly-once execution is not promised
+across retries.
+
+There is also not yet a full attention/cost scheduler: accepted inference
+steps are bounded, but remote cost and cancellation need explicit placement
+policies. The Actualizer remains a distinct live capability path through
+Trusted Machinery.
