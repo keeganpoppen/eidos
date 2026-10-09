@@ -26,6 +26,7 @@ from .core import (
 from .cuts import ObservedCut, elaborate_cuts
 from .meta import ACTUALIZER_ROLE, ELABORATOR_ROLE
 from .occurrence import FrontierProjection, RecursiveProtocol
+from .model_execution import ModelAdapter
 from .trusted import Conflict, TrustedMachinery
 
 
@@ -117,12 +118,22 @@ class MetaProtocolDriver:
         self,
         trusted: TrustedMachinery,
         protocols: Mapping[str, RecursiveProtocol] | None = None,
+        executors: Mapping[str, ModelAdapter] | None = None,
     ) -> None:
         self.trusted = trusted
         self.protocols: dict[str, RecursiveProtocol] = dict(protocols or {})
+        self.executors: dict[str, ModelAdapter] = dict(executors or {})
 
     def register(self, protocol: RecursiveProtocol) -> None:
         self.protocols[protocol.cid] = protocol
+
+    def register_executor(self, name: str, adapter: ModelAdapter) -> None:
+        """Explicitly bind an executor description to an external realization."""
+
+        description = self.trusted.named_eidos_value(name)["value"]
+        if not isinstance(description, RecordValue) or description.get("$kind") != "ModelExecutor":
+            raise MetaProtocolError("executor Name must denote a ModelExecutor Value")
+        self.executors[name] = adapter
 
     def react(self, suspended: Suspended, *, request_id: str) -> Reaction:
         """Turn one meta-protocol suspension into its authoritative Reaction."""
@@ -203,6 +214,7 @@ class MetaProtocolDriver:
             knowledge=tuple(str(item) for item in request.get("knowledge", ())),
             context=context_name,
             resolve=lambda name: self.trusted.named_eidos_value(name)["value"],
+            adapters=self.executors,
         )
         admitted = self.trusted.admit_cut_elaboration(
             blueprint=blueprint,
@@ -220,6 +232,7 @@ class MetaProtocolDriver:
                 "proof": admitted["proof"],
                 "context": None if blueprint.context is None else Name(blueprint.context),
                 "facts": blueprint.facts,
+                "derivations": tuple(Name(name) for name in admitted["derivations"]),
                 "possibilities": {
                     key: Name(name)
                     for key, name in admitted["possibilities"].items()
