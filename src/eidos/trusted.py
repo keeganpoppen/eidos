@@ -1897,6 +1897,7 @@ class TrustedMachinery:
                     name=possibility,
                     value=possibility_value(
                         name=possibility,
+                        elaboration=committed["occurrence"],
                         proof=blueprint.proof,
                         reaction=seed.reaction,
                         cuts=tuple(blueprint.cuts),
