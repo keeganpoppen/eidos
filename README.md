@@ -60,6 +60,25 @@ Occurrence + successor projections + successor Elaborators
 
 Elaboration and actualization differ semantically, not mechanically.
 
+### Executable Models
+
+The Model Role has three interchangeable realizations: a declarative rule set,
+a first-class **Eidos Closure** evaluated under situated Role bindings, or an
+explicitly registered **delegated executor** (including a subprocess adapter).
+
+All three receive a `ModelInput` Value containing the Context, grounded facts,
+Cuts, and remaining attention. All three return a `ModelProposal` Value with
+claims, cited premises, and an execution receipt.
+
+A committed Elaboration binds each run's **ModelDerivation** as a separate
+immutable, named Value, so a lens can inspect precisely what code/model ran,
+what input it saw, and what it asserted. External execution requires explicit
+registration; simply knowing an executor Name cannot invoke it.
+
+Executable claims remain epistemic assertions. They do not manufacture
+participant authority, and the Actualizer still requires a separate live
+capability transaction.
+
 ### Trusted Machinery™
 
 The current observer-relative path uses a deliberately narrow SQLite/WAL-backed substrate:
@@ -221,6 +240,7 @@ See:
 - [`docs/CORE.md`](docs/CORE.md) — executable Core language nucleus;
 - [`docs/OBSERVER_CUTS.md`](docs/OBSERVER_CUTS.md) — observer-relative causal cuts and joint elaboration;
 - [`docs/EPISTEMICS.md`](docs/EPISTEMICS.md) — named Knowledge, Models, Attention, and progressive epistemic Contexts;
+- [`docs/MODEL_EXECUTION.md`](docs/MODEL_EXECUTION.md) — common declarative/Closure/delegated Model contract and provenance;
 - [`docs/META_PROTOCOL.md`](docs/META_PROTOCOL.md) — Elaborate / Actualize as ordinary Eidos Socket operations;
 - [`docs/SEMANTIC_VALUES.md`](docs/SEMANTIC_VALUES.md) — tableless semantic objects, addressable provenance, and lenses;
 - [`docs/SUMMARY_TREE.md`](docs/SUMMARY_TREE.md) — hindsight-first semantic tree over Codex evidence;
