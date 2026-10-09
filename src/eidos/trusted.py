@@ -670,9 +670,10 @@ class TrustedMachinery:
     ) -> dict[str, Any]:
         """Admit one recursively elaborated possibility space.
 
-        The frontier Name is a linear capability minted by the previous
-        occurrence. The semantic elaborator presents a proof-shaped blueprint
-        anchored to that capability and to the same protocol commitment.
+        The previous occurrence mints a one-shot elaboration authority for a
+        freely referable frontier Name. The semantic elaborator presents that
+        authority alongside a proof-shaped blueprint anchored to the same
+        protocol commitment.
 
         Trusted Machinery does not re-run protocol semantics. It checks
         provenance, freshness, and exact frontier membership, records the proof,
@@ -795,7 +796,7 @@ class TrustedMachinery:
             )
             db.execute(
                 "INSERT INTO frontier_admissions(frontier_name,proof,blueprint_json) "
-                "VALUES (?,?,?)"
+                "VALUES (?,?,?)",
                 (
                     blueprint.frontier,
                     blueprint.proof,
