@@ -156,6 +156,11 @@ That is the first implementation-level route from the occurrence calculus back t
 
 Autopoiesis is no longer required as a separate mechanism; it can be a protocol whose successor frontier describes the next possible realizations of self.
 
+> **Later refinement:** [`OBSERVER_CUTS.md`](OBSERVER_CUTS.md) removes the
+> accidental global-frontier assumption below. The lockstep model remains a
+> useful special case, but observer-relative cuts are now the preferred general
+> interpretation.
+
 ## Deliberate limitation
 
 The current frontier capability is globally linear for one protocol generation: one occurrence spends the whole frontier generation and precludes its sibling possibilities.
