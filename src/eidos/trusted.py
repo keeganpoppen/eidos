@@ -1970,10 +1970,12 @@ class TrustedMachinery:
         observation: Any,
         request_id: str,
     ) -> dict[str, Any]:
-        """Actualize one possibility without imposing a global frontier.
+        """Actualize one named Possibility Value over live authority.
 
-        Semantic cut bookkeeping remains here. The linear authority transition
-        is delegated to the generic projection-occurrence commit primitive.
+        The Possibility Value supplies semantic structure. Trusted Machinery
+        supplies only Name resolution, live/spent projection disposition, and
+        the generic atomic authority occurrence commit. Specialized SQL rows are
+        maintained as compatibility indexes rather than semantic authority.
         """
 
         payload = {
@@ -1987,29 +1989,37 @@ class TrustedMachinery:
             if old is not None:
                 return old
 
-            row = db.execute(
+            index_row = db.execute(
                 "SELECT * FROM observed_possibilities WHERE name=?",
                 (possibility,),
             ).fetchone()
-            if row is None:
+            if index_row is None:
                 raise KeyError(possibility)
-            if row["state"] != "open":
+
+            semantic = self._named_eidos_value(db, possibility)["value"]
+            if (
+                not isinstance(semantic, RecordValue)
+                or semantic.get("$kind") != "Possibility"
+            ):
                 raise Conflict(
-                    f"observed possibility {possibility!r} is {row['state']}, not open"
+                    f"Name {possibility!r} does not denote a Possibility Value"
                 )
-            if row["actualizer"] != actualizer:
-                raise Conflict("wrong Actualizer role for this possibility")
+
+            actualizer_ref = semantic.get("actualizer")
+            if (
+                not isinstance(actualizer_ref, CoreName)
+                or actualizer_ref.value != authority
+            ):
+                raise Conflict(
+                    "Actualizer authority does not match Possibility Value"
+                )
 
             actualizer_row = db.execute(
-                "SELECT p.*,opa.possibility_name "
-                "FROM observed_possibility_actualizers opa "
-                "JOIN projections p ON p.name=opa.projection_name "
-                "WHERE opa.possibility_name=?",
-                (possibility,),
+                "SELECT * FROM projections WHERE name=?",
+                (authority,),
             ).fetchone()
             if (
                 actualizer_row is None
-                or actualizer_row["name"] != authority
                 or actualizer_row["role"] != ACTUALIZER_ROLE
                 or actualizer_row["protocol_state"] != actualizer_state(possibility)
                 or actualizer_row["holder"] != actualizer
@@ -2018,82 +2028,101 @@ class TrustedMachinery:
                 raise Conflict(
                     "Actualizer projection is not live/bound for this possibility"
                 )
+            instance = actualizer_row["instance_name"]
 
-            input_rows = db.execute(
-                "SELECT p.* FROM observed_reaction_inputs i "
-                "JOIN projections p ON p.name=i.projection_name "
-                "WHERE i.possibility_name=? ORDER BY p.rowid",
-                (possibility,),
-            ).fetchall()
-            stale = [
-                input_row["name"]
-                for input_row in input_rows
-                if input_row["disposition"] != "live"
-            ]
-            if stale:
-                raise StaleProjection(
-                    f"observed possibility input projections are stale: {stale!r}"
-                )
-            consumed = [input_row["name"] for input_row in input_rows]
-
-            cause_cuts = [
-                cut_row["cut_name"]
-                for cut_row in db.execute(
-                    "SELECT cut_name FROM observed_possibility_cuts "
-                    "WHERE possibility_name=? ORDER BY cut_name",
-                    (possibility,),
-                ).fetchall()
-            ]
-
-            occurrence = self._new_name(db, "observed_occurrence")
-            successor_cuts: dict[str, str] = {}
-            cut_rows: dict[str, sqlite3.Row] = {}
-            cut_names: list[str] = []
-            for old_cut in cause_cuts:
-                cut_row = db.execute(
-                    "SELECT * FROM causal_cuts WHERE name=?",
-                    (old_cut,),
+            input_names: list[str] = []
+            input_rows: list[sqlite3.Row] = []
+            for reference in semantic.get("inputs"):
+                if not isinstance(reference, CoreName):
+                    raise Conflict("Possibility inputs must be projection Names")
+                projection_row = db.execute(
+                    "SELECT * FROM projections WHERE name=?",
+                    (reference.value,),
                 ).fetchone()
-                if cut_row is None:
-                    raise KeyError(old_cut)
-                cut_rows[old_cut] = cut_row
-                new_cut = self._new_name(db, "cut")
-                cut_names.append(new_cut)
-                successor_cuts[old_cut] = new_cut
+                if (
+                    projection_row is None
+                    or projection_row["instance_name"] != instance
+                    or projection_row["disposition"] != "live"
+                ):
+                    raise StaleProjection(
+                        f"possibility input {reference.value!r} is not live"
+                    )
+                input_names.append(reference.value)
+                input_rows.append(projection_row)
 
-            output_rows = db.execute(
-                "SELECT * FROM observed_reaction_outputs "
-                "WHERE possibility_name=? ORDER BY ordinal",
-                (possibility,),
-            ).fetchall()
-            grants: list[ProjectionGrant] = [
-                ProjectionGrant(
-                    key=output["output_key"],
-                    role=output["role"],
-                    state=output["protocol_state"],
-                    holder=output["holder"],
+            cause_cuts: list[str] = []
+            cut_semantics: dict[str, RecordValue] = {}
+            for reference in semantic.get("cuts"):
+                if not isinstance(reference, CoreName):
+                    raise Conflict("Possibility cause cuts must be Names")
+                cut = reference.value
+                cut_index = db.execute(
+                    "SELECT 1 FROM causal_cuts WHERE name=?",
+                    (cut,),
+                ).fetchone()
+                if cut_index is None:
+                    raise KeyError(cut)
+                cut_value_ = self._named_eidos_value(db, cut)["value"]
+                if (
+                    not isinstance(cut_value_, RecordValue)
+                    or cut_value_.get("$kind") != "Cut"
+                ):
+                    raise Conflict(f"Name {cut!r} does not denote a Cut Value")
+                cause_cuts.append(cut)
+                cut_semantics[cut] = cut_value_
+
+            reaction = str(semantic.get("reaction"))
+            occurrence = self._new_name(db, "observed_occurrence")
+            successor_cuts = {
+                old_cut: self._new_name(db, "cut")
+                for old_cut in cause_cuts
+            }
+
+            output_templates: list[dict[str, str]] = []
+            grants: list[ProjectionGrant] = []
+            for output in semantic.get("outputs"):
+                if (
+                    not isinstance(output, RecordValue)
+                    or output.get("$kind") != "ProjectionTemplate"
+                ):
+                    raise Conflict(
+                        "Possibility outputs must be ProjectionTemplate Values"
+                    )
+                template = {
+                    "key": str(output.get("key")),
+                    "role": str(output.get("role")),
+                    "state": str(output.get("state")),
+                    "holder": str(output.get("holder")),
+                }
+                output_templates.append(template)
+                grants.append(
+                    ProjectionGrant(
+                        key=template["key"],
+                        role=template["role"],
+                        state=template["state"],
+                        holder=template["holder"],
+                    )
                 )
-                for output in output_rows
-            ]
+
             for old_cut, new_cut in successor_cuts.items():
-                cut_row = cut_rows[old_cut]
+                cut_value_ = cut_semantics[old_cut]
                 grants.append(
                     ProjectionGrant(
                         key=f"elaborator:{new_cut}",
                         role=ELABORATOR_ROLE,
                         state=elaborator_state(new_cut),
-                        holder=cut_row["observer"],
+                        holder=str(cut_value_.get("observer")),
                     )
                 )
 
             committed = self._commit_projection_occurrence(
                 db,
                 kind="Actualize",
-                consumes=(authority, *tuple(consumed)),
+                consumes=(authority, *tuple(input_names)),
                 establishes=tuple(grants),
                 fact={
                     "possibility": possibility,
-                    "reaction": row["reaction"],
+                    "reaction": reaction,
                     "actualizer": actualizer,
                     "observation": observation,
                     "cause_cuts": cause_cuts,
@@ -2103,34 +2132,34 @@ class TrustedMachinery:
             )
 
             successors = {
-                output["output_key"]: committed["established"][output["output_key"]]
-                for output in output_rows
+                template["key"]: committed["established"][template["key"]]
+                for template in output_templates
             }
             successor_by_role = {
-                output["role"]: successors[output["output_key"]]
-                for output in output_rows
+                template["role"]: successors[template["key"]]
+                for template in output_templates
             }
             ordered_successors = [
-                successors[output["output_key"]]
-                for output in output_rows
+                successors[template["key"]]
+                for template in output_templates
             ]
             elaborators = {
                 new_cut: committed["established"][f"elaborator:{new_cut}"]
                 for new_cut in successor_cuts.values()
             }
 
+            # Compatibility indexes: derivable from Values + authority history.
             db.execute(
                 "UPDATE observed_possibilities SET state='occurred' WHERE name=?",
                 (possibility,),
             )
-
-            if consumed:
-                placeholders = ",".join("?" for _ in consumed)
+            if input_names:
+                placeholders = ",".join("?" for _ in input_names)
                 competitors = db.execute(
                     "SELECT DISTINCT op.name FROM observed_possibilities op "
                     "JOIN observed_reaction_inputs oi ON oi.possibility_name=op.name "
                     f"WHERE op.state='open' AND oi.projection_name IN ({placeholders})",
-                    tuple(consumed),
+                    tuple(input_names),
                 ).fetchall()
                 for competitor in competitors:
                     db.execute(
@@ -2154,13 +2183,13 @@ class TrustedMachinery:
                 ") VALUES (?,?,?,?,?)",
                 (
                     occurrence,
-                    row["instance_name"],
+                    instance,
                     possibility,
                     actualizer,
                     json.dumps(observation, sort_keys=True, separators=(",", ":")),
                 ),
             )
-            for projection in consumed:
+            for projection in input_names:
                 db.execute(
                     "INSERT INTO observed_occurrence_inputs("
                     "occurrence_name,projection_name"
@@ -2175,10 +2204,10 @@ class TrustedMachinery:
                     (occurrence, projection, ordinal),
                 )
 
-            consumed_set = set(consumed)
-            successor_cut_members: dict[str, list[str]] = {}
+            consumed_set = set(input_names)
+            successor_cut_values: dict[str, str] = {}
             for old_cut in cause_cuts:
-                cut_row = cut_rows[old_cut]
+                old_value = cut_semantics[old_cut]
                 new_cut = successor_cuts[old_cut]
 
                 db.execute(
@@ -2192,51 +2221,50 @@ class TrustedMachinery:
                     ") VALUES (?,?,?,?,?,?,?)",
                     (
                         new_cut,
-                        cut_row["instance_name"],
-                        cut_row["observer"],
-                        cut_row["protocol_cid"],
+                        instance,
+                        str(old_value.get("observer")),
+                        str(old_value.get("protocol")),
                         old_cut,
                         occurrence,
                         "open",
                     ),
                 )
 
-                members = db.execute(
-                    "SELECT p.* FROM cut_members cm "
-                    "JOIN projections p ON p.name=cm.projection_name "
-                    "WHERE cm.cut_name=? ORDER BY p.role,p.name",
-                    (old_cut,),
-                ).fetchall()
-                successor_cut_members[new_cut] = []
-                for member in members:
-                    projection = member["name"]
+                new_members: list[str] = []
+                for reference in old_value.get("projections"):
+                    if not isinstance(reference, CoreName):
+                        raise Conflict("Cut projection references must be Names")
+                    projection = reference.value
                     if projection in consumed_set:
-                        projection = successor_by_role.get(member["role"])
+                        projection_row = db.execute(
+                            "SELECT role FROM projections WHERE name=?",
+                            (projection,),
+                        ).fetchone()
+                        if projection_row is None:
+                            raise KeyError(projection)
+                        projection = successor_by_role.get(projection_row["role"])
                         if projection is None:
                             continue
+                    new_members.append(projection)
                     db.execute(
                         "INSERT INTO cut_members(cut_name,projection_name) VALUES (?,?)",
                         (new_cut, projection),
                     )
-                    successor_cut_members[new_cut].append(projection)
+
                 db.execute(
                     "INSERT INTO observed_occurrence_cuts("
                     "occurrence_name,cut_name"
                     ") VALUES (?,?)",
                     (occurrence, old_cut),
                 )
-
-            successor_cut_values: dict[str, str] = {}
-            for old_cut, new_cut in successor_cuts.items():
-                cut_row = cut_rows[old_cut]
                 successor_cut_values[new_cut] = self._bind_eidos_value(
                     db,
                     name=new_cut,
                     value=cut_value(
                         name=new_cut,
-                        observer=cut_row["observer"],
-                        protocol_cid=cut_row["protocol_cid"],
-                        projections=tuple(successor_cut_members[new_cut]),
+                        observer=str(old_value.get("observer")),
+                        protocol_cid=str(old_value.get("protocol")),
+                        projections=tuple(new_members),
                         parent_cut=old_cut,
                         parent_occurrence=occurrence,
                     ),
@@ -2247,7 +2275,7 @@ class TrustedMachinery:
                 name=occurrence,
                 value=occurrence_value(
                     occurrence=occurrence,
-                    reaction=row["reaction"],
+                    reaction=reaction,
                     possibility=possibility,
                     cause_cuts=tuple(cause_cuts),
                     successor_cuts=tuple(successor_cuts.values()),
@@ -2264,30 +2292,30 @@ class TrustedMachinery:
                     "occurrence": occurrence,
                     "authority_occurrence": committed["occurrence"],
                     "possibility": possibility,
-                    "reaction": row["reaction"],
+                    "reaction": reaction,
                     "actualizer": actualizer,
                     "actualizer_projection": authority,
                     "cause_cuts": cause_cuts,
                     "successor_cuts": successor_cuts,
                     "elaborator_projections": elaborators,
-                    "consumed": consumed,
+                    "consumed": input_names,
                     "successors": successors,
                     "observation": observation,
                     "value": occurrence_cid,
                     "successor_cut_values": successor_cut_values,
-                    "new_names": cut_names,
+                    "new_names": list(successor_cuts.values()),
                 },
             )
             result = {
                 "occurrence": occurrence,
-                "reaction": row["reaction"],
+                "reaction": reaction,
                 "actualizer": actualizer,
                 "actualizer_projection": authority,
                 "cause_cuts": cause_cuts,
                 "successor_cuts": successor_cuts,
                 "elaboration_authorities": elaborators,
                 "elaborators": elaborators,
-                "consumed": consumed,
+                "consumed": input_names,
                 "successors": successors,
                 "value": occurrence_cid,
                 "successor_cut_values": successor_cut_values,
