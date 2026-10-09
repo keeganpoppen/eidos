@@ -54,9 +54,8 @@ def disclose_cut(
         discloser.get("role") != "Discloser"
         or discloser["domain_name"] != observer["instance_name"]
         or discloser["holder"] != observer["observer"]
-        or discloser["disposition"] != "live"
     ):
-        raise CutExchangeError("Cut disclosure requires the observer's live Discloser authority")
+        raise CutExchangeError("Cut disclosure requires the observer's Discloser authority")
 
     run = trusted.named_eidos_value(recipient_run)["value"]
     if (
@@ -67,6 +66,9 @@ def disclose_cut(
         raise CutExchangeError("disclosure recipient must name a matching ModelProcess")
 
     desc = trusted.named_eidos_value(discloser_projection)["value"]
+    # Allow the same request_id to replay its already-committed occurrence
+    # after a crash. For a new request, the generic commit still refuses to
+    # consume a spent Discloser projection.
     committed = trusted.commit_projection_occurrence(
         kind="DiscloseCut",
         consumes=(discloser_projection,),
