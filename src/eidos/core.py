@@ -370,15 +370,22 @@ Realization: TypeAlias = Done | Open | Suspended
 class Reaction:
     """Authoritative causal occurrence supplied from outside Praxis.
 
-    Praxis does not infer protocol legality or mint successor authority.  It
-    verifies only that this occurrence discharges the suspension being resumed,
-    then exposes the result to ordinary Eidos code.
+    A Reaction may jointly consume several Socket capabilities.  A suspended
+    local continuation resumes when its own Socket is among those consumed by
+    the occurrence.  This lets one causal event join several observer-relative
+    continuations without pretending the event was unary.
     """
 
     name: Name
-    consumed: Socket
+    consumed: Socket | tuple[Socket, ...]
     successor: Socket | None
     value: Any
+
+    @property
+    def consumed_sockets(self) -> tuple[Socket, ...]:
+        if isinstance(self.consumed, Socket):
+            return (self.consumed,)
+        return self.consumed
 
 
 class RealizationError(RuntimeError):
@@ -425,10 +432,13 @@ class PraxisCore:
     def resume(self, suspended: Suspended, reaction: Reaction) -> Realization:
         """Resume with the explicit result and successor established by Reaction."""
 
-        if reaction.consumed != suspended.socket:
+        if suspended.socket not in reaction.consumed_sockets:
+            consumed = ", ".join(
+                socket.name.value for socket in reaction.consumed_sockets
+            )
             raise RealizationError(
-                f"reaction consumes {reaction.consumed.name.value!r}, "
-                f"not suspended socket {suspended.socket.name.value!r}"
+                f"reaction consumes [{consumed}], not suspended socket "
+                f"{suspended.socket.name.value!r}"
             )
         k = suspended.continuation
         lexical = k.lexical.bind(k.result_as, reaction.value).bind(
