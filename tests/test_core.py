@@ -270,3 +270,41 @@ def test_let_is_lexically_scoped_across_enclosing_control():
         lexical=LexicalEnv().bind("x", 10),
     )
     assert result == Done(11, Bindings())
+
+
+
+def test_reaction_may_join_multiple_socket_capabilities():
+    praxis = PraxisCore()
+    primary = Socket(Name("socket:primary"))
+    peer = Socket(Name("socket:peer"))
+    successor = Socket(Name("socket:next"))
+
+    suspended = praxis.realize(
+        Perform(
+            socket=Lit(primary),
+            operation=Name("operation:join"),
+            argument=Lit("payload"),
+            result_as="result",
+            successor_as="next",
+            then=Record.from_mapping(
+                {
+                    "result": Var("result"),
+                    "next": Var("next"),
+                }
+            ),
+        )
+    )
+    assert isinstance(suspended, Suspended)
+
+    resumed = praxis.resume(
+        suspended,
+        Reaction(
+            name=Name("reaction:joint"),
+            consumed=(peer, primary),
+            successor=successor,
+            value="joined",
+        ),
+    )
+    assert isinstance(resumed, Done)
+    assert resumed.value.get("result") == "joined"
+    assert resumed.value.get("next") == successor
