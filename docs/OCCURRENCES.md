@@ -151,8 +151,19 @@ The current experiment establishes only this factoring:
         v
     new live projected frontier
 
-## Next pressure test
+## Recursive elaboration
 
-The next semantic experiment should make elaboration recursive: a committed Occurrence should expose a successor frontier from which the semantic layer can elaborate the next set of possible Reactions.
+That pressure test is now implemented. See [`RECURSIVE_OCCURRENCES.md`](RECURSIVE_OCCURRENCES.md).
 
-That will test whether an enduring protocol instance can be understood simply as an evolving possibility space over causal event history, or whether some additional session object is genuinely irreducible.
+A committed Occurrence now exposes a successor frontier plus a distinct one-shot elaboration authority. The semantic elaborator derives the next possibility space from the protocol commitment and authoritative successor projections; Trusted Machinery admits that proof-shaped blueprint once and then returns to mechanical occurrence commit.
+
+The current loop is:
+
+    possibility
+        -> atomic occurrence
+        -> open successor frontier
+        -> semantic elaboration
+        -> admitted possibility
+        -> ...
+
+The next pressure point is whether the elaboration authority itself can become an ordinary Eidos capability/projection of a meta protocol, rather than remaining a privileged seam between the semantic dual and Trusted Machinery.
