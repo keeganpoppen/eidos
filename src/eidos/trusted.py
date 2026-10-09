@@ -2277,6 +2277,7 @@ class TrustedMachinery:
                     occurrence=occurrence,
                     reaction=reaction,
                     possibility=possibility,
+                    actualizer=actualizer,
                     cause_cuts=tuple(cause_cuts),
                     successor_cuts=tuple(successor_cuts.values()),
                     observation=observation,
