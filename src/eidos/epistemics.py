@@ -12,9 +12,10 @@ understanding, not a general proof system or a claim of factual truth.
 """
 
 from dataclasses import dataclass
-from typing import Any, Callable, Iterable
+from typing import Any, Callable, Iterable, Mapping
 
-from .core import Bindings, Name, RecordValue, Role
+from .core import Bindings, Closure, Name, RecordValue, Role, content_id as core_content_id
+from .model_execution import ModelAdapter, ModelCandidate, execute_model, model_input
 
 
 KNOWLEDGE_ROLE = Role("elaboration", "knowledge")
@@ -69,19 +70,37 @@ def implication_value(
 def model_value(
     title: str,
     *,
-    rules: Iterable[RecordValue],
+    rules: Iterable[RecordValue] = (),
     sources: Iterable[Name | str] = (),
+    implementation: Closure | Name | str | None = None,
 ) -> RecordValue:
-    """A model is an addressable Value whose rules can be interpreted locally."""
+    """Bind the same Model Role to rules, Eidos code, or a delegated executor.
+
+    A delegated implementation is only a Name of an executor description. The
+    runtime must separately register an adapter before that model can run;
+    knowing an executor Name does not grant execution authority.
+    """
 
     if not title:
         raise ValueError("model title must be nonempty")
     rules = tuple(rules)
     for rule in rules:
         _require_kind(rule, "Implication")
+    if implementation is not None and rules:
+        raise ValueError("a Model has one implementation, not rules and an executor")
+    if implementation is None:
+        engine = "rules"
+    elif isinstance(implementation, Closure):
+        engine = "closure"
+    else:
+        engine = "delegated"
+        implementation = _name(implementation)
+
     return RecordValue.from_mapping({
         "$kind": "Model",
         "title": title,
+        "engine": engine,
+        "implementation": implementation,
         "rules": rules,
         "sources": _names(sources),
     })
@@ -136,12 +155,15 @@ def context_value(
 
 @dataclass(frozen=True)
 class Inference:
-    """One model-derived fact, including the rule and premises that supported it."""
+    """One attributed claim accepted into a bounded situated derivation."""
 
     fact: str
     model: str
     rule: int
     premises: tuple[str, ...]
+    engine: str = "rules"
+    derivation: str | None = None
+    witness: Any = None
 
 
 @dataclass(frozen=True)
@@ -153,6 +175,7 @@ class EpistemicResult:
     attention: str | None
     facts: tuple[str, ...]
     inferences: tuple[Inference, ...]
+    derivations: tuple[RecordValue, ...] = ()
 
 
 def interpret_context(
@@ -160,12 +183,14 @@ def interpret_context(
     *,
     resolve: Resolver,
     cuts: Iterable[str],
+    adapters: Mapping[str, ModelAdapter] | None = None,
 ) -> EpistemicResult:
-    """Purely interpret named context Values and perform bounded inference.
+    """Interpret a situated Context, optionally invoking registered executors.
 
-    All claims here remain epistemic. Ground names and model sources are
-    addressable evidence, not authority tokens. Only the separate Actualizer
-    commit can authoritatively consume live projections.
+    Declarative rules and local Eidos Closures run without effects; delegated
+    executors may be external and are NOT assumed pure or retry-idempotent.
+    Returned claims remain epistemic, not causal authority. Actualization
+    always requires a separate live capability transaction.
     """
 
     name = _name(context).value
@@ -243,7 +268,7 @@ def interpret_context(
         if focus and not focus <= set(models):
             raise ValueError("attention focuses on a model outside its context")
 
-    rules: list[tuple[str, int, tuple[str, ...], str]] = []
+    selected_models: list[tuple[str, RecordValue]] = []
     for ref in models:
         model = _require_kind(resolve(ref), "Model")
         for source in model.get("sources"):
@@ -252,31 +277,64 @@ def interpret_context(
             resolve(source.value)
         if focus and ref not in focus:
             continue
-        for i, rule in enumerate(model.get("rules")):
-            implication = _require_kind(rule, "Implication")
-            premises = implication.get("premises")
-            conclusion = implication.get("conclusion")
-            if not isinstance(premises, tuple) or any(not isinstance(p, str) for p in premises) or not isinstance(conclusion, str):
-                raise ValueError("malformed implication")
-            rules.append((ref, i, premises, conclusion))
+        selected_models.append((ref, model))
 
+    # Execute each model at most once for this elaboration. Evaluation is lazy:
+    # a small Attention budget must not invoke unrelated external executors.
+    # Candidates from all implementations share the same bounded acceptance
+    # logic, so no Model may bypass grounded premises to mint authority.
+    evaluated: dict[str, tuple[ModelCandidate, ...]] = {}
+    derivations: list[RecordValue] = []
+    derivation_by_model: dict[str, RecordValue] = {}
     inferred: list[Inference] = []
-    # Positive conclusions can each be established only once. A large
-    # attention budget therefore never requires more rounds than rules.
-    for _ in range(min(budget, len(rules))):
-        enabled = next(
-            (
-                (model, index, premises, fact)
-                for model, index, premises, fact in rules
-                if fact not in known and all(premise in known for premise in premises)
-            ),
-            None,
-        )
+    for _ in range(budget):
+        enabled: tuple[str, ModelCandidate] | None = None
+        for ref, model in selected_models:
+            if ref not in evaluated:
+                request = model_input(
+                    context=Name(name),
+                    model=Name(ref),
+                    cuts=tuple(Name(cut) for cut in sorted(expected_cuts)),
+                    facts=tuple(sorted(known)),
+                    knowledge=tuple(Name(item) for item in knowledge),
+                    remaining_budget=budget - len(inferred),
+                )
+                candidates, derivation = execute_model(
+                    name=ref,
+                    model=model,
+                    request=request,
+                    resolve=resolve,
+                    adapters=adapters,
+                )
+                evaluated[ref] = candidates
+                derivations.append(derivation)
+                derivation_by_model[ref] = derivation
+
+            for candidate in evaluated[ref]:
+                if candidate.fact in known:
+                    continue
+                if all(premise in known for premise in candidate.premises):
+                    enabled = (ref, candidate)
+                    break
+            if enabled is not None:
+                break
+
         if enabled is None:
             break
-        model, index, premises, fact = enabled
-        known.add(fact)
-        inferred.append(Inference(fact=fact, model=model, rule=index, premises=premises))
+        ref, candidate = enabled
+        derivation = derivation_by_model[ref]
+        known.add(candidate.fact)
+        inferred.append(
+            Inference(
+                fact=candidate.fact,
+                model=ref,
+                rule=candidate.rule,
+                premises=candidate.premises,
+                engine=derivation.get("engine"),
+                derivation=core_content_id(derivation),
+                witness=candidate.witness,
+            )
+        )
 
     return EpistemicResult(
         context=name,
@@ -286,6 +344,7 @@ def interpret_context(
         attention=attention_name,
         facts=tuple(sorted(known)),
         inferences=tuple(inferred),
+        derivations=tuple(derivations),
     )
 
 
