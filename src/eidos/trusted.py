@@ -2331,23 +2331,41 @@ class TrustedMachinery:
             if isinstance(reference, CoreName)
         ]
 
-        # Legacy compatibility fields remain derived indexes.
+        # Legacy compatibility fields are reconstructed from semantic Values.
+        possibility_value_ = self.named_eidos_value(possibility.value)["value"]
+        if (
+            not isinstance(possibility_value_, RecordValue)
+            or possibility_value_.get("$kind") != "Possibility"
+        ):
+            raise Conflict("Occurrence Possibility does not resolve to a Possibility Value")
+
+        actualizer_ref = possibility_value_.get("actualizer")
+        actualizer_name = (
+            actualizer_ref.value
+            if isinstance(actualizer_ref, CoreName)
+            else None
+        )
         item["inputs"] = [
-            r["projection_name"]
-            for r in self.db.execute(
-                "SELECT projection_name FROM observed_occurrence_inputs "
-                "WHERE occurrence_name=? ORDER BY rowid",
-                (occurrence,),
-            ).fetchall()
+            name
+            for name in item["consumed"]
+            if name != actualizer_name
         ]
-        item["outputs"] = [
-            r["projection_name"]
-            for r in self.db.execute(
-                "SELECT projection_name FROM observed_occurrence_outputs "
-                "WHERE occurrence_name=? ORDER BY ordinal",
-                (occurrence,),
-            ).fetchall()
-        ]
+
+        output_roles = {
+            str(template.get("role"))
+            for template in possibility_value_.get("outputs")
+            if isinstance(template, RecordValue)
+            and template.get("$kind") == "ProjectionTemplate"
+        }
+        outputs: list[str] = []
+        for projection in item["established"]:
+            row = self.db.execute(
+                "SELECT role FROM projections WHERE name=?",
+                (projection,),
+            ).fetchone()
+            if row is not None and row["role"] in output_roles:
+                outputs.append(projection)
+        item["outputs"] = outputs
         return item
 
     def authority_occurrence(self, occurrence: str) -> dict[str, Any]:
