@@ -434,3 +434,92 @@ def test_epistemic_context_changes_elaboration_proof_not_world_authority():
     assert shallow.possibilities == deep.possibilities
     assert shallow.proof != deep.proof
     assert shallow.knowledge != deep.knowledge
+
+
+
+def test_delegating_elaborator_changes_interpreter_not_observed_world():
+    tm, protocol, _, left, _ = setup_observer_cuts()
+    cut_before = tm.causal_cut(left["cut"])
+    world_projection_names = {
+        projection["name"] for projection in cut_before["projections"]
+    }
+
+    delegated = tm.transfer_projection(
+        projection=left["elaborator_projection"],
+        from_holder="elaborator:left",
+        to_holder="elaborator:deep",
+        request_id="delegate-to-deeper-model",
+    )
+    assert delegated["role"] == "Elaborator"
+
+    cut_after = tm.causal_cut(left["cut"])
+    assert {
+        projection["name"] for projection in cut_after["projections"]
+    } == world_projection_names
+
+    blueprint = elaborate_cuts(
+        protocol,
+        cuts=(as_observed_cut(tm, left["cut"]),),
+        elaborator="elaborator:deep",
+        actualizer="actualizer:local",
+        knowledge=(
+            "observation:raw",
+            "model:domain-theory",
+            "model:historical-context",
+        ),
+    )
+    admitted = tm.admit_cut_elaboration(
+        blueprint=blueprint,
+        authorities={left["cut"]: left["elaborator_projection"]},
+        request_id="deep-elaboration",
+    )
+    assert admitted["possibilities"]
+
+
+def test_actualizer_authority_is_not_just_the_actualizer_name():
+    tm, protocol, _, left, _ = setup_observer_cuts()
+    _, admitted = admit_one(
+        tm,
+        protocol,
+        left,
+        elaborator="elaborator:left",
+        actualizer="actualizer:alpha",
+        request_id="actualizer-authority-admission",
+    )
+    possibility = next(iter(admitted["possibilities"].values()))
+
+    with pytest.raises(Conflict, match="Actualizer projection"):
+        tm.actualize_observed(
+            possibility=possibility,
+            actualizer="actualizer:alpha",
+            authority=left["cut"],
+            observation={},
+            request_id="actualizer-name-is-not-capability",
+        )
+
+
+def test_actualization_mints_next_elaborator_as_ordinary_projection():
+    tm, protocol, _, left, _ = setup_observer_cuts()
+    _, admitted = admit_one(
+        tm,
+        protocol,
+        left,
+        elaborator="elaborator:left",
+        actualizer="actualizer:alpha",
+        request_id="next-elaborator-admission",
+    )
+    possibility = next(iter(admitted["possibilities"].values()))
+    occurred = tm.actualize_observed(
+        possibility=possibility,
+        actualizer="actualizer:alpha",
+        authority=admitted["actualizers"][possibility],
+        observation={},
+        request_id="next-elaborator-occurrence",
+    )
+
+    successor_cut = next(iter(occurred["successor_cuts"].values()))
+    elaborator_projection = occurred["elaborators"][successor_cut]
+    row = tm.projection(elaborator_projection)
+    assert row["role"] == "Elaborator"
+    assert row["holder"] == "O1"
+    assert row["disposition"] == "live"
