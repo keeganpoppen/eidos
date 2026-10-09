@@ -1,11 +1,12 @@
 import pytest
 
 from eidos.authority import ProjectionGrant
+from eidos.genesis import admit_genesis
+from eidos.semantic_values import projection_value
 from eidos.occurrence import (
     ProjectionTemplate,
     ReactionRule,
     RecursiveProtocol,
-    elaborate_genesis,
 )
 from eidos.trusted import Conflict, StaleProjection, TrustedMachinery
 
@@ -26,8 +27,10 @@ def protocol(name="authority-test"):
 
 def installed(tm, *, name="authority-test", request_id="genesis"):
     p = protocol(name)
-    out = tm.install_occurrence_blueprint(
-        blueprint=elaborate_genesis(p, holders={"A": "alice"}),
+    out = admit_genesis(
+        tm,
+        p,
+        holders={"A": "alice"},
         request_id=request_id,
     )
     return p, out
@@ -44,9 +47,12 @@ def test_generic_commit_knows_only_linear_projection_transition():
         establishes=(
             ProjectionGrant(
                 key="next:A",
-                role="A",
-                state="a1",
                 holder="alice",
+                description=projection_value(
+                    key="next:A",
+                    role="A",
+                    state="a1",
+                ),
             ),
         ),
         fact={"why": "opaque to Trusted Machinery"},
@@ -109,9 +115,12 @@ def test_generic_commit_rejects_duplicate_input_and_empty_genesis_mint():
             establishes=(
                 ProjectionGrant(
                     key="forbidden",
-                    role="A",
-                    state="a1",
                     holder="alice",
+                    description=projection_value(
+                        key="forbidden",
+                        role="A",
+                        state="a1",
+                    ),
                 ),
             ),
             fact={},
@@ -124,7 +133,7 @@ def test_generic_commit_cannot_atomically_cross_authority_instances():
     _, first = installed(tm, name="one", request_id="genesis-one")
     _, second = installed(tm, name="two", request_id="genesis-two")
 
-    with pytest.raises(Conflict, match="one instance"):
+    with pytest.raises(Conflict, match="one authority domain"):
         tm.commit_projection_occurrence(
             kind="cross-instance",
             consumes=(
