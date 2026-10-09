@@ -11,10 +11,10 @@ from typing import Any, Iterator
 from .model import Frame, OfferSpec, ProtocolSpec, Transition, canonical_bytes, content_id
 from .core import (
     Name as CoreName,
+    RecordValue,
     canonical_bytes as core_canonical_bytes,
     content_id as core_content_id,
     from_data as core_from_data,
-    to_data as core_to_data,
 )
 from .occurrence import FrontierBlueprint, InstanceBlueprint
 from .cuts import CutElaboration
@@ -626,9 +626,16 @@ class TrustedMachinery:
             self._idem_put(db, request_id, "bind_eidos_value", payload, result)
             return result
 
-    def named_eidos_value(self, name: str) -> dict[str, Any]:
-        row = self.db.execute(
-            "SELECT cid FROM named_eidos_values WHERE name=?",
+    def _named_eidos_value(
+        self,
+        db: sqlite3.Connection,
+        name: str,
+    ) -> dict[str, Any]:
+        row = db.execute(
+            "SELECT nev.cid,ev.body_json "
+            "FROM named_eidos_values nev "
+            "JOIN eidos_values ev ON ev.cid=nev.cid "
+            "WHERE nev.name=?",
             (name,),
         ).fetchone()
         if row is None:
@@ -636,8 +643,11 @@ class TrustedMachinery:
         return {
             "name": name,
             "cid": row["cid"],
-            "value": self.eidos_value(row["cid"]),
+            "value": core_from_data(json.loads(row["body_json"])),
         }
+
+    def named_eidos_value(self, name: str) -> dict[str, Any]:
+        return self._named_eidos_value(self.db, name)
 
     def reserve_name(self, *, kind: str, request_id: str) -> str:
         payload = {"kind": kind}
