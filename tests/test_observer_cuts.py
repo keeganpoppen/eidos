@@ -1,5 +1,6 @@
 import pytest
 
+from eidos.genesis import admit_genesis
 from eidos.cuts import ObservedCut, elaborate_cuts
 from eidos.occurrence import (
     FrontierProjection,
@@ -82,16 +83,15 @@ def as_observed_cut(tm: TrustedMachinery, cut: str) -> ObservedCut:
 def setup_observer_cuts():
     tm = TrustedMachinery()
     protocol = observer_protocol()
-    installed = tm.install_occurrence_blueprint(
-        blueprint=elaborate_genesis(
-            protocol,
-            holders={
-                "A": "alice",
-                "B": "bob",
-                "C": "carol",
-                "D": "dan",
-            },
-        ),
+    installed = admit_genesis(
+        tm,
+        protocol,
+        holders={
+            "A": "alice",
+            "B": "bob",
+            "C": "carol",
+            "D": "dan",
+        },
         request_id="observer-genesis",
     )
 
