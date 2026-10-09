@@ -87,8 +87,27 @@ class ModelProcessRunner:
             raise ValueError("process budgets must be positive")
         self.trusted = trusted
         self.executors = dict(executors or {})
+        self.consultations: dict[str, set[str]] = {}
         self.max_steps = max_steps
         self.max_scope_nodes = max_scope_nodes
+
+    def authorize_consultation(self, *, model: str, executor: str) -> None:
+        """Admit one Model -> Executor delegation on the host side.
+
+        An executor's Name and mere registration do not authorize all Models
+        to invoke it. The admitted list is captured in each process genesis
+        description so it remains inspectable after the process is handed off.
+        """
+
+        if executor not in self.executors:
+            raise ModelExecutionError("executor must be explicitly registered")
+        _require_kind(
+            self.trusted.named_eidos_value(executor)["value"], "ModelExecutor"
+        )
+        _require_kind(
+            self.trusted.named_eidos_value(model)["value"], "Model"
+        )
+        self.consultations.setdefault(model, set()).add(executor)
 
     def start(
         self,
@@ -107,6 +126,9 @@ class ModelProcessRunner:
         if not isinstance(program, Closure):
             raise ModelExecutionError("ModelProcess requires a Closure")
         invocation = request_id or f"process:{uuid4().hex}"
+        allowed_executors = tuple(
+            Name(executor) for executor in sorted(self.consultations.get(name, ()))
+        )
         domain = self.trusted.admit_authority_domain(
             description=RecordValue.from_mapping({
                 "$kind": "ModelProcess",
@@ -114,6 +136,7 @@ class ModelProcessRunner:
                 "context": context,
                 "input": request,
                 "program": program,
+                "allowed_executors": allowed_executors,
             }),
             establishes=(
                 ProjectionGrant(
@@ -358,7 +381,12 @@ class ModelProcessRunner:
         if suspended.operation == CONSULT:
             _require_kind(request, "ConsultRequest")
             executor = request.get("executor")
-            if not isinstance(executor, Name) or executor.value not in self.executors:
+            if (
+                not isinstance(executor, Name)
+                or executor not in descriptor.get("allowed_executors")
+            ):
+                raise ModelExecutionError("Consult requires explicitly delegated executor authority")
+            if executor.value not in self.executors:
                 raise ModelExecutionError("Consult requires a registered executor")
             desc = _require_kind(
                 self.trusted.named_eidos_value(executor.value)["value"],
