@@ -65,25 +65,47 @@ An Occurrence explicitly names its Possibility, cause cuts, successor cuts, cons
 
 ## Values are now canonical semantics
 
-The migration is not only duplicated persistence.
+The migration is no longer duplicated persistence.
 
-The meta-protocol Elaborator reconstructs a Cut from the ordinary Value bound to the Cut Name.
+The observer-relative execution path has **no observer-specific ontology tables**.
+In particular, Trusted Machinery no longer has tables for:
 
-`admit_cut_elaboration` validates protocol/projection membership from Cut Values plus live Elaborator capability.
+- causal cuts;
+- cut membership;
+- elaboration admissions;
+- observer possibilities or their input/output mirrors;
+- observer occurrences or their cut/input/output mirrors.
 
-`actualize_observed` obtains reaction identity, input projection Names, output templates, cause cuts, and Actualizer identity from the Possibility Value.
+The meta-protocol reconstructs a Cut from the ordinary Value bound to the Cut
+Name. Admission validates that Value against live Elaborator capability.
+Actualization obtains the Reaction, required projections, output templates,
+cause cuts, and Actualizer from the named Possibility Value.
 
-The public semantic read APIs likewise overlay runtime facts such as live/spent disposition onto semantics recovered from named Values.
+Lifecycle state is derived rather than stored:
 
-The old observer-specific SQL tables remain for:
+    Cut:
+        live Elaborator projection -> open
+        spent Elaborator projection -> elaborated
+        named Occurrence cites it as a cause -> historical
 
-- compatibility with the earlier experiments;
-- efficient lookup / reverse indexes;
-- mutable runtime/index state;
+    Possibility:
+        live Actualizer + live inputs -> open
+        Actualizer consumed by matching Actualize -> occurred
+        Actualizer consumed by Preclude, or stale inputs -> precluded
 
-but they are no longer the semantic source of truth.
+Competing possibilities are precluded by an ordinary generic authority
+occurrence that consumes the competing Actualizer projection. There is no
+special preclusion table or flag that carries causal authority.
 
-One pressure test deliberately corrupts semantic-looking columns in those tables and verifies that the interpreted Cut, Possibility, and Occurrence remain unchanged because the immutable named Values still carry the meaning.
+The public semantic APIs are therefore projections over:
+
+    immutable named Eidos Values
+    + live/spent projection facts
+    + generic authority-occurrence history
+
+The older lockstep/frontier and v0 Match experiments still retain their own
+specialized tables alongside this path. They are historical experiments, not
+dependencies of the observer-relative semantics.
 
 ## Stale knowledge remains knowledge
 
@@ -151,22 +173,62 @@ without conflating deeper understanding with greater causal authority.
 
 ## What remains in Trusted Machinery
 
-The current observer subsystem still writes several specialized tables, but the direction is now clear.
-
-The irreducible substrate is converging toward:
+For the observer-relative path, the durable substrate has collapsed to a much
+smaller set of generic machinery:
 
 - permanent Names;
-- generic immutable Value persistence;
-- live/spent projection disposition and delegation;
-- generic atomic authority-occurrence commit;
-- durable occurrence provenance / indexing.
+- content-addressed immutable Eidos Values and immutable Name bindings;
+- projection capabilities with authority-local instance, role/state/holder, and
+  live/spent disposition;
+- generic authority occurrences with consumed and established projections;
+- command idempotency and the generic event log.
 
-Cut, Possibility, Elaboration, Occurrence, and lens semantics belong above that substrate.
+Cut, Elaboration, Possibility, Occurrence, observer-relative history, and
+semantic lenses are all library-level Value conventions above that substrate.
+
+This is now tested structurally: the test suite asserts that the old
+observer-specific tables do not exist at all while the complete
+Cut -> Elaboration -> Possibility -> Occurrence -> Cut lifecycle continues to
+work.
+
+## Stale knowledge and counterfactual elaboration
+
+Historical semantic Cuts remain inspectable even after their projection
+authority is spent.
+
+A pure Elaborator may still ask:
+
+    "what possibilities were visible from this old cut,
+     perhaps using a better model I have now?"
+
+and derive those possibilities retrospectively.
+
+What it cannot do is turn that retrospective derivation into present authority:
+the original Elaborator or Actualizer projections are spent, and Trusted
+Machinery rejects their reuse.
+
+That gives the desired asymmetry:
+
+> **later understanding may improve the model of an old world; it does not
+> resurrect the authority that world once contained.**
 
 ## Next pressure point
 
-The next useful deletion experiment is not to invent another abstraction.
+The semantic ontology itself is no longer the obvious target.
 
-It is to pick one specialized semantic index at a time and prove it can be rebuilt or omitted because the named Values plus generic authority history contain enough information.
+The remaining candidate reductions are lower-level:
 
-The best candidates are `cut_members`, `observed_possibility_cuts`, and `observed_reaction_outputs`, because the live execution paths now recover the corresponding semantics from Values instead.
+1. decide whether an authority-local instance needs any semantic payload at all,
+   or whether it should be only an identity/domain boundary whose description
+   is another named Value;
+2. decide how much of a projection's role/state description belongs in the
+   generic authority substrate versus an ordinary capability Value;
+3. replace linear scans over named Values with derived indexes/lenses that are
+   explicitly disposable and rebuildable.
+
+Those are optimization/substrate questions. The conceptual result of this
+experiment is already sharper:
+
+> **semantic structure lives in Values; causal power lives in capabilities;
+> actual history lives in generic occurrences.**
+
