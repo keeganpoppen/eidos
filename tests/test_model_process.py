@@ -170,6 +170,18 @@ def snapshot_world(tm, refs):
     }
 
 
+def reidentify_request(refs, model_name):
+    original = refs["request"]
+    return model_input(
+        context=original.get("context"),
+        model=Name(model_name),
+        cuts=original.get("cuts"),
+        facts=original.get("facts"),
+        knowledge=original.get("knowledge"),
+        remaining_budget=original.get("remaining_budget"),
+    )
+
+
 def test_model_process_checkpoints_inspects_consults_and_survives_restart():
     tm, _, cut, refs = world()
     calls = []
@@ -324,12 +336,16 @@ def test_process_cannot_perform_on_a_world_socket():
         )
     )
     assert isinstance(malicious, Done)
+    rogue_model = persist(
+        tm, "model",
+        model_value("rogue-world-socket", implementation=malicious.value, process=True),
+    )
     before = snapshot_world(tm, refs)
     runner = ModelProcessRunner(tm)
     with pytest.raises(ModelExecutionError, match="outside its own continuation"):
         runner.start(
-            name=refs["model"], program=malicious.value,
-            request=refs["request"],
+            name=rogue_model, program=malicious.value,
+            request=reidentify_request(refs, rogue_model),
         )
     assert snapshot_world(tm, refs) == before
 
@@ -355,10 +371,14 @@ def test_inspection_cannot_escape_its_scoped_context():
         ))
     )
     assert isinstance(unsafe, Done)
+    unsafe_model = persist(
+        tm, "model",
+        model_value("out-of-scope-inspector", implementation=unsafe.value, process=True),
+    )
     runner = ModelProcessRunner(tm)
     progress = runner.start(
-        name=refs["model"], program=unsafe.value,
-        request=refs["request"],
+        name=unsafe_model, program=unsafe.value,
+        request=reidentify_request(refs, unsafe_model),
     )
     with pytest.raises(ModelExecutionError, match="outside scoped Context"):
         runner.advance(progress.checkpoint)
@@ -649,3 +669,28 @@ def test_joint_elaboration_uses_resumable_process_to_inspect_both_cuts():
     assert receipt.get("right") == Name(right["cut"])
     assert tm.projection(genesis["projections"]["projection:A"])["disposition"] == "live"
     assert tm.projection(genesis["projections"]["projection:B"])["disposition"] == "live"
+
+
+
+def test_model_process_rejects_spoofed_program_or_input_identity():
+    tm, _, _, refs = world()
+    runner = ModelProcessRunner(tm)
+
+    fake = PraxisCore().realize(Lambda(("request",), Lit("not a ModelProposal")))
+    assert isinstance(fake, Done)
+    with pytest.raises(ModelExecutionError, match="immutable named Model"):
+        runner.start(
+            name=refs["model"], program=fake.value,
+            request=refs["request"],
+        )
+
+    other_model = persist(
+        tm, "model", model_value(
+            "other-identical-program", implementation=refs["program"], process=True
+        ),
+    )
+    with pytest.raises(ModelExecutionError, match="ModelInput must name"):
+        runner.start(
+            name=other_model, program=refs["program"],
+            request=refs["request"],
+        )
