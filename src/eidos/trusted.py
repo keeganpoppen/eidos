@@ -1863,6 +1863,14 @@ class TrustedMachinery:
                 (possibility,),
             ).fetchall()
         ]
+        actualizer = self.db.execute(
+            "SELECT projection_name FROM observed_possibility_actualizers "
+            "WHERE possibility_name=?",
+            (possibility,),
+        ).fetchone()
+        item["actualizer_projection"] = (
+            None if actualizer is None else actualizer["projection_name"]
+        )
         return item
 
     def observed_occurrence(self, occurrence: str) -> dict[str, Any]:
@@ -1899,6 +1907,62 @@ class TrustedMachinery:
             ).fetchall()
         ]
         return item
+
+    def transfer_projection(
+        self,
+        *,
+        projection: str,
+        from_holder: str,
+        to_holder: str,
+        request_id: str,
+    ) -> dict[str, Any]:
+        """Delegate any live projection capability without changing its identity."""
+
+        payload = {
+            "projection": projection,
+            "from_holder": from_holder,
+            "to_holder": to_holder,
+        }
+        with self._tx() as db:
+            old = self._idem(db, request_id, "transfer_projection", payload)
+            if old is not None:
+                return old
+            row = db.execute(
+                "SELECT holder,disposition,role,protocol_state "
+                "FROM projections WHERE name=?",
+                (projection,),
+            ).fetchone()
+            if (
+                row is None
+                or row["holder"] != from_holder
+                or row["disposition"] != "live"
+            ):
+                raise StaleProjection(
+                    "only the holder of a live projection may delegate it"
+                )
+            db.execute(
+                "UPDATE projections SET holder=? WHERE name=?",
+                (to_holder, projection),
+            )
+            self._event(
+                db,
+                "projection_transferred",
+                {
+                    "projection": projection,
+                    "role": row["role"],
+                    "protocol_state": row["protocol_state"],
+                    "from": from_holder,
+                    "to": to_holder,
+                },
+            )
+            result = {
+                "projection": projection,
+                "holder": to_holder,
+                "role": row["role"],
+                "protocol_state": row["protocol_state"],
+            }
+            self._idem_put(db, request_id, "transfer_projection", payload, result)
+            return result
 
     def transfer_socket(self, *, socket: str, from_holder: str, to_holder: str, request_id: str) -> dict[str, Any]:
         payload = {"socket": socket, "from_holder": from_holder, "to_holder": to_holder}
