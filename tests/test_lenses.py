@@ -1,3 +1,4 @@
+from eidos.genesis import admit_genesis
 from eidos.core import Name
 from eidos.cuts import ObservedCut, elaborate_cuts
 from eidos.lenses import walk_named_values
@@ -57,11 +58,10 @@ def cut_from_name(tm: TrustedMachinery, name: str) -> ObservedCut:
 def build_history():
     tm = TrustedMachinery()
     p = protocol()
-    installed = tm.install_occurrence_blueprint(
-        blueprint=elaborate_genesis(
-            p,
-            holders={"A": "alice", "B": "bob"},
-        ),
+    installed = admit_genesis(
+        tm,
+        p,
+        holders={"A": "alice", "B": "bob"},
         request_id="lens-genesis",
     )
     cut = tm.create_observed_cut(
