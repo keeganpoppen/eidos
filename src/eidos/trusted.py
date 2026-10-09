@@ -603,6 +603,165 @@ class TrustedMachinery:
     def named_eidos_value(self, name: str) -> dict[str, Any]:
         return self._named_eidos_value(self.db, name)
 
+    def _named_values(
+        self,
+        db: sqlite3.Connection,
+    ) -> list[tuple[str, Any]]:
+        rows = db.execute(
+            "SELECT nev.name,ev.body_json "
+            "FROM named_eidos_values nev "
+            "JOIN eidos_values ev ON ev.cid=nev.cid "
+            "ORDER BY nev.rowid"
+        ).fetchall()
+        return [
+            (row["name"], core_from_data(json.loads(row["body_json"])))
+            for row in rows
+        ]
+
+    def _named_values_of_kind(
+        self,
+        db: sqlite3.Connection,
+        kind: str,
+    ) -> list[tuple[str, RecordValue]]:
+        out: list[tuple[str, RecordValue]] = []
+        for name, value in self._named_values(db):
+            if (
+                isinstance(value, RecordValue)
+                and value.get("$kind") == kind
+            ):
+                out.append((name, value))
+        return out
+
+    def _authority_occurrence_consuming(
+        self,
+        db: sqlite3.Connection,
+        projection: str,
+    ) -> sqlite3.Row | None:
+        return db.execute(
+            "SELECT ao.* FROM authority_occurrence_inputs aoi "
+            "JOIN authority_occurrences ao ON ao.name=aoi.occurrence_name "
+            "WHERE aoi.projection_name=? ORDER BY aoi.rowid LIMIT 1",
+            (projection,),
+        ).fetchone()
+
+    def _cut_state(
+        self,
+        db: sqlite3.Connection,
+        *,
+        cut: str,
+        semantic: RecordValue,
+    ) -> str:
+        for _, occurrence in self._named_values_of_kind(db, "Occurrence"):
+            causes = {
+                reference.value
+                for reference in occurrence.get("cause_cuts")
+                if isinstance(reference, CoreName)
+            }
+            if cut in causes:
+                return "historical"
+
+        elaborator = semantic.get("elaborator")
+        if not isinstance(elaborator, CoreName):
+            raise Conflict("Cut Value must name its Elaborator projection")
+        row = db.execute(
+            "SELECT disposition FROM projections WHERE name=?",
+            (elaborator.value,),
+        ).fetchone()
+        if row is None:
+            raise KeyError(elaborator.value)
+        return "open" if row["disposition"] == "live" else "elaborated"
+
+    def _possibility_state(
+        self,
+        db: sqlite3.Connection,
+        *,
+        possibility: str,
+        semantic: RecordValue,
+    ) -> str:
+        actualizer = semantic.get("actualizer")
+        if not isinstance(actualizer, CoreName):
+            raise Conflict("Possibility Value must name its Actualizer projection")
+        actualizer_row = db.execute(
+            "SELECT disposition FROM projections WHERE name=?",
+            (actualizer.value,),
+        ).fetchone()
+        if actualizer_row is None:
+            raise KeyError(actualizer.value)
+
+        if actualizer_row["disposition"] == "live":
+            for reference in semantic.get("inputs"):
+                if not isinstance(reference, CoreName):
+                    raise Conflict("Possibility inputs must be Names")
+                row = db.execute(
+                    "SELECT disposition FROM projections WHERE name=?",
+                    (reference.value,),
+                ).fetchone()
+                if row is None or row["disposition"] != "live":
+                    return "precluded"
+            return "open"
+
+        occurrence = self._authority_occurrence_consuming(
+            db, actualizer.value
+        )
+        if occurrence is None:
+            return "precluded"
+        fact = json.loads(occurrence["fact_json"])
+        if (
+            occurrence["kind"] == "Actualize"
+            and fact.get("possibility") == possibility
+        ):
+            return "occurred"
+        return "precluded"
+
+    def _preclude_competing_possibilities(
+        self,
+        db: sqlite3.Connection,
+        *,
+        selected: str,
+        instance: str,
+        consumed_inputs: tuple[str, ...],
+        because: str,
+    ) -> list[str]:
+        consumed_set = set(consumed_inputs)
+        precluded: list[str] = []
+        for name, semantic in self._named_values_of_kind(db, "Possibility"):
+            if name == selected:
+                continue
+            actualizer = semantic.get("actualizer")
+            if not isinstance(actualizer, CoreName):
+                continue
+            actualizer_row = db.execute(
+                "SELECT instance_name,disposition FROM projections WHERE name=?",
+                (actualizer.value,),
+            ).fetchone()
+            if (
+                actualizer_row is None
+                or actualizer_row["instance_name"] != instance
+                or actualizer_row["disposition"] != "live"
+            ):
+                continue
+            inputs = {
+                reference.value
+                for reference in semantic.get("inputs")
+                if isinstance(reference, CoreName)
+            }
+            shared = sorted(inputs & consumed_set)
+            if not shared:
+                continue
+            self._commit_projection_occurrence(
+                db,
+                kind="Preclude",
+                consumes=(actualizer.value,),
+                establishes=(),
+                fact={
+                    "possibility": name,
+                    "because": because,
+                    "shared_inputs": shared,
+                },
+            )
+            precluded.append(name)
+        return precluded
+
     def reserve_name(self, *, kind: str, request_id: str) -> str:
         payload = {"kind": kind}
         with self._tx() as db:
