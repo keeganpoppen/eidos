@@ -1233,9 +1233,15 @@ class TrustedMachinery:
         request_id: str,
         parent_cut: str | None = None,
         parent_occurrence: str | None = None,
+        elaborator: str | None = None,
     ) -> dict[str, Any]:
-        """Create one observer-relative causal cut over live projections."""
+        """Create one observer-relative causal cut over live projections.
 
+        The authority to elaborate from the cut is itself an ordinary live
+        projection occupying the Elaborator role. It may later be delegated.
+        """
+
+        elaborator = observer if elaborator is None else elaborator
         payload = {
             "instance": instance,
             "observer": observer,
@@ -1243,6 +1249,7 @@ class TrustedMachinery:
             "projections": sorted(projections),
             "parent_cut": parent_cut,
             "parent_occurrence": parent_occurrence,
+            "elaborator": elaborator,
         }
         with self._tx() as db:
             old = self._idem(db, request_id, "create_observed_cut", payload)
@@ -1275,7 +1282,7 @@ class TrustedMachinery:
                 rows.append(row)
 
             cut = self._new_name(db, "cut")
-            authority = self._new_name(db, "elaboration")
+            authority = self._new_name(db, "projection")
             db.execute(
                 "INSERT INTO causal_cuts("
                 "name,instance_name,observer,protocol_cid,parent_cut,parent_occurrence,state"
@@ -1296,9 +1303,18 @@ class TrustedMachinery:
                     (cut, row["name"]),
                 )
             db.execute(
-                "INSERT INTO cut_elaboration_authorities(token,cut_name,disposition) "
-                "VALUES (?,?,?)",
-                (authority, cut, "live"),
+                "INSERT INTO projections("
+                "name,instance_name,seed_key,role,protocol_state,holder,disposition"
+                ") VALUES (?,?,?,?,?,?,?)",
+                (
+                    authority,
+                    instance,
+                    f"meta:elaborator:{cut}",
+                    ELABORATOR_ROLE,
+                    elaborator_state(cut),
+                    elaborator,
+                    "live",
+                ),
             )
             self._event(
                 db,
@@ -1311,6 +1327,8 @@ class TrustedMachinery:
                     "parent_cut": parent_cut,
                     "parent_occurrence": parent_occurrence,
                     "projections": unique,
+                    "elaborator": elaborator,
+                    "elaborator_projection": authority,
                     "new_names": [cut, authority],
                 },
             )
@@ -1318,6 +1336,7 @@ class TrustedMachinery:
                 "cut": cut,
                 "observer": observer,
                 "authority": authority,
+                "elaborator_projection": authority,
             }
             self._idem_put(db, request_id, "create_observed_cut", payload, result)
             return result
