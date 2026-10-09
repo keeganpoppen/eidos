@@ -11,6 +11,7 @@ from eidos.epistemics import (
 )
 from eidos.genesis import admit_genesis
 from eidos.meta_protocol import MetaProtocolDriver, elaborate_operation
+from eidos.lenses import walk_named_values
 from eidos.model_execution import executor_value, model_claim, model_proposal
 from eidos.model_process import (
     ACQUIRE, CONSULT, HANDOFF, INSPECT, PROCESS_SOCKET_ROLE,
@@ -536,3 +537,49 @@ def test_source_disclosure_recovers_commit_before_value_binding():
             recipient_run=second_process.run,
             recipient_model=refs["model"],
         )
+
+
+
+def test_name_inside_model_code_does_not_authorize_inspecting_that_cut():
+    tm, _, genesis, left, right, refs = world(
+        protocol_mode="name-is-not-disclosure"
+    )
+    runner = ModelProcessRunner(tm)
+    initial = runner.start(
+        name=refs["model"], program=refs["program"],
+        request=refs["input"], request_id="no-ambient-name-authority",
+    )
+
+    # The generic semantic lens deliberately sees Names embedded in closures,
+    # including the not-yet-acquired Cut mentioned by this Model's program.
+    reachable = walk_named_values(
+        (refs["context"],),
+        resolve=lambda name: tm.named_eidos_value(name)["value"],
+        depth=3,
+    )
+    assert right["cut"] in reachable.by_name()
+
+    # The process's authorized inspection scope is NOT generic reachability.
+    allowed = runner._inspection_scope(Name(refs["context"]))
+    assert left["cut"] in allowed
+    assert right["cut"] not in allowed
+
+    checkpoint = tm.named_eidos_value(initial.checkpoint)["value"]
+    suspension = checkpoint.get("suspension")
+    synthetic_request = Suspended(
+        socket=suspension.socket,
+        operation=INSPECT,
+        argument=inspection_request(right["cut"]),
+        continuation=suspension.continuation,
+    )
+    with pytest.raises(ModelExecutionError, match="outside scoped Context"):
+        runner._respond(
+            run=initial.run,
+            checkpoint=initial.checkpoint,
+            context=Name(refs["context"]),
+            descriptor=tm.named_eidos_value(initial.run)["value"],
+            suspended=synthetic_request,
+        )
+    assert world_snapshot(tm, genesis) == {
+        "projection:A": "live", "projection:B": "live"
+    }
