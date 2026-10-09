@@ -2,11 +2,13 @@ import pytest
 
 from eidos.core import (
     Done, Get, Lambda, Lit, Name, Need, Perform, PraxisCore, Record,
-    RecordValue, Socket, Suspended, Var, from_data, to_data,
+    RecordValue, Socket, Suspended, Var, content_id, from_data, to_data,
 )
 from eidos.epistemics import (
     attention_value, context_value, knowledge_value, model_value,
 )
+from eidos.authority import ProjectionGrant
+from eidos.semantic_values import projection_value
 from eidos.genesis import admit_genesis
 from eidos.lenses import walk_named_values
 from eidos.meta_protocol import (
@@ -389,3 +391,80 @@ def test_registered_executor_name_alone_does_not_authorize_consultation():
     assert snapshot_world(tm, refs) == {
         "projection:A": "live", "projection:B": "live"
     }
+
+
+
+def test_prepared_consultation_survives_commit_before_continuation_resume():
+    """Inject a crash precisely after TM committed but before Praxis resumed."""
+
+    tm, _, _, refs = world()
+    calls = []
+    runner = ModelProcessRunner(
+        tm, executors={refs["executor"]: responder(calls)}
+    )
+    runner.authorize_consultation(
+        model=refs["model"], executor=refs["executor"]
+    )
+    initial = runner.start(
+        name=refs["model"], program=refs["program"],
+        request=refs["request"], request_id="injected-crash-process",
+    )
+    first = runner.advance(initial.checkpoint)
+    checkpoint = first.checkpoint
+    state = tm.named_eidos_value(checkpoint)["value"]
+    suspension = state.get("suspension")
+    run = state.get("run").value
+    step = state.get("step")
+    descriptor = tm.named_eidos_value(run)["value"]
+
+    # The host has already consulted its specialist and durably recorded
+    # exactly what the specialist said, before the authority transaction.
+    prepared_name, prepared = runner._prepare(
+        run=run, checkpoint=checkpoint,
+        suspended=suspension, descriptor=descriptor,
+    )
+    assert len(calls) == 1
+
+    response = prepared.get("response")
+    grant_key = f"step:{step + 1}"
+    receipt = tm.commit_projection_occurrence(
+        kind="ModelInteraction",
+        consumes=(suspension.socket.name.value,),
+        establishes=(
+            ProjectionGrant(
+                key=grant_key,
+                holder=refs["model"],
+                description=projection_value(
+                    key=f"model-process:{grant_key}",
+                    role="ModelProcess",
+                    state=grant_key,
+                ),
+            ),
+        ),
+        fact={
+            "run": run,
+            "checkpoint": checkpoint,
+            "prepared": prepared_name,
+            "operation": suspension.operation.value,
+            "request": to_data(suspension.argument),
+            "response_cid": content_id(response),
+        },
+        request_id=f"{run}:{checkpoint}:interact",
+    )
+
+    assert tm.projection(suspension.socket.name.value)["disposition"] == "spent"
+
+    # Nothing has resumed locally. The next runner reconstructs the same
+    # Reaction from the idempotent generic TM receipt and the prepared answer.
+    restarted = ModelProcessRunner(tm)
+    outcome = restarted.advance(checkpoint)
+    assert outcome.outcome
+    assert len(calls) == 1
+    assert receipt["occurrence"] in {
+        reference.value
+        for reference in tm.named_eidos_value(outcome.outcome)["value"].get("events")
+    }
+
+    repeated = restarted.advance(checkpoint)
+    assert repeated == outcome
+    assert len(calls) == 1
