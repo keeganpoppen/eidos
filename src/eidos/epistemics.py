@@ -132,6 +132,7 @@ def context_value(
     models: Iterable[Name | str] = (),
     attention: Name | str | None = None,
     parent: Name | str | None = None,
+    acquisition: Name | str | None = None,
 ) -> RecordValue:
     """An immutable situated context, optionally extending a prior context.
 
@@ -152,6 +153,7 @@ def context_value(
         "$kind": "ElaborationContext",
         "cuts": tuple(sorted(cut_names)),
         "parent": None if parent is None else _name(parent),
+        "acquisition": None if acquisition is None else _name(acquisition),
         "bindings": bindings,
     })
 
@@ -214,7 +216,7 @@ def interpret_context(
         if (
             not isinstance(refs, tuple)
             or any(not isinstance(ref, Name) for ref in refs)
-            or {ref.value for ref in refs} != expected_cuts
+            or not {ref.value for ref in refs} <= expected_cuts
         ):
             raise ValueError("context causal cuts differ from the current elaboration")
         chain.append((cursor, value))
@@ -222,6 +224,20 @@ def interpret_context(
         if parent is not None and not isinstance(parent, Name):
             raise ValueError("context parent must be a Name")
         cursor = None if parent is None else parent.value
+
+    # Contexts may progressively incorporate new Cuts, but may not discard
+    # causal evidence acquired by their ancestors. A named acquisition edge
+    # records the causal disclosure that justified any expansion.
+    ancestral: set[str] = set()
+    for _, value in reversed(chain):
+        current = {reference.value for reference in value.get("cuts")}
+        if not ancestral <= current:
+            raise ValueError("context ancestry cannot discard causal Cuts")
+        if ancestral and current != ancestral and value.get("acquisition") is None:
+            raise ValueError("context Cut expansion requires acquisition provenance")
+        ancestral = current
+    if ancestral != expected_cuts:
+        raise ValueError("context causal cuts differ from the current elaboration")
 
     knowledge: list[str] = []
     models: list[str] = []
