@@ -202,8 +202,8 @@ def test_specialized_semantic_columns_are_only_indexes():
 
     tm.db.execute(
         "UPDATE observed_possibilities "
-        "SET reaction=?,proof=?,elaborator=?,actualizer=? WHERE name=?",
-        ("WRONG-REACTION", "WRONG-PROOF", "WRONG-E", "WRONG-A", possibility),
+        "SET reaction=?,elaborator=?,actualizer=? WHERE name=?",
+        ("WRONG-REACTION", "WRONG-E", "WRONG-A", possibility),
     )
     interpreted_possibility = tm.observed_possibility(possibility)
     assert interpreted_possibility["reaction"] == "advance"
