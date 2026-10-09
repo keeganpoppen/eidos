@@ -27,6 +27,7 @@ from .cuts import ObservedCut, elaborate_cuts
 from .meta import ACTUALIZER_ROLE, ELABORATOR_ROLE
 from .occurrence import FrontierProjection, RecursiveProtocol
 from .model_execution import ModelAdapter
+from .model_process import ModelProcessRunner
 from .trusted import Conflict, TrustedMachinery
 
 
@@ -123,6 +124,9 @@ class MetaProtocolDriver:
         self.trusted = trusted
         self.protocols: dict[str, RecursiveProtocol] = dict(protocols or {})
         self.executors: dict[str, ModelAdapter] = dict(executors or {})
+        self.process_runner = ModelProcessRunner(
+            trusted, executors=self.executors
+        )
 
     def register(self, protocol: RecursiveProtocol) -> None:
         self.protocols[protocol.cid] = protocol
@@ -134,6 +138,7 @@ class MetaProtocolDriver:
         if not isinstance(description, RecordValue) or description.get("$kind") != "ModelExecutor":
             raise MetaProtocolError("executor Name must denote a ModelExecutor Value")
         self.executors[name] = adapter
+        self.process_runner.executors[name] = adapter
 
     def react(self, suspended: Suspended, *, request_id: str) -> Reaction:
         """Turn one meta-protocol suspension into its authoritative Reaction."""
@@ -215,6 +220,7 @@ class MetaProtocolDriver:
             context=context_name,
             resolve=lambda name: self.trusted.named_eidos_value(name)["value"],
             adapters=self.executors,
+            process_runner=self.process_runner,
         )
         admitted = self.trusted.admit_cut_elaboration(
             blueprint=blueprint,
