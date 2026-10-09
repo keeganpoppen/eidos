@@ -147,6 +147,25 @@ class MetaProtocolDriver:
             model=model, executor=executor
         )
 
+    def register_cut_provider(self, name: str, adapter: Any) -> None:
+        """Register an explicit provider of recipient-scoped Cut disclosures."""
+
+        provider = self.trusted.named_eidos_value(name)["value"]
+        if (
+            not isinstance(provider, RecordValue)
+            or provider.get("$kind") != "CutProvider"
+        ):
+            raise MetaProtocolError("provider Name must denote a CutProvider Value")
+        self.process_runner.providers[name] = adapter
+
+    def authorize_model_acquisition(self, *, model: str, provider: str) -> None:
+        self.process_runner.authorize_cut_acquisition(
+            model=model, provider=provider
+        )
+
+    def authorize_model_handoff(self, *, model: str, target: str) -> None:
+        self.process_runner.authorize_handoff(model=model, target=target)
+
     def react(self, suspended: Suspended, *, request_id: str) -> Reaction:
         """Turn one meta-protocol suspension into its authoritative Reaction."""
 
