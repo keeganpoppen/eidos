@@ -1023,7 +1023,7 @@ class TrustedMachinery:
         return item
 
 
-    def create_observed_cut(    def create_observed_cut(
+    def create_observed_cut(
         self,
         *,
         instance: str,
