@@ -2122,6 +2122,33 @@ class TrustedMachinery:
         ]
         return item
 
+    def authority_occurrence(self, occurrence: str) -> dict[str, Any]:
+        row = self.db.execute(
+            "SELECT * FROM authority_occurrences WHERE name=?",
+            (occurrence,),
+        ).fetchone()
+        if row is None:
+            raise KeyError(occurrence)
+        item = dict(row)
+        item["fact"] = json.loads(item.pop("fact_json"))
+        item["inputs"] = [
+            r["projection_name"]
+            for r in self.db.execute(
+                "SELECT projection_name FROM authority_occurrence_inputs "
+                "WHERE occurrence_name=? ORDER BY ordinal",
+                (occurrence,),
+            ).fetchall()
+        ]
+        item["outputs"] = {
+            r["output_key"]: r["projection_name"]
+            for r in self.db.execute(
+                "SELECT output_key,projection_name FROM authority_occurrence_outputs "
+                "WHERE occurrence_name=? ORDER BY ordinal",
+                (occurrence,),
+            ).fetchall()
+        }
+        return item
+
     def transfer_projection(
         self,
         *,
