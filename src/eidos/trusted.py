@@ -1534,10 +1534,14 @@ class TrustedMachinery:
                         ),
                     )
 
+            meta_occurrence = self._new_name(db, "occurrence")
+            new_names.append(meta_occurrence)
+
             self._event(
                 db,
                 "cut_elaboration_admitted",
                 {
+                    "occurrence": meta_occurrence,
                     "proof": blueprint.proof,
                     "cuts": list(blueprint.cuts),
                     "observers": list(blueprint.observers),
@@ -1550,6 +1554,7 @@ class TrustedMachinery:
                 },
             )
             result = {
+                "occurrence": meta_occurrence,
                 "proof": blueprint.proof,
                 "possibilities": possibilities,
                 "actualizers": actualizers,
