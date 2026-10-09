@@ -4,7 +4,7 @@ This is deliberately a small executable hypothesis, not a final ontology.
 
 > **Scope note:** this document describes the existing executable authority
 > runtime. [`CORE.md`](CORE.md) explores the smaller language nucleus, while
-> [`OCCURRENCES.md`](OCCURRENCES.md) tests a newer reaction-side factoring:
+> [`experiments/OCCURRENCES.md`](experiments/OCCURRENCES.md) tests a newer reaction-side factoring:
 > protocol semantics elaborate latent possibilities above Trusted Machinery,
 > and Trusted Machinery performs only the atomic commit of an occurrence. These
 > experiments do not yet replace the working runtime below.
