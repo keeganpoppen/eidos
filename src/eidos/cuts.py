@@ -47,6 +47,7 @@ class CutElaboration:
     observers: tuple[str, ...]
     elaborator: str
     actualizer: str
+    knowledge: tuple[str, ...]
     projections: tuple[FrontierProjection, ...]
     possibilities: tuple[FrontierPossibilitySeed, ...]
 
@@ -61,6 +62,7 @@ def elaborate_cuts(
     cuts: Iterable[ObservedCut],
     elaborator: str,
     actualizer: str,
+    knowledge: Iterable[str] = (),
 ) -> CutElaboration:
     """Derive adjacent possibilities visible across a collection of cuts.
 
@@ -130,6 +132,7 @@ def elaborate_cuts(
         observers=tuple(sorted({cut.observer for cut in materialized})),
         elaborator=elaborator,
         actualizer=actualizer,
+        knowledge=tuple(sorted(set(knowledge))),
         projections=projections,
         possibilities=tuple(possibilities),
     )
