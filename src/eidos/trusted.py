@@ -11,6 +11,7 @@ from typing import Any, Iterator
 from .model import Frame, OfferSpec, ProtocolSpec, Transition, canonical_bytes, content_id
 from .occurrence import FrontierBlueprint, InstanceBlueprint
 from .cuts import CutElaboration
+from .authority import ProjectionGrant
 from .meta import (
     ACTUALIZER_ROLE,
     ELABORATOR_ROLE,
@@ -289,6 +290,27 @@ class TrustedMachinery:
               PRIMARY KEY(occurrence_name,projection_name)
             );
 
+            CREATE TABLE IF NOT EXISTS authority_occurrences(
+              name TEXT PRIMARY KEY REFERENCES names(name),
+              instance_name TEXT NOT NULL REFERENCES occurrence_instances(name),
+              kind TEXT NOT NULL,
+              fact_json TEXT NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS authority_occurrence_inputs(
+              occurrence_name TEXT NOT NULL REFERENCES authority_occurrences(name),
+              projection_name TEXT NOT NULL REFERENCES projections(name),
+              ordinal INTEGER NOT NULL,
+              PRIMARY KEY(occurrence_name,projection_name)
+            );
+            CREATE TABLE IF NOT EXISTS authority_occurrence_outputs(
+              occurrence_name TEXT NOT NULL REFERENCES authority_occurrences(name),
+              projection_name TEXT NOT NULL REFERENCES projections(name),
+              output_key TEXT NOT NULL,
+              ordinal INTEGER NOT NULL,
+              PRIMARY KEY(occurrence_name,output_key),
+              UNIQUE(occurrence_name,projection_name)
+            );
+
             CREATE TABLE IF NOT EXISTS events(
               seq INTEGER PRIMARY KEY AUTOINCREMENT,
               kind TEXT NOT NULL,
@@ -341,6 +363,166 @@ class TrustedMachinery:
             "INSERT INTO commands(request_id,op,digest,result_json) VALUES (?,?,?,?)",
             (request_id, op, content_id(payload), json.dumps(result, sort_keys=True, separators=(",", ":"))),
         )
+
+    def _commit_projection_occurrence(
+        self,
+        db: sqlite3.Connection,
+        *,
+        kind: str,
+        consumes: tuple[str, ...],
+        establishes: tuple[ProjectionGrant, ...],
+        fact: Any,
+        occurrence: str | None = None,
+    ) -> dict[str, Any]:
+        """Mechanical atomic transition over live projection capabilities."""
+
+        if not consumes:
+            raise TrustedError("an authority occurrence must consume capability")
+        if len(set(consumes)) != len(consumes):
+            raise Conflict("an authority occurrence cannot consume capability twice")
+        output_keys = [grant.key for grant in establishes]
+        if len(set(output_keys)) != len(output_keys):
+            raise Conflict("authority occurrence output keys must be unique")
+
+        rows: list[sqlite3.Row] = []
+        for projection in consumes:
+            row = db.execute(
+                "SELECT * FROM projections WHERE name=?",
+                (projection,),
+            ).fetchone()
+            if row is None or row["disposition"] != "live":
+                raise StaleProjection(
+                    f"projection {projection!r} is not live"
+                )
+            rows.append(row)
+
+        instances = {row["instance_name"] for row in rows}
+        if len(instances) != 1:
+            raise Conflict(
+                "one atomic authority occurrence must stay within one instance"
+            )
+        instance = next(iter(instances))
+
+        if occurrence is None:
+            occurrence = self._new_name(db, "occurrence")
+        elif db.execute(
+            "SELECT 1 FROM names WHERE name=?",
+            (occurrence,),
+        ).fetchone() is None:
+            raise KeyError(occurrence)
+
+        for projection in consumes:
+            db.execute(
+                "UPDATE projections SET disposition='spent' WHERE name=?",
+                (projection,),
+            )
+
+        outputs: dict[str, str] = {}
+        new_names = [occurrence]
+        for ordinal, grant in enumerate(establishes):
+            projection = self._new_name(db, "projection")
+            new_names.append(projection)
+            outputs[grant.key] = projection
+            db.execute(
+                "INSERT INTO projections("
+                "name,instance_name,seed_key,role,protocol_state,holder,disposition"
+                ") VALUES (?,?,?,?,?,?,?)",
+                (
+                    projection,
+                    instance,
+                    grant.key,
+                    grant.role,
+                    grant.state,
+                    grant.holder,
+                    "live",
+                ),
+            )
+
+        db.execute(
+            "INSERT INTO authority_occurrences("
+            "name,instance_name,kind,fact_json"
+            ") VALUES (?,?,?,?)",
+            (
+                occurrence,
+                instance,
+                kind,
+                json.dumps(fact, sort_keys=True, separators=(",", ":")),
+            ),
+        )
+        for ordinal, projection in enumerate(consumes):
+            db.execute(
+                "INSERT INTO authority_occurrence_inputs("
+                "occurrence_name,projection_name,ordinal"
+                ") VALUES (?,?,?)",
+                (occurrence, projection, ordinal),
+            )
+        for ordinal, grant in enumerate(establishes):
+            db.execute(
+                "INSERT INTO authority_occurrence_outputs("
+                "occurrence_name,projection_name,output_key,ordinal"
+                ") VALUES (?,?,?,?)",
+                (occurrence, outputs[grant.key], grant.key, ordinal),
+            )
+
+        self._event(
+            db,
+            "authority_occurrence_committed",
+            {
+                "occurrence": occurrence,
+                "kind": kind,
+                "instance": instance,
+                "consumed": list(consumes),
+                "established": outputs,
+                "fact": fact,
+                "new_names": new_names,
+            },
+        )
+        return {
+            "occurrence": occurrence,
+            "instance": instance,
+            "kind": kind,
+            "consumed": list(consumes),
+            "established": outputs,
+        }
+
+    def commit_projection_occurrence(
+        self,
+        *,
+        kind: str,
+        consumes: tuple[str, ...],
+        establishes: tuple[ProjectionGrant, ...],
+        fact: Any,
+        request_id: str,
+    ) -> dict[str, Any]:
+        """Public generic Trusted Machinery occurrence primitive."""
+
+        payload = {
+            "kind": kind,
+            "consumes": list(consumes),
+            "establishes": [asdict(grant) for grant in establishes],
+            "fact": fact,
+        }
+        with self._tx() as db:
+            old = self._idem(
+                db, request_id, "commit_projection_occurrence", payload
+            )
+            if old is not None:
+                return old
+            result = self._commit_projection_occurrence(
+                db,
+                kind=kind,
+                consumes=consumes,
+                establishes=establishes,
+                fact=fact,
+            )
+            self._idem_put(
+                db,
+                request_id,
+                "commit_projection_occurrence",
+                payload,
+                result,
+            )
+            return result
 
     def reserve_name(self, *, kind: str, request_id: str) -> str:
         payload = {"kind": kind}
