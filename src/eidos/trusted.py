@@ -1561,6 +1561,7 @@ class TrustedMachinery:
         *,
         possibility: str,
         actualizer: str,
+        authority: str,
         observation: Any,
         request_id: str,
     ) -> dict[str, Any]:
@@ -1569,6 +1570,7 @@ class TrustedMachinery:
         payload = {
             "possibility": possibility,
             "actualizer": actualizer,
+            "authority": authority,
             "observation": observation,
         }
         with self._tx() as db:
@@ -1588,6 +1590,25 @@ class TrustedMachinery:
                 )
             if row["actualizer"] != actualizer:
                 raise Conflict("wrong Actualizer role for this possibility")
+
+            actualizer_row = db.execute(
+                "SELECT p.*,opa.possibility_name "
+                "FROM observed_possibility_actualizers opa "
+                "JOIN projections p ON p.name=opa.projection_name "
+                "WHERE opa.possibility_name=?",
+                (possibility,),
+            ).fetchone()
+            if (
+                actualizer_row is None
+                or actualizer_row["name"] != authority
+                or actualizer_row["role"] != ACTUALIZER_ROLE
+                or actualizer_row["protocol_state"] != actualizer_state(possibility)
+                or actualizer_row["holder"] != actualizer
+                or actualizer_row["disposition"] != "live"
+            ):
+                raise Conflict(
+                    "Actualizer projection is not live/bound for this possibility"
+                )
 
             input_rows = db.execute(
                 "SELECT p.* FROM observed_reaction_inputs i "
@@ -1613,6 +1634,10 @@ class TrustedMachinery:
                     "UPDATE projections SET disposition='spent' WHERE name=?",
                     (projection,),
                 )
+            db.execute(
+                "UPDATE projections SET disposition='spent' WHERE name=?",
+                (authority,),
+            )
 
             output_rows = db.execute(
                 "SELECT * FROM observed_reaction_outputs "
@@ -1662,6 +1687,15 @@ class TrustedMachinery:
                         "WHERE name=?",
                         (competitor["name"],),
                     )
+                    db.execute(
+                        "UPDATE projections SET disposition='spent' "
+                        "WHERE name IN ("
+                        "SELECT projection_name "
+                        "FROM observed_possibility_actualizers "
+                        "WHERE possibility_name=?"
+                        ")",
+                        (competitor["name"],),
+                    )
 
             db.execute(
                 "INSERT INTO observed_occurrences("
@@ -1699,7 +1733,7 @@ class TrustedMachinery:
                 ).fetchall()
             ]
             successor_cuts: dict[str, str] = {}
-            authorities: dict[str, str] = {}
+            elaborators: dict[str, str] = {}
             consumed_set = set(consumed)
             for old_cut in cause_cuts:
                 cut_row = db.execute(
@@ -1710,10 +1744,10 @@ class TrustedMachinery:
                     raise KeyError(old_cut)
 
                 new_cut = self._new_name(db, "cut")
-                authority = self._new_name(db, "elaboration")
-                new_names.extend([new_cut, authority])
+                elaborator_projection = self._new_name(db, "projection")
+                new_names.extend([new_cut, elaborator_projection])
                 successor_cuts[old_cut] = new_cut
-                authorities[new_cut] = authority
+                elaborators[new_cut] = elaborator_projection
 
                 db.execute(
                     "UPDATE causal_cuts SET state='historical' WHERE name=?",
@@ -1752,10 +1786,18 @@ class TrustedMachinery:
                         (new_cut, projection),
                     )
                 db.execute(
-                    "INSERT INTO cut_elaboration_authorities("
-                    "token,cut_name,disposition"
-                    ") VALUES (?,?,?)",
-                    (authority, new_cut, "live"),
+                    "INSERT INTO projections("
+                    "name,instance_name,seed_key,role,protocol_state,holder,disposition"
+                    ") VALUES (?,?,?,?,?,?,?)",
+                    (
+                        elaborator_projection,
+                        cut_row["instance_name"],
+                        f"meta:elaborator:{new_cut}",
+                        ELABORATOR_ROLE,
+                        elaborator_state(new_cut),
+                        cut_row["observer"],
+                        "live",
+                    ),
                 )
                 db.execute(
                     "INSERT INTO observed_occurrence_cuts("
@@ -1772,8 +1814,10 @@ class TrustedMachinery:
                     "possibility": possibility,
                     "reaction": row["reaction"],
                     "actualizer": actualizer,
+                    "actualizer_projection": authority,
                     "cause_cuts": cause_cuts,
                     "successor_cuts": successor_cuts,
+                    "elaborator_projections": elaborators,
                     "consumed": consumed,
                     "successors": successors,
                     "observation": observation,
@@ -1784,9 +1828,11 @@ class TrustedMachinery:
                 "occurrence": occurrence,
                 "reaction": row["reaction"],
                 "actualizer": actualizer,
+                "actualizer_projection": authority,
                 "cause_cuts": cause_cuts,
                 "successor_cuts": successor_cuts,
-                "elaboration_authorities": authorities,
+                "elaboration_authorities": elaborators,
+                "elaborators": elaborators,
                 "consumed": consumed,
                 "successors": successors,
             }
