@@ -1,3 +1,4 @@
+from eidos.genesis import admit_genesis
 from eidos.core import (
     Done,
     Lit,
@@ -74,16 +75,15 @@ def protocol() -> RecursiveProtocol:
 def setup():
     tm = TrustedMachinery()
     p = protocol()
-    installed = tm.install_occurrence_blueprint(
-        blueprint=elaborate_genesis(
-            p,
-            holders={
-                "A": "alice",
-                "B": "bob",
-                "C": "carol",
-                "D": "dan",
-            },
-        ),
+    installed = admit_genesis(
+        tm,
+        p,
+        holders={
+            "A": "alice",
+            "B": "bob",
+            "C": "carol",
+            "D": "dan",
+        },
         request_id="meta-genesis",
     )
     left = tm.create_observed_cut(
