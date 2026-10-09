@@ -6,7 +6,6 @@ from eidos.occurrence import (
     ProjectionTemplate,
     ReactionRule,
     RecursiveProtocol,
-    elaborate_genesis,
 )
 from eidos.trusted import TrustedMachinery
 
