@@ -272,23 +272,51 @@ class MetaProtocolDriver:
         )
 
     def _cut(self, cut: str) -> ObservedCut:
-        row = self.trusted.causal_cut(cut)
+        """Interpret a cut from its ordinary named Eidos Value.
+
+        Trusted Machinery is consulted only for current projection disposition
+        and holder information. The semantic shape of the Cut comes from the
+        Value bound to its Name, not from a cut-specific SQL schema.
+        """
+
+        bound = self.trusted.named_eidos_value(cut)
+        value = bound["value"]
+        if not isinstance(value, RecordValue) or value.get("$kind") != "Cut":
+            raise MetaProtocolError(f"Name {cut!r} does not denote a Cut Value")
+
+        projections: list[FrontierProjection] = []
+        for projection_name in value.get("projections"):
+            if not isinstance(projection_name, Name):
+                raise MetaProtocolError("Cut projection references must be Names")
+            row = self.trusted.projection(projection_name.value)
+            if row["disposition"] != "live":
+                continue
+            projections.append(
+                FrontierProjection(
+                    name=projection_name.value,
+                    role=str(row["role"]),
+                    state=str(row["protocol_state"]),
+                    holder=str(row["holder"]),
+                )
+            )
+
+        parent_cut = value.get("parent_cut")
+        parent_occurrence = value.get("parent_occurrence")
         return ObservedCut(
             name=cut,
-            observer=str(row["observer"]),
-            protocol_cid=str(row["protocol_cid"]),
-            parent_cut=row["parent_cut"],
-            parent_occurrence=row["parent_occurrence"],
-            projections=tuple(
-                FrontierProjection(
-                    name=str(projection["name"]),
-                    role=str(projection["role"]),
-                    state=str(projection["protocol_state"]),
-                    holder=str(projection["holder"]),
-                )
-                for projection in row["projections"]
-                if projection["disposition"] == "live"
+            observer=str(value.get("observer")),
+            protocol_cid=str(value.get("protocol")),
+            parent_cut=(
+                None
+                if parent_cut is None
+                else parent_cut.value
             ),
+            parent_occurrence=(
+                None
+                if parent_occurrence is None
+                else parent_occurrence.value
+            ),
+            projections=tuple(projections),
         )
 
 
