@@ -153,3 +153,79 @@ def test_named_value_binding_is_immutable_and_content_addressed():
     assert again["cid"] == bound["cid"]
     assert again["value"] == first
     assert tm.eidos_value(bound["cid"]) == first
+
+
+
+def test_specialized_semantic_columns_are_only_indexes():
+    tm = TrustedMachinery()
+    p = protocol()
+    installed = tm.install_occurrence_blueprint(
+        blueprint=elaborate_genesis(
+            p,
+            holders={"A": "alice", "B": "bob"},
+        ),
+        request_id="index-genesis",
+    )
+    cut = tm.create_observed_cut(
+        instance=installed["instance"],
+        observer="real-observer",
+        protocol_cid=p.cid,
+        projections=[
+            installed["projections"]["projection:A"],
+            installed["projections"]["projection:B"],
+        ],
+        elaborator="elaborator",
+        request_id="index-cut",
+    )
+
+    # Corrupt fields that used to be semantic sources.
+    tm.db.execute(
+        "UPDATE causal_cuts SET observer=?,protocol_cid=? WHERE name=?",
+        ("WRONG-OBSERVER", "WRONG-PROTOCOL", cut["cut"]),
+    )
+    interpreted_cut = tm.causal_cut(cut["cut"])
+    assert interpreted_cut["observer"] == "real-observer"
+    assert interpreted_cut["protocol_cid"] == p.cid
+
+    blueprint = elaborate_cuts(
+        p,
+        cuts=(observed_cut(tm, cut["cut"]),),
+        elaborator="elaborator",
+        actualizer="actualizer",
+    )
+    admitted = tm.admit_cut_elaboration(
+        blueprint=blueprint,
+        authorities={cut["cut"]: cut["elaborator_projection"]},
+        request_id="index-elaborate",
+    )
+    possibility = next(iter(admitted["possibilities"].values()))
+
+    tm.db.execute(
+        "UPDATE observed_possibilities "
+        "SET reaction=?,proof=?,elaborator=?,actualizer=? WHERE name=?",
+        ("WRONG-REACTION", "WRONG-PROOF", "WRONG-E", "WRONG-A", possibility),
+    )
+    interpreted_possibility = tm.observed_possibility(possibility)
+    assert interpreted_possibility["reaction"] == "advance"
+    assert interpreted_possibility["proof"] == blueprint.proof
+    assert interpreted_possibility["elaborator"] == "elaborator"
+    assert interpreted_possibility["actualizer"] == "actualizer"
+
+    occurred = tm.actualize_observed(
+        possibility=possibility,
+        actualizer="actualizer",
+        authority=admitted["actualizers"][possibility],
+        observation={"truth": "semantic-value"},
+        request_id="index-actualize",
+    )
+
+    tm.db.execute(
+        "UPDATE observed_occurrences "
+        "SET actualizer=?,observation_json=? WHERE name=?",
+        ("WRONG-ACTUALIZER", '{"truth":"index"}', occurred["occurrence"]),
+    )
+    interpreted_occurrence = tm.observed_occurrence(occurred["occurrence"])
+    assert interpreted_occurrence["actualizer"] == "actualizer"
+    assert interpreted_occurrence["observation"] == {
+        "truth": "semantic-value"
+    }
