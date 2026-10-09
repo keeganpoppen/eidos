@@ -233,11 +233,6 @@ class TrustedMachinery:
               parent_occurrence TEXT,
               state TEXT NOT NULL CHECK(state IN ('open','elaborated','historical'))
             );
-            CREATE TABLE IF NOT EXISTS cut_members(
-              cut_name TEXT NOT NULL REFERENCES causal_cuts(name),
-              projection_name TEXT NOT NULL REFERENCES projections(name),
-              PRIMARY KEY(cut_name,projection_name)
-            );
             CREATE TABLE IF NOT EXISTS cut_elaboration_authorities(
               token TEXT PRIMARY KEY REFERENCES names(name),
               cut_name TEXT NOT NULL UNIQUE REFERENCES causal_cuts(name),
@@ -264,11 +259,6 @@ class TrustedMachinery:
               actualizer TEXT NOT NULL,
               state TEXT NOT NULL CHECK(state IN ('open','occurred','precluded'))
             );
-            CREATE TABLE IF NOT EXISTS observed_possibility_cuts(
-              possibility_name TEXT NOT NULL REFERENCES observed_possibilities(name),
-              cut_name TEXT NOT NULL REFERENCES causal_cuts(name),
-              PRIMARY KEY(possibility_name,cut_name)
-            );
             CREATE TABLE IF NOT EXISTS observed_possibility_actualizers(
               possibility_name TEXT PRIMARY KEY REFERENCES observed_possibilities(name),
               projection_name TEXT NOT NULL UNIQUE REFERENCES projections(name)
@@ -277,15 +267,6 @@ class TrustedMachinery:
               possibility_name TEXT NOT NULL REFERENCES observed_possibilities(name),
               projection_name TEXT NOT NULL REFERENCES projections(name),
               PRIMARY KEY(possibility_name,projection_name)
-            );
-            CREATE TABLE IF NOT EXISTS observed_reaction_outputs(
-              possibility_name TEXT NOT NULL REFERENCES observed_possibilities(name),
-              ordinal INTEGER NOT NULL,
-              output_key TEXT NOT NULL,
-              role TEXT NOT NULL,
-              protocol_state TEXT NOT NULL,
-              holder TEXT NOT NULL,
-              PRIMARY KEY(possibility_name,output_key)
             );
             CREATE TABLE IF NOT EXISTS observed_occurrences(
               name TEXT PRIMARY KEY REFERENCES names(name),
@@ -1605,11 +1586,6 @@ class TrustedMachinery:
                     "open",
                 ),
             )
-            for row in rows:
-                db.execute(
-                    "INSERT INTO cut_members(cut_name,projection_name) VALUES (?,?)",
-                    (cut, row["name"]),
-                )
             db.execute(
                 "INSERT INTO projections("
                 "name,instance_name,seed_key,role,protocol_state,holder,disposition"
@@ -1845,33 +1821,12 @@ class TrustedMachinery:
                         "open",
                     ),
                 )
-                for cut in blueprint.cuts:
-                    db.execute(
-                        "INSERT INTO observed_possibility_cuts("
-                        "possibility_name,cut_name"
-                        ") VALUES (?,?)",
-                        (possibility, cut),
-                    )
                 for projection in seed.consumes:
                     db.execute(
                         "INSERT INTO observed_reaction_inputs("
                         "possibility_name,projection_name"
                         ") VALUES (?,?)",
                         (possibility, projection),
-                    )
-                for ordinal, successor in enumerate(seed.establishes):
-                    db.execute(
-                        "INSERT INTO observed_reaction_outputs("
-                        "possibility_name,ordinal,output_key,role,protocol_state,holder"
-                        ") VALUES (?,?,?,?,?,?)",
-                        (
-                            possibility,
-                            ordinal,
-                            successor.key,
-                            successor.role,
-                            successor.state,
-                            successor.holder,
-                        ),
                     )
                 grants.append(
                     ProjectionGrant(
@@ -2267,10 +2222,6 @@ class TrustedMachinery:
                         if projection is None:
                             continue
                     new_members.append(projection)
-                    db.execute(
-                        "INSERT INTO cut_members(cut_name,projection_name) VALUES (?,?)",
-                        (new_cut, projection),
-                    )
 
                 db.execute(
                     "INSERT INTO observed_occurrence_cuts("
