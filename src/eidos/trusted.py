@@ -238,21 +238,10 @@ class TrustedMachinery:
               cut_name TEXT NOT NULL UNIQUE REFERENCES causal_cuts(name),
               disposition TEXT NOT NULL CHECK(disposition IN ('live','spent'))
             );
-            CREATE TABLE IF NOT EXISTS cut_admissions(
-              proof TEXT PRIMARY KEY,
-              elaborator TEXT NOT NULL,
-              actualizer TEXT NOT NULL,
-              blueprint_json TEXT NOT NULL
-            );
-            CREATE TABLE IF NOT EXISTS cut_admission_cuts(
-              proof TEXT NOT NULL REFERENCES cut_admissions(proof),
-              cut_name TEXT NOT NULL REFERENCES causal_cuts(name),
-              PRIMARY KEY(proof,cut_name)
-            );
             CREATE TABLE IF NOT EXISTS observed_possibilities(
               name TEXT PRIMARY KEY REFERENCES names(name),
               instance_name TEXT NOT NULL REFERENCES occurrence_instances(name),
-              proof TEXT NOT NULL REFERENCES cut_admissions(proof),
+              proof TEXT NOT NULL,
               seed_key TEXT NOT NULL,
               reaction TEXT NOT NULL,
               elaborator TEXT NOT NULL,
@@ -274,22 +263,6 @@ class TrustedMachinery:
               possibility_name TEXT NOT NULL REFERENCES observed_possibilities(name),
               actualizer TEXT NOT NULL,
               observation_json TEXT NOT NULL
-            );
-            CREATE TABLE IF NOT EXISTS observed_occurrence_cuts(
-              occurrence_name TEXT NOT NULL REFERENCES observed_occurrences(name),
-              cut_name TEXT NOT NULL REFERENCES causal_cuts(name),
-              PRIMARY KEY(occurrence_name,cut_name)
-            );
-            CREATE TABLE IF NOT EXISTS observed_occurrence_inputs(
-              occurrence_name TEXT NOT NULL REFERENCES observed_occurrences(name),
-              projection_name TEXT NOT NULL REFERENCES projections(name),
-              PRIMARY KEY(occurrence_name,projection_name)
-            );
-            CREATE TABLE IF NOT EXISTS observed_occurrence_outputs(
-              occurrence_name TEXT NOT NULL REFERENCES observed_occurrences(name),
-              projection_name TEXT NOT NULL REFERENCES projections(name),
-              ordinal INTEGER NOT NULL,
-              PRIMARY KEY(occurrence_name,projection_name)
             );
 
             CREATE TABLE IF NOT EXISTS authority_occurrences(
@@ -1773,21 +1746,7 @@ class TrustedMachinery:
                 raise Conflict("joined cuts must belong to one protocol instance")
             instance = next(iter(instance_names))
 
-            db.execute(
-                "INSERT INTO cut_admissions(proof,elaborator,actualizer,blueprint_json) "
-                "VALUES (?,?,?,?)",
-                (
-                    blueprint.proof,
-                    blueprint.elaborator,
-                    blueprint.actualizer,
-                    json.dumps(payload, sort_keys=True, separators=(",", ":")),
-                ),
-            )
             for cut in blueprint.cuts:
-                db.execute(
-                    "INSERT INTO cut_admission_cuts(proof,cut_name) VALUES (?,?)",
-                    (blueprint.proof, cut),
-                )
                 db.execute(
                     "UPDATE causal_cuts SET state='elaborated' WHERE name=?",
                     (cut,),
@@ -2165,21 +2124,6 @@ class TrustedMachinery:
                     json.dumps(observation, sort_keys=True, separators=(",", ":")),
                 ),
             )
-            for projection in input_names:
-                db.execute(
-                    "INSERT INTO observed_occurrence_inputs("
-                    "occurrence_name,projection_name"
-                    ") VALUES (?,?)",
-                    (occurrence, projection),
-                )
-            for ordinal, projection in enumerate(ordered_successors):
-                db.execute(
-                    "INSERT INTO observed_occurrence_outputs("
-                    "occurrence_name,projection_name,ordinal"
-                    ") VALUES (?,?,?)",
-                    (occurrence, projection, ordinal),
-                )
-
             consumed_set = set(input_names)
             successor_cut_values: dict[str, str] = {}
             for old_cut in cause_cuts:
@@ -2223,12 +2167,6 @@ class TrustedMachinery:
                             continue
                     new_members.append(projection)
 
-                db.execute(
-                    "INSERT INTO observed_occurrence_cuts("
-                    "occurrence_name,cut_name"
-                    ") VALUES (?,?)",
-                    (occurrence, old_cut),
-                )
                 successor_cut_values[new_cut] = self._bind_eidos_value(
                     db,
                     name=new_cut,
