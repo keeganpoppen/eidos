@@ -138,6 +138,11 @@ class TrustedMachinery:
               projection_name TEXT NOT NULL REFERENCES projections(name),
               PRIMARY KEY(frontier_name,projection_name)
             );
+            CREATE TABLE IF NOT EXISTS elaboration_authorities(
+              token TEXT PRIMARY KEY REFERENCES names(name),
+              frontier_name TEXT NOT NULL UNIQUE REFERENCES protocol_frontiers(name),
+              disposition TEXT NOT NULL CHECK(disposition IN ('live','spent'))
+            );
             CREATE TABLE IF NOT EXISTS reaction_possibilities(
               name TEXT PRIMARY KEY REFERENCES names(name),
               instance_name TEXT NOT NULL REFERENCES occurrence_instances(name),
@@ -660,6 +665,7 @@ class TrustedMachinery:
         self,
         *,
         blueprint: FrontierBlueprint,
+        authority: str,
         request_id: str,
     ) -> dict[str, Any]:
         """Admit one recursively elaborated possibility space.
@@ -675,6 +681,7 @@ class TrustedMachinery:
 
         payload = asdict(blueprint)
         payload["proof"] = blueprint.proof
+        payload["authority"] = authority
         with self._tx() as db:
             old = self._idem(db, request_id, "admit_frontier", payload)
             if old is not None:
@@ -694,6 +701,18 @@ class TrustedMachinery:
                 raise Conflict("frontier proof names a different protocol commitment")
             if row["parent_occurrence"] != blueprint.parent_occurrence:
                 raise Conflict("frontier proof names the wrong parent occurrence")
+
+            authority_row = db.execute(
+                "SELECT frontier_name,disposition FROM elaboration_authorities "
+                "WHERE token=?",
+                (authority,),
+            ).fetchone()
+            if (
+                authority_row is None
+                or authority_row["frontier_name"] != blueprint.frontier
+                or authority_row["disposition"] != "live"
+            ):
+                raise Conflict("elaboration authority is not live for this frontier")
 
             expected = [
                 dict(r)
@@ -771,8 +790,12 @@ class TrustedMachinery:
                     )
 
             db.execute(
+                "UPDATE elaboration_authorities SET disposition='spent' WHERE token=?",
+                (authority,),
+            )
+            db.execute(
                 "INSERT INTO frontier_admissions(frontier_name,proof,blueprint_json) "
-                "VALUES (?,?,?)",
+                "VALUES (?,?,?)"
                 (
                     blueprint.frontier,
                     blueprint.proof,
@@ -866,6 +889,7 @@ class TrustedMachinery:
 
             occurrence = self._new_name(db, "occurrence")
             new_frontier = self._new_name(db, "frontier")
+            elaboration_authority = self._new_name(db, "elaboration")
             new_names = [occurrence, new_frontier]
             consumed = [row["name"] for row in input_rows]
 
@@ -974,6 +998,11 @@ class TrustedMachinery:
                 "VALUES (?,?)",
                 (occurrence, new_frontier),
             )
+            db.execute(
+                "INSERT INTO elaboration_authorities(token,frontier_name,disposition) "
+                "VALUES (?,?,?)",
+                (elaboration_authority, new_frontier, "live"),
+            )
 
             self._event(
                 db,
@@ -999,6 +1028,7 @@ class TrustedMachinery:
                 "consumed": consumed,
                 "successors": successor_by_key,
                 "frontier": new_frontier,
+                "elaboration_authority": elaboration_authority,
             }
             self._idem_put(
                 db,
