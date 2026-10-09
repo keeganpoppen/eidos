@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any, Iterator
 
 from .model import Frame, OfferSpec, ProtocolSpec, Transition, canonical_bytes, content_id
+from .occurrence import InstanceBlueprint
 
 
 class TrustedError(RuntimeError):
@@ -16,6 +17,10 @@ class TrustedError(RuntimeError):
 
 
 class StaleSocket(TrustedError):
+    pass
+
+
+class StaleProjection(TrustedError):
     pass
 
 
@@ -105,6 +110,58 @@ class TrustedMachinery:
               successor_socket TEXT REFERENCES sockets(name),
               payload_json TEXT NOT NULL,
               incorporated INTEGER NOT NULL DEFAULT 0
+            );
+            CREATE TABLE IF NOT EXISTS occurrence_instances(
+              name TEXT PRIMARY KEY REFERENCES names(name),
+              protocol TEXT NOT NULL,
+              blueprint_json TEXT NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS projections(
+              name TEXT PRIMARY KEY REFERENCES names(name),
+              instance_name TEXT NOT NULL REFERENCES occurrence_instances(name),
+              seed_key TEXT NOT NULL,
+              role TEXT NOT NULL,
+              protocol_state TEXT NOT NULL,
+              holder TEXT NOT NULL,
+              disposition TEXT NOT NULL CHECK(disposition IN ('live','spent'))
+            );
+            CREATE TABLE IF NOT EXISTS reaction_possibilities(
+              name TEXT PRIMARY KEY REFERENCES names(name),
+              instance_name TEXT NOT NULL REFERENCES occurrence_instances(name),
+              seed_key TEXT NOT NULL,
+              reaction TEXT NOT NULL,
+              state TEXT NOT NULL CHECK(state IN ('open','occurred','precluded'))
+            );
+            CREATE TABLE IF NOT EXISTS reaction_inputs(
+              possibility_name TEXT NOT NULL REFERENCES reaction_possibilities(name),
+              projection_name TEXT NOT NULL REFERENCES projections(name),
+              PRIMARY KEY(possibility_name,projection_name)
+            );
+            CREATE TABLE IF NOT EXISTS reaction_outputs(
+              possibility_name TEXT NOT NULL REFERENCES reaction_possibilities(name),
+              ordinal INTEGER NOT NULL,
+              output_key TEXT NOT NULL,
+              role TEXT NOT NULL,
+              protocol_state TEXT NOT NULL,
+              holder TEXT NOT NULL,
+              PRIMARY KEY(possibility_name,output_key)
+            );
+            CREATE TABLE IF NOT EXISTS occurrences(
+              name TEXT PRIMARY KEY REFERENCES names(name),
+              instance_name TEXT NOT NULL REFERENCES occurrence_instances(name),
+              possibility_name TEXT NOT NULL REFERENCES reaction_possibilities(name),
+              observation_json TEXT NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS occurrence_inputs(
+              occurrence_name TEXT NOT NULL REFERENCES occurrences(name),
+              projection_name TEXT NOT NULL REFERENCES projections(name),
+              PRIMARY KEY(occurrence_name,projection_name)
+            );
+            CREATE TABLE IF NOT EXISTS occurrence_outputs(
+              occurrence_name TEXT NOT NULL REFERENCES occurrences(name),
+              projection_name TEXT NOT NULL REFERENCES projections(name),
+              ordinal INTEGER NOT NULL,
+              PRIMARY KEY(occurrence_name,projection_name)
             );
             CREATE TABLE IF NOT EXISTS events(
               seq INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -418,6 +475,366 @@ class TrustedMachinery:
             result = {"match": match_name, "successors": successors}
             self._idem_put(db, request_id, "match", payload, result)
             return result
+
+
+    def install_occurrence_blueprint(
+        self,
+        *,
+        blueprint: InstanceBlueprint,
+        request_id: str,
+    ) -> dict[str, Any]:
+        """Install an already-elaborated possibility space mechanically.
+
+        The blueprint is semantic input produced above Trusted Machinery. This
+        method assigns durable Names to the current projection capabilities and
+        to every latent Reaction possibility, but it does not decide whether
+        any Reaction is meaningful or enabled by an observation.
+        """
+
+        payload = asdict(blueprint)
+        with self._tx() as db:
+            old = self._idem(db, request_id, "install_occurrence_blueprint", payload)
+            if old is not None:
+                return old
+
+            projection_seeds = {seed.key: seed for seed in blueprint.projections}
+            if len(projection_seeds) != len(blueprint.projections):
+                raise ValueError("projection seed keys must be unique")
+
+            possibility_seeds = {seed.key: seed for seed in blueprint.possibilities}
+            if len(possibility_seeds) != len(blueprint.possibilities):
+                raise ValueError("possibility seed keys must be unique")
+
+            for possibility in blueprint.possibilities:
+                unknown = set(possibility.consumes) - set(projection_seeds)
+                if unknown:
+                    raise ValueError(
+                        f"possibility {possibility.key!r} consumes unknown projections "
+                        f"{sorted(unknown)!r}"
+                    )
+
+            instance = self._new_name(db, "instance")
+            db.execute(
+                "INSERT INTO occurrence_instances(name,protocol,blueprint_json) VALUES (?,?,?)",
+                (
+                    instance,
+                    blueprint.protocol,
+                    json.dumps(payload, sort_keys=True, separators=(",", ":")),
+                ),
+            )
+
+            projections: dict[str, str] = {}
+            new_names = [instance]
+            for seed in blueprint.projections:
+                projection = self._new_name(db, "projection")
+                projections[seed.key] = projection
+                new_names.append(projection)
+                db.execute(
+                    "INSERT INTO projections("
+                    "name,instance_name,seed_key,role,protocol_state,holder,disposition"
+                    ") VALUES (?,?,?,?,?,?,?)",
+                    (
+                        projection,
+                        instance,
+                        seed.key,
+                        seed.role,
+                        seed.state,
+                        seed.holder,
+                        "live",
+                    ),
+                )
+
+            possibilities: dict[str, str] = {}
+            for seed in blueprint.possibilities:
+                possibility = self._new_name(db, "possibility")
+                possibilities[seed.key] = possibility
+                new_names.append(possibility)
+                db.execute(
+                    "INSERT INTO reaction_possibilities("
+                    "name,instance_name,seed_key,reaction,state"
+                    ") VALUES (?,?,?,?,?)",
+                    (
+                        possibility,
+                        instance,
+                        seed.key,
+                        seed.reaction,
+                        "open",
+                    ),
+                )
+                for projection_key in seed.consumes:
+                    db.execute(
+                        "INSERT INTO reaction_inputs(possibility_name,projection_name) "
+                        "VALUES (?,?)",
+                        (possibility, projections[projection_key]),
+                    )
+                for ordinal, successor in enumerate(seed.establishes):
+                    db.execute(
+                        "INSERT INTO reaction_outputs("
+                        "possibility_name,ordinal,output_key,role,protocol_state,holder"
+                        ") VALUES (?,?,?,?,?,?)",
+                        (
+                            possibility,
+                            ordinal,
+                            successor.key,
+                            successor.role,
+                            successor.state,
+                            successor.holder,
+                        ),
+                    )
+
+            self._event(
+                db,
+                "possibility_space_installed",
+                {
+                    "instance": instance,
+                    "protocol": blueprint.protocol,
+                    "projections": projections,
+                    "possibilities": possibilities,
+                    "new_names": new_names,
+                },
+            )
+            result = {
+                "instance": instance,
+                "projections": projections,
+                "possibilities": possibilities,
+            }
+            self._idem_put(
+                db,
+                request_id,
+                "install_occurrence_blueprint",
+                payload,
+                result,
+            )
+            return result
+
+    def commit_occurrence(
+        self,
+        *,
+        possibility: str,
+        observation: Any,
+        request_id: str,
+    ) -> dict[str, Any]:
+        """Atomically turn one latent possibility into a causal occurrence.
+
+        This method does not interpret the Reaction name or the observation. It
+        checks only mechanical facts:
+
+        * the selected possibility is still open;
+        * every predeclared input projection is still live;
+        * those projections are consumed exactly once;
+        * only the successor templates already attached to this possibility are
+          materialized as new live projection capabilities;
+        * competing possibilities sharing a consumed projection become
+          precluded in the same transaction.
+        """
+
+        payload = {"possibility": possibility, "observation": observation}
+        with self._tx() as db:
+            old = self._idem(db, request_id, "commit_occurrence", payload)
+            if old is not None:
+                return old
+
+            possibility_row = db.execute(
+                "SELECT * FROM reaction_possibilities WHERE name=?",
+                (possibility,),
+            ).fetchone()
+            if possibility_row is None:
+                raise KeyError(possibility)
+            if possibility_row["state"] != "open":
+                raise Conflict(
+                    f"reaction possibility {possibility!r} is "
+                    f"{possibility_row['state']}, not open"
+                )
+
+            input_rows = db.execute(
+                "SELECT p.* FROM reaction_inputs i "
+                "JOIN projections p ON p.name=i.projection_name "
+                "WHERE i.possibility_name=? ORDER BY p.rowid",
+                (possibility,),
+            ).fetchall()
+            if not input_rows:
+                raise TrustedError("reaction possibility has no input projections")
+            stale = [
+                row["name"] for row in input_rows if row["disposition"] != "live"
+            ]
+            if stale:
+                raise StaleProjection(
+                    f"reaction input projections are no longer live: {stale!r}"
+                )
+
+            occurrence = self._new_name(db, "occurrence")
+            new_names = [occurrence]
+            consumed = [row["name"] for row in input_rows]
+
+            for projection in consumed:
+                db.execute(
+                    "UPDATE projections SET disposition='spent' WHERE name=?",
+                    (projection,),
+                )
+
+            output_rows = db.execute(
+                "SELECT * FROM reaction_outputs WHERE possibility_name=? "
+                "ORDER BY ordinal",
+                (possibility,),
+            ).fetchall()
+            successors: list[str] = []
+            successor_by_key: dict[str, str] = {}
+            for output in output_rows:
+                projection = self._new_name(db, "projection")
+                new_names.append(projection)
+                successors.append(projection)
+                successor_by_key[output["output_key"]] = projection
+                db.execute(
+                    "INSERT INTO projections("
+                    "name,instance_name,seed_key,role,protocol_state,holder,disposition"
+                    ") VALUES (?,?,?,?,?,?,?)",
+                    (
+                        projection,
+                        possibility_row["instance_name"],
+                        output["output_key"],
+                        output["role"],
+                        output["protocol_state"],
+                        output["holder"],
+                        "live",
+                    ),
+                )
+
+            db.execute(
+                "UPDATE reaction_possibilities SET state='occurred' WHERE name=?",
+                (possibility,),
+            )
+
+            placeholders = ",".join("?" for _ in consumed)
+            if consumed:
+                competing = db.execute(
+                    "SELECT DISTINCT rp.name FROM reaction_possibilities rp "
+                    "JOIN reaction_inputs ri ON ri.possibility_name=rp.name "
+                    f"WHERE rp.state='open' AND ri.projection_name IN ({placeholders})",
+                    tuple(consumed),
+                ).fetchall()
+                for row in competing:
+                    db.execute(
+                        "UPDATE reaction_possibilities SET state='precluded' "
+                        "WHERE name=?",
+                        (row["name"],),
+                    )
+
+            db.execute(
+                "INSERT INTO occurrences("
+                "name,instance_name,possibility_name,observation_json"
+                ") VALUES (?,?,?,?)",
+                (
+                    occurrence,
+                    possibility_row["instance_name"],
+                    possibility,
+                    json.dumps(observation, sort_keys=True, separators=(",", ":")),
+                ),
+            )
+            for projection in consumed:
+                db.execute(
+                    "INSERT INTO occurrence_inputs(occurrence_name,projection_name) "
+                    "VALUES (?,?)",
+                    (occurrence, projection),
+                )
+            for ordinal, projection in enumerate(successors):
+                db.execute(
+                    "INSERT INTO occurrence_outputs("
+                    "occurrence_name,projection_name,ordinal"
+                    ") VALUES (?,?,?)",
+                    (occurrence, projection, ordinal),
+                )
+
+            self._event(
+                db,
+                "occurrence_committed",
+                {
+                    "occurrence": occurrence,
+                    "instance": possibility_row["instance_name"],
+                    "possibility": possibility,
+                    "reaction": possibility_row["reaction"],
+                    "consumed": consumed,
+                    "successors": successor_by_key,
+                    "observation": observation,
+                    "new_names": new_names,
+                },
+            )
+            result = {
+                "occurrence": occurrence,
+                "instance": possibility_row["instance_name"],
+                "reaction": possibility_row["reaction"],
+                "consumed": consumed,
+                "successors": successor_by_key,
+            }
+            self._idem_put(
+                db,
+                request_id,
+                "commit_occurrence",
+                payload,
+                result,
+            )
+            return result
+
+    def projection(self, projection: str) -> dict[str, Any]:
+        row = self.db.execute(
+            "SELECT * FROM projections WHERE name=?",
+            (projection,),
+        ).fetchone()
+        if row is None:
+            raise KeyError(projection)
+        return dict(row)
+
+    def reaction_possibility(self, possibility: str) -> dict[str, Any]:
+        row = self.db.execute(
+            "SELECT * FROM reaction_possibilities WHERE name=?",
+            (possibility,),
+        ).fetchone()
+        if row is None:
+            raise KeyError(possibility)
+        item = dict(row)
+        item["inputs"] = [
+            r["projection_name"]
+            for r in self.db.execute(
+                "SELECT projection_name FROM reaction_inputs "
+                "WHERE possibility_name=? ORDER BY rowid",
+                (possibility,),
+            ).fetchall()
+        ]
+        item["outputs"] = [
+            dict(r)
+            for r in self.db.execute(
+                "SELECT output_key,role,protocol_state,holder,ordinal "
+                "FROM reaction_outputs WHERE possibility_name=? ORDER BY ordinal",
+                (possibility,),
+            ).fetchall()
+        ]
+        return item
+
+    def occurrence_record(self, occurrence: str) -> dict[str, Any]:
+        row = self.db.execute(
+            "SELECT * FROM occurrences WHERE name=?",
+            (occurrence,),
+        ).fetchone()
+        if row is None:
+            raise KeyError(occurrence)
+        item = dict(row)
+        item["observation"] = json.loads(item.pop("observation_json"))
+        item["inputs"] = [
+            r["projection_name"]
+            for r in self.db.execute(
+                "SELECT projection_name FROM occurrence_inputs "
+                "WHERE occurrence_name=? ORDER BY rowid",
+                (occurrence,),
+            ).fetchall()
+        ]
+        item["outputs"] = [
+            r["projection_name"]
+            for r in self.db.execute(
+                "SELECT projection_name FROM occurrence_outputs "
+                "WHERE occurrence_name=? ORDER BY ordinal",
+                (occurrence,),
+            ).fetchall()
+        ]
+        return item
 
     def transfer_socket(self, *, socket: str, from_holder: str, to_holder: str, request_id: str) -> dict[str, Any]:
         payload = {"socket": socket, "from_holder": from_holder, "to_holder": to_holder}
