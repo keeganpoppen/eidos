@@ -468,3 +468,184 @@ def test_prepared_consultation_survives_commit_before_continuation_resume():
     repeated = restarted.advance(checkpoint)
     assert repeated == outcome
     assert len(calls) == 1
+
+
+
+def test_joint_elaboration_uses_resumable_process_to_inspect_both_cuts():
+    """Two observers delegate; one Model inspects both cuts and consults a specialist."""
+
+    tm = TrustedMachinery()
+    joint_protocol = RecursiveProtocol(
+        name="resumable-joint-recognition",
+        initial=(
+            ProjectionTemplate("A", "watching"),
+            ProjectionTemplate("B", "watching"),
+        ),
+        reactions=(
+            ReactionRule(
+                "joint-recognition",
+                requires=(
+                    ProjectionTemplate("A", "watching"),
+                    ProjectionTemplate("B", "watching"),
+                ),
+                successors=(
+                    ProjectionTemplate("A", "recognized"),
+                    ProjectionTemplate("B", "recognized"),
+                ),
+                requires_facts=("joint:recognized",),
+            ),
+        ),
+    )
+    genesis = admit_genesis(
+        tm, joint_protocol,
+        holders={"A": "alice", "B": "bob"},
+        request_id="model-process-joint-genesis",
+    )
+    left = tm.create_observed_cut(
+        instance=genesis["instance"],
+        observer="O1",
+        protocol_cid=joint_protocol.cid,
+        projections=[genesis["projections"]["projection:A"]],
+        elaborator="elaborator:left",
+        request_id="model-process-joint-cut-left",
+    )
+    right = tm.create_observed_cut(
+        instance=genesis["instance"],
+        observer="O2",
+        protocol_cid=joint_protocol.cid,
+        projections=[genesis["projections"]["projection:B"]],
+        elaborator="elaborator:right",
+        request_id="model-process-joint-cut-right",
+    )
+    claim_a = persist(
+        tm, "knowledge",
+        knowledge_value("signal:A", grounds=(left["cut"],)),
+    )
+    claim_b = persist(
+        tm, "knowledge",
+        knowledge_value("signal:B", grounds=(right["cut"],)),
+    )
+    executor = persist(
+        tm, "executor",
+        executor_value("remote-subagent", label="joint-pattern specialist"),
+    )
+
+    closure = PraxisCore().realize(Lambda(
+        ("request",),
+        Perform(
+            socket=Need(PROCESS_SOCKET_ROLE),
+            operation=INSPECT,
+            argument=Lit(inspection_request(left["cut"])),
+            result_as="observed_left",
+            successor_as="k1",
+            then=Perform(
+                socket=Var("k1"),
+                operation=INSPECT,
+                argument=Lit(inspection_request(right["cut"])),
+                result_as="observed_right",
+                successor_as="k2",
+                then=Perform(
+                    socket=Var("k2"),
+                    operation=CONSULT,
+                    argument=Lit(consultation_request(
+                        executor, question="Do the two independently seen signals match?"
+                    )),
+                    result_as="consulted",
+                    successor_as="k3",
+                    then=Record.from_mapping({
+                        "$kind": Lit("ModelProposal"),
+                        "context": Get(Var("request"), "context"),
+                        "claims": Get(Var("consulted"), "claims"),
+                        "receipt": Record.from_mapping({
+                            "$kind": Lit("JointModelReceipt"),
+                            "left": Get(Var("observed_left"), "target"),
+                            "right": Get(Var("observed_right"), "target"),
+                            "consulted": Get(Var("consulted"), "receipt"),
+                        }),
+                    }),
+                ),
+            ),
+        ),
+    ))
+    assert isinstance(closure, Done)
+    model = persist(
+        tm, "model",
+        model_value("joint-resumable-specialist", implementation=closure.value, process=True),
+    )
+    attention = persist(
+        tm, "attention", attention_value(inference_budget=1),
+    )
+    context = persist(
+        tm, "context",
+        context_value(
+            cuts=(left["cut"], right["cut"]),
+            knowledge=(claim_a, claim_b),
+            models=(model,),
+            attention=attention,
+        ),
+    )
+    for cut, holder in ((left, "elaborator:left"), (right, "elaborator:right")):
+        tm.transfer_projection(
+            projection=cut["elaborator_projection"],
+            from_holder=holder,
+            to_holder="elaborator:joint",
+            request_id=f"delegate:{cut['cut']}",
+        )
+
+    consultations = []
+    def specialist(request):
+        consultations.append(request)
+        assert set(request.get("facts")) == {"signal:A", "signal:B"}
+        return model_proposal(
+            request.get("context"),
+            (model_claim(
+                "joint:recognized",
+                premises=("signal:A", "signal:B"),
+                witness="remote-specialist",
+            ),),
+            receipt="two-cuts-correspond",
+        )
+
+    driver = MetaProtocolDriver(tm)
+    driver.register(joint_protocol)
+    driver.register_executor(executor, specialist)
+    driver.authorize_model_consultation(model=model, executor=executor)
+
+    praxis = PraxisCore()
+    term = elaborate_operation(
+        Lit(Socket(Name(left["elaborator_projection"]))),
+        protocol_cid=joint_protocol.cid,
+        cuts=(left["cut"], right["cut"]),
+        authorities={
+            left["cut"]: left["elaborator_projection"],
+            right["cut"]: right["elaborator_projection"],
+        },
+        context=context,
+        actualizer="actualizer:joint",
+        result_as="result",
+        successor_as="next",
+        then=Var("result"),
+    )
+    suspended = praxis.realize(term)
+    assert isinstance(suspended, Suspended)
+    reaction = driver.react(suspended, request_id="joint-process-elaborate")
+    assert len(consultations) == 1
+    assert {item.name.value for item in reaction.consumed_sockets} == {
+        left["elaborator_projection"], right["elaborator_projection"],
+    }
+    done = praxis.resume(suspended, reaction)
+    assert isinstance(done, Done)
+    possible = done.value.get("possibilities").as_dict()
+    assert len(possible) == 1
+    assert next(iter(possible)).endswith("joint-recognition")
+
+    elaboration = tm.named_eidos_value(reaction.name.value)["value"]
+    derivation_name, = elaboration.get("derivations")
+    derivation = tm.named_eidos_value(derivation_name.value)["value"]
+    outcome = tm.named_eidos_value(derivation.get("process").value)["value"]
+    assert len(outcome.get("events")) == 3
+    receipt = outcome.get("proposal").get("receipt")
+    assert receipt.get("left") == Name(left["cut"])
+    assert receipt.get("right") == Name(right["cut"])
+    assert tm.projection(genesis["projections"]["projection:A"])["disposition"] == "live"
+    assert tm.projection(genesis["projections"]["projection:B"])["disposition"] == "live"
