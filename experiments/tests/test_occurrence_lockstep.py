@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from eidos.occurrence import (
+from eidos.experiments.lockstep_occurrence import (
     ProjectionTemplate,
     ProtocolSpace,
     ReactionType,
