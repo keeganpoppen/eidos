@@ -1,39 +1,87 @@
 # eidos
 
-A small executable experiment in reflective continuations, persistent Frames, and the **Trusted Machinery** that prevents descriptions of authority from becoming forged authority.
+A small executable experiment in reflective computation, observer-relative causal structure, and **Trusted Machinery™** for linear authority.
 
-The current working idea is intentionally severe:
+The current working thesis is:
 
-> **Name identifies. Socket authorizes. Frame records a local causal cut. Match advances compatible continuations.**
+> **Semantic structure lives in Values. Names make it addressable. Capabilities carry causal authority. Occurrences make history.**
 
-`eidos` is not an agent framework. It is becoming the small semantic/runtime substrate for a Nema meta-harness around Codex/app-server.
+And the Trusted Machinery underneath them is intentionally boring:
+
+> **atomically commit an occurrence over live linear authority.**
+
+`eidos` is not an agent framework. It is becoming the semantic/runtime substrate for a Nema meta-harness around Codex/app-server.
 
 ## What exists
 
 ### Eidos / Praxis
 
-An immutable value language plus a tiny local evaluator. Praxis reduces ordinary computation locally until it reaches:
+Eidos Core is a persistent value language with Names, Roles/Bindings, first-class closures, ordinary structural Values, and authority-bearing Sockets.
+
+Praxis realizes ordinary computation locally until it reaches:
 
 ```text
-perform(socket, operation, value)
+perform socket.Operation(argument)
 ```
 
-At that boundary it returns a serializable suspended continuation rather than executing the effect.
+At that boundary it returns a serializable suspended continuation. `perform` is not a special case for agents, tools, Elaborators, or Actualizers: all of those are ordinary Socket operations.
 
-### Trusted Machinery
+A Reaction may jointly consume several Sockets. A local continuation resumes when its Socket is among the capabilities consumed by the authoritative occurrence.
 
-A SQLite/WAL-backed authority substrate providing:
+### Observer-relative semantics
+
+There is no privileged global frontier.
+
+A **Cut** is an ordinary immutable Eidos Value describing one observer-relative causal boundary. Several Cuts can be elaborated jointly, letting a richer observer/specialist/subagent relate facts that no one Cut could expose alone.
+
+```text
+Cut C1 ---\
+           +-- Elaborator --> Possibility R
+Cut C2 ---/
+```
+
+Knowledge and models enrich elaboration without granting authority. Historical Cuts remain meaningful after their capabilities are spent, so later reasoning can improve an old model without resurrecting the old world's causal power.
+
+`Elaborator` and `Actualizer` are ordinary roles backed by ordinary projection capabilities:
+
+```text
+Elaborator projections
+        |
+      Elaborate
+        v
+Possibilities + Actualizer projections
+        |
+      Actualize
+        v
+Occurrence + successor projections + successor Elaborators
+```
+
+Elaboration and actualization differ semantically, not mechanically.
+
+### Trusted Machinery™
+
+The current observer-relative path uses a deliberately narrow SQLite/WAL-backed substrate:
 
 - durable fresh Names;
-- immutable Frames;
-- binary protocol/session sockets;
-- atomic Frame + offer publication;
-- single-spend socket advancement;
-- durable rendezvous Matches and receipts;
-- live socket handoff;
-- idempotent state-changing requests.
+- immutable content-addressed Eidos Values and immutable Name→Value bindings;
+- identity-only authority domains;
+- projection authority facts: domain, holder, live/spent disposition;
+- generic atomic authority occurrences over consumed/established projections;
+- delegation, idempotency, and durable causal history.
 
-The end-to-end Runtime now runs a two-party program through `perform -> Frame -> Match -> receipt -> resume`, including restart after the Match is committed but before either side resumes.
+A projection's **role/state/key are not machine columns**. They live in the immutable `Projection` Value bound to the projection Name. Holder and live/spent disposition remain machine authority facts.
+
+Genesis is explicitly separate: an authority domain and its initial projections are admitted once. Normal occurrence commit cannot mint authority from nothing.
+
+Cut, Elaboration, Possibility, Occurrence, protocol meaning, and semantic indexes are all ordinary Values / library conventions above this substrate.
+
+### Derived semantic lenses
+
+Addressable semantic context is traversable without a privileged ontology.
+
+`walk_named_values(..., depth=N)` follows Names embedded in Values, so an observer can progressively expand from an Occurrence into its Possibility, Elaboration, Cuts, projection descriptions, and further context.
+
+`SemanticIndex` is explicitly disposable and rebuildable from the canonical Name→Value relation. Indexes accelerate interpretation; they never become the source of truth.
 
 ### Codex boundary
 
@@ -152,16 +200,26 @@ uv run eidos --help
 ```text
 Value
 Name
-Frame
-Socket
-Protocol
-Match
+Role / Binding
+Projection / Socket
+Cut
+Elaborator
+Possibility
+Actualizer
+Reaction / Occurrence
+Trusted Machinery™
 ```
 
-A binding is ordinary immutable Frame data. Changing a binding means constructing another Frame. A socket occurrence may survive unchanged across many Frames, but a successful rendezvous spends that occurrence and creates successor socket occurrence(s).
+A Name identifies; knowing one grants no authority. A projection capability may be semantically inspectable through the immutable Value bound to its Name while its holder/live-spent status remains separate authority state.
+
+A Cut is observer-relative, not a global world state. Elaboration expands an addressable causal situation into adjacent possibility; Actualization resolves one such possibility into authoritative history through the generic occurrence substrate.
 
 See:
 
-- [`docs/SEMANTICS.md`](docs/SEMANTICS.md) — compact semantic contract;
-- [`docs/V0_STATUS.md`](docs/V0_STATUS.md) — what survived first contact with implementation/Codex and what remains open;
-- [`docs/SUMMARY_TREE.md`](docs/SUMMARY_TREE.md) — planned recursive semantic hierarchy, effort budget, and subagent/map-reduce strategy.
+- [`docs/CORE.md`](docs/CORE.md) — executable Core language nucleus;
+- [`docs/OBSERVER_CUTS.md`](docs/OBSERVER_CUTS.md) — observer-relative causal cuts and joint elaboration;
+- [`docs/META_PROTOCOL.md`](docs/META_PROTOCOL.md) — Elaborate / Actualize as ordinary Eidos Socket operations;
+- [`docs/SEMANTIC_VALUES.md`](docs/SEMANTIC_VALUES.md) — tableless semantic objects, addressable provenance, and lenses;
+- [`docs/SUMMARY_TREE.md`](docs/SUMMARY_TREE.md) — hindsight-first semantic tree over Codex evidence;
+- [`experiments/README.md`](experiments/README.md) — archived pressure tests that shaped the current model.
+
