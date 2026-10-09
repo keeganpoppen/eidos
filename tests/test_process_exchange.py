@@ -290,6 +290,7 @@ def test_acquire_second_cut_then_handoff_single_continuation_to_another_runner()
         expanded_context,
         resolve=lambda name: tm.named_eidos_value(name)["value"],
         cuts=(left["cut"], right["cut"]),
+        inference_limit=0,
     )
     assert interpreted.knowledge == (refs["claim"],)
     assert world_snapshot(tm, genesis) == {
