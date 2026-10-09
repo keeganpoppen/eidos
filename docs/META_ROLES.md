@@ -123,6 +123,10 @@ Both are now expressed as named, role-bearing, linear projection authority.
 
 Trusted Machinery still has dedicated host API methods for `admit_cut_elaboration` and `actualize_observed`, so the collapse is not complete. But the *authority objects* crossing those calls are no longer privileged token species.
 
+> **Later refinement:** [`META_PROTOCOL.md`](META_PROTOCOL.md) now expresses
+> Elaborate and Actualize as ordinary Eidos Socket operations. The remaining
+> specialness is confined to the bridge into Trusted Machinery.
+
 ## Next pressure point
 
 The remaining specialness is operational rather than ontological:
