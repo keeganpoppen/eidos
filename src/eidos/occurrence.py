@@ -16,6 +16,8 @@ from dataclasses import dataclass
 from typing import Mapping
 
 from .model import content_id
+from .authority import ProjectionGrant
+from .semantic_values import authority_domain_value, projection_value
 
 
 @dataclass(frozen=True)
@@ -338,6 +340,44 @@ def elaborate_genesis(
         protocol_cid=protocol.cid,
         projections=projections,
         possibilities=tuple(possibilities),
+    )
+
+
+@dataclass(frozen=True)
+class GenesisPlan:
+    """Semantic input to the explicit admitted genesis act."""
+
+    description: object
+    establishes: tuple[ProjectionGrant, ...]
+    protocol_cid: str
+
+
+def plan_genesis(
+    protocol: RecursiveProtocol,
+    *,
+    holders: Mapping[str, str],
+) -> GenesisPlan:
+    """Describe one authority-local genesis without minting authority itself."""
+
+    blueprint = elaborate_genesis(protocol, holders=holders)
+    return GenesisPlan(
+        description=authority_domain_value(
+            protocol=protocol.name,
+            protocol_cid=protocol.cid,
+        ),
+        establishes=tuple(
+            ProjectionGrant(
+                key=seed.key,
+                holder=seed.holder,
+                description=projection_value(
+                    key=seed.key,
+                    role=seed.role,
+                    state=seed.state,
+                ),
+            )
+            for seed in blueprint.projections
+        ),
+        protocol_cid=protocol.cid,
     )
 
 
