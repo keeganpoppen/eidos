@@ -9,6 +9,13 @@ from pathlib import Path
 from typing import Any, Iterator
 
 from .model import Frame, OfferSpec, ProtocolSpec, Transition, canonical_bytes, content_id
+from .core import (
+    Name as CoreName,
+    canonical_bytes as core_canonical_bytes,
+    content_id as core_content_id,
+    from_data as core_from_data,
+    to_data as core_to_data,
+)
 from .occurrence import FrontierBlueprint, InstanceBlueprint
 from .cuts import CutElaboration
 from .authority import ProjectionGrant
@@ -72,6 +79,14 @@ class TrustedMachinery:
             CREATE TABLE IF NOT EXISTS frames(
               cid TEXT PRIMARY KEY,
               body_json TEXT NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS eidos_values(
+              cid TEXT PRIMARY KEY,
+              body_json TEXT NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS named_eidos_values(
+              name TEXT PRIMARY KEY REFERENCES names(name),
+              cid TEXT NOT NULL REFERENCES eidos_values(cid)
             );
             CREATE TABLE IF NOT EXISTS protocols(
               cid TEXT PRIMARY KEY,
@@ -523,6 +538,88 @@ class TrustedMachinery:
                 result,
             )
             return result
+
+    def put_eidos_value(self, value: Any) -> str:
+        """Persist any ordinary immutable Eidos Core value by content identity."""
+
+        cid = core_content_id(value)
+        body = core_canonical_bytes(value).decode("utf-8")
+        self.db.execute(
+            "INSERT OR IGNORE INTO eidos_values(cid,body_json) VALUES (?,?)",
+            (cid, body),
+        )
+        return cid
+
+    def eidos_value(self, cid: str) -> Any:
+        row = self.db.execute(
+            "SELECT body_json FROM eidos_values WHERE cid=?",
+            (cid,),
+        ).fetchone()
+        if row is None:
+            raise KeyError(cid)
+        return core_from_data(json.loads(row["body_json"]))
+
+    def bind_eidos_value(
+        self,
+        *,
+        name: str,
+        value: Any,
+        request_id: str,
+    ) -> dict[str, str]:
+        """Immutably bind a permanent Name to one persisted Eidos Value."""
+
+        payload = {
+            "name": name,
+            "cid": core_content_id(value),
+        }
+        with self._tx() as db:
+            old = self._idem(db, request_id, "bind_eidos_value", payload)
+            if old is not None:
+                return old
+            if db.execute(
+                "SELECT 1 FROM names WHERE name=?",
+                (name,),
+            ).fetchone() is None:
+                raise KeyError(name)
+
+            cid = core_content_id(value)
+            db.execute(
+                "INSERT OR IGNORE INTO eidos_values(cid,body_json) VALUES (?,?)",
+                (cid, core_canonical_bytes(value).decode("utf-8")),
+            )
+            existing = db.execute(
+                "SELECT cid FROM named_eidos_values WHERE name=?",
+                (name,),
+            ).fetchone()
+            if existing is not None and existing["cid"] != cid:
+                raise Conflict(
+                    f"Name {name!r} is already bound to another immutable Value"
+                )
+            db.execute(
+                "INSERT OR IGNORE INTO named_eidos_values(name,cid) VALUES (?,?)",
+                (name, cid),
+            )
+            self._event(
+                db,
+                "eidos_value_bound",
+                {"name": name, "cid": cid},
+            )
+            result = {"name": name, "cid": cid}
+            self._idem_put(db, request_id, "bind_eidos_value", payload, result)
+            return result
+
+    def named_eidos_value(self, name: str) -> dict[str, Any]:
+        row = self.db.execute(
+            "SELECT cid FROM named_eidos_values WHERE name=?",
+            (name,),
+        ).fetchone()
+        if row is None:
+            raise KeyError(name)
+        return {
+            "name": name,
+            "cid": row["cid"],
+            "value": self.eidos_value(row["cid"]),
+        }
 
     def reserve_name(self, *, kind: str, request_id: str) -> str:
         payload = {"kind": kind}
