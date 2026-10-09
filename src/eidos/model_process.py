@@ -443,6 +443,7 @@ class ModelProcessRunner:
         *,
         run: str,
         checkpoint: str,
+        context: Name,
         suspended: Suspended,
         descriptor: RecordValue,
     ) -> tuple[str, RecordValue]:
@@ -455,6 +456,9 @@ class ModelProcessRunner:
                 return name, value
 
         response = self._respond(
+            run=run,
+            checkpoint=checkpoint,
+            context=context,
             descriptor=descriptor,
             suspended=suspended,
         )
@@ -473,19 +477,31 @@ class ModelProcessRunner:
         )
         return name, prepared
 
-    def _respond(self, *, descriptor: RecordValue, suspended: Suspended) -> RecordValue:
+    def _respond(
+        self,
+        *,
+        run: str,
+        checkpoint: str,
+        context: Name,
+        descriptor: RecordValue,
+        suspended: Suspended,
+    ) -> RecordValue:
         request = suspended.argument
         if not isinstance(request, RecordValue):
             raise ModelExecutionError("epistemic operation requires a RecordValue")
 
         model_input = _require_kind(descriptor.get("input"), "ModelInput")
-        context = model_input.get("context")
+        context_value_ = _require_kind(
+            self.trusted.named_eidos_value(context.value)["value"],
+            "ElaborationContext",
+        )
+        cuts = context_value_.get("cuts")
         if suspended.operation == INSPECT:
             _require_kind(request, "InspectRequest")
             target = request.get("target")
             if not isinstance(target, Name):
                 raise ModelExecutionError("Inspect target must be a Name")
-            roots = (context, *model_input.get("cuts"))
+            roots = (context, *cuts)
             neighborhood = walk_named_values(
                 roots,
                 resolve=lambda name: self.trusted.named_eidos_value(name)["value"],
@@ -499,6 +515,7 @@ class ModelProcessRunner:
                 "$kind": "InspectedValue",
                 "target": target,
                 "value": self.trusted.named_eidos_value(target.value)["value"],
+                "context": context,
             })
 
         if suspended.operation == CONSULT:
@@ -511,7 +528,7 @@ class ModelProcessRunner:
                 raise ModelExecutionError("Consult requires explicitly delegated executor authority")
             if executor.value not in self.executors:
                 raise ModelExecutionError("Consult requires a registered executor")
-            desc = _require_kind(
+            _require_kind(
                 self.trusted.named_eidos_value(executor.value)["value"],
                 "ModelExecutor",
             )
@@ -521,7 +538,7 @@ class ModelProcessRunner:
                 "$kind": "ModelConsultation",
                 "context": context,
                 "model": descriptor.get("model"),
-                "cuts": model_input.get("cuts"),
+                "cuts": cuts,
                 "facts": model_input.get("facts"),
                 "question": request.get("question"),
                 "executor": executor,
@@ -532,6 +549,84 @@ class ModelProcessRunner:
                 raise ModelExecutionError("consultation reply names the wrong Context")
             canonical_bytes(reply)
             return reply
+
+        if suspended.operation == ACQUIRE:
+            _require_kind(request, "CutRequest")
+            provider = request.get("provider")
+            cut = request.get("cut")
+            if not isinstance(provider, Name) or not isinstance(cut, Name):
+                raise ModelExecutionError("Acquire must name a provider and Cut")
+            if provider not in descriptor.get("allowed_providers"):
+                raise ModelExecutionError(
+                    "Acquire requires explicitly delegated CutProvider authority"
+                )
+            adapter = self.providers.get(provider.value)
+            if adapter is None:
+                raise ModelExecutionError("CutProvider is not registered on this runner")
+            _require_kind(
+                self.trusted.named_eidos_value(provider.value)["value"],
+                "CutProvider",
+            )
+            acquisition_request_ = RecordValue.from_mapping({
+                "$kind": "CutAcquisitionRequest",
+                "run": Name(run),
+                "model": descriptor.get("model"),
+                "context": context,
+                "cut": cut,
+                "provider": provider,
+            })
+            offer_name = adapter(acquisition_request_)
+            if isinstance(offer_name, Name):
+                offer = offer_name.value
+            elif isinstance(offer_name, str):
+                offer = offer_name
+            else:
+                raise ModelExecutionError(
+                    "CutProvider must return a disclosure occurrence Name"
+                )
+            validate_disclosure(
+                self.trusted,
+                disclosure=offer,
+                cut=cut.value,
+                recipient_run=run,
+                recipient_model=descriptor.get("model").value,
+            )
+            if cut in cuts:
+                raise ModelExecutionError("Cut is already in the active Context")
+            extended = context_value(
+                cuts=(*cuts, cut),
+                parent=context,
+                acquisition=Name(offer),
+            )
+            new_context = self._persist(
+                kind="context",
+                value=extended,
+                request_id=f"{run}:{checkpoint}:context-extension",
+            )
+            return RecordValue.from_mapping({
+                "$kind": "AcquiredContext",
+                "context": Name(new_context),
+                "prior_context": context,
+                "cut": cut,
+                "disclosure": Name(offer),
+                "provider": provider,
+            })
+
+        if suspended.operation == HANDOFF:
+            _require_kind(request, "HandoffRequest")
+            target = request.get("target")
+            if (
+                not isinstance(target, str)
+                or target not in descriptor.get("allowed_handoffs")
+            ):
+                raise ModelExecutionError(
+                    "Handoff target was not admitted for this process"
+                )
+            return RecordValue.from_mapping({
+                "$kind": "HandoffAccepted",
+                "target": target,
+                "context": context,
+            })
 
         raise ModelExecutionError(
             f"operation {suspended.operation.value!r} is not an epistemic interaction"
