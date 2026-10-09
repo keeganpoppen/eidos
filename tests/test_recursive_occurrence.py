@@ -129,6 +129,7 @@ def test_occurrence_mints_open_frontier_then_semantic_dual_elaborates_it():
 
     admitted = tm.admit_frontier(
         blueprint=proof1,
+        authority=first["elaboration_authority"],
         request_id="admit-generation-1",
     )
     assert admitted["proof"] == proof1.proof
@@ -156,6 +157,7 @@ def test_occurrence_mints_open_frontier_then_semantic_dual_elaborates_it():
 
     terminal = tm.admit_frontier(
         blueprint=proof2,
+        authority=second["elaboration_authority"],
         request_id="admit-terminal",
     )
     assert terminal["possibilities"] == {}
@@ -196,6 +198,7 @@ def test_wrong_protocol_commitment_cannot_elaborate_frontier():
     with pytest.raises(Conflict, match="protocol commitment"):
         tm.admit_frontier(
             blueprint=wrong,
+            authority=first["elaboration_authority"],
             request_id="wrong-protocol-admission",
         )
 
@@ -263,5 +266,51 @@ def test_frontier_proof_must_name_exact_authoritative_projection_set():
     with pytest.raises(Conflict, match="authoritative live frontier"):
         tm.admit_frontier(
             blueprint=truncated,
+            authority=first["elaboration_authority"],
             request_id="truncated-frontier",
+        )
+
+
+
+def test_frontier_name_does_not_authorize_elaboration():
+    protocol = recursive_protocol()
+    tm = TrustedMachinery()
+    installed = tm.install_occurrence_blueprint(
+        blueprint=elaborate_genesis(
+            protocol,
+            holders={"A": "alice", "B": "bob", "O": "observer"},
+        ),
+        request_id="name-is-not-authority-genesis",
+    )
+    first = tm.commit_occurrence(
+        possibility=installed["possibilities"]["reaction:yes"],
+        observation={"signal": True},
+        request_id="name-is-not-authority-first",
+    )
+    proof = elaborate_frontier(
+        protocol,
+        frontier=first["frontier"],
+        parent_occurrence=first["occurrence"],
+        projections=frontier_projections(tm, first["frontier"]),
+    )
+
+    with pytest.raises(Conflict, match="elaboration authority"):
+        tm.admit_frontier(
+            blueprint=proof,
+            authority=first["frontier"],
+            request_id="frontier-name-is-not-token",
+        )
+
+    admitted = tm.admit_frontier(
+        blueprint=proof,
+        authority=first["elaboration_authority"],
+        request_id="real-elaboration-token",
+    )
+    assert admitted["proof"] == proof.proof
+
+    with pytest.raises(Conflict, match="elaboration authority"):
+        tm.admit_frontier(
+            blueprint=proof,
+            authority=first["elaboration_authority"],
+            request_id="reuse-elaboration-token",
         )
