@@ -8,7 +8,7 @@ the smallest executable form of progressively expanding an observer's
 addressable semantic context.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, fields, is_dataclass
 from typing import Any, Callable, Iterable
 
 from .core import Name, RecordValue
@@ -32,6 +32,13 @@ def referenced_names(value: Any) -> tuple[Name, ...]:
         if isinstance(item, RecordValue):
             for _, child in item.fields:
                 visit(child)
+            return
+        if is_dataclass(item) and not isinstance(item, type):
+            # Name-bearing Roles/Bindings/Closures are Eidos Values too. Their
+            # provenance must not disappear because it is wrapped in a
+            # first-class dataclass rather than a RecordValue.
+            for field in fields(item):
+                visit(getattr(item, field.name))
             return
         if isinstance(item, dict):
             for child in item.values():
