@@ -26,7 +26,7 @@ from eidos.core import (
     from_data,
     to_data,
 )
-from eidos.dispatch import (
+from eidos.experiments.dispatch import (
     DISPATCH_FIELD,
     INNER_FIELD,
     STATE_FIELD,
