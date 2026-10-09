@@ -1451,7 +1451,7 @@ class TrustedMachinery:
                 ).fetchone()
                 if (
                     projection_row is None
-                    or projection_row["instance_name"] != instance
+                    or projection_row["domain_name"] != instance
                     or projection_row["disposition"] != "live"
                 ):
                     raise StaleProjection(
