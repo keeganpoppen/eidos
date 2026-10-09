@@ -1581,6 +1581,7 @@ class TrustedMachinery:
                     observer=observer,
                     protocol_cid=protocol_cid,
                     projections=tuple(unique),
+                    elaborator_projection=authority,
                     parent_cut=parent_cut,
                     parent_occurrence=parent_occurrence,
                 ),
@@ -1831,6 +1832,7 @@ class TrustedMachinery:
                     name=possibility,
                     value=possibility_value(
                         name=possibility,
+                        key=seed.key,
                         elaboration=committed["occurrence"],
                         proof=blueprint.proof,
                         reaction=seed.reaction,
@@ -2175,6 +2177,7 @@ class TrustedMachinery:
                         observer=str(old_value.get("observer")),
                         protocol_cid=str(old_value.get("protocol")),
                         projections=tuple(new_members),
+                        elaborator_projection=elaborators[new_cut],
                         parent_cut=old_cut,
                         parent_occurrence=occurrence,
                     ),
