@@ -140,6 +140,10 @@ The observer-relative experiment removes the accidental total order while preser
 - protocol commitments;
 - distinct Names and capabilities.
 
+> **Later refinement:** [`META_ROLES.md`](META_ROLES.md) now represents
+> Elaborator and Actualizer authority as ordinary live projections and supports
+> delegation of the Elaborator role without changing the underlying cut.
+
 ## Next pressure point
 
 The most interesting remaining privilege is now visible:
