@@ -469,6 +469,10 @@ def test_prepared_consultation_survives_commit_before_continuation_resume():
             "operation": suspension.operation.value,
             "request": to_data(suspension.argument),
             "response_cid": content_id(response),
+            "context": state.get("context").value,
+            "next_context": state.get("context").value,
+            "causal_source": None,
+            "next_holder": refs["model"],
         },
         request_id=f"{run}:{checkpoint}:interact",
     )
