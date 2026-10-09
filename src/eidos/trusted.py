@@ -1709,18 +1709,23 @@ class TrustedMachinery:
             if set(authorities) != set(blueprint.cuts):
                 raise Conflict("elaboration authority must be supplied for every cut")
 
-            cut_rows: dict[str, sqlite3.Row] = {}
+            cut_indexes: dict[str, sqlite3.Row] = {}
             observed_projection_names: set[str] = set()
+            instance_names: set[str] = set()
             for cut in blueprint.cuts:
-                row = db.execute(
+                index_row = db.execute(
                     "SELECT * FROM causal_cuts WHERE name=?",
                     (cut,),
                 ).fetchone()
-                if row is None:
+                if index_row is None:
                     raise KeyError(cut)
-                if row["state"] != "open":
-                    raise Conflict(f"cut {cut!r} is {row['state']}, not open")
-                if row["protocol_cid"] != blueprint.protocol_cid:
+
+                semantic = self._named_eidos_value(db, cut)["value"]
+                if not isinstance(semantic, RecordValue):
+                    raise Conflict(f"Name {cut!r} does not denote a Cut Value")
+                if semantic.get("$kind") != "Cut":
+                    raise Conflict(f"Name {cut!r} does not denote a Cut Value")
+                if semantic.get("protocol") != blueprint.protocol_cid:
                     raise Conflict("cut names a different protocol commitment")
 
                 authority = authorities[cut]
@@ -1731,7 +1736,6 @@ class TrustedMachinery:
                 ).fetchone()
                 if (
                     authority_row is None
-                    or authority_row["instance_name"] != row["instance_name"]
                     or authority_row["role"] != ELABORATOR_ROLE
                     or authority_row["protocol_state"] != elaborator_state(cut)
                     or authority_row["holder"] != blueprint.elaborator
@@ -1741,20 +1745,34 @@ class TrustedMachinery:
                         "Elaborator projection is not live/bound for this cut"
                     )
 
-                cut_rows[cut] = row
-                for member in db.execute(
-                    "SELECT projection_name FROM cut_members WHERE cut_name=?",
-                    (cut,),
-                ).fetchall():
-                    observed_projection_names.add(member["projection_name"])
+                instance = authority_row["instance_name"]
+                if index_row["instance_name"] != instance:
+                    raise Conflict("cut index and Elaborator authority disagree on instance")
+                instance_names.add(instance)
+                cut_indexes[cut] = index_row
+
+                for reference in semantic.get("projections"):
+                    if not isinstance(reference, CoreName):
+                        raise Conflict("Cut projection references must be Names")
+                    projection_row = db.execute(
+                        "SELECT instance_name FROM projections WHERE name=?",
+                        (reference.value,),
+                    ).fetchone()
+                    if (
+                        projection_row is None
+                        or projection_row["instance_name"] != instance
+                    ):
+                        raise Conflict(
+                            "Cut Value references projection outside its authority instance"
+                        )
+                    observed_projection_names.add(reference.value)
 
             supplied = {projection.name for projection in blueprint.projections}
             if supplied != observed_projection_names:
                 raise Conflict(
-                    "elaboration does not name exactly the union of observed cut projections"
+                    "elaboration does not name exactly the union of observed Cut Values"
                 )
 
-            instance_names = {row["instance_name"] for row in cut_rows.values()}
             if len(instance_names) != 1:
                 raise Conflict("joined cuts must belong to one protocol instance")
             instance = next(iter(instance_names))
