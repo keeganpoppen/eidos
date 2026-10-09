@@ -234,8 +234,15 @@ def interpret_context(
         current = {reference.value for reference in value.get("cuts")}
         if not ancestral <= current:
             raise ValueError("context ancestry cannot discard causal Cuts")
-        if ancestral and current != ancestral and value.get("acquisition") is None:
-            raise ValueError("context Cut expansion requires acquisition provenance")
+        newly_seen = current - ancestral
+        if ancestral and newly_seen:
+            source = value.get("acquisition")
+            if not isinstance(source, Name):
+                raise ValueError("context Cut expansion requires acquisition provenance")
+            disclosed = _require_kind(resolve(source.value), "CutDisclosure")
+            named_cut = disclosed.get("cut")
+            if len(newly_seen) != 1 or named_cut != Name(next(iter(newly_seen))):
+                raise ValueError("context acquisition does not explain the new Cut")
         ancestral = current
     if ancestral != expected_cuts:
         raise ValueError("context causal cuts differ from the current elaboration")
