@@ -224,46 +224,6 @@ class TrustedMachinery:
               frontier_name TEXT NOT NULL REFERENCES protocol_frontiers(name)
             );
 
-            CREATE TABLE IF NOT EXISTS causal_cuts(
-              name TEXT PRIMARY KEY REFERENCES names(name),
-              instance_name TEXT NOT NULL REFERENCES occurrence_instances(name),
-              observer TEXT NOT NULL,
-              protocol_cid TEXT NOT NULL,
-              parent_cut TEXT REFERENCES causal_cuts(name),
-              parent_occurrence TEXT,
-              state TEXT NOT NULL CHECK(state IN ('open','elaborated','historical'))
-            );
-            CREATE TABLE IF NOT EXISTS cut_elaboration_authorities(
-              token TEXT PRIMARY KEY REFERENCES names(name),
-              cut_name TEXT NOT NULL UNIQUE REFERENCES causal_cuts(name),
-              disposition TEXT NOT NULL CHECK(disposition IN ('live','spent'))
-            );
-            CREATE TABLE IF NOT EXISTS observed_possibilities(
-              name TEXT PRIMARY KEY REFERENCES names(name),
-              instance_name TEXT NOT NULL REFERENCES occurrence_instances(name),
-              proof TEXT NOT NULL,
-              seed_key TEXT NOT NULL,
-              reaction TEXT NOT NULL,
-              elaborator TEXT NOT NULL,
-              actualizer TEXT NOT NULL,
-              state TEXT NOT NULL CHECK(state IN ('open','occurred','precluded'))
-            );
-            CREATE TABLE IF NOT EXISTS observed_possibility_actualizers(
-              possibility_name TEXT PRIMARY KEY REFERENCES observed_possibilities(name),
-              projection_name TEXT NOT NULL UNIQUE REFERENCES projections(name)
-            );
-            CREATE TABLE IF NOT EXISTS observed_reaction_inputs(
-              possibility_name TEXT NOT NULL REFERENCES observed_possibilities(name),
-              projection_name TEXT NOT NULL REFERENCES projections(name),
-              PRIMARY KEY(possibility_name,projection_name)
-            );
-            CREATE TABLE IF NOT EXISTS observed_occurrences(
-              name TEXT PRIMARY KEY REFERENCES names(name),
-              instance_name TEXT NOT NULL REFERENCES occurrence_instances(name),
-              possibility_name TEXT NOT NULL REFERENCES observed_possibilities(name),
-              actualizer TEXT NOT NULL,
-              observation_json TEXT NOT NULL
-            );
 
             CREATE TABLE IF NOT EXISTS authority_occurrences(
               name TEXT PRIMARY KEY REFERENCES names(name),
