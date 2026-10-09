@@ -104,37 +104,67 @@ The current executable protocol keeps inference deliberately simple, but the tru
 
 > **epistemic enrichment changes the derivation; only live capabilities authorize causal change.**
 
-## What remains special
+## Generic authority commit
 
-`MetaProtocolDriver` still has two adapter branches:
+That collapse is now implemented.
 
-    Elaborate -> admit_cut_elaboration
-    Actualize -> actualize_observed
+Trusted Machinery exposes one generic projection-occurrence primitive:
 
-These are implementation bridges into the current Trusted Machinery experiment.
-
-They are no longer:
-
-- Eidos syntax primitives;
-- special authority species;
-- special Praxis continuation forms.
-
-So the remaining privilege is narrow and mechanical.
-
-## Next collapse
-
-The next serious pressure test is to replace those two driver branches with one generic Trusted Machinery operation of roughly this shape:
-
-    commit occurrence(
-        consumed live capabilities,
-        established capability templates,
-        causal record / proof
+    commit_projection_occurrence(
+        kind,
+        consumes,
+        establishes,
+        fact
     )
 
-Then Elaborate and Actualize would differ only in the protocol-described occurrence they ask that substrate to commit.
+Its semantics are intentionally narrow:
 
-If that survives, Trusted Machinery approaches the role we have repeatedly wanted for it:
+1. at least one live projection capability must be consumed;
+2. the same capability cannot be consumed twice;
+3. all consumed capabilities must belong to one authority-local instance;
+4. every consumed projection becomes spent atomically;
+5. only the explicitly supplied successor projection templates are minted;
+6. the occurrence, inputs, outputs, and opaque causal fact are persisted together.
+
+The primitive knows nothing about cuts, observers, possibilities, protocols,
+Elaborators, or Actualizers.
+
+Both semantic adapters now use this same primitive inside their transactions:
+
+    Elaborate
+        semantic derivation / provenance
+        -> generic authority occurrence
+            consumes Elaborator projections
+            establishes Actualizer projections
+
+    Actualize
+        selected application possibility / observation
+        -> generic authority occurrence
+            consumes Actualizer + participant projections
+            establishes participant successors + Elaborator projections
+
+The authoritative occurrence Praxis receives is the same generic occurrence
+recorded by this substrate.
+
+## What remains special
+
+`MetaProtocolDriver` still has two semantic adapter branches because the two
+operations do different semantic preparation:
+
+- Elaborate computes a possibility-space from cuts, models, and protocol rules;
+- Actualize interprets one already-derived possibility and updates observer-cut
+  bookkeeping around its occurrence.
+
+But neither branch implements its own authority transition anymore.
+
+The remaining specialness is therefore above the Trusted Machinery nucleus:
+semantic derivation and representation, not authority mechanics.
+
+Trusted Machinery has reached the role we repeatedly wanted for it:
 
 > **an atomic commit engine for occurrences over live linear authority.**
 
-At that point Actualizer | Elaborator is simply an Eidos meta-protocol realized over the same causal substrate as ordinary application protocols.
+The next pressure point is whether the semantic bookkeeping now stored in
+specialized tables can itself migrate upward into ordinary Eidos Values and
+protocol code, leaving the substrate with little more than names, linear
+projection disposition, and generic occurrence commit.
