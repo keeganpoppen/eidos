@@ -570,3 +570,101 @@ def test_later_understanding_of_a_spent_cut_does_not_restore_authority():
             authorities={cut["cut"]: cut["elaborator_projection"]},
             request_id="retrospective-cannot-admit",
         )
+
+
+
+def test_attention_focus_is_situated_and_cannot_select_unknown_models():
+    tm, _, cut, refs = world()
+    focused = persist(
+        tm,
+        "attention",
+        attention_value(
+            inference_budget=10_000,
+            focus_models=(refs["model"],),
+        ),
+    )
+    focused_context = persist(
+        tm,
+        "context",
+        context_value(
+            cuts=(cut["cut"],),
+            parent=refs["deep"],
+            attention=focused,
+        ),
+    )
+    result = interpret_context(
+        focused_context,
+        resolve=lambda name: tm.named_eidos_value(name)["value"],
+        cuts=(cut["cut"],),
+    )
+    assert "sky:recognized" in result.facts
+    assert len(result.inferences) == 2
+
+    misfocused = persist(
+        tm,
+        "attention",
+        attention_value(
+            inference_budget=2,
+            focus_models=("model:unbound",),
+        ),
+    )
+    bad_context = persist(
+        tm,
+        "context",
+        context_value(
+            cuts=(cut["cut"],),
+            parent=refs["intermediate"],
+            attention=misfocused,
+        ),
+    )
+    with pytest.raises(ValueError, match="outside its context"):
+        interpret_context(
+            bad_context,
+            resolve=lambda name: tm.named_eidos_value(name)["value"],
+            cuts=(cut["cut"],),
+        )
+
+
+def test_epistemic_context_cycles_and_dangling_evidence_are_rejected():
+    tm, _, cut, refs = world()
+    cyclic = tm.reserve_name(
+        kind="context", request_id="reserve-cyclic-context"
+    )
+    tm.bind_eidos_value(
+        name=cyclic,
+        value=context_value(
+            cuts=(cut["cut"],),
+            parent=cyclic,
+        ),
+        request_id="bind-cyclic-context",
+    )
+    with pytest.raises(ValueError, match="cyclic"):
+        interpret_context(
+            cyclic,
+            resolve=lambda name: tm.named_eidos_value(name)["value"],
+            cuts=(cut["cut"],),
+        )
+
+    ungrounded = persist(
+        tm,
+        "knowledge",
+        knowledge_value(
+            "claim:unverifiable",
+            grounds=("evidence:not-in-addressable-world",),
+        ),
+    )
+    bad_context = persist(
+        tm,
+        "context",
+        context_value(
+            cuts=(cut["cut"],),
+            parent=refs["shallow"],
+            knowledge=(ungrounded,),
+        ),
+    )
+    with pytest.raises(KeyError):
+        interpret_context(
+            bad_context,
+            resolve=lambda name: tm.named_eidos_value(name)["value"],
+            cuts=(cut["cut"],),
+        )
