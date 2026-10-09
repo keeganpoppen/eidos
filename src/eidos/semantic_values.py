@@ -125,6 +125,24 @@ def possibility_value(
     )
 
 
+def inference_value(
+    *,
+    fact: str,
+    model: str,
+    rule: int,
+    premises: tuple[str, ...],
+) -> RecordValue:
+    """One inspectable model inference, not an authority-bearing fact."""
+
+    return _record(
+        "Inference",
+        fact=fact,
+        model=Name(model),
+        rule=rule,
+        premises=premises,
+    )
+
+
 def elaboration_value(
     *,
     occurrence: str,
@@ -138,6 +156,9 @@ def elaboration_value(
     possibilities: tuple[str, ...],
     consumed: tuple[str, ...],
     established: tuple[str, ...],
+    context: str | None = None,
+    facts: tuple[str, ...] = (),
+    inferences: tuple[Any, ...] = (),
 ) -> RecordValue:
     return _record(
         "Elaboration",
@@ -149,6 +170,17 @@ def elaboration_value(
         elaborator=elaborator,
         actualizer=actualizer,
         knowledge=knowledge,
+        context=None if context is None else Name(context),
+        facts=facts,
+        inferences=tuple(
+            inference_value(
+                fact=inference.fact,
+                model=inference.model,
+                rule=inference.rule,
+                premises=inference.premises,
+            )
+            for inference in inferences
+        ),
         possibilities=tuple(Name(possibility) for possibility in possibilities),
         consumed=tuple(Name(projection) for projection in consumed),
         established=tuple(Name(projection) for projection in established),
