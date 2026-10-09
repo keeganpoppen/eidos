@@ -274,9 +274,10 @@ class MetaProtocolDriver:
     def _cut(self, cut: str) -> ObservedCut:
         """Interpret a cut from its ordinary named Eidos Value.
 
-        Trusted Machinery is consulted only for current projection disposition
-        and holder information. The semantic shape of the Cut comes from the
-        Value bound to its Name, not from a cut-specific SQL schema.
+        Trusted Machinery is consulted only for projection realization details
+        such as role/state/holder. Spent projections remain part of the Cut's
+        historical semantics; liveness matters later when an occurrence tries
+        to consume authority.
         """
 
         bound = self.trusted.named_eidos_value(cut)
@@ -289,8 +290,6 @@ class MetaProtocolDriver:
             if not isinstance(projection_name, Name):
                 raise MetaProtocolError("Cut projection references must be Names")
             row = self.trusted.projection(projection_name.value)
-            if row["disposition"] != "live":
-                continue
             projections.append(
                 FrontierProjection(
                     name=projection_name.value,
