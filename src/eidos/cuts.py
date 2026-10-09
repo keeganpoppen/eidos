@@ -73,6 +73,7 @@ def elaborate_cuts(
     context: str | None = None,
     resolve: Callable[[str], Any] | None = None,
     adapters: Mapping[str, ModelAdapter] | None = None,
+    process_runner: Any | None = None,
 ) -> CutElaboration:
     """Derive adjacent possibilities visible across a collection of cuts.
 
@@ -99,6 +100,7 @@ def elaborate_cuts(
             resolve=resolve,
             cuts=(cut.name for cut in materialized),
             adapters=adapters,
+            process_runner=process_runner,
         )
         facts = epistemic.facts
         inferences = epistemic.inferences
