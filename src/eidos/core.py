@@ -464,7 +464,7 @@ class PraxisCore:
                     state = self._state(
                         state,
                         body,
-                        rest,
+                        rest + (RestoreLexicalFrame(state.lexical),),
                         lexical=state.lexical.bind(name, value),
                     )
                 case RecordFrame(completed, current_name, remaining):
