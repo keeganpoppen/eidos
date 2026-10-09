@@ -203,7 +203,30 @@ def execute_model(
 
     _kind(proposal, "ModelProposal")
     if proposal.get("context") != context:
-        raise ModelExecutionError("Model proposal names the wrong Context")
+        if mode != "process" or process_ref is None or process_runner is None:
+            raise ModelExecutionError("Model proposal names the wrong Context")
+        outcome = _kind(
+            process_runner.trusted.named_eidos_value(process_ref.value)["value"],
+            "ModelProcessOutcome",
+        )
+        if (
+            outcome.get("context") != proposal.get("context")
+            or outcome.get("proposal") != proposal
+        ):
+            raise ModelExecutionError("Model process proposal lacks matching outcome")
+        current = proposal.get("context")
+        visited: set[str] = set()
+        while current != context:
+            if not isinstance(current, Name) or current.value in visited:
+                raise ModelExecutionError("Model process Context has invalid ancestry")
+            visited.add(current.value)
+            child = _kind(resolve(current.value), "ElaborationContext")
+            parent = child.get("parent")
+            if not isinstance(parent, Name) or child.get("acquisition") is None:
+                raise ModelExecutionError(
+                    "Model process Context extension lacks acquisition record"
+                )
+            current = parent
     claims = proposal.get("claims")
     if not isinstance(claims, tuple) or len(claims) > 128:
         raise ModelExecutionError("Model proposal must contain at most 128 claims")
