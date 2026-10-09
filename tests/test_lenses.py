@@ -1,7 +1,7 @@
 from eidos.genesis import admit_genesis
 from eidos.core import Name
 from eidos.cuts import ObservedCut, elaborate_cuts
-from eidos.lenses import walk_named_values
+from eidos.lenses import build_semantic_index, walk_named_values
 from eidos.occurrence import (
     FrontierProjection,
     ProjectionTemplate,
@@ -175,3 +175,34 @@ def test_capability_names_resolve_to_descriptions_without_granting_authority():
     }
     assert after == before
 
+
+
+
+def test_semantic_indexes_are_disposable_and_rebuildable():
+    tm, cut, elaboration, possibility, occurrence = build_history()
+
+    before_values = dict(tm.named_values())
+    before_authority = {
+        name: tm.projection(name)["disposition"]
+        for name in before_values
+        if name.startswith("projection_")
+    }
+
+    first = build_semantic_index(tm.named_values())
+    rebuilt = build_semantic_index(tuple(reversed(tm.named_values())))
+
+    assert first == rebuilt
+    assert Name(cut) in first.names_of_kind("Cut")
+    assert Name(possibility) in first.names_of_kind("Possibility")
+    assert Name(elaboration) in first.names_of_kind("Elaboration")
+    assert Name(occurrence) in first.names_of_kind("Occurrence")
+    assert Name(occurrence) in first.referrers_of(possibility)
+
+    # Rebuilding the index has no semantic or authority side effects.
+    assert dict(tm.named_values()) == before_values
+    after_authority = {
+        name: tm.projection(name)["disposition"]
+        for name in before_values
+        if name.startswith("projection_")
+    }
+    assert after_authority == before_authority
