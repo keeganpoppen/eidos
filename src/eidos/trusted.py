@@ -1766,7 +1766,11 @@ class TrustedMachinery:
         observation: Any,
         request_id: str,
     ) -> dict[str, Any]:
-        """Actualize one possibility without imposing a global frontier."""
+        """Actualize one possibility without imposing a global frontier.
+
+        Semantic cut bookkeeping remains here. The linear authority transition
+        is delegated to the generic projection-occurrence commit primitive.
+        """
 
         payload = {
             "possibility": possibility,
@@ -1826,48 +1830,90 @@ class TrustedMachinery:
                 raise StaleProjection(
                     f"observed possibility input projections are stale: {stale!r}"
                 )
+            consumed = [input_row["name"] for input_row in input_rows]
+
+            cause_cuts = [
+                cut_row["cut_name"]
+                for cut_row in db.execute(
+                    "SELECT cut_name FROM observed_possibility_cuts "
+                    "WHERE possibility_name=? ORDER BY cut_name",
+                    (possibility,),
+                ).fetchall()
+            ]
 
             occurrence = self._new_name(db, "observed_occurrence")
-            new_names = [occurrence]
-            consumed = [input_row["name"] for input_row in input_rows]
-            for projection in consumed:
-                db.execute(
-                    "UPDATE projections SET disposition='spent' WHERE name=?",
-                    (projection,),
-                )
-            db.execute(
-                "UPDATE projections SET disposition='spent' WHERE name=?",
-                (authority,),
-            )
+            successor_cuts: dict[str, str] = {}
+            cut_rows: dict[str, sqlite3.Row] = {}
+            cut_names: list[str] = []
+            for old_cut in cause_cuts:
+                cut_row = db.execute(
+                    "SELECT * FROM causal_cuts WHERE name=?",
+                    (old_cut,),
+                ).fetchone()
+                if cut_row is None:
+                    raise KeyError(old_cut)
+                cut_rows[old_cut] = cut_row
+                new_cut = self._new_name(db, "cut")
+                cut_names.append(new_cut)
+                successor_cuts[old_cut] = new_cut
 
             output_rows = db.execute(
                 "SELECT * FROM observed_reaction_outputs "
                 "WHERE possibility_name=? ORDER BY ordinal",
                 (possibility,),
             ).fetchall()
-            successors: dict[str, str] = {}
-            successor_by_role: dict[str, str] = {}
-            ordered_successors: list[str] = []
-            for output in output_rows:
-                projection = self._new_name(db, "projection")
-                new_names.append(projection)
-                ordered_successors.append(projection)
-                successors[output["output_key"]] = projection
-                successor_by_role[output["role"]] = projection
-                db.execute(
-                    "INSERT INTO projections("
-                    "name,instance_name,seed_key,role,protocol_state,holder,disposition"
-                    ") VALUES (?,?,?,?,?,?,?)",
-                    (
-                        projection,
-                        row["instance_name"],
-                        output["output_key"],
-                        output["role"],
-                        output["protocol_state"],
-                        output["holder"],
-                        "live",
-                    ),
+            grants: list[ProjectionGrant] = [
+                ProjectionGrant(
+                    key=output["output_key"],
+                    role=output["role"],
+                    state=output["protocol_state"],
+                    holder=output["holder"],
                 )
+                for output in output_rows
+            ]
+            for old_cut, new_cut in successor_cuts.items():
+                cut_row = cut_rows[old_cut]
+                grants.append(
+                    ProjectionGrant(
+                        key=f"elaborator:{new_cut}",
+                        role=ELABORATOR_ROLE,
+                        state=elaborator_state(new_cut),
+                        holder=cut_row["observer"],
+                    )
+                )
+
+            committed = self._commit_projection_occurrence(
+                db,
+                kind="Actualize",
+                consumes=(authority, *tuple(consumed)),
+                establishes=tuple(grants),
+                fact={
+                    "possibility": possibility,
+                    "reaction": row["reaction"],
+                    "actualizer": actualizer,
+                    "observation": observation,
+                    "cause_cuts": cause_cuts,
+                    "successor_cuts": successor_cuts,
+                },
+                occurrence=occurrence,
+            )
+
+            successors = {
+                output["output_key"]: committed["established"][output["output_key"]]
+                for output in output_rows
+            }
+            successor_by_role = {
+                output["role"]: successors[output["output_key"]]
+                for output in output_rows
+            }
+            ordered_successors = [
+                successors[output["output_key"]]
+                for output in output_rows
+            ]
+            elaborators = {
+                new_cut: committed["established"][f"elaborator:{new_cut}"]
+                for new_cut in successor_cuts.values()
+            }
 
             db.execute(
                 "UPDATE observed_possibilities SET state='occurred' WHERE name=?",
@@ -1925,30 +1971,10 @@ class TrustedMachinery:
                     (occurrence, projection, ordinal),
                 )
 
-            cause_cuts = [
-                cut_row["cut_name"]
-                for cut_row in db.execute(
-                    "SELECT cut_name FROM observed_possibility_cuts "
-                    "WHERE possibility_name=? ORDER BY cut_name",
-                    (possibility,),
-                ).fetchall()
-            ]
-            successor_cuts: dict[str, str] = {}
-            elaborators: dict[str, str] = {}
             consumed_set = set(consumed)
             for old_cut in cause_cuts:
-                cut_row = db.execute(
-                    "SELECT * FROM causal_cuts WHERE name=?",
-                    (old_cut,),
-                ).fetchone()
-                if cut_row is None:
-                    raise KeyError(old_cut)
-
-                new_cut = self._new_name(db, "cut")
-                elaborator_projection = self._new_name(db, "projection")
-                new_names.extend([new_cut, elaborator_projection])
-                successor_cuts[old_cut] = new_cut
-                elaborators[new_cut] = elaborator_projection
+                cut_row = cut_rows[old_cut]
+                new_cut = successor_cuts[old_cut]
 
                 db.execute(
                     "UPDATE causal_cuts SET state='historical' WHERE name=?",
@@ -1987,20 +2013,6 @@ class TrustedMachinery:
                         (new_cut, projection),
                     )
                 db.execute(
-                    "INSERT INTO projections("
-                    "name,instance_name,seed_key,role,protocol_state,holder,disposition"
-                    ") VALUES (?,?,?,?,?,?,?)",
-                    (
-                        elaborator_projection,
-                        cut_row["instance_name"],
-                        f"meta:elaborator:{new_cut}",
-                        ELABORATOR_ROLE,
-                        elaborator_state(new_cut),
-                        cut_row["observer"],
-                        "live",
-                    ),
-                )
-                db.execute(
                     "INSERT INTO observed_occurrence_cuts("
                     "occurrence_name,cut_name"
                     ") VALUES (?,?)",
@@ -2012,6 +2024,7 @@ class TrustedMachinery:
                 "observed_occurrence_actualized",
                 {
                     "occurrence": occurrence,
+                    "authority_occurrence": committed["occurrence"],
                     "possibility": possibility,
                     "reaction": row["reaction"],
                     "actualizer": actualizer,
@@ -2022,7 +2035,7 @@ class TrustedMachinery:
                     "consumed": consumed,
                     "successors": successors,
                     "observation": observation,
-                    "new_names": new_names,
+                    "new_names": cut_names,
                 },
             )
             result = {
