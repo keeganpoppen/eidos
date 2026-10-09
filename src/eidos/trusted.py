@@ -509,6 +509,11 @@ class TrustedMachinery:
             for row in rows
         ]
 
+    def named_values(self) -> tuple[tuple[str, Any], ...]:
+        """Return the canonical Name -> Value relation for derived indexing/lenses."""
+
+        return tuple(self._named_values(self.db))
+
     def _named_values_of_kind(
         self,
         db: sqlite3.Connection,
