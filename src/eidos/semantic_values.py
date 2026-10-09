@@ -131,8 +131,11 @@ def inference_value(
     model: str,
     rule: int,
     premises: tuple[str, ...],
+    engine: str = "rules",
+    derivation: str | None = None,
+    witness: Any = None,
 ) -> RecordValue:
-    """One inspectable model inference, not an authority-bearing fact."""
+    """One attributed, inspectable inference—not an authority-bearing fact."""
 
     return _record(
         "Inference",
@@ -140,6 +143,9 @@ def inference_value(
         model=Name(model),
         rule=rule,
         premises=premises,
+        engine=engine,
+        derivation=derivation,
+        witness=witness,
     )
 
 
@@ -159,6 +165,7 @@ def elaboration_value(
     context: str | None = None,
     facts: tuple[str, ...] = (),
     inferences: tuple[Any, ...] = (),
+    derivations: tuple[str, ...] = (),
 ) -> RecordValue:
     return _record(
         "Elaboration",
@@ -178,9 +185,13 @@ def elaboration_value(
                 model=inference.model,
                 rule=inference.rule,
                 premises=inference.premises,
+                engine=inference.engine,
+                derivation=inference.derivation,
+                witness=inference.witness,
             )
             for inference in inferences
         ),
+        derivations=tuple(Name(derivation) for derivation in derivations),
         possibilities=tuple(Name(possibility) for possibility in possibilities),
         consumed=tuple(Name(projection) for projection in consumed),
         established=tuple(Name(projection) for projection in established),
