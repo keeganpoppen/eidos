@@ -114,3 +114,59 @@ def walk_named_values(
                 queue.append((reference, current_depth + 1))
 
     return SemanticNeighborhood(roots=root_names, nodes=tuple(nodes))
+
+
+
+@dataclass(frozen=True)
+class SemanticIndex:
+    """Disposable derived indexes over named Eidos Values."""
+
+    by_kind: tuple[tuple[str, tuple[Name, ...]], ...]
+    reverse_references: tuple[tuple[str, tuple[Name, ...]], ...]
+
+    def names_of_kind(self, kind: str) -> tuple[Name, ...]:
+        for indexed_kind, names in self.by_kind:
+            if indexed_kind == kind:
+                return names
+        return ()
+
+    def referrers_of(self, name: Name | str) -> tuple[Name, ...]:
+        target = name.value if isinstance(name, Name) else name
+        for indexed_name, referrers in self.reverse_references:
+            if indexed_name == target:
+                return referrers
+        return ()
+
+
+def build_semantic_index(
+    named_values: Iterable[tuple[str | Name, Any]],
+) -> SemanticIndex:
+    """Build disposable kind/reverse-reference indexes from canonical Values."""
+
+    kinds: dict[str, list[Name]] = {}
+    reverse: dict[str, list[Name]] = {}
+
+    for raw_name, value in named_values:
+        name = raw_name if isinstance(raw_name, Name) else Name(raw_name)
+
+        if isinstance(value, RecordValue):
+            try:
+                kind = value.get("$kind")
+            except KeyError:
+                kind = None
+            if isinstance(kind, str):
+                kinds.setdefault(kind, []).append(name)
+
+        for reference in referenced_names(value):
+            reverse.setdefault(reference.value, []).append(name)
+
+    return SemanticIndex(
+        by_kind=tuple(
+            (kind, tuple(sorted(names, key=lambda item: item.value)))
+            for kind, names in sorted(kinds.items())
+        ),
+        reverse_references=tuple(
+            (target, tuple(sorted(names, key=lambda item: item.value)))
+            for target, names in sorted(reverse.items())
+        ),
+    )
