@@ -38,6 +38,7 @@ def cut_value(
     observer: str,
     protocol_cid: str,
     projections: tuple[str, ...],
+    elaborator_projection: str,
     parent_cut: str | None,
     parent_occurrence: str | None,
 ) -> RecordValue:
@@ -47,6 +48,7 @@ def cut_value(
         observer=observer,
         protocol=protocol_cid,
         projections=tuple(Name(projection) for projection in projections),
+        elaborator=Name(elaborator_projection),
         parent_cut=None if parent_cut is None else Name(parent_cut),
         parent_occurrence=(
             None if parent_occurrence is None else Name(parent_occurrence)
@@ -57,6 +59,7 @@ def cut_value(
 def possibility_value(
     *,
     name: str,
+    key: str,
     elaboration: str,
     proof: str,
     reaction: str,
@@ -68,6 +71,7 @@ def possibility_value(
     return _record(
         "Possibility",
         name=Name(name),
+        key=key,
         elaboration=Name(elaboration),
         proof=proof,
         reaction=reaction,
