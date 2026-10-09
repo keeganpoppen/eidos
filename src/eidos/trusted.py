@@ -10,6 +10,7 @@ from typing import Any, Iterator
 
 from .model import Frame, OfferSpec, ProtocolSpec, Transition, canonical_bytes, content_id
 from .occurrence import FrontierBlueprint, InstanceBlueprint
+from .cuts import CutElaboration
 
 
 class TrustedError(RuntimeError):
@@ -194,6 +195,90 @@ class TrustedMachinery:
               occurrence_name TEXT PRIMARY KEY REFERENCES occurrences(name),
               frontier_name TEXT NOT NULL REFERENCES protocol_frontiers(name)
             );
+
+            CREATE TABLE IF NOT EXISTS causal_cuts(
+              name TEXT PRIMARY KEY REFERENCES names(name),
+              instance_name TEXT NOT NULL REFERENCES occurrence_instances(name),
+              observer TEXT NOT NULL,
+              protocol_cid TEXT NOT NULL,
+              parent_cut TEXT REFERENCES causal_cuts(name),
+              parent_occurrence TEXT,
+              state TEXT NOT NULL CHECK(state IN ('open','elaborated','historical'))
+            );
+            CREATE TABLE IF NOT EXISTS cut_members(
+              cut_name TEXT NOT NULL REFERENCES causal_cuts(name),
+              projection_name TEXT NOT NULL REFERENCES projections(name),
+              PRIMARY KEY(cut_name,projection_name)
+            );
+            CREATE TABLE IF NOT EXISTS cut_elaboration_authorities(
+              token TEXT PRIMARY KEY REFERENCES names(name),
+              cut_name TEXT NOT NULL UNIQUE REFERENCES causal_cuts(name),
+              disposition TEXT NOT NULL CHECK(disposition IN ('live','spent'))
+            );
+            CREATE TABLE IF NOT EXISTS cut_admissions(
+              proof TEXT PRIMARY KEY,
+              elaborator TEXT NOT NULL,
+              actualizer TEXT NOT NULL,
+              blueprint_json TEXT NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS cut_admission_cuts(
+              proof TEXT NOT NULL REFERENCES cut_admissions(proof),
+              cut_name TEXT NOT NULL REFERENCES causal_cuts(name),
+              PRIMARY KEY(proof,cut_name)
+            );
+            CREATE TABLE IF NOT EXISTS observed_possibilities(
+              name TEXT PRIMARY KEY REFERENCES names(name),
+              instance_name TEXT NOT NULL REFERENCES occurrence_instances(name),
+              proof TEXT NOT NULL REFERENCES cut_admissions(proof),
+              seed_key TEXT NOT NULL,
+              reaction TEXT NOT NULL,
+              elaborator TEXT NOT NULL,
+              actualizer TEXT NOT NULL,
+              state TEXT NOT NULL CHECK(state IN ('open','occurred','precluded'))
+            );
+            CREATE TABLE IF NOT EXISTS observed_possibility_cuts(
+              possibility_name TEXT NOT NULL REFERENCES observed_possibilities(name),
+              cut_name TEXT NOT NULL REFERENCES causal_cuts(name),
+              PRIMARY KEY(possibility_name,cut_name)
+            );
+            CREATE TABLE IF NOT EXISTS observed_reaction_inputs(
+              possibility_name TEXT NOT NULL REFERENCES observed_possibilities(name),
+              projection_name TEXT NOT NULL REFERENCES projections(name),
+              PRIMARY KEY(possibility_name,projection_name)
+            );
+            CREATE TABLE IF NOT EXISTS observed_reaction_outputs(
+              possibility_name TEXT NOT NULL REFERENCES observed_possibilities(name),
+              ordinal INTEGER NOT NULL,
+              output_key TEXT NOT NULL,
+              role TEXT NOT NULL,
+              protocol_state TEXT NOT NULL,
+              holder TEXT NOT NULL,
+              PRIMARY KEY(possibility_name,output_key)
+            );
+            CREATE TABLE IF NOT EXISTS observed_occurrences(
+              name TEXT PRIMARY KEY REFERENCES names(name),
+              instance_name TEXT NOT NULL REFERENCES occurrence_instances(name),
+              possibility_name TEXT NOT NULL REFERENCES observed_possibilities(name),
+              actualizer TEXT NOT NULL,
+              observation_json TEXT NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS observed_occurrence_cuts(
+              occurrence_name TEXT NOT NULL REFERENCES observed_occurrences(name),
+              cut_name TEXT NOT NULL REFERENCES causal_cuts(name),
+              PRIMARY KEY(occurrence_name,cut_name)
+            );
+            CREATE TABLE IF NOT EXISTS observed_occurrence_inputs(
+              occurrence_name TEXT NOT NULL REFERENCES observed_occurrences(name),
+              projection_name TEXT NOT NULL REFERENCES projections(name),
+              PRIMARY KEY(occurrence_name,projection_name)
+            );
+            CREATE TABLE IF NOT EXISTS observed_occurrence_outputs(
+              occurrence_name TEXT NOT NULL REFERENCES observed_occurrences(name),
+              projection_name TEXT NOT NULL REFERENCES projections(name),
+              ordinal INTEGER NOT NULL,
+              PRIMARY KEY(occurrence_name,projection_name)
+            );
+
             CREATE TABLE IF NOT EXISTS events(
               seq INTEGER PRIMARY KEY AUTOINCREMENT,
               kind TEXT NOT NULL,
@@ -1121,6 +1206,588 @@ class TrustedMachinery:
             r["projection_name"]
             for r in self.db.execute(
                 "SELECT projection_name FROM occurrence_outputs "
+                "WHERE occurrence_name=? ORDER BY ordinal",
+                (occurrence,),
+            ).fetchall()
+        ]
+        return item
+
+
+    def create_observed_cut(
+        self,
+        *,
+        instance: str,
+        observer: str,
+        protocol_cid: str,
+        projections: list[str],
+        request_id: str,
+        parent_cut: str | None = None,
+        parent_occurrence: str | None = None,
+    ) -> dict[str, Any]:
+        """Create one observer-relative causal cut over live projections."""
+
+        payload = {
+            "instance": instance,
+            "observer": observer,
+            "protocol_cid": protocol_cid,
+            "projections": sorted(projections),
+            "parent_cut": parent_cut,
+            "parent_occurrence": parent_occurrence,
+        }
+        with self._tx() as db:
+            old = self._idem(db, request_id, "create_observed_cut", payload)
+            if old is not None:
+                return old
+
+            if db.execute(
+                "SELECT 1 FROM occurrence_instances WHERE name=?",
+                (instance,),
+            ).fetchone() is None:
+                raise KeyError(instance)
+
+            unique = sorted(set(projections))
+            if len(unique) != len(projections):
+                raise ValueError("cut projection names must be unique")
+            rows = []
+            for projection in unique:
+                row = db.execute(
+                    "SELECT * FROM projections WHERE name=?",
+                    (projection,),
+                ).fetchone()
+                if (
+                    row is None
+                    or row["instance_name"] != instance
+                    or row["disposition"] != "live"
+                ):
+                    raise StaleProjection(
+                        f"projection {projection!r} is not live in instance {instance!r}"
+                    )
+                rows.append(row)
+
+            cut = self._new_name(db, "cut")
+            authority = self._new_name(db, "elaboration")
+            db.execute(
+                "INSERT INTO causal_cuts("
+                "name,instance_name,observer,protocol_cid,parent_cut,parent_occurrence,state"
+                ") VALUES (?,?,?,?,?,?,?)",
+                (
+                    cut,
+                    instance,
+                    observer,
+                    protocol_cid,
+                    parent_cut,
+                    parent_occurrence,
+                    "open",
+                ),
+            )
+            for row in rows:
+                db.execute(
+                    "INSERT INTO cut_members(cut_name,projection_name) VALUES (?,?)",
+                    (cut, row["name"]),
+                )
+            db.execute(
+                "INSERT INTO cut_elaboration_authorities(token,cut_name,disposition) "
+                "VALUES (?,?,?)",
+                (authority, cut, "live"),
+            )
+            self._event(
+                db,
+                "causal_cut_created",
+                {
+                    "cut": cut,
+                    "observer": observer,
+                    "instance": instance,
+                    "protocol_cid": protocol_cid,
+                    "parent_cut": parent_cut,
+                    "parent_occurrence": parent_occurrence,
+                    "projections": unique,
+                    "new_names": [cut, authority],
+                },
+            )
+            result = {
+                "cut": cut,
+                "observer": observer,
+                "authority": authority,
+            }
+            self._idem_put(db, request_id, "create_observed_cut", payload, result)
+            return result
+
+    def causal_cut(self, cut: str) -> dict[str, Any]:
+        row = self.db.execute(
+            "SELECT * FROM causal_cuts WHERE name=?",
+            (cut,),
+        ).fetchone()
+        if row is None:
+            raise KeyError(cut)
+        item = dict(row)
+        item["projections"] = [
+            dict(r)
+            for r in self.db.execute(
+                "SELECT p.name,p.role,p.protocol_state,p.holder,p.disposition "
+                "FROM cut_members cm "
+                "JOIN projections p ON p.name=cm.projection_name "
+                "WHERE cm.cut_name=? ORDER BY p.role,p.name",
+                (cut,),
+            ).fetchall()
+        ]
+        return item
+
+    def admit_cut_elaboration(
+        self,
+        *,
+        blueprint: CutElaboration,
+        authorities: dict[str, str],
+        request_id: str,
+    ) -> dict[str, Any]:
+        """Admit possibilities derived from one or more observer-relative cuts."""
+
+        payload = {
+            "blueprint": asdict(blueprint),
+            "proof": blueprint.proof,
+            "authorities": dict(sorted(authorities.items())),
+        }
+        with self._tx() as db:
+            old = self._idem(db, request_id, "admit_cut_elaboration", payload)
+            if old is not None:
+                return old
+
+            if set(authorities) != set(blueprint.cuts):
+                raise Conflict("elaboration authority must be supplied for every cut")
+
+            cut_rows: dict[str, sqlite3.Row] = {}
+            observed_projection_names: set[str] = set()
+            for cut in blueprint.cuts:
+                row = db.execute(
+                    "SELECT * FROM causal_cuts WHERE name=?",
+                    (cut,),
+                ).fetchone()
+                if row is None:
+                    raise KeyError(cut)
+                if row["state"] != "open":
+                    raise Conflict(f"cut {cut!r} is {row['state']}, not open")
+                if row["protocol_cid"] != blueprint.protocol_cid:
+                    raise Conflict("cut names a different protocol commitment")
+                authority = authorities[cut]
+                authority_row = db.execute(
+                    "SELECT cut_name,disposition FROM cut_elaboration_authorities "
+                    "WHERE token=?",
+                    (authority,),
+                ).fetchone()
+                if (
+                    authority_row is None
+                    or authority_row["cut_name"] != cut
+                    or authority_row["disposition"] != "live"
+                ):
+                    raise Conflict("elaboration authority is not live for this cut")
+                cut_rows[cut] = row
+                for member in db.execute(
+                    "SELECT projection_name FROM cut_members WHERE cut_name=?",
+                    (cut,),
+                ).fetchall():
+                    observed_projection_names.add(member["projection_name"])
+
+            supplied = {projection.name for projection in blueprint.projections}
+            if supplied != observed_projection_names:
+                raise Conflict(
+                    "elaboration does not name exactly the union of observed cut projections"
+                )
+
+            instance_names = {row["instance_name"] for row in cut_rows.values()}
+            if len(instance_names) != 1:
+                raise Conflict("joined cuts must belong to one protocol instance")
+            instance = next(iter(instance_names))
+
+            db.execute(
+                "INSERT INTO cut_admissions(proof,elaborator,actualizer,blueprint_json) "
+                "VALUES (?,?,?,?)",
+                (
+                    blueprint.proof,
+                    blueprint.elaborator,
+                    blueprint.actualizer,
+                    json.dumps(payload, sort_keys=True, separators=(",", ":")),
+                ),
+            )
+            for cut, authority in authorities.items():
+                db.execute(
+                    "INSERT INTO cut_admission_cuts(proof,cut_name) VALUES (?,?)",
+                    (blueprint.proof, cut),
+                )
+                db.execute(
+                    "UPDATE cut_elaboration_authorities SET disposition='spent' "
+                    "WHERE token=?",
+                    (authority,),
+                )
+                db.execute(
+                    "UPDATE causal_cuts SET state='elaborated' WHERE name=?",
+                    (cut,),
+                )
+
+            possibilities: dict[str, str] = {}
+            new_names: list[str] = []
+            for seed in blueprint.possibilities:
+                if not set(seed.consumes) <= observed_projection_names:
+                    raise Conflict(
+                        f"possibility {seed.key!r} consumes projections outside observed cuts"
+                    )
+                possibility = self._new_name(db, "observed_possibility")
+                new_names.append(possibility)
+                possibilities[seed.key] = possibility
+                db.execute(
+                    "INSERT INTO observed_possibilities("
+                    "name,instance_name,proof,seed_key,reaction,elaborator,actualizer,state"
+                    ") VALUES (?,?,?,?,?,?,?,?)",
+                    (
+                        possibility,
+                        instance,
+                        blueprint.proof,
+                        seed.key,
+                        seed.reaction,
+                        blueprint.elaborator,
+                        blueprint.actualizer,
+                        "open",
+                    ),
+                )
+                for cut in blueprint.cuts:
+                    db.execute(
+                        "INSERT INTO observed_possibility_cuts("
+                        "possibility_name,cut_name"
+                        ") VALUES (?,?)",
+                        (possibility, cut),
+                    )
+                for projection in seed.consumes:
+                    db.execute(
+                        "INSERT INTO observed_reaction_inputs("
+                        "possibility_name,projection_name"
+                        ") VALUES (?,?)",
+                        (possibility, projection),
+                    )
+                for ordinal, successor in enumerate(seed.establishes):
+                    db.execute(
+                        "INSERT INTO observed_reaction_outputs("
+                        "possibility_name,ordinal,output_key,role,protocol_state,holder"
+                        ") VALUES (?,?,?,?,?,?)",
+                        (
+                            possibility,
+                            ordinal,
+                            successor.key,
+                            successor.role,
+                            successor.state,
+                            successor.holder,
+                        ),
+                    )
+
+            self._event(
+                db,
+                "cut_elaboration_admitted",
+                {
+                    "proof": blueprint.proof,
+                    "cuts": list(blueprint.cuts),
+                    "observers": list(blueprint.observers),
+                    "elaborator": blueprint.elaborator,
+                    "actualizer": blueprint.actualizer,
+                    "possibilities": possibilities,
+                    "new_names": new_names,
+                },
+            )
+            result = {
+                "proof": blueprint.proof,
+                "possibilities": possibilities,
+            }
+            self._idem_put(db, request_id, "admit_cut_elaboration", payload, result)
+            return result
+
+    def actualize_observed(
+        self,
+        *,
+        possibility: str,
+        actualizer: str,
+        observation: Any,
+        request_id: str,
+    ) -> dict[str, Any]:
+        """Actualize one possibility without imposing a global frontier."""
+
+        payload = {
+            "possibility": possibility,
+            "actualizer": actualizer,
+            "observation": observation,
+        }
+        with self._tx() as db:
+            old = self._idem(db, request_id, "actualize_observed", payload)
+            if old is not None:
+                return old
+
+            row = db.execute(
+                "SELECT * FROM observed_possibilities WHERE name=?",
+                (possibility,),
+            ).fetchone()
+            if row is None:
+                raise KeyError(possibility)
+            if row["state"] != "open":
+                raise Conflict(
+                    f"observed possibility {possibility!r} is {row['state']}, not open"
+                )
+            if row["actualizer"] != actualizer:
+                raise Conflict("wrong Actualizer role for this possibility")
+
+            input_rows = db.execute(
+                "SELECT p.* FROM observed_reaction_inputs i "
+                "JOIN projections p ON p.name=i.projection_name "
+                "WHERE i.possibility_name=? ORDER BY p.rowid",
+                (possibility,),
+            ).fetchall()
+            stale = [
+                input_row["name"]
+                for input_row in input_rows
+                if input_row["disposition"] != "live"
+            ]
+            if stale:
+                raise StaleProjection(
+                    f"observed possibility input projections are stale: {stale!r}"
+                )
+
+            occurrence = self._new_name(db, "observed_occurrence")
+            new_names = [occurrence]
+            consumed = [input_row["name"] for input_row in input_rows]
+            for projection in consumed:
+                db.execute(
+                    "UPDATE projections SET disposition='spent' WHERE name=?",
+                    (projection,),
+                )
+
+            output_rows = db.execute(
+                "SELECT * FROM observed_reaction_outputs "
+                "WHERE possibility_name=? ORDER BY ordinal",
+                (possibility,),
+            ).fetchall()
+            successors: dict[str, str] = {}
+            successor_by_role: dict[str, str] = {}
+            ordered_successors: list[str] = []
+            for output in output_rows:
+                projection = self._new_name(db, "projection")
+                new_names.append(projection)
+                ordered_successors.append(projection)
+                successors[output["output_key"]] = projection
+                successor_by_role[output["role"]] = projection
+                db.execute(
+                    "INSERT INTO projections("
+                    "name,instance_name,seed_key,role,protocol_state,holder,disposition"
+                    ") VALUES (?,?,?,?,?,?,?)",
+                    (
+                        projection,
+                        row["instance_name"],
+                        output["output_key"],
+                        output["role"],
+                        output["protocol_state"],
+                        output["holder"],
+                        "live",
+                    ),
+                )
+
+            db.execute(
+                "UPDATE observed_possibilities SET state='occurred' WHERE name=?",
+                (possibility,),
+            )
+
+            if consumed:
+                placeholders = ",".join("?" for _ in consumed)
+                competitors = db.execute(
+                    "SELECT DISTINCT op.name FROM observed_possibilities op "
+                    "JOIN observed_reaction_inputs oi ON oi.possibility_name=op.name "
+                    f"WHERE op.state='open' AND oi.projection_name IN ({placeholders})",
+                    tuple(consumed),
+                ).fetchall()
+                for competitor in competitors:
+                    db.execute(
+                        "UPDATE observed_possibilities SET state='precluded' "
+                        "WHERE name=?",
+                        (competitor["name"],),
+                    )
+
+            db.execute(
+                "INSERT INTO observed_occurrences("
+                "name,instance_name,possibility_name,actualizer,observation_json"
+                ") VALUES (?,?,?,?,?)",
+                (
+                    occurrence,
+                    row["instance_name"],
+                    possibility,
+                    actualizer,
+                    json.dumps(observation, sort_keys=True, separators=(",", ":")),
+                ),
+            )
+            for projection in consumed:
+                db.execute(
+                    "INSERT INTO observed_occurrence_inputs("
+                    "occurrence_name,projection_name"
+                    ") VALUES (?,?)",
+                    (occurrence, projection),
+                )
+            for ordinal, projection in enumerate(ordered_successors):
+                db.execute(
+                    "INSERT INTO observed_occurrence_outputs("
+                    "occurrence_name,projection_name,ordinal"
+                    ") VALUES (?,?,?)",
+                    (occurrence, projection, ordinal),
+                )
+
+            cause_cuts = [
+                cut_row["cut_name"]
+                for cut_row in db.execute(
+                    "SELECT cut_name FROM observed_possibility_cuts "
+                    "WHERE possibility_name=? ORDER BY cut_name",
+                    (possibility,),
+                ).fetchall()
+            ]
+            successor_cuts: dict[str, str] = {}
+            authorities: dict[str, str] = {}
+            consumed_set = set(consumed)
+            for old_cut in cause_cuts:
+                cut_row = db.execute(
+                    "SELECT * FROM causal_cuts WHERE name=?",
+                    (old_cut,),
+                ).fetchone()
+                if cut_row is None:
+                    raise KeyError(old_cut)
+
+                new_cut = self._new_name(db, "cut")
+                authority = self._new_name(db, "elaboration")
+                new_names.extend([new_cut, authority])
+                successor_cuts[old_cut] = new_cut
+                authorities[new_cut] = authority
+
+                db.execute(
+                    "UPDATE causal_cuts SET state='historical' WHERE name=?",
+                    (old_cut,),
+                )
+                db.execute(
+                    "INSERT INTO causal_cuts("
+                    "name,instance_name,observer,protocol_cid,"
+                    "parent_cut,parent_occurrence,state"
+                    ") VALUES (?,?,?,?,?,?,?)",
+                    (
+                        new_cut,
+                        cut_row["instance_name"],
+                        cut_row["observer"],
+                        cut_row["protocol_cid"],
+                        old_cut,
+                        occurrence,
+                        "open",
+                    ),
+                )
+
+                members = db.execute(
+                    "SELECT p.* FROM cut_members cm "
+                    "JOIN projections p ON p.name=cm.projection_name "
+                    "WHERE cm.cut_name=? ORDER BY p.role,p.name",
+                    (old_cut,),
+                ).fetchall()
+                for member in members:
+                    projection = member["name"]
+                    if projection in consumed_set:
+                        projection = successor_by_role.get(member["role"])
+                        if projection is None:
+                            continue
+                    db.execute(
+                        "INSERT INTO cut_members(cut_name,projection_name) VALUES (?,?)",
+                        (new_cut, projection),
+                    )
+                db.execute(
+                    "INSERT INTO cut_elaboration_authorities("
+                    "token,cut_name,disposition"
+                    ") VALUES (?,?,?)",
+                    (authority, new_cut, "live"),
+                )
+                db.execute(
+                    "INSERT INTO observed_occurrence_cuts("
+                    "occurrence_name,cut_name"
+                    ") VALUES (?,?)",
+                    (occurrence, old_cut),
+                )
+
+            self._event(
+                db,
+                "observed_occurrence_actualized",
+                {
+                    "occurrence": occurrence,
+                    "possibility": possibility,
+                    "reaction": row["reaction"],
+                    "actualizer": actualizer,
+                    "cause_cuts": cause_cuts,
+                    "successor_cuts": successor_cuts,
+                    "consumed": consumed,
+                    "successors": successors,
+                    "observation": observation,
+                    "new_names": new_names,
+                },
+            )
+            result = {
+                "occurrence": occurrence,
+                "reaction": row["reaction"],
+                "actualizer": actualizer,
+                "cause_cuts": cause_cuts,
+                "successor_cuts": successor_cuts,
+                "elaboration_authorities": authorities,
+                "consumed": consumed,
+                "successors": successors,
+            }
+            self._idem_put(db, request_id, "actualize_observed", payload, result)
+            return result
+
+    def observed_possibility(self, possibility: str) -> dict[str, Any]:
+        row = self.db.execute(
+            "SELECT * FROM observed_possibilities WHERE name=?",
+            (possibility,),
+        ).fetchone()
+        if row is None:
+            raise KeyError(possibility)
+        item = dict(row)
+        item["cuts"] = [
+            r["cut_name"]
+            for r in self.db.execute(
+                "SELECT cut_name FROM observed_possibility_cuts "
+                "WHERE possibility_name=? ORDER BY cut_name",
+                (possibility,),
+            ).fetchall()
+        ]
+        item["inputs"] = [
+            r["projection_name"]
+            for r in self.db.execute(
+                "SELECT projection_name FROM observed_reaction_inputs "
+                "WHERE possibility_name=? ORDER BY rowid",
+                (possibility,),
+            ).fetchall()
+        ]
+        return item
+
+    def observed_occurrence(self, occurrence: str) -> dict[str, Any]:
+        row = self.db.execute(
+            "SELECT * FROM observed_occurrences WHERE name=?",
+            (occurrence,),
+        ).fetchone()
+        if row is None:
+            raise KeyError(occurrence)
+        item = dict(row)
+        item["observation"] = json.loads(item.pop("observation_json"))
+        item["cuts"] = [
+            r["cut_name"]
+            for r in self.db.execute(
+                "SELECT cut_name FROM observed_occurrence_cuts "
+                "WHERE occurrence_name=? ORDER BY cut_name",
+                (occurrence,),
+            ).fetchall()
+        ]
+        item["inputs"] = [
+            r["projection_name"]
+            for r in self.db.execute(
+                "SELECT projection_name FROM observed_occurrence_inputs "
+                "WHERE occurrence_name=? ORDER BY rowid",
+                (occurrence,),
+            ).fetchall()
+        ]
+        item["outputs"] = [
+            r["projection_name"]
+            for r in self.db.execute(
+                "SELECT projection_name FROM observed_occurrence_outputs "
                 "WHERE occurrence_name=? ORDER BY ordinal",
                 (occurrence,),
             ).fetchall()
