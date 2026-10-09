@@ -198,17 +198,37 @@ promise exactly-once external execution.
   an executor merely because that executor is registered.
 
 
+## Where the process model stands now
+
+The one-shot limitation has been pressure-tested and overcome in the
+[`ModelProcess`](MODEL_PROCESSES.md) path.
+
+A process can now suspend and resume across Inspect, Consult, Acquire, and
+Handoff operations. Acquisition extends its immutable Context through a
+recipient-bound source-domain Cut disclosure, and handoff transfers the
+successor process projection to another named holder without copying live
+authority. Each step retains an ordinary checkpoint/occurrence history.
+
+The generic `ModelInput -> ModelProposal -> ModelDerivation` contract remains
+stable. A process's eventual proposal can name an expanded Context only when
+its persisted outcome and the parent/acquisition ancestry justify that
+extension. The original outer Elaborator does not gain any world projections
+merely because the Model became more informed.
+
+See [`CUT_EXCHANGE.md`](CUT_EXCHANGE.md) for the two-domain causal exchange,
+disclosure recovery, and the crucial distinction between generic semantic
+Name traversal and explicitly admitted inspection scope.
+
 ## Next pressure point
 
-The shared interface works, but this is still a *claim calculus*, not a proof
-checker or a distributed authorization protocol.
+This remains an attributable *claim calculus*, not a proof checker, an
+authenticated remote process system, or a fully asynchronous scheduler.
 
-A sensible next step is to allow an executor to return a richer proposed
-derivation graph (confidence, alternative interpretations, support for/against,
-and tentative claims) without losing the small stable ModelInput/ModelProposal
-boundary. Richer derivation should still not imply richer authority.
+I would now explore a **pending discovery/disclosure protocol** in which a
+Model need not even know a useful Cut's Name at the outset. A peer observer
+could defer, refuse, or select evidence; those choices and the eventual
+recipient incorporation would all have independent causal histories.
 
-The more fundamental long-term test is to let a Model be itself an addressable
-process with inspectable, resumable intermediate states—not merely a function
-from one request to one response—and preserve the same contract across local
-closures, subagents, and remote placements.
+A richer derivation graph—confidence, competing explanations, support and
+counterevidence—can sit above the same ModelInput/ModelProposal boundary
+without granting any more causal authority.
