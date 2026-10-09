@@ -25,8 +25,9 @@ from .core import (
     Apply, Bindings, Closure, Done, Lit, Name, PraxisCore, Reaction,
     RecordValue, Role, Socket, Suspended, canonical_bytes, content_id, to_data,
 )
-from .epistemics import _require_kind
+from .epistemics import _require_kind, context_value
 from .lenses import walk_named_values
+from .cut_exchange import cut_request, validate_disclosure
 from .model_execution import (
     MODEL_CONTEXT_ROLE, MODEL_INPUT_ROLE, MODEL_ROLE,
     ModelAdapter, ModelExecutionError,
@@ -38,7 +39,31 @@ from .trusted import TrustedMachinery
 PROCESS_SOCKET_ROLE = Role("elaboration", "process-socket")
 INSPECT = Name("model:Inspect")
 CONSULT = Name("model:Consult")
+ACQUIRE = Name("model:Acquire")
+HANDOFF = Name("model:Handoff")
 PROCESS_ROLE = "ModelProcess"
+
+
+def acquisition_request(provider: Name | str, cut: Name | str) -> RecordValue:
+    return cut_request(provider, cut)
+
+
+def handoff_request(target: str) -> RecordValue:
+    if not target:
+        raise ModelExecutionError("handoff target must be nonempty")
+    return RecordValue.from_mapping({
+        "$kind": "HandoffRequest",
+        "target": target,
+    })
+
+
+def cut_provider_value(label: str) -> RecordValue:
+    if not label:
+        raise ModelExecutionError("CutProvider label must be nonempty")
+    return RecordValue.from_mapping({
+        "$kind": "CutProvider",
+        "label": label,
+    })
 
 
 @dataclass(frozen=True)
@@ -49,6 +74,7 @@ class ProcessProgress:
     checkpoint: str | None = None
     outcome: str | None = None
     occurrence: str | None = None
+    handoff_to: str | None = None
 
 
 def inspection_request(target: Name | str) -> RecordValue:
@@ -80,6 +106,8 @@ class ModelProcessRunner:
         trusted: TrustedMachinery,
         *,
         executors: Mapping[str, ModelAdapter] | None = None,
+        providers: Mapping[str, Callable[[RecordValue], str]] | None = None,
+        identity: str | None = None,
         max_steps: int = 8,
         max_scope_nodes: int = 256,
     ) -> None:
@@ -88,6 +116,10 @@ class ModelProcessRunner:
         self.trusted = trusted
         self.executors = dict(executors or {})
         self.consultations: dict[str, set[str]] = {}
+        self.providers = dict(providers or {})
+        self.acquisitions: dict[str, set[str]] = {}
+        self.handoffs: dict[str, set[str]] = {}
+        self.identity = identity
         self.max_steps = max_steps
         self.max_scope_nodes = max_scope_nodes
 
@@ -112,6 +144,33 @@ class ModelProcessRunner:
                 "consultation admission requires a process Model"
             )
         self.consultations.setdefault(model, set()).add(executor)
+
+    def authorize_cut_acquisition(self, *, model: str, provider: str) -> None:
+        """Admit which provider a given process Model may request new Cuts from."""
+
+        if provider not in self.providers:
+            raise ModelExecutionError("CutProvider must be explicitly registered")
+        _require_kind(
+            self.trusted.named_eidos_value(provider)["value"], "CutProvider"
+        )
+        self._require_process_model(model)
+        self.acquisitions.setdefault(model, set()).add(provider)
+
+    def authorize_handoff(self, *, model: str, target: str) -> None:
+        """Admit a target holder for linear process continuation transfer."""
+
+        if not target:
+            raise ModelExecutionError("handoff target must be nonempty")
+        self._require_process_model(model)
+        self.handoffs.setdefault(model, set()).add(target)
+
+    def _require_process_model(self, model: str) -> RecordValue:
+        named = _require_kind(
+            self.trusted.named_eidos_value(model)["value"], "Model"
+        )
+        if named.get("engine") != "process":
+            raise ModelExecutionError("epistemic operation requires a process Model")
+        return named
 
     def start(
         self,
@@ -147,6 +206,11 @@ class ModelProcessRunner:
         allowed_executors = tuple(
             Name(executor) for executor in sorted(self.consultations.get(name, ()))
         )
+        allowed_providers = tuple(
+            Name(provider) for provider in sorted(self.acquisitions.get(name, ()))
+        )
+        allowed_handoffs = tuple(sorted(self.handoffs.get(name, ())))
+        owner = self.identity or name
         domain = self.trusted.admit_authority_domain(
             description=RecordValue.from_mapping({
                 "$kind": "ModelProcess",
@@ -155,11 +219,13 @@ class ModelProcessRunner:
                 "input": request,
                 "program": program,
                 "allowed_executors": allowed_executors,
+                "allowed_providers": allowed_providers,
+                "allowed_handoffs": allowed_handoffs,
             }),
             establishes=(
                 ProjectionGrant(
                     key="step:0",
-                    holder=name,
+                    holder=owner,
                     description=projection_value(
                         key="model-process:step:0",
                         role=PROCESS_ROLE,
@@ -190,6 +256,7 @@ class ModelProcessRunner:
                 events=(),
                 checkpoints=(),
                 parent=None,
+                context=context,
                 request_id=f"{run}:initial-finish",
             )
         if not isinstance(result, Suspended):
@@ -201,6 +268,7 @@ class ModelProcessRunner:
             suspended=result,
             previous=None,
             parent_occurrence=None,
+            context=context,
             request_id=f"{run}:checkpoint:0",
         )
         return ProcessProgress(run=run, checkpoint=checkpoint)
