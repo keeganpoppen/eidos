@@ -1,3 +1,4 @@
+from eidos.genesis import admit_genesis
 from eidos.core import Name, RecordValue
 from eidos.cuts import ObservedCut, elaborate_cuts
 from eidos.occurrence import (
@@ -57,11 +58,10 @@ def observed_cut(tm: TrustedMachinery, cut: str) -> ObservedCut:
 def test_semantic_objects_are_ordinary_named_eidos_values():
     tm = TrustedMachinery()
     p = protocol()
-    installed = tm.install_occurrence_blueprint(
-        blueprint=elaborate_genesis(
-            p,
-            holders={"A": "alice", "B": "bob"},
-        ),
+    installed = admit_genesis(
+        tm,
+        p,
+        holders={"A": "alice", "B": "bob"},
         request_id="semantic-genesis",
     )
 
@@ -183,11 +183,10 @@ def test_observer_ontology_tables_are_gone_and_semantics_still_work():
     assert removed.isdisjoint(tables)
 
     p = protocol()
-    installed = tm.install_occurrence_blueprint(
-        blueprint=elaborate_genesis(
-            p,
-            holders={"A": "alice", "B": "bob"},
-        ),
+    installed = admit_genesis(
+        tm,
+        p,
+        holders={"A": "alice", "B": "bob"},
         request_id="tableless-genesis",
     )
     cut = tm.create_observed_cut(
