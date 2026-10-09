@@ -40,7 +40,9 @@ Cut C1 ---\
 Cut C2 ---/
 ```
 
-Knowledge and models enrich elaboration without granting authority. Historical Cuts remain meaningful after their capabilities are spent, so later reasoning can improve an old model without resurrecting the old world's causal power.
+Knowledge, Models, Attention, and epistemic Contexts are now ordinary named Eidos Values. Contexts inherit prior contexts and bind these ingredients through ordinary Roles. A bounded Model inference can enable a protocol-defined Reaction from the **same Cuts and participant authority** that could not previously be derived.
+
+Historical Cuts remain meaningful after their capabilities are spent, so later reasoning can improve an old model without resurrecting the old world's causal power.
 
 `Elaborator` and `Actualizer` are ordinary roles backed by ordinary projection capabilities:
 
@@ -218,6 +220,7 @@ See:
 
 - [`docs/CORE.md`](docs/CORE.md) — executable Core language nucleus;
 - [`docs/OBSERVER_CUTS.md`](docs/OBSERVER_CUTS.md) — observer-relative causal cuts and joint elaboration;
+- [`docs/EPISTEMICS.md`](docs/EPISTEMICS.md) — named Knowledge, Models, Attention, and progressive epistemic Contexts;
 - [`docs/META_PROTOCOL.md`](docs/META_PROTOCOL.md) — Elaborate / Actualize as ordinary Eidos Socket operations;
 - [`docs/SEMANTIC_VALUES.md`](docs/SEMANTIC_VALUES.md) — tableless semantic objects, addressable provenance, and lenses;
 - [`docs/SUMMARY_TREE.md`](docs/SUMMARY_TREE.md) — hindsight-first semantic tree over Codex evidence;
