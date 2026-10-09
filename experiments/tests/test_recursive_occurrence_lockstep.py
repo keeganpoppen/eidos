@@ -1,6 +1,6 @@
 import pytest
 
-from eidos.occurrence import (
+from eidos.experiments.lockstep_occurrence import (
     FrontierProjection,
     ProjectionTemplate,
     ReactionRule,
