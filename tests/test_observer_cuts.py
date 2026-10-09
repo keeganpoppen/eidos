@@ -104,6 +104,7 @@ def setup_observer_cuts():
             installed["projections"]["projection:B"],
         ],
         request_id="cut-o1",
+        elaborator="elaborator:left",
     )
     right = tm.create_observed_cut(
         instance=installed["instance"],
@@ -114,6 +115,7 @@ def setup_observer_cuts():
             installed["projections"]["projection:D"],
         ],
         request_id="cut-o2",
+        elaborator="elaborator:right",
     )
     return tm, protocol, installed, left, right
 
@@ -163,6 +165,7 @@ def test_disjoint_observer_cuts_actualize_without_global_generation_lock():
     left_occurrence = tm.actualize_observed(
         possibility=left_possibility,
         actualizer="actualizer:local",
+        authority=left_admitted["actualizers"][left_possibility],
         observation={"observer": "O1", "signal": "left"},
         request_id="actualize-left",
     )
@@ -175,6 +178,7 @@ def test_disjoint_observer_cuts_actualize_without_global_generation_lock():
     right_occurrence = tm.actualize_observed(
         possibility=right_possibility,
         actualizer="actualizer:local",
+        authority=right_admitted["actualizers"][right_possibility],
         observation={"observer": "O2", "signal": "right"},
         request_id="actualize-right",
     )
@@ -204,15 +208,20 @@ def test_joint_elaboration_discovers_reaction_in_union_of_observer_worlds():
         request_id="join-admit-right",
     )
 
+    left_possibility = next(iter(left_admitted["possibilities"].values()))
+    right_possibility = next(iter(right_admitted["possibilities"].values()))
+
     left_occurrence = tm.actualize_observed(
-        possibility=next(iter(left_admitted["possibilities"].values())),
+        possibility=left_possibility,
         actualizer="actualizer:local",
+        authority=left_admitted["actualizers"][left_possibility],
         observation={"observer": "O1"},
         request_id="join-left",
     )
     right_occurrence = tm.actualize_observed(
-        possibility=next(iter(right_admitted["possibilities"].values())),
+        possibility=right_possibility,
         actualizer="actualizer:local",
+        authority=right_admitted["actualizers"][right_possibility],
         observation={"observer": "O2"},
         request_id="join-right",
     )
@@ -249,11 +258,26 @@ def test_joint_elaboration_discovers_reaction_in_union_of_observer_worlds():
     assert joint.observers == ("O1", "O2")
     assert [p.reaction for p in joint.possibilities] == ["join"]
 
+    left_elaborator = left_occurrence["elaborators"][left_cut]
+    right_elaborator = right_occurrence["elaborators"][right_cut]
+    tm.transfer_projection(
+        projection=left_elaborator,
+        from_holder="O1",
+        to_holder="elaborator:joint",
+        request_id="delegate-left-to-joint",
+    )
+    tm.transfer_projection(
+        projection=right_elaborator,
+        from_holder="O2",
+        to_holder="elaborator:joint",
+        request_id="delegate-right-to-joint",
+    )
+
     admitted = tm.admit_cut_elaboration(
         blueprint=joint,
         authorities={
-            left_cut: left_occurrence["elaboration_authorities"][left_cut],
-            right_cut: right_occurrence["elaboration_authorities"][right_cut],
+            left_cut: left_elaborator,
+            right_cut: right_elaborator,
         },
         request_id="admit-joint",
     )
@@ -262,6 +286,7 @@ def test_joint_elaboration_discovers_reaction_in_union_of_observer_worlds():
     joined = tm.actualize_observed(
         possibility=join_possibility,
         actualizer="actualizer:joint",
+        authority=admitted["actualizers"][join_possibility],
         observation={"witness": "shared relation became discernible"},
         request_id="actualize-joint",
     )
@@ -301,7 +326,7 @@ def test_cut_name_is_identity_not_elaboration_authority():
         actualizer="actualizer:local",
     )
 
-    with pytest.raises(Conflict, match="elaboration authority"):
+    with pytest.raises(Conflict, match="Elaborator projection"):
         tm.admit_cut_elaboration(
             blueprint=blueprint,
             authorities={cut.name: cut.name},
@@ -311,6 +336,12 @@ def test_cut_name_is_identity_not_elaboration_authority():
 
 def test_actualizer_is_a_role_selected_by_the_elaboration():
     tm, protocol, _, left, _ = setup_observer_cuts()
+    tm.transfer_projection(
+        projection=left["authority"],
+        from_holder="elaborator:left",
+        to_holder="elaborator:alice",
+        request_id="delegate-elaborator-role",
+    )
     _, admitted = admit_one(
         tm,
         protocol,
@@ -325,6 +356,7 @@ def test_actualizer_is_a_role_selected_by_the_elaboration():
         tm.actualize_observed(
             possibility=possibility,
             actualizer="actualizer:beta",
+            authority=admitted["actualizers"][possibility],
             observation={},
             request_id="wrong-actualizer",
         )
@@ -332,7 +364,73 @@ def test_actualizer_is_a_role_selected_by_the_elaboration():
     occurred = tm.actualize_observed(
         possibility=possibility,
         actualizer="actualizer:alpha",
+        authority=admitted["actualizers"][possibility],
         observation={},
         request_id="right-actualizer",
     )
     assert occurred["actualizer"] == "actualizer:alpha"
+
+
+
+def test_meta_roles_are_ordinary_live_projections():
+    tm, protocol, _, left, _ = setup_observer_cuts()
+    elaborator_projection = left["elaborator_projection"]
+    row = tm.projection(elaborator_projection)
+    assert row["role"] == "Elaborator"
+    assert row["holder"] == "elaborator:left"
+    assert row["disposition"] == "live"
+
+    _, admitted = admit_one(
+        tm,
+        protocol,
+        left,
+        elaborator="elaborator:left",
+        actualizer="actualizer:alpha",
+        request_id="ordinary-meta-role-admission",
+    )
+    assert tm.projection(elaborator_projection)["disposition"] == "spent"
+
+    possibility = next(iter(admitted["possibilities"].values()))
+    actualizer_projection = admitted["actualizers"][possibility]
+    actualizer_row = tm.projection(actualizer_projection)
+    assert actualizer_row["role"] == "Actualizer"
+    assert actualizer_row["holder"] == "actualizer:alpha"
+    assert actualizer_row["disposition"] == "live"
+
+    tm.actualize_observed(
+        possibility=possibility,
+        actualizer="actualizer:alpha",
+        authority=actualizer_projection,
+        observation={},
+        request_id="ordinary-meta-role-actualize",
+    )
+    assert tm.projection(actualizer_projection)["disposition"] == "spent"
+
+
+def test_epistemic_context_changes_elaboration_proof_not_world_authority():
+    tm, protocol, _, left, _ = setup_observer_cuts()
+    cut = as_observed_cut(tm, left["cut"])
+
+    shallow = elaborate_cuts(
+        protocol,
+        cuts=(cut,),
+        elaborator="elaborator:left",
+        actualizer="actualizer:local",
+        knowledge=("night-sky:raw-observation",),
+    )
+    deep = elaborate_cuts(
+        protocol,
+        cuts=(cut,),
+        elaborator="elaborator:left",
+        actualizer="actualizer:local",
+        knowledge=(
+            "night-sky:raw-observation",
+            "astronomy:model",
+            "catalog:stellar-objects",
+        ),
+    )
+
+    assert shallow.projections == deep.projections
+    assert shallow.possibilities == deep.possibilities
+    assert shallow.proof != deep.proof
+    assert shallow.knowledge != deep.knowledge
