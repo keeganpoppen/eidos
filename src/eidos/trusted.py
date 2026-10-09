@@ -1457,6 +1457,7 @@ class TrustedMachinery:
                 )
 
             possibilities: dict[str, str] = {}
+            actualizers: dict[str, str] = {}
             new_names: list[str] = []
             for seed in blueprint.possibilities:
                 if not set(seed.consumes) <= observed_projection_names:
