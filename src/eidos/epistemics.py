@@ -261,8 +261,9 @@ def interpret_context(
             rules.append((ref, i, premises, conclusion))
 
     inferred: list[Inference] = []
-    # Monotonic finite closure, bounded by attention, with deterministic order.
-    for _ in range(budget):
+    # Positive conclusions can each be established only once. A large
+    # attention budget therefore never requires more rounds than rules.
+    for _ in range(min(budget, len(rules))):
         enabled = next(
             (
                 (model, index, premises, fact)
