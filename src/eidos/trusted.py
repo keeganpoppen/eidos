@@ -30,6 +30,7 @@ from .semantic_values import (
     elaboration_value,
     occurrence_value,
     possibility_value,
+    projection_value,
 )
 
 
@@ -140,94 +141,20 @@ class TrustedMachinery:
               payload_json TEXT NOT NULL,
               incorporated INTEGER NOT NULL DEFAULT 0
             );
-            CREATE TABLE IF NOT EXISTS occurrence_instances(
-              name TEXT PRIMARY KEY REFERENCES names(name),
-              protocol TEXT NOT NULL,
-              blueprint_json TEXT NOT NULL
+            CREATE TABLE IF NOT EXISTS authority_domains(
+              name TEXT PRIMARY KEY REFERENCES names(name)
             );
             CREATE TABLE IF NOT EXISTS projections(
               name TEXT PRIMARY KEY REFERENCES names(name),
-              instance_name TEXT NOT NULL REFERENCES occurrence_instances(name),
-              seed_key TEXT NOT NULL,
-              role TEXT NOT NULL,
-              protocol_state TEXT NOT NULL,
+              domain_name TEXT NOT NULL REFERENCES authority_domains(name),
               holder TEXT NOT NULL,
               disposition TEXT NOT NULL CHECK(disposition IN ('live','spent'))
-            );
-            CREATE TABLE IF NOT EXISTS protocol_frontiers(
-              name TEXT PRIMARY KEY REFERENCES names(name),
-              instance_name TEXT NOT NULL REFERENCES occurrence_instances(name),
-              protocol_cid TEXT NOT NULL,
-              parent_occurrence TEXT,
-              generation INTEGER NOT NULL,
-              state TEXT NOT NULL CHECK(state IN ('open','elaborated','spent'))
-            );
-            CREATE TABLE IF NOT EXISTS frontier_members(
-              frontier_name TEXT NOT NULL REFERENCES protocol_frontiers(name),
-              projection_name TEXT NOT NULL REFERENCES projections(name),
-              PRIMARY KEY(frontier_name,projection_name)
-            );
-            CREATE TABLE IF NOT EXISTS elaboration_authorities(
-              token TEXT PRIMARY KEY REFERENCES names(name),
-              frontier_name TEXT NOT NULL UNIQUE REFERENCES protocol_frontiers(name),
-              disposition TEXT NOT NULL CHECK(disposition IN ('live','spent'))
-            );
-            CREATE TABLE IF NOT EXISTS reaction_possibilities(
-              name TEXT PRIMARY KEY REFERENCES names(name),
-              instance_name TEXT NOT NULL REFERENCES occurrence_instances(name),
-              seed_key TEXT NOT NULL,
-              reaction TEXT NOT NULL,
-              state TEXT NOT NULL CHECK(state IN ('open','occurred','precluded'))
-            );
-            CREATE TABLE IF NOT EXISTS possibility_frontiers(
-              possibility_name TEXT PRIMARY KEY REFERENCES reaction_possibilities(name),
-              frontier_name TEXT NOT NULL REFERENCES protocol_frontiers(name)
-            );
-            CREATE TABLE IF NOT EXISTS frontier_admissions(
-              frontier_name TEXT PRIMARY KEY REFERENCES protocol_frontiers(name),
-              proof TEXT NOT NULL,
-              blueprint_json TEXT NOT NULL
-            );
-            CREATE TABLE IF NOT EXISTS reaction_inputs(
-              possibility_name TEXT NOT NULL REFERENCES reaction_possibilities(name),
-              projection_name TEXT NOT NULL REFERENCES projections(name),
-              PRIMARY KEY(possibility_name,projection_name)
-            );
-            CREATE TABLE IF NOT EXISTS reaction_outputs(
-              possibility_name TEXT NOT NULL REFERENCES reaction_possibilities(name),
-              ordinal INTEGER NOT NULL,
-              output_key TEXT NOT NULL,
-              role TEXT NOT NULL,
-              protocol_state TEXT NOT NULL,
-              holder TEXT NOT NULL,
-              PRIMARY KEY(possibility_name,output_key)
-            );
-            CREATE TABLE IF NOT EXISTS occurrences(
-              name TEXT PRIMARY KEY REFERENCES names(name),
-              instance_name TEXT NOT NULL REFERENCES occurrence_instances(name),
-              possibility_name TEXT NOT NULL REFERENCES reaction_possibilities(name),
-              observation_json TEXT NOT NULL
-            );
-            CREATE TABLE IF NOT EXISTS occurrence_inputs(
-              occurrence_name TEXT NOT NULL REFERENCES occurrences(name),
-              projection_name TEXT NOT NULL REFERENCES projections(name),
-              PRIMARY KEY(occurrence_name,projection_name)
-            );
-            CREATE TABLE IF NOT EXISTS occurrence_outputs(
-              occurrence_name TEXT NOT NULL REFERENCES occurrences(name),
-              projection_name TEXT NOT NULL REFERENCES projections(name),
-              ordinal INTEGER NOT NULL,
-              PRIMARY KEY(occurrence_name,projection_name)
-            );
-            CREATE TABLE IF NOT EXISTS occurrence_frontiers(
-              occurrence_name TEXT PRIMARY KEY REFERENCES occurrences(name),
-              frontier_name TEXT NOT NULL REFERENCES protocol_frontiers(name)
             );
 
 
             CREATE TABLE IF NOT EXISTS authority_occurrences(
               name TEXT PRIMARY KEY REFERENCES names(name),
-              instance_name TEXT NOT NULL REFERENCES occurrence_instances(name),
+              domain_name TEXT NOT NULL REFERENCES authority_domains(name),
               kind TEXT NOT NULL,
               fact_json TEXT NOT NULL
             );
@@ -285,7 +212,7 @@ class TrustedMachinery:
         return seq
 
     def _idem(self, db: sqlite3.Connection, request_id: str, op: str, payload: Any) -> dict[str, Any] | None:
-        digest = content_id(payload)
+        digest = core_content_id(payload)
         row = db.execute("SELECT op,digest,result_json FROM commands WHERE request_id=?", (request_id,)).fetchone()
         if row is None:
             return None
@@ -296,7 +223,7 @@ class TrustedMachinery:
     def _idem_put(self, db: sqlite3.Connection, request_id: str, op: str, payload: Any, result: dict[str, Any]) -> None:
         db.execute(
             "INSERT INTO commands(request_id,op,digest,result_json) VALUES (?,?,?,?)",
-            (request_id, op, content_id(payload), json.dumps(result, sort_keys=True, separators=(",", ":"))),
+            (request_id, op, core_content_id(payload), json.dumps(result, sort_keys=True, separators=(",", ":"))),
         )
 
     def _commit_projection_occurrence(
@@ -331,12 +258,12 @@ class TrustedMachinery:
                 )
             rows.append(row)
 
-        instances = {row["instance_name"] for row in rows}
-        if len(instances) != 1:
+        domains = {row["domain_name"] for row in rows}
+        if len(domains) != 1:
             raise Conflict(
-                "one atomic authority occurrence must stay within one instance"
+                "one atomic authority occurrence must stay within one authority domain"
             )
-        instance = next(iter(instances))
+        domain = next(iter(domains))
 
         if occurrence is None:
             occurrence = self._new_name(db, "occurrence")
@@ -359,27 +286,23 @@ class TrustedMachinery:
             new_names.append(projection)
             outputs[grant.key] = projection
             db.execute(
-                "INSERT INTO projections("
-                "name,instance_name,seed_key,role,protocol_state,holder,disposition"
-                ") VALUES (?,?,?,?,?,?,?)",
-                (
-                    projection,
-                    instance,
-                    grant.key,
-                    grant.role,
-                    grant.state,
-                    grant.holder,
-                    "live",
-                ),
+                "INSERT INTO projections(name,domain_name,holder,disposition) "
+                "VALUES (?,?,?,?)",
+                (projection, domain, grant.holder, "live"),
+            )
+            self._bind_eidos_value(
+                db,
+                name=projection,
+                value=grant.description,
             )
 
         db.execute(
             "INSERT INTO authority_occurrences("
-            "name,instance_name,kind,fact_json"
+            "name,domain_name,kind,fact_json"
             ") VALUES (?,?,?,?)",
             (
                 occurrence,
-                instance,
+                domain,
                 kind,
                 json.dumps(fact, sort_keys=True, separators=(",", ":")),
             ),
@@ -405,7 +328,7 @@ class TrustedMachinery:
             {
                 "occurrence": occurrence,
                 "kind": kind,
-                "instance": instance,
+                "domain": domain,
                 "consumed": list(consumes),
                 "established": outputs,
                 "fact": fact,
@@ -414,7 +337,8 @@ class TrustedMachinery:
         )
         return {
             "occurrence": occurrence,
-            "instance": instance,
+            "domain": domain,
+            "instance": domain,
             "kind": kind,
             "consumed": list(consumes),
             "established": outputs,
@@ -434,7 +358,14 @@ class TrustedMachinery:
         payload = {
             "kind": kind,
             "consumes": list(consumes),
-            "establishes": [asdict(grant) for grant in establishes],
+            "establishes": [
+                {
+                    "key": grant.key,
+                    "holder": grant.holder,
+                    "description": grant.description,
+                }
+                for grant in establishes
+            ],
             "fact": fact,
         }
         with self._tx() as db:
@@ -691,12 +622,12 @@ class TrustedMachinery:
             if not isinstance(actualizer, CoreName):
                 continue
             actualizer_row = db.execute(
-                "SELECT instance_name,disposition FROM projections WHERE name=?",
+                "SELECT domain_name,disposition FROM projections WHERE name=?",
                 (actualizer.value,),
             ).fetchone()
             if (
                 actualizer_row is None
-                or actualizer_row["instance_name"] != instance
+                or actualizer_row["domain_name"] != instance
                 or actualizer_row["disposition"] != "live"
             ):
                 continue
@@ -983,563 +914,91 @@ class TrustedMachinery:
             return result
 
 
-    def install_occurrence_blueprint(
+    def admit_authority_domain(
         self,
         *,
-        blueprint: InstanceBlueprint,
+        description: Any,
+        establishes: tuple[ProjectionGrant, ...],
         request_id: str,
     ) -> dict[str, Any]:
-        """Install generation zero and its already-elaborated possibility space.
+        """Explicit genesis for one authority-local domain."""
 
-        The semantic dual supplies a protocol commitment plus the exact initial
-        projections and latent Reactions. Trusted Machinery materializes those
-        capabilities and creates one linear protocol-frontier capability whose
-        state is already elaborated for generation zero.
-        """
-
-        payload = asdict(blueprint)
+        keys = [grant.key for grant in establishes]
+        if len(set(keys)) != len(keys):
+            raise Conflict("genesis projection keys must be unique")
+        payload = {
+            "description": description,
+            "establishes": [
+                {
+                    "key": grant.key,
+                    "holder": grant.holder,
+                    "description": grant.description,
+                }
+                for grant in establishes
+            ],
+        }
         with self._tx() as db:
-            old = self._idem(db, request_id, "install_occurrence_blueprint", payload)
+            old = self._idem(db, request_id, "admit_authority_domain", payload)
             if old is not None:
                 return old
 
-            projection_seeds = {seed.key: seed for seed in blueprint.projections}
-            if len(projection_seeds) != len(blueprint.projections):
-                raise ValueError("projection seed keys must be unique")
-
-            possibility_seeds = {seed.key: seed for seed in blueprint.possibilities}
-            if len(possibility_seeds) != len(blueprint.possibilities):
-                raise ValueError("possibility seed keys must be unique")
-
-            for possibility in blueprint.possibilities:
-                unknown = set(possibility.consumes) - set(projection_seeds)
-                if unknown:
-                    raise ValueError(
-                        f"possibility {possibility.key!r} consumes unknown projections "
-                        f"{sorted(unknown)!r}"
-                    )
-
-            protocol_cid = blueprint.protocol_cid or content_id(blueprint)
-            instance = self._new_name(db, "instance")
-            frontier = self._new_name(db, "frontier")
-            db.execute(
-                "INSERT INTO occurrence_instances(name,protocol,blueprint_json) VALUES (?,?,?)",
-                (
-                    instance,
-                    blueprint.protocol,
-                    json.dumps(payload, sort_keys=True, separators=(",", ":")),
-                ),
-            )
-            db.execute(
-                "INSERT INTO protocol_frontiers("
-                "name,instance_name,protocol_cid,parent_occurrence,generation,state"
-                ") VALUES (?,?,?,?,?,?)",
-                (frontier, instance, protocol_cid, None, 0, "elaborated"),
+            domain = self._new_name(db, "domain")
+            db.execute("INSERT INTO authority_domains(name) VALUES (?)", (domain,))
+            description_cid = self._bind_eidos_value(
+                db,
+                name=domain,
+                value=description,
             )
 
             projections: dict[str, str] = {}
-            new_names = [instance, frontier]
-            for seed in blueprint.projections:
+            new_names = [domain]
+            for grant in establishes:
                 projection = self._new_name(db, "projection")
-                projections[seed.key] = projection
                 new_names.append(projection)
+                projections[grant.key] = projection
                 db.execute(
-                    "INSERT INTO projections("
-                    "name,instance_name,seed_key,role,protocol_state,holder,disposition"
-                    ") VALUES (?,?,?,?,?,?,?)",
-                    (
-                        projection,
-                        instance,
-                        seed.key,
-                        seed.role,
-                        seed.state,
-                        seed.holder,
-                        "live",
-                    ),
+                    "INSERT INTO projections(name,domain_name,holder,disposition) "
+                    "VALUES (?,?,?,?)",
+                    (projection, domain, grant.holder, "live"),
                 )
-                db.execute(
-                    "INSERT INTO frontier_members(frontier_name,projection_name) "
-                    "VALUES (?,?)",
-                    (frontier, projection),
+                self._bind_eidos_value(
+                    db,
+                    name=projection,
+                    value=grant.description,
                 )
-
-            possibilities: dict[str, str] = {}
-            for seed in blueprint.possibilities:
-                possibility = self._new_name(db, "possibility")
-                possibilities[seed.key] = possibility
-                new_names.append(possibility)
-                db.execute(
-                    "INSERT INTO reaction_possibilities("
-                    "name,instance_name,seed_key,reaction,state"
-                    ") VALUES (?,?,?,?,?)",
-                    (
-                        possibility,
-                        instance,
-                        seed.key,
-                        seed.reaction,
-                        "open",
-                    ),
-                )
-                db.execute(
-                    "INSERT INTO possibility_frontiers(possibility_name,frontier_name) "
-                    "VALUES (?,?)",
-                    (possibility, frontier),
-                )
-                for projection_key in seed.consumes:
-                    db.execute(
-                        "INSERT INTO reaction_inputs(possibility_name,projection_name) "
-                        "VALUES (?,?)",
-                        (possibility, projections[projection_key]),
-                    )
-                for ordinal, successor in enumerate(seed.establishes):
-                    db.execute(
-                        "INSERT INTO reaction_outputs("
-                        "possibility_name,ordinal,output_key,role,protocol_state,holder"
-                        ") VALUES (?,?,?,?,?,?)",
-                        (
-                            possibility,
-                            ordinal,
-                            successor.key,
-                            successor.role,
-                            successor.state,
-                            successor.holder,
-                        ),
-                    )
 
             self._event(
                 db,
-                "possibility_space_installed",
+                "authority_domain_admitted",
                 {
-                    "instance": instance,
-                    "protocol": blueprint.protocol,
-                    "protocol_cid": protocol_cid,
-                    "frontier": frontier,
-                    "generation": 0,
+                    "domain": domain,
+                    "description": description_cid,
                     "projections": projections,
-                    "possibilities": possibilities,
                     "new_names": new_names,
                 },
             )
             result = {
-                "instance": instance,
-                "frontier": frontier,
-                "protocol_cid": protocol_cid,
+                "domain": domain,
+                "instance": domain,
+                "description": description_cid,
                 "projections": projections,
-                "possibilities": possibilities,
             }
-            self._idem_put(
-                db,
-                request_id,
-                "install_occurrence_blueprint",
-                payload,
-                result,
-            )
+            self._idem_put(db, request_id, "admit_authority_domain", payload, result)
             return result
 
-    def admit_frontier(
-        self,
-        *,
-        blueprint: FrontierBlueprint,
-        authority: str,
-        request_id: str,
-    ) -> dict[str, Any]:
-        """Admit one recursively elaborated possibility space.
-
-        The previous occurrence mints a one-shot elaboration authority for a
-        freely referable frontier Name. The semantic elaborator presents that
-        authority alongside a proof-shaped blueprint anchored to the same
-        protocol commitment.
-
-        Trusted Machinery does not re-run protocol semantics. It checks
-        provenance, freshness, and exact frontier membership, records the proof,
-        and materializes the latent possibilities.
-        """
-
-        payload = asdict(blueprint)
-        payload["proof"] = blueprint.proof
-        payload["authority"] = authority
-        with self._tx() as db:
-            old = self._idem(db, request_id, "admit_frontier", payload)
-            if old is not None:
-                return old
-
-            row = db.execute(
-                "SELECT * FROM protocol_frontiers WHERE name=?",
-                (blueprint.frontier,),
-            ).fetchone()
-            if row is None:
-                raise KeyError(blueprint.frontier)
-            authority_row = db.execute(
-                "SELECT frontier_name,disposition FROM elaboration_authorities "
-                "WHERE token=?",
-                (authority,),
-            ).fetchone()
-            if (
-                authority_row is None
-                or authority_row["frontier_name"] != blueprint.frontier
-                or authority_row["disposition"] != "live"
-            ):
-                raise Conflict("elaboration authority is not live for this frontier")
-
-            if row["state"] != "open":
-                raise Conflict(
-                    f"frontier {blueprint.frontier!r} is {row['state']}, not open"
-                )
-            if row["protocol_cid"] != blueprint.protocol_cid:
-                raise Conflict("frontier proof names a different protocol commitment")
-            if row["parent_occurrence"] != blueprint.parent_occurrence:
-                raise Conflict("frontier proof names the wrong parent occurrence")
-
-            expected = [
-                dict(r)
-                for r in db.execute(
-                    "SELECT p.name,p.role,p.protocol_state,p.holder,p.disposition "
-                    "FROM frontier_members fm "
-                    "JOIN projections p ON p.name=fm.projection_name "
-                    "WHERE fm.frontier_name=? ORDER BY p.role,p.name",
-                    (blueprint.frontier,),
-                ).fetchall()
-            ]
-            supplied = sorted(
-                [
-                    {
-                        "name": p.name,
-                        "role": p.role,
-                        "protocol_state": p.state,
-                        "holder": p.holder,
-                        "disposition": "live",
-                    }
-                    for p in blueprint.projections
-                ],
-                key=lambda item: (item["role"], item["name"]),
-            )
-            if expected != supplied:
-                raise Conflict("frontier proof does not match authoritative live frontier")
-
-            live_names = {item["name"] for item in expected}
-            possibilities: dict[str, str] = {}
-            actualizers: dict[str, str] = {}
-            new_names: list[str] = []
-            for seed in blueprint.possibilities:
-                if not set(seed.consumes) <= live_names:
-                    raise Conflict(
-                        f"possibility {seed.key!r} consumes projections outside frontier"
-                    )
-                possibility = self._new_name(db, "possibility")
-                possibilities[seed.key] = possibility
-                new_names.append(possibility)
-                db.execute(
-                    "INSERT INTO reaction_possibilities("
-                    "name,instance_name,seed_key,reaction,state"
-                    ") VALUES (?,?,?,?,?)",
-                    (
-                        possibility,
-                        row["instance_name"],
-                        seed.key,
-                        seed.reaction,
-                        "open",
-                    ),
-                )
-                db.execute(
-                    "INSERT INTO possibility_frontiers(possibility_name,frontier_name) "
-                    "VALUES (?,?)",
-                    (possibility, blueprint.frontier),
-                )
-                for projection in seed.consumes:
-                    db.execute(
-                        "INSERT INTO reaction_inputs(possibility_name,projection_name) "
-                        "VALUES (?,?)",
-                        (possibility, projection),
-                    )
-                for ordinal, successor in enumerate(seed.establishes):
-                    db.execute(
-                        "INSERT INTO reaction_outputs("
-                        "possibility_name,ordinal,output_key,role,protocol_state,holder"
-                        ") VALUES (?,?,?,?,?,?)",
-                        (
-                            possibility,
-                            ordinal,
-                            successor.key,
-                            successor.role,
-                            successor.state,
-                            successor.holder,
-                        ),
-                    )
-
-            db.execute(
-                "UPDATE elaboration_authorities SET disposition='spent' WHERE token=?",
-                (authority,),
-            )
-            db.execute(
-                "INSERT INTO frontier_admissions(frontier_name,proof,blueprint_json) "
-                "VALUES (?,?,?)",
-                (
-                    blueprint.frontier,
-                    blueprint.proof,
-                    json.dumps(payload, sort_keys=True, separators=(",", ":")),
-                ),
-            )
-            db.execute(
-                "UPDATE protocol_frontiers SET state='elaborated' WHERE name=?",
-                (blueprint.frontier,),
-            )
-            self._event(
-                db,
-                "frontier_elaborated",
-                {
-                    "frontier": blueprint.frontier,
-                    "instance": row["instance_name"],
-                    "protocol_cid": blueprint.protocol_cid,
-                    "parent_occurrence": blueprint.parent_occurrence,
-                    "proof": blueprint.proof,
-                    "possibilities": possibilities,
-                    "new_names": new_names,
-                },
-            )
-            result = {
-                "frontier": blueprint.frontier,
-                "proof": blueprint.proof,
-                "possibilities": possibilities,
-            }
-            self._idem_put(db, request_id, "admit_frontier", payload, result)
-            return result
-
-    def commit_occurrence(
-        self,
-        *,
-        possibility: str,
-        observation: Any,
-        request_id: str,
-    ) -> dict[str, Any]:
-        """Atomically turn one latent possibility into a causal occurrence.
-
-        Participant projections and the protocol-frontier capability are both
-        linear. A successful occurrence spends the current frontier and mints
-        exactly one successor frontier in the open, not-yet-elaborated state.
-        """
-
-        payload = {"possibility": possibility, "observation": observation}
-        with self._tx() as db:
-            old = self._idem(db, request_id, "commit_occurrence", payload)
-            if old is not None:
-                return old
-
-            possibility_row = db.execute(
-                "SELECT rp.*,pf.frontier_name "
-                "FROM reaction_possibilities rp "
-                "JOIN possibility_frontiers pf ON pf.possibility_name=rp.name "
-                "WHERE rp.name=?",
-                (possibility,),
-            ).fetchone()
-            if possibility_row is None:
-                raise KeyError(possibility)
-            if possibility_row["state"] != "open":
-                raise Conflict(
-                    f"reaction possibility {possibility!r} is "
-                    f"{possibility_row['state']}, not open"
-                )
-
-            frontier_row = db.execute(
-                "SELECT * FROM protocol_frontiers WHERE name=?",
-                (possibility_row["frontier_name"],),
-            ).fetchone()
-            if frontier_row is None or frontier_row["state"] != "elaborated":
-                raise Conflict(
-                    "reaction possibility does not belong to a live elaborated frontier"
-                )
-
-            input_rows = db.execute(
-                "SELECT p.* FROM reaction_inputs i "
-                "JOIN projections p ON p.name=i.projection_name "
-                "WHERE i.possibility_name=? ORDER BY p.rowid",
-                (possibility,),
-            ).fetchall()
-            if not input_rows:
-                raise TrustedError("reaction possibility has no input projections")
-            stale = [
-                row["name"] for row in input_rows if row["disposition"] != "live"
-            ]
-            if stale:
-                raise StaleProjection(
-                    f"reaction input projections are no longer live: {stale!r}"
-                )
-
-            occurrence = self._new_name(db, "occurrence")
-            new_frontier = self._new_name(db, "frontier")
-            elaboration_authority = self._new_name(db, "elaboration")
-            new_names = [occurrence, new_frontier]
-            consumed = [row["name"] for row in input_rows]
-
-            for projection in consumed:
-                db.execute(
-                    "UPDATE projections SET disposition='spent' WHERE name=?",
-                    (projection,),
-                )
-
-            output_rows = db.execute(
-                "SELECT * FROM reaction_outputs WHERE possibility_name=? "
-                "ORDER BY ordinal",
-                (possibility,),
-            ).fetchall()
-            successors: list[str] = []
-            successor_by_key: dict[str, str] = {}
-            for output in output_rows:
-                projection = self._new_name(db, "projection")
-                new_names.append(projection)
-                successors.append(projection)
-                successor_by_key[output["output_key"]] = projection
-                db.execute(
-                    "INSERT INTO projections("
-                    "name,instance_name,seed_key,role,protocol_state,holder,disposition"
-                    ") VALUES (?,?,?,?,?,?,?)",
-                    (
-                        projection,
-                        possibility_row["instance_name"],
-                        output["output_key"],
-                        output["role"],
-                        output["protocol_state"],
-                        output["holder"],
-                        "live",
-                    ),
-                )
-
-            db.execute(
-                "UPDATE reaction_possibilities SET state='precluded' "
-                "WHERE name IN ("
-                "SELECT possibility_name FROM possibility_frontiers "
-                "WHERE frontier_name=?"
-                ") AND state='open' AND name<>?",
-                (frontier_row["name"], possibility),
-            )
-            db.execute(
-                "UPDATE reaction_possibilities SET state='occurred' WHERE name=?",
-                (possibility,),
-            )
-            db.execute(
-                "UPDATE protocol_frontiers SET state='spent' WHERE name=?",
-                (frontier_row["name"],),
-            )
-
-            db.execute(
-                "INSERT INTO occurrences("
-                "name,instance_name,possibility_name,observation_json"
-                ") VALUES (?,?,?,?)",
-                (
-                    occurrence,
-                    possibility_row["instance_name"],
-                    possibility,
-                    json.dumps(observation, sort_keys=True, separators=(",", ":")),
-                ),
-            )
-            for projection in consumed:
-                db.execute(
-                    "INSERT INTO occurrence_inputs(occurrence_name,projection_name) "
-                    "VALUES (?,?)",
-                    (occurrence, projection),
-                )
-            for ordinal, projection in enumerate(successors):
-                db.execute(
-                    "INSERT INTO occurrence_outputs("
-                    "occurrence_name,projection_name,ordinal"
-                    ") VALUES (?,?,?)",
-                    (occurrence, projection, ordinal),
-                )
-
-            db.execute(
-                "INSERT INTO protocol_frontiers("
-                "name,instance_name,protocol_cid,parent_occurrence,generation,state"
-                ") VALUES (?,?,?,?,?,?)",
-                (
-                    new_frontier,
-                    possibility_row["instance_name"],
-                    frontier_row["protocol_cid"],
-                    occurrence,
-                    int(frontier_row["generation"]) + 1,
-                    "open",
-                ),
-            )
-
-            live_rows = db.execute(
-                "SELECT name FROM projections "
-                "WHERE instance_name=? AND disposition='live' ORDER BY role,name",
-                (possibility_row["instance_name"],),
-            ).fetchall()
-            for row in live_rows:
-                db.execute(
-                    "INSERT INTO frontier_members(frontier_name,projection_name) "
-                    "VALUES (?,?)",
-                    (new_frontier, row["name"]),
-                )
-            db.execute(
-                "INSERT INTO occurrence_frontiers(occurrence_name,frontier_name) "
-                "VALUES (?,?)",
-                (occurrence, new_frontier),
-            )
-            db.execute(
-                "INSERT INTO elaboration_authorities(token,frontier_name,disposition) "
-                "VALUES (?,?,?)",
-                (elaboration_authority, new_frontier, "live"),
-            )
-
-            self._event(
-                db,
-                "occurrence_committed",
-                {
-                    "occurrence": occurrence,
-                    "instance": possibility_row["instance_name"],
-                    "possibility": possibility,
-                    "reaction": possibility_row["reaction"],
-                    "previous_frontier": frontier_row["name"],
-                    "next_frontier": new_frontier,
-                    "generation": int(frontier_row["generation"]) + 1,
-                    "consumed": consumed,
-                    "successors": successor_by_key,
-                    "observation": observation,
-                    "new_names": new_names,
-                },
-            )
-            result = {
-                "occurrence": occurrence,
-                "instance": possibility_row["instance_name"],
-                "reaction": possibility_row["reaction"],
-                "consumed": consumed,
-                "successors": successor_by_key,
-                "frontier": new_frontier,
-                "elaboration_authority": elaboration_authority,
-            }
-            self._idem_put(
-                db,
-                request_id,
-                "commit_occurrence",
-                payload,
-                result,
-            )
-            return result
-
-    def frontier(self, frontier: str) -> dict[str, Any]:
+    def authority_domain(self, domain: str) -> dict[str, Any]:
         row = self.db.execute(
-            "SELECT * FROM protocol_frontiers WHERE name=?",
-            (frontier,),
+            "SELECT name FROM authority_domains WHERE name=?",
+            (domain,),
         ).fetchone()
         if row is None:
-            raise KeyError(frontier)
-        item = dict(row)
-        item["projections"] = [
-            dict(r)
-            for r in self.db.execute(
-                "SELECT p.name,p.role,p.protocol_state,p.holder,p.disposition "
-                "FROM frontier_members fm "
-                "JOIN projections p ON p.name=fm.projection_name "
-                "WHERE fm.frontier_name=? ORDER BY p.role,p.name",
-                (frontier,),
-            ).fetchall()
-        ]
-        admission = self.db.execute(
-            "SELECT proof FROM frontier_admissions WHERE frontier_name=?",
-            (frontier,),
-        ).fetchone()
-        item["proof"] = None if admission is None else admission["proof"]
-        return item
+            raise KeyError(domain)
+        bound = self.named_eidos_value(domain)
+        return {
+            "name": domain,
+            "description_cid": bound["cid"],
+            "description": bound["value"],
+        }
 
     def projection(self, projection: str) -> dict[str, Any]:
         row = self.db.execute(
@@ -1548,63 +1007,23 @@ class TrustedMachinery:
         ).fetchone()
         if row is None:
             raise KeyError(projection)
-        return dict(row)
-
-    def reaction_possibility(self, possibility: str) -> dict[str, Any]:
-        row = self.db.execute(
-            "SELECT * FROM reaction_possibilities WHERE name=?",
-            (possibility,),
-        ).fetchone()
-        if row is None:
-            raise KeyError(possibility)
+        bound = self.named_eidos_value(projection)
+        description = bound["value"]
         item = dict(row)
-        item["inputs"] = [
-            r["projection_name"]
-            for r in self.db.execute(
-                "SELECT projection_name FROM reaction_inputs "
-                "WHERE possibility_name=? ORDER BY rowid",
-                (possibility,),
-            ).fetchall()
-        ]
-        item["outputs"] = [
-            dict(r)
-            for r in self.db.execute(
-                "SELECT output_key,role,protocol_state,holder,ordinal "
-                "FROM reaction_outputs WHERE possibility_name=? ORDER BY ordinal",
-                (possibility,),
-            ).fetchall()
-        ]
-        return item
-
-    def occurrence_record(self, occurrence: str) -> dict[str, Any]:
-        row = self.db.execute(
-            "SELECT * FROM occurrences WHERE name=?",
-            (occurrence,),
-        ).fetchone()
-        if row is None:
-            raise KeyError(occurrence)
-        item = dict(row)
-        item["observation"] = json.loads(item.pop("observation_json"))
-        item["inputs"] = [
-            r["projection_name"]
-            for r in self.db.execute(
-                "SELECT projection_name FROM occurrence_inputs "
-                "WHERE occurrence_name=? ORDER BY rowid",
-                (occurrence,),
-            ).fetchall()
-        ]
-        item["outputs"] = [
-            r["projection_name"]
-            for r in self.db.execute(
-                "SELECT projection_name FROM occurrence_outputs "
-                "WHERE occurrence_name=? ORDER BY ordinal",
-                (occurrence,),
-            ).fetchall()
-        ]
+        item["instance_name"] = item["domain_name"]
+        item["description_cid"] = bound["cid"]
+        item["description"] = description
+        if (
+            isinstance(description, RecordValue)
+            and description.get("$kind") == "Projection"
+        ):
+            item["seed_key"] = str(description.get("key"))
+            item["role"] = str(description.get("role"))
+            item["protocol_state"] = str(description.get("state"))
         return item
 
 
-    def create_observed_cut(
+    def create_observed_cut(    def create_observed_cut(
         self,
         *,
         instance: str,
@@ -1634,7 +1053,7 @@ class TrustedMachinery:
                 return old
 
             if db.execute(
-                "SELECT 1 FROM occurrence_instances WHERE name=?",
+                "SELECT 1 FROM authority_domains WHERE name=?",
                 (instance,),
             ).fetchone() is None:
                 raise KeyError(instance)
@@ -1650,7 +1069,7 @@ class TrustedMachinery:
                 ).fetchone()
                 if (
                     row is None
-                    or row["instance_name"] != instance
+                    or row["domain_name"] != instance
                     or row["disposition"] != "live"
                 ):
                     raise StaleProjection(
@@ -1660,17 +1079,17 @@ class TrustedMachinery:
             cut = self._new_name(db, "cut")
             authority = self._new_name(db, "projection")
             db.execute(
-                "INSERT INTO projections("
-                "name,instance_name,seed_key,role,protocol_state,holder,disposition"
-                ") VALUES (?,?,?,?,?,?,?)",
-                (
-                    authority,
-                    instance,
-                    f"meta:elaborator:{cut}",
-                    ELABORATOR_ROLE,
-                    elaborator_state(cut),
-                    elaborator,
-                    "live",
+                "INSERT INTO projections(name,domain_name,holder,disposition) "
+                "VALUES (?,?,?,?)",
+                (authority, instance, elaborator, "live"),
+            )
+            self._bind_eidos_value(
+                db,
+                name=authority,
+                value=projection_value(
+                    key=f"meta:elaborator:{cut}",
+                    role=ELABORATOR_ROLE,
+                    state=elaborator_state(cut),
                 ),
             )
 
@@ -1736,7 +1155,7 @@ class TrustedMachinery:
         parent_occurrence = semantic.get("parent_occurrence")
         item: dict[str, Any] = {
             "name": cut,
-            "instance_name": authority_row["instance_name"],
+            "instance_name": authority_row["domain_name"],
             "observer": str(semantic.get("observer")),
             "protocol_cid": str(semantic.get("protocol")),
             "parent_cut": None if parent_cut is None else parent_cut.value,
@@ -1754,14 +1173,7 @@ class TrustedMachinery:
         for reference in semantic.get("projections"):
             if not isinstance(reference, CoreName):
                 raise Conflict("Cut projection references must be Names")
-            row = self.db.execute(
-                "SELECT name,role,protocol_state,holder,disposition "
-                "FROM projections WHERE name=?",
-                (reference.value,),
-            ).fetchone()
-            if row is None:
-                raise KeyError(reference.value)
-            item["projections"].append(dict(row))
+            item["projections"].append(self.projection(reference.value))
         return item
 
     def admit_cut_elaboration(
@@ -1808,15 +1220,14 @@ class TrustedMachinery:
                         "Elaborator projection does not match Cut Value"
                     )
 
-                authority_row = db.execute(
-                    "SELECT instance_name,role,protocol_state,holder,disposition "
-                    "FROM projections WHERE name=?",
-                    (authority,),
-                ).fetchone()
+                try:
+                    authority_row = self.projection(authority)
+                except KeyError:
+                    authority_row = None
                 if (
                     authority_row is None
-                    or authority_row["role"] != ELABORATOR_ROLE
-                    or authority_row["protocol_state"] != elaborator_state(cut)
+                    or authority_row.get("role") != ELABORATOR_ROLE
+                    or authority_row.get("protocol_state") != elaborator_state(cut)
                     or authority_row["holder"] != blueprint.elaborator
                     or authority_row["disposition"] != "live"
                 ):
@@ -1824,19 +1235,19 @@ class TrustedMachinery:
                         "Elaborator projection is not live/bound for this cut"
                     )
 
-                instance = authority_row["instance_name"]
+                instance = authority_row["domain_name"]
                 instance_names.add(instance)
 
                 for reference in semantic.get("projections"):
                     if not isinstance(reference, CoreName):
                         raise Conflict("Cut projection references must be Names")
                     projection_row = db.execute(
-                        "SELECT instance_name FROM projections WHERE name=?",
+                        "SELECT domain_name FROM projections WHERE name=?",
                         (reference.value,),
                     ).fetchone()
                     if (
                         projection_row is None
-                        or projection_row["instance_name"] != instance
+                        or projection_row["domain_name"] != instance
                     ):
                         raise Conflict(
                             "Cut Value references projection outside its authority instance"
@@ -1869,9 +1280,12 @@ class TrustedMachinery:
                 grants.append(
                     ProjectionGrant(
                         key=f"actualizer:{possibility}",
-                        role=ACTUALIZER_ROLE,
-                        state=actualizer_state(possibility),
                         holder=blueprint.actualizer,
+                        description=projection_value(
+                            key=f"meta:actualizer:{possibility}",
+                            role=ACTUALIZER_ROLE,
+                            state=actualizer_state(possibility),
+                        ),
                     )
                 )
 
@@ -2011,21 +1425,21 @@ class TrustedMachinery:
                     "Actualizer projection does not match Possibility Value"
                 )
 
-            actualizer_row = db.execute(
-                "SELECT * FROM projections WHERE name=?",
-                (authority,),
-            ).fetchone()
+            try:
+                actualizer_row = self.projection(authority)
+            except KeyError:
+                actualizer_row = None
             if (
                 actualizer_row is None
-                or actualizer_row["role"] != ACTUALIZER_ROLE
-                or actualizer_row["protocol_state"] != actualizer_state(possibility)
+                or actualizer_row.get("role") != ACTUALIZER_ROLE
+                or actualizer_row.get("protocol_state") != actualizer_state(possibility)
                 or actualizer_row["holder"] != actualizer
                 or actualizer_row["disposition"] != "live"
             ):
                 raise Conflict(
                     "Actualizer projection is not live/bound for this possibility"
                 )
-            instance = actualizer_row["instance_name"]
+            instance = actualizer_row["domain_name"]
 
             input_names: list[str] = []
             for reference in semantic.get("inputs"):
@@ -2087,9 +1501,12 @@ class TrustedMachinery:
                 grants.append(
                     ProjectionGrant(
                         key=template["key"],
-                        role=template["role"],
-                        state=template["state"],
                         holder=template["holder"],
+                        description=projection_value(
+                            key=template["key"],
+                            role=template["role"],
+                            state=template["state"],
+                        ),
                     )
                 )
 
@@ -2098,9 +1515,12 @@ class TrustedMachinery:
                 grants.append(
                     ProjectionGrant(
                         key=f"elaborator:{new_cut}",
-                        role=ELABORATOR_ROLE,
-                        state=elaborator_state(new_cut),
                         holder=str(cut_value_.get("observer")),
+                        description=projection_value(
+                            key=f"meta:elaborator:{new_cut}",
+                            role=ELABORATOR_ROLE,
+                            state=elaborator_state(new_cut),
+                        ),
                     )
                 )
 
@@ -2153,12 +1573,7 @@ class TrustedMachinery:
                         raise Conflict("Cut projection references must be Names")
                     projection = reference.value
                     if projection in consumed_set:
-                        projection_row = db.execute(
-                            "SELECT role FROM projections WHERE name=?",
-                            (projection,),
-                        ).fetchone()
-                        if projection_row is None:
-                            raise KeyError(projection)
+                        projection_row = self.projection(projection)
                         projection = successor_by_role.get(projection_row["role"])
                         if projection is None:
                             continue
@@ -2247,16 +1662,11 @@ class TrustedMachinery:
         actualizer = semantic.get("actualizer")
         if not isinstance(actualizer, CoreName):
             raise Conflict("Possibility actualizer reference must be a Name")
-        actualizer_row = self.db.execute(
-            "SELECT * FROM projections WHERE name=?",
-            (actualizer.value,),
-        ).fetchone()
-        if actualizer_row is None:
-            raise KeyError(actualizer.value)
+        actualizer_row = self.projection(actualizer.value)
 
         item: dict[str, Any] = {
             "name": possibility,
-            "instance_name": actualizer_row["instance_name"],
+            "instance_name": actualizer_row["domain_name"],
             "proof": str(semantic.get("proof")),
             "seed_key": str(semantic.get("key")),
             "reaction": str(semantic.get("reaction")),
@@ -2364,11 +1774,11 @@ class TrustedMachinery:
         }
         outputs: list[str] = []
         for projection in item["established"]:
-            row = self.db.execute(
-                "SELECT role FROM projections WHERE name=?",
-                (projection,),
-            ).fetchone()
-            if row is not None and row["role"] in output_roles:
+            try:
+                row = self.projection(projection)
+            except KeyError:
+                row = None
+            if row is not None and row.get("role") in output_roles:
                 outputs.append(projection)
         item["outputs"] = outputs
         return item
@@ -2381,6 +1791,7 @@ class TrustedMachinery:
         if row is None:
             raise KeyError(occurrence)
         item = dict(row)
+        item["instance_name"] = item["domain_name"]
         item["fact"] = json.loads(item.pop("fact_json"))
         item["inputs"] = [
             r["projection_name"]
@@ -2420,8 +1831,7 @@ class TrustedMachinery:
             if old is not None:
                 return old
             row = db.execute(
-                "SELECT holder,disposition,role,protocol_state "
-                "FROM projections WHERE name=?",
+                "SELECT holder,disposition FROM projections WHERE name=?",
                 (projection,),
             ).fetchone()
             if (
@@ -2436,13 +1846,14 @@ class TrustedMachinery:
                 "UPDATE projections SET holder=? WHERE name=?",
                 (to_holder, projection),
             )
+            semantic = self.projection(projection)
             self._event(
                 db,
                 "projection_transferred",
                 {
                     "projection": projection,
-                    "role": row["role"],
-                    "protocol_state": row["protocol_state"],
+                    "role": semantic.get("role"),
+                    "protocol_state": semantic.get("protocol_state"),
                     "from": from_holder,
                     "to": to_holder,
                 },
@@ -2450,8 +1861,8 @@ class TrustedMachinery:
             result = {
                 "projection": projection,
                 "holder": to_holder,
-                "role": row["role"],
-                "protocol_state": row["protocol_state"],
+                "role": semantic.get("role"),
+                "protocol_state": semantic.get("protocol_state"),
             }
             self._idem_put(db, request_id, "transfer_projection", payload, result)
             return result
