@@ -148,23 +148,27 @@ recorded by this substrate.
 
 ## What remains special
 
-`MetaProtocolDriver` still has two semantic adapter branches because the two
-operations do different semantic preparation:
+The semantic adapters still differ because Elaborate and Actualize perform
+different semantic preparation:
 
 - Elaborate computes a possibility-space from cuts, models, and protocol rules;
-- Actualize interprets one already-derived possibility and updates observer-cut
-  bookkeeping around its occurrence.
+- Actualize takes one named Possibility and one observation and constructs the
+  corresponding causal transition.
 
-But neither branch implements its own authority transition anymore.
+But both cross the same ordinary Eidos perform boundary and both delegate their
+linear authority transition to the same generic occurrence commit.
 
-The remaining specialness is therefore above the Trusted Machinery nucleus:
-semantic derivation and representation, not authority mechanics.
+The semantic objects they manipulate are also no longer stored in bespoke
+observer tables. Cut, Elaboration, Possibility, and Occurrence are ordinary
+named Eidos Values.
+
+So the remaining specialness is primarily *interpretation code*: which Value
+conventions an Elaborator uses and how a chosen protocol maps them into
+ProjectionGrant(s) for the generic substrate.
 
 Trusted Machinery has reached the role we repeatedly wanted for it:
 
 > **an atomic commit engine for occurrences over live linear authority.**
 
-The next pressure point is whether the semantic bookkeeping now stored in
-specialized tables can itself migrate upward into ordinary Eidos Values and
-protocol code, leaving the substrate with little more than names, linear
-projection disposition, and generic occurrence commit.
+See [`SEMANTIC_VALUES.md`](SEMANTIC_VALUES.md) for the tableless observer path
+and the generic semantic-neighborhood lens.
