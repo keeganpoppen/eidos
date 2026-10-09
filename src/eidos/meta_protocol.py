@@ -44,6 +44,7 @@ def elaborate_operation(
     cuts: tuple[str, ...],
     authorities: Mapping[str, str],
     knowledge: tuple[str, ...] = (),
+    context: Name | str | None = None,
     actualizer: str,
     result_as: str,
     successor_as: str,
@@ -60,6 +61,7 @@ def elaborate_operation(
                 "cuts": tuple(cuts),
                 "authorities": tuple(sorted(authorities.items())),
                 "knowledge": tuple(knowledge),
+                "context": context,
                 "actualizer": actualizer,
             }
         ),
@@ -183,12 +185,24 @@ class MetaProtocolDriver:
             )
 
         observed = tuple(self._cut(cut) for cut in cuts)
+        context_ref = request.get("context")
+        if isinstance(context_ref, Name):
+            context_name = context_ref.value
+        elif isinstance(context_ref, str):
+            context_name = context_ref
+        elif context_ref is None:
+            context_name = None
+        else:
+            raise MetaProtocolError("context must be a Name or its exact value")
+
         blueprint = elaborate_cuts(
             protocol,
             cuts=observed,
             elaborator=str(projection["holder"]),
             actualizer=_string(request, "actualizer"),
             knowledge=tuple(str(item) for item in request.get("knowledge", ())),
+            context=context_name,
+            resolve=lambda name: self.trusted.named_eidos_value(name)["value"],
         )
         admitted = self.trusted.admit_cut_elaboration(
             blueprint=blueprint,
@@ -204,6 +218,8 @@ class MetaProtocolDriver:
             {
                 "occurrence": Name(admitted["occurrence"]),
                 "proof": admitted["proof"],
+                "context": None if blueprint.context is None else Name(blueprint.context),
+                "facts": blueprint.facts,
                 "possibilities": {
                     key: Name(name)
                     for key, name in admitted["possibilities"].items()
