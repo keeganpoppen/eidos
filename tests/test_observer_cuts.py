@@ -1,0 +1,338 @@
+import pytest
+
+from eidos.cuts import ObservedCut, elaborate_cuts
+from eidos.occurrence import (
+    FrontierProjection,
+    ProjectionTemplate,
+    ReactionRule,
+    RecursiveProtocol,
+    elaborate_genesis,
+)
+from eidos.trusted import Conflict, TrustedMachinery
+
+
+def observer_protocol() -> RecursiveProtocol:
+    return RecursiveProtocol(
+        name="observer-relative",
+        initial=(
+            ProjectionTemplate("A", "a0"),
+            ProjectionTemplate("B", "b0"),
+            ProjectionTemplate("C", "c0"),
+            ProjectionTemplate("D", "d0"),
+        ),
+        reactions=(
+            ReactionRule(
+                name="left",
+                requires=(
+                    ProjectionTemplate("A", "a0"),
+                    ProjectionTemplate("B", "b0"),
+                ),
+                successors=(
+                    ProjectionTemplate("A", "a1"),
+                    ProjectionTemplate("B", "b1"),
+                ),
+            ),
+            ReactionRule(
+                name="right",
+                requires=(
+                    ProjectionTemplate("C", "c0"),
+                    ProjectionTemplate("D", "d0"),
+                ),
+                successors=(
+                    ProjectionTemplate("C", "c1"),
+                    ProjectionTemplate("D", "d1"),
+                ),
+            ),
+            ReactionRule(
+                name="join",
+                requires=(
+                    ProjectionTemplate("B", "b1"),
+                    ProjectionTemplate("D", "d1"),
+                ),
+                successors=(
+                    ProjectionTemplate("B", "b2"),
+                    ProjectionTemplate("D", "d2"),
+                ),
+            ),
+        ),
+    )
+
+
+def as_observed_cut(tm: TrustedMachinery, cut: str) -> ObservedCut:
+    row = tm.causal_cut(cut)
+    return ObservedCut(
+        name=cut,
+        observer=row["observer"],
+        protocol_cid=row["protocol_cid"],
+        parent_cut=row["parent_cut"],
+        parent_occurrence=row["parent_occurrence"],
+        projections=tuple(
+            FrontierProjection(
+                name=projection["name"],
+                role=projection["role"],
+                state=projection["protocol_state"],
+                holder=projection["holder"],
+            )
+            for projection in row["projections"]
+            if projection["disposition"] == "live"
+        ),
+    )
+
+
+def setup_observer_cuts():
+    tm = TrustedMachinery()
+    protocol = observer_protocol()
+    installed = tm.install_occurrence_blueprint(
+        blueprint=elaborate_genesis(
+            protocol,
+            holders={
+                "A": "alice",
+                "B": "bob",
+                "C": "carol",
+                "D": "dan",
+            },
+        ),
+        request_id="observer-genesis",
+    )
+
+    left = tm.create_observed_cut(
+        instance=installed["instance"],
+        observer="O1",
+        protocol_cid=protocol.cid,
+        projections=[
+            installed["projections"]["projection:A"],
+            installed["projections"]["projection:B"],
+        ],
+        request_id="cut-o1",
+    )
+    right = tm.create_observed_cut(
+        instance=installed["instance"],
+        observer="O2",
+        protocol_cid=protocol.cid,
+        projections=[
+            installed["projections"]["projection:C"],
+            installed["projections"]["projection:D"],
+        ],
+        request_id="cut-o2",
+    )
+    return tm, protocol, installed, left, right
+
+
+def admit_one(tm, protocol, cut_info, *, elaborator, actualizer, request_id):
+    cut = as_observed_cut(tm, cut_info["cut"])
+    blueprint = elaborate_cuts(
+        protocol,
+        cuts=(cut,),
+        elaborator=elaborator,
+        actualizer=actualizer,
+    )
+    admitted = tm.admit_cut_elaboration(
+        blueprint=blueprint,
+        authorities={cut.name: cut_info["authority"]},
+        request_id=request_id,
+    )
+    return blueprint, admitted
+
+
+def test_disjoint_observer_cuts_actualize_without_global_generation_lock():
+    tm, protocol, _, left, right = setup_observer_cuts()
+
+    left_blueprint, left_admitted = admit_one(
+        tm,
+        protocol,
+        left,
+        elaborator="elaborator:left",
+        actualizer="actualizer:local",
+        request_id="admit-left",
+    )
+    right_blueprint, right_admitted = admit_one(
+        tm,
+        protocol,
+        right,
+        elaborator="elaborator:right",
+        actualizer="actualizer:local",
+        request_id="admit-right",
+    )
+
+    assert [p.reaction for p in left_blueprint.possibilities] == ["left"]
+    assert [p.reaction for p in right_blueprint.possibilities] == ["right"]
+
+    left_possibility = next(iter(left_admitted["possibilities"].values()))
+    right_possibility = next(iter(right_admitted["possibilities"].values()))
+
+    left_occurrence = tm.actualize_observed(
+        possibility=left_possibility,
+        actualizer="actualizer:local",
+        observation={"observer": "O1", "signal": "left"},
+        request_id="actualize-left",
+    )
+
+    # O2's cut and possibility remain current. There is no global frontier
+    # generation that was consumed by O1's independent occurrence.
+    assert tm.causal_cut(right["cut"])["state"] == "elaborated"
+    assert tm.observed_possibility(right_possibility)["state"] == "open"
+
+    right_occurrence = tm.actualize_observed(
+        possibility=right_possibility,
+        actualizer="actualizer:local",
+        observation={"observer": "O2", "signal": "right"},
+        request_id="actualize-right",
+    )
+
+    assert left_occurrence["occurrence"] != right_occurrence["occurrence"]
+    assert tm.observed_possibility(left_possibility)["state"] == "occurred"
+    assert tm.observed_possibility(right_possibility)["state"] == "occurred"
+
+
+def test_joint_elaboration_discovers_reaction_in_union_of_observer_worlds():
+    tm, protocol, _, left, right = setup_observer_cuts()
+
+    _, left_admitted = admit_one(
+        tm,
+        protocol,
+        left,
+        elaborator="elaborator:left",
+        actualizer="actualizer:local",
+        request_id="join-admit-left",
+    )
+    _, right_admitted = admit_one(
+        tm,
+        protocol,
+        right,
+        elaborator="elaborator:right",
+        actualizer="actualizer:local",
+        request_id="join-admit-right",
+    )
+
+    left_occurrence = tm.actualize_observed(
+        possibility=next(iter(left_admitted["possibilities"].values())),
+        actualizer="actualizer:local",
+        observation={"observer": "O1"},
+        request_id="join-left",
+    )
+    right_occurrence = tm.actualize_observed(
+        possibility=next(iter(right_admitted["possibilities"].values())),
+        actualizer="actualizer:local",
+        observation={"observer": "O2"},
+        request_id="join-right",
+    )
+
+    left_cut = next(iter(left_occurrence["successor_cuts"].values()))
+    right_cut = next(iter(right_occurrence["successor_cuts"].values()))
+
+    # Neither observer can see the join alone.
+    left_only = elaborate_cuts(
+        protocol,
+        cuts=(as_observed_cut(tm, left_cut),),
+        elaborator="elaborator:left",
+        actualizer="actualizer:joint",
+    )
+    right_only = elaborate_cuts(
+        protocol,
+        cuts=(as_observed_cut(tm, right_cut),),
+        elaborator="elaborator:right",
+        actualizer="actualizer:joint",
+    )
+    assert [p.reaction for p in left_only.possibilities] == []
+    assert [p.reaction for p in right_only.possibilities] == []
+
+    # The union of the two observer-relative cuts makes the relation addressable.
+    joint = elaborate_cuts(
+        protocol,
+        cuts=(
+            as_observed_cut(tm, left_cut),
+            as_observed_cut(tm, right_cut),
+        ),
+        elaborator="elaborator:joint",
+        actualizer="actualizer:joint",
+    )
+    assert joint.observers == ("O1", "O2")
+    assert [p.reaction for p in joint.possibilities] == ["join"]
+
+    admitted = tm.admit_cut_elaboration(
+        blueprint=joint,
+        authorities={
+            left_cut: left_occurrence["elaboration_authorities"][left_cut],
+            right_cut: right_occurrence["elaboration_authorities"][right_cut],
+        },
+        request_id="admit-joint",
+    )
+    join_possibility = next(iter(admitted["possibilities"].values()))
+
+    joined = tm.actualize_observed(
+        possibility=join_possibility,
+        actualizer="actualizer:joint",
+        observation={"witness": "shared relation became discernible"},
+        request_id="actualize-joint",
+    )
+
+    record = tm.observed_occurrence(joined["occurrence"])
+    assert set(record["cuts"]) == {left_cut, right_cut}
+
+    successor_left = joined["successor_cuts"][left_cut]
+    successor_right = joined["successor_cuts"][right_cut]
+    assert (
+        tm.causal_cut(successor_left)["parent_occurrence"]
+        == tm.causal_cut(successor_right)["parent_occurrence"]
+        == joined["occurrence"]
+    )
+
+    # Each observer keeps a local cut, but both histories now name the same
+    # occurrence as their immediate causal parent.
+    left_states = {
+        p["role"]: p["protocol_state"]
+        for p in tm.causal_cut(successor_left)["projections"]
+    }
+    right_states = {
+        p["role"]: p["protocol_state"]
+        for p in tm.causal_cut(successor_right)["projections"]
+    }
+    assert left_states == {"A": "a1", "B": "b2"}
+    assert right_states == {"C": "c1", "D": "d2"}
+
+
+def test_cut_name_is_identity_not_elaboration_authority():
+    tm, protocol, _, left, _ = setup_observer_cuts()
+    cut = as_observed_cut(tm, left["cut"])
+    blueprint = elaborate_cuts(
+        protocol,
+        cuts=(cut,),
+        elaborator="elaborator:left",
+        actualizer="actualizer:local",
+    )
+
+    with pytest.raises(Conflict, match="elaboration authority"):
+        tm.admit_cut_elaboration(
+            blueprint=blueprint,
+            authorities={cut.name: cut.name},
+            request_id="cut-name-not-authority",
+        )
+
+
+def test_actualizer_is_a_role_selected_by_the_elaboration():
+    tm, protocol, _, left, _ = setup_observer_cuts()
+    _, admitted = admit_one(
+        tm,
+        protocol,
+        left,
+        elaborator="elaborator:alice",
+        actualizer="actualizer:alpha",
+        request_id="role-admission",
+    )
+    possibility = next(iter(admitted["possibilities"].values()))
+
+    with pytest.raises(Conflict, match="Actualizer"):
+        tm.actualize_observed(
+            possibility=possibility,
+            actualizer="actualizer:beta",
+            observation={},
+            request_id="wrong-actualizer",
+        )
+
+    occurred = tm.actualize_observed(
+        possibility=possibility,
+        actualizer="actualizer:alpha",
+        observation={},
+        request_id="right-actualizer",
+    )
+    assert occurred["actualizer"] == "actualizer:alpha"
