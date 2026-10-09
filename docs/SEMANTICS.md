@@ -3,10 +3,11 @@
 This is deliberately a small executable hypothesis, not a final ontology.
 
 > **Scope note:** this document describes the existing executable authority
-> runtime. [`CORE.md`](CORE.md) explores a smaller language nucleus in which
-> Frame and Protocol are derived constructions and Reaction generalizes Match.
-> The two documents are complementary; the core experiment does not yet replace
-> the runtime below.
+> runtime. [`CORE.md`](CORE.md) explores the smaller language nucleus, while
+> [`OCCURRENCES.md`](OCCURRENCES.md) tests a newer reaction-side factoring:
+> protocol semantics elaborate latent possibilities above Trusted Machinery,
+> and Trusted Machinery performs only the atomic commit of an occurrence. These
+> experiments do not yet replace the working runtime below.
 
 ## Runtime vocabulary
 
@@ -37,7 +38,7 @@ Trusted Machinery alone guarantees:
 
 Bindings remain ordinary Eidos data. Rebinding constructs another immutable Frame; it is not a Trusted-Machinery mutation primitive.
 
-Praxis performs local reduction until it encounters `perform`. The remainder is represented explicitly as a serializable continuation (`Await`). Trusted Machinery determines whether the named socket can legally participate in an external transition.
+Praxis performs local reduction until it encounters `perform`. The remainder is represented explicitly as a serializable continuation (`Await`). In the v0 path below, Trusted Machinery still interprets ProtocolSpec to decide whether a Socket transition is legal. The occurrence experiment deliberately removes that responsibility: rich semantics elaborate possible Reactions first, and Trusted Machinery only commits one already-installed possibility against current linear authority.
 
 The v0 implementation intentionally keeps `reserve_name`, `open_session`, `publish_frame`, `match`, and `transfer_socket` explicit. A later calculus may desugar them through the meta protocol once we have proved the collapse rather than merely admired it.
 
