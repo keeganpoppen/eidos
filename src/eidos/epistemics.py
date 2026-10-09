@@ -190,6 +190,7 @@ def interpret_context(
     cuts: Iterable[str],
     adapters: Mapping[str, ModelAdapter] | None = None,
     process_runner: Any | None = None,
+    inference_limit: int | None = None,
 ) -> EpistemicResult:
     """Interpret a situated Context, optionally invoking registered executors.
 
@@ -287,6 +288,15 @@ def interpret_context(
         focus = {ref.value for ref in focus_refs}
         if focus and not focus <= set(models):
             raise ValueError("attention focuses on a model outside its context")
+
+    if inference_limit is not None:
+        if (
+            isinstance(inference_limit, bool)
+            or not isinstance(inference_limit, int)
+            or inference_limit < 0
+        ):
+            raise ValueError("inference_limit must be a nonnegative integer")
+        budget = min(budget, inference_limit)
 
     selected_models: list[tuple[str, RecordValue]] = []
     for ref in models:
