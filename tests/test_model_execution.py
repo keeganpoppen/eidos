@@ -205,9 +205,9 @@ def world():
     return tm, p, cut, {
         "claim": claim,
         "attention": attention,
-        "rules": rule_model,
-        "closure": eidos_model,
-        "delegated": delegated_model,
+        "model:rules": rule_model,
+        "model:closure": eidos_model,
+        "model:delegated": delegated_model,
         "executor": executor,
         **contexts,
     }
@@ -327,7 +327,7 @@ def test_delegated_model_is_explicitly_registered_and_derivation_is_addressable(
     assert derivation.get("$kind") == "ModelDerivation"
     assert derivation.get("engine") == "delegated"
     assert derivation.get("executor") == Name(refs["executor"])
-    assert derivation.get("model") == Name(refs["delegated"])
+    assert derivation.get("model") == Name(refs["model:delegated"])
     assert derivation.get("input").get("context") == Name(refs["delegated"])
     assert derivation.get("proposal").get("receipt").get("$kind") == "ExecutorReceipt"
     assert elaboration.get("inferences")[0].get("derivation") == tm.named_eidos_value(derivation_ref.value)["cid"]
@@ -445,7 +445,7 @@ def test_attention_does_not_call_unneeded_delegated_model():
         context_value(
             cuts=(cut["cut"],),
             knowledge=(refs["claim"],),
-            models=(refs["rules"], refs["delegated"]),
+            models=(refs["model:rules"], refs["model:delegated"]),
             attention=refs["attention"],
         ),
     )
