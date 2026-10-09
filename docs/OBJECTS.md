@@ -1,6 +1,6 @@
 # Objects as a Core library
 
-This experiment follows [`DISPATCH.md`](DISPATCH.md) and removes the remaining
+This experiment follows [`experiments/DISPATCH.md`](experiments/DISPATCH.md) and removes the remaining
 structural-dispatch hook from the evaluator.
 
 The result is stronger than the Facet experiment:
