@@ -1,18 +1,18 @@
 from __future__ import annotations
 
-"""Generic linear-authority occurrence descriptions.
+"""Generic linear-authority descriptions.
 
-This module contains no protocol semantics. A ProjectionGrant says exactly what
-live projection capability an occurrence may establish if Trusted Machinery
-successfully commits it.
+Trusted Machinery interprets only holder and linear disposition. The semantic
+description of a projection is an ordinary Eidos Value bound to the projection
+Name; TM persists it but does not interpret its fields.
 """
 
 from dataclasses import dataclass
+from typing import Any
 
 
 @dataclass(frozen=True)
 class ProjectionGrant:
     key: str
-    role: str
-    state: str
     holder: str
+    description: Any
