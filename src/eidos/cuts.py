@@ -13,10 +13,12 @@ role is a singleton process.
 """
 
 from dataclasses import dataclass
-from typing import Any, Callable, Iterable
+from typing import Any, Callable, Iterable, Mapping
 
 from .model import content_id
 from .epistemics import Inference, interpret_context
+from .model_execution import ModelAdapter
+from .core import RecordValue
 from .occurrence import (
     FrontierPossibilitySeed,
     FrontierProjection,
@@ -54,6 +56,7 @@ class CutElaboration:
     context: str | None = None
     facts: tuple[str, ...] = ()
     inferences: tuple[Inference, ...] = ()
+    derivations: tuple[RecordValue, ...] = ()
 
     @property
     def proof(self) -> str:
@@ -69,6 +72,7 @@ def elaborate_cuts(
     knowledge: Iterable[str] = (),
     context: str | None = None,
     resolve: Callable[[str], Any] | None = None,
+    adapters: Mapping[str, ModelAdapter] | None = None,
 ) -> CutElaboration:
     """Derive adjacent possibilities visible across a collection of cuts.
 
@@ -86,6 +90,7 @@ def elaborate_cuts(
 
     facts: tuple[str, ...] = ()
     inferences: tuple[Inference, ...] = ()
+    derivations: tuple[RecordValue, ...] = ()
     if context is not None:
         if resolve is None:
             raise ValueError("named epistemic contexts require a Value resolver")
@@ -93,9 +98,11 @@ def elaborate_cuts(
             context,
             resolve=resolve,
             cuts=(cut.name for cut in materialized),
+            adapters=adapters,
         )
         facts = epistemic.facts
         inferences = epistemic.inferences
+        derivations = epistemic.derivations
 
     by_name: dict[str, FrontierProjection] = {}
     by_role: dict[str, FrontierProjection] = {}
@@ -157,6 +164,7 @@ def elaborate_cuts(
         context=context,
         facts=facts,
         inferences=inferences,
+        derivations=derivations,
     )
 
 
