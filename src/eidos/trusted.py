@@ -1614,6 +1614,18 @@ class TrustedMachinery:
                     "live",
                 ),
             )
+            cut_cid = self._bind_eidos_value(
+                db,
+                name=cut,
+                value=cut_value(
+                    name=cut,
+                    observer=observer,
+                    protocol_cid=protocol_cid,
+                    projections=tuple(unique),
+                    parent_cut=parent_cut,
+                    parent_occurrence=parent_occurrence,
+                ),
+            )
             self._event(
                 db,
                 "causal_cut_created",
@@ -1627,6 +1639,7 @@ class TrustedMachinery:
                     "projections": unique,
                     "elaborator": elaborator,
                     "elaborator_projection": authority,
+                    "value": cut_cid,
                     "new_names": [cut, authority],
                 },
             )
@@ -1635,6 +1648,7 @@ class TrustedMachinery:
                 "observer": observer,
                 "authority": authority,
                 "elaborator_projection": authority,
+                "value": cut_cid,
             }
             self._idem_put(db, request_id, "create_observed_cut", payload, result)
             return result
@@ -1756,6 +1770,7 @@ class TrustedMachinery:
                 )
 
             possibilities: dict[str, str] = {}
+            possibility_seeds: dict[str, Any] = {}
             grants: list[ProjectionGrant] = []
             possibility_names: list[str] = []
             for seed in blueprint.possibilities:
@@ -1766,6 +1781,7 @@ class TrustedMachinery:
                 possibility = self._new_name(db, "observed_possibility")
                 possibility_names.append(possibility)
                 possibilities[seed.key] = possibility
+                possibility_seeds[possibility] = seed
                 db.execute(
                     "INSERT INTO observed_possibilities("
                     "name,instance_name,proof,seed_key,reaction,elaborator,actualizer,state"
@@ -1839,6 +1855,7 @@ class TrustedMachinery:
                 possibility: committed["established"][f"actualizer:{possibility}"]
                 for possibility in possibilities.values()
             }
+            possibility_values: dict[str, str] = {}
             for possibility, projection in actualizers.items():
                 db.execute(
                     "INSERT INTO observed_possibility_actualizers("
@@ -1846,6 +1863,46 @@ class TrustedMachinery:
                     ") VALUES (?,?)",
                     (possibility, projection),
                 )
+                seed = possibility_seeds[possibility]
+                possibility_values[possibility] = self._bind_eidos_value(
+                    db,
+                    name=possibility,
+                    value=possibility_value(
+                        name=possibility,
+                        proof=blueprint.proof,
+                        reaction=seed.reaction,
+                        cuts=tuple(blueprint.cuts),
+                        inputs=tuple(seed.consumes),
+                        outputs=tuple(
+                            {
+                                "key": successor.key,
+                                "role": successor.role,
+                                "state": successor.state,
+                                "holder": successor.holder,
+                            }
+                            for successor in seed.establishes
+                        ),
+                        actualizer_projection=projection,
+                    ),
+                )
+
+            elaboration_cid = self._bind_eidos_value(
+                db,
+                name=committed["occurrence"],
+                value=elaboration_value(
+                    occurrence=committed["occurrence"],
+                    proof=blueprint.proof,
+                    protocol_cid=blueprint.protocol_cid,
+                    cuts=tuple(blueprint.cuts),
+                    observers=tuple(blueprint.observers),
+                    elaborator=blueprint.elaborator,
+                    actualizer=blueprint.actualizer,
+                    knowledge=tuple(blueprint.knowledge),
+                    possibilities=tuple(possibilities.values()),
+                    consumed=tuple(committed["consumed"]),
+                    established=tuple(committed["established"].values()),
+                ),
+            )
 
             self._event(
                 db,
@@ -1860,6 +1917,8 @@ class TrustedMachinery:
                     "knowledge": list(blueprint.knowledge),
                     "possibilities": possibilities,
                     "actualizer_projections": actualizers,
+                    "value": elaboration_cid,
+                    "possibility_values": possibility_values,
                     "new_names": possibility_names,
                 },
             )
@@ -1868,6 +1927,8 @@ class TrustedMachinery:
                 "proof": blueprint.proof,
                 "possibilities": possibilities,
                 "actualizers": actualizers,
+                "value": elaboration_cid,
+                "possibility_values": possibility_values,
             }
             self._idem_put(db, request_id, "admit_cut_elaboration", payload, result)
             return result
