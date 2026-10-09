@@ -62,22 +62,27 @@ Elaboration and actualization differ semantically, not mechanically.
 
 ### Executable Models
 
-The Model Role has three interchangeable realizations: a declarative rule set,
-a first-class **Eidos Closure** evaluated under situated Role bindings, or an
-explicitly registered **delegated executor** (including a subprocess adapter).
+The Model Role has four realizations: declarative rules, a pure
+first-class **Eidos Closure**, an explicitly registered **delegated executor**
+(including subprocess transport), or a **resumable Eidos process** whose
+continuations and informational interactions are durable named Values.
 
-All three receive a `ModelInput` Value containing the Context, grounded facts,
-Cuts, and remaining attention. All three return a `ModelProposal` Value with
-claims, cited premises, and an execution receipt.
+All four receive a `ModelInput` Value containing the Context, grounded facts,
+Cuts, and remaining attention, and eventually return a `ModelProposal` with
+claims, cited premises, and an execution receipt. A process Model can suspend
+on its own linear Socket to inspect contextual Values or consult a separately
+admitted specialist, then resume from a persisted Eidos continuation—even
+under a new runner after a crash.
 
 A committed Elaboration binds each run's **ModelDerivation** as a separate
 immutable, named Value, so a lens can inspect precisely what code/model ran,
 what input it saw, and what it asserted. External execution requires explicit
 registration; simply knowing an executor Name cannot invoke it.
 
-Executable claims remain epistemic assertions. They do not manufacture
-participant authority, and the Actualizer still requires a separate live
-capability transaction.
+Executable claims remain epistemic assertions. The process's own
+epistemic interactions consume only its private process-domain projections,
+never the participant projections in the world being studied. The Actualizer
+still requires a separate live capability transaction.
 
 ### Trusted Machinery™
 
@@ -240,7 +245,8 @@ See:
 - [`docs/CORE.md`](docs/CORE.md) — executable Core language nucleus;
 - [`docs/OBSERVER_CUTS.md`](docs/OBSERVER_CUTS.md) — observer-relative causal cuts and joint elaboration;
 - [`docs/EPISTEMICS.md`](docs/EPISTEMICS.md) — named Knowledge, Models, Attention, and progressive epistemic Contexts;
-- [`docs/MODEL_EXECUTION.md`](docs/MODEL_EXECUTION.md) — common declarative/Closure/delegated Model contract and provenance;
+- [`docs/MODEL_EXECUTION.md`](docs/MODEL_EXECUTION.md) — executable Model contract and provenance;
+- [`docs/MODEL_PROCESSES.md`](docs/MODEL_PROCESSES.md) — resumable Model continuations, informational Reactions, and crash recovery;
 - [`docs/META_PROTOCOL.md`](docs/META_PROTOCOL.md) — Elaborate / Actualize as ordinary Eidos Socket operations;
 - [`docs/SEMANTIC_VALUES.md`](docs/SEMANTIC_VALUES.md) — tableless semantic objects, addressable provenance, and lenses;
 - [`docs/SUMMARY_TREE.md`](docs/SUMMARY_TREE.md) — hindsight-first semantic tree over Codex evidence;
