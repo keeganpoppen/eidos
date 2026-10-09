@@ -1551,7 +1551,11 @@ class TrustedMachinery:
         authorities: dict[str, str],
         request_id: str,
     ) -> dict[str, Any]:
-        """Admit possibilities derived from one or more observer-relative cuts."""
+        """Admit possibilities derived from observer-relative cuts.
+
+        Semantic validation remains here. The authority transition itself is
+        delegated to the generic projection-occurrence commit primitive.
+        """
 
         payload = {
             "blueprint": asdict(blueprint),
@@ -1579,6 +1583,7 @@ class TrustedMachinery:
                     raise Conflict(f"cut {cut!r} is {row['state']}, not open")
                 if row["protocol_cid"] != blueprint.protocol_cid:
                     raise Conflict("cut names a different protocol commitment")
+
                 authority = authorities[cut]
                 authority_row = db.execute(
                     "SELECT instance_name,role,protocol_state,holder,disposition "
@@ -1596,6 +1601,7 @@ class TrustedMachinery:
                     raise Conflict(
                         "Elaborator projection is not live/bound for this cut"
                     )
+
                 cut_rows[cut] = row
                 for member in db.execute(
                     "SELECT projection_name FROM cut_members WHERE cut_name=?",
@@ -1624,14 +1630,10 @@ class TrustedMachinery:
                     json.dumps(payload, sort_keys=True, separators=(",", ":")),
                 ),
             )
-            for cut, authority in authorities.items():
+            for cut in blueprint.cuts:
                 db.execute(
                     "INSERT INTO cut_admission_cuts(proof,cut_name) VALUES (?,?)",
                     (blueprint.proof, cut),
-                )
-                db.execute(
-                    "UPDATE projections SET disposition='spent' WHERE name=?",
-                    (authority,),
                 )
                 db.execute(
                     "UPDATE causal_cuts SET state='elaborated' WHERE name=?",
@@ -1639,15 +1641,15 @@ class TrustedMachinery:
                 )
 
             possibilities: dict[str, str] = {}
-            actualizers: dict[str, str] = {}
-            new_names: list[str] = []
+            grants: list[ProjectionGrant] = []
+            possibility_names: list[str] = []
             for seed in blueprint.possibilities:
                 if not set(seed.consumes) <= observed_projection_names:
                     raise Conflict(
                         f"possibility {seed.key!r} consumes projections outside observed cuts"
                     )
                 possibility = self._new_name(db, "observed_possibility")
-                new_names.append(possibility)
+                possibility_names.append(possibility)
                 possibilities[seed.key] = possibility
                 db.execute(
                     "INSERT INTO observed_possibilities("
@@ -1663,29 +1665,6 @@ class TrustedMachinery:
                         blueprint.actualizer,
                         "open",
                     ),
-                )
-                actualizer_projection = self._new_name(db, "projection")
-                actualizers[possibility] = actualizer_projection
-                new_names.append(actualizer_projection)
-                db.execute(
-                    "INSERT INTO projections("
-                    "name,instance_name,seed_key,role,protocol_state,holder,disposition"
-                    ") VALUES (?,?,?,?,?,?,?)",
-                    (
-                        actualizer_projection,
-                        instance,
-                        f"meta:actualizer:{possibility}",
-                        ACTUALIZER_ROLE,
-                        actualizer_state(possibility),
-                        blueprint.actualizer,
-                        "live",
-                    ),
-                )
-                db.execute(
-                    "INSERT INTO observed_possibility_actualizers("
-                    "possibility_name,projection_name"
-                    ") VALUES (?,?)",
-                    (possibility, actualizer_projection),
                 )
                 for cut in blueprint.cuts:
                     db.execute(
@@ -1715,15 +1694,49 @@ class TrustedMachinery:
                             successor.holder,
                         ),
                     )
+                grants.append(
+                    ProjectionGrant(
+                        key=f"actualizer:{possibility}",
+                        role=ACTUALIZER_ROLE,
+                        state=actualizer_state(possibility),
+                        holder=blueprint.actualizer,
+                    )
+                )
 
-            meta_occurrence = self._new_name(db, "occurrence")
-            new_names.append(meta_occurrence)
+            committed = self._commit_projection_occurrence(
+                db,
+                kind="Elaborate",
+                consumes=tuple(
+                    authorities[cut] for cut in sorted(blueprint.cuts)
+                ),
+                establishes=tuple(grants),
+                fact={
+                    "proof": blueprint.proof,
+                    "cuts": list(blueprint.cuts),
+                    "observers": list(blueprint.observers),
+                    "elaborator": blueprint.elaborator,
+                    "actualizer": blueprint.actualizer,
+                    "knowledge": list(blueprint.knowledge),
+                    "possibilities": possibilities,
+                },
+            )
+            actualizers = {
+                possibility: committed["established"][f"actualizer:{possibility}"]
+                for possibility in possibilities.values()
+            }
+            for possibility, projection in actualizers.items():
+                db.execute(
+                    "INSERT INTO observed_possibility_actualizers("
+                    "possibility_name,projection_name"
+                    ") VALUES (?,?)",
+                    (possibility, projection),
+                )
 
             self._event(
                 db,
                 "cut_elaboration_admitted",
                 {
-                    "occurrence": meta_occurrence,
+                    "occurrence": committed["occurrence"],
                     "proof": blueprint.proof,
                     "cuts": list(blueprint.cuts),
                     "observers": list(blueprint.observers),
@@ -1732,11 +1745,11 @@ class TrustedMachinery:
                     "knowledge": list(blueprint.knowledge),
                     "possibilities": possibilities,
                     "actualizer_projections": actualizers,
-                    "new_names": new_names,
+                    "new_names": possibility_names,
                 },
             )
             result = {
-                "occurrence": meta_occurrence,
+                "occurrence": committed["occurrence"],
                 "proof": blueprint.proof,
                 "possibilities": possibilities,
                 "actualizers": actualizers,
