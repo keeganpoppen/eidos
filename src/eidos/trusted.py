@@ -838,6 +838,7 @@ class TrustedMachinery:
 
             live_names = {item["name"] for item in expected}
             possibilities: dict[str, str] = {}
+            actualizers: dict[str, str] = {}
             new_names: list[str] = []
             for seed in blueprint.possibilities:
                 if not set(seed.consumes) <= live_names:
@@ -1398,16 +1399,21 @@ class TrustedMachinery:
                     raise Conflict("cut names a different protocol commitment")
                 authority = authorities[cut]
                 authority_row = db.execute(
-                    "SELECT cut_name,disposition FROM cut_elaboration_authorities "
-                    "WHERE token=?",
+                    "SELECT instance_name,role,protocol_state,holder,disposition "
+                    "FROM projections WHERE name=?",
                     (authority,),
                 ).fetchone()
                 if (
                     authority_row is None
-                    or authority_row["cut_name"] != cut
+                    or authority_row["instance_name"] != row["instance_name"]
+                    or authority_row["role"] != ELABORATOR_ROLE
+                    or authority_row["protocol_state"] != elaborator_state(cut)
+                    or authority_row["holder"] != blueprint.elaborator
                     or authority_row["disposition"] != "live"
                 ):
-                    raise Conflict("elaboration authority is not live for this cut")
+                    raise Conflict(
+                        "Elaborator projection is not live/bound for this cut"
+                    )
                 cut_rows[cut] = row
                 for member in db.execute(
                     "SELECT projection_name FROM cut_members WHERE cut_name=?",
@@ -1442,8 +1448,7 @@ class TrustedMachinery:
                     (blueprint.proof, cut),
                 )
                 db.execute(
-                    "UPDATE cut_elaboration_authorities SET disposition='spent' "
-                    "WHERE token=?",
+                    "UPDATE projections SET disposition='spent' WHERE name=?",
                     (authority,),
                 )
                 db.execute(
@@ -1475,6 +1480,29 @@ class TrustedMachinery:
                         blueprint.actualizer,
                         "open",
                     ),
+                )
+                actualizer_projection = self._new_name(db, "projection")
+                actualizers[possibility] = actualizer_projection
+                new_names.append(actualizer_projection)
+                db.execute(
+                    "INSERT INTO projections("
+                    "name,instance_name,seed_key,role,protocol_state,holder,disposition"
+                    ") VALUES (?,?,?,?,?,?,?)",
+                    (
+                        actualizer_projection,
+                        instance,
+                        f"meta:actualizer:{possibility}",
+                        ACTUALIZER_ROLE,
+                        actualizer_state(possibility),
+                        blueprint.actualizer,
+                        "live",
+                    ),
+                )
+                db.execute(
+                    "INSERT INTO observed_possibility_actualizers("
+                    "possibility_name,projection_name"
+                    ") VALUES (?,?)",
+                    (possibility, actualizer_projection),
                 )
                 for cut in blueprint.cuts:
                     db.execute(
@@ -1514,13 +1542,16 @@ class TrustedMachinery:
                     "observers": list(blueprint.observers),
                     "elaborator": blueprint.elaborator,
                     "actualizer": blueprint.actualizer,
+                    "knowledge": list(blueprint.knowledge),
                     "possibilities": possibilities,
+                    "actualizer_projections": actualizers,
                     "new_names": new_names,
                 },
             )
             result = {
                 "proof": blueprint.proof,
                 "possibilities": possibilities,
+                "actualizers": actualizers,
             }
             self._idem_put(db, request_id, "admit_cut_elaboration", payload, result)
             return result
