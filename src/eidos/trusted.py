@@ -1805,7 +1805,7 @@ class TrustedMachinery:
                     or semantic_authority.value != authority
                 ):
                     raise Conflict(
-                        "Elaborator authority does not match Cut Value"
+                        "Elaborator projection does not match Cut Value"
                     )
 
                 authority_row = db.execute(
