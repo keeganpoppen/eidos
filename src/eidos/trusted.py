@@ -16,7 +16,6 @@ from .core import (
     content_id as core_content_id,
     from_data as core_from_data,
 )
-from .occurrence import FrontierBlueprint, InstanceBlueprint
 from .cuts import CutElaboration
 from .authority import ProjectionGrant
 from .meta import (
