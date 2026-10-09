@@ -429,6 +429,10 @@ class ModelProcessRunner:
 
         progress = self.start(name=name, program=program, request=request)
         while progress.checkpoint is not None:
+            if progress.handoff_to is not None:
+                raise ModelExecutionError(
+                    "process handoff requires another explicitly selected runner"
+                )
             progress = self.advance(progress.checkpoint)
         if progress.outcome is None:
             raise ModelExecutionError("Model process did not produce an outcome")
@@ -641,14 +645,16 @@ class ModelProcessRunner:
         events: tuple[str, ...],
         checkpoints: tuple[str, ...],
         parent: str | None,
+        context: Name,
         request_id: str,
     ) -> ProcessProgress:
         _require_kind(proposal, "ModelProposal")
         domain = _require_kind(
             self.trusted.named_eidos_value(run)["value"], "ModelProcess"
         )
-        if proposal.get("context") != domain.get("context"):
-            raise ModelExecutionError("process proposal names the wrong Context")
+        if proposal.get("context") != context:
+            raise ModelExecutionError("process proposal names the wrong active Context")
+        self._check_projection(run, projection)
         canonical_bytes(proposal)
         committed = self.trusted.commit_projection_occurrence(
             kind="ModelProcessFinish",
@@ -657,6 +663,7 @@ class ModelProcessRunner:
             fact={
                 "run": run,
                 "proposal_cid": content_id(proposal),
+                "context": context.value,
                 "parent": parent,
                 "events": list(events),
             },
@@ -669,6 +676,7 @@ class ModelProcessRunner:
                 "$kind": "ModelProcessOutcome",
                 "run": Name(run),
                 "proposal": proposal,
+                "context": context,
                 "events": tuple(Name(event) for event in events),
                 "checkpoints": tuple(Name(name) for name in checkpoints),
                 "parent": None if parent is None else Name(parent),
@@ -677,21 +685,31 @@ class ModelProcessRunner:
         )
         return ProcessProgress(run=run, outcome=outcome, occurrence=outcome)
 
-    def _check_projection(self, run: str, projection: str) -> None:
+    def _check_projection(self, run: str, projection: str) -> str:
         row = self.trusted.projection(projection)
         if (
             row["domain_name"] != run or row.get("role") != PROCESS_ROLE
         ):
             raise ModelExecutionError("process Socket is outside its epistemic domain")
-        # A spent projection is allowed here only for idempotent step recovery;
-        # the TM command still checks/replays the original commit.
+        descriptor = _require_kind(
+            self.trusted.named_eidos_value(run)["value"],
+            "ModelProcess",
+        )
+        expected_holder = self.identity or descriptor.get("model").value
+        if row["holder"] != expected_holder:
+            raise ModelExecutionError(
+                "process continuation belongs to another holder after handoff"
+            )
+        # A spent projection is allowed only for idempotent step recovery;
+        # generic TM still rejects a second distinct commit of that capability.
+        return row["holder"]
 
     def _check_suspension(self, suspended: Suspended, expected: str) -> None:
         if suspended.socket.name.value != expected:
             raise ModelExecutionError(
                 "Model attempted perform against a Socket outside its own continuation"
             )
-        if suspended.operation not in (INSPECT, CONSULT):
+        if suspended.operation not in (INSPECT, CONSULT, ACQUIRE, HANDOFF):
             raise ModelExecutionError("Model attempted an inadmissible operation")
 
     def _checkpoint(
@@ -702,6 +720,7 @@ class ModelProcessRunner:
         suspended: Suspended,
         previous: str | None,
         parent_occurrence: str | None,
+        context: Name,
         request_id: str,
     ) -> str:
         return self._persist(
@@ -711,6 +730,7 @@ class ModelProcessRunner:
                 "run": Name(run),
                 "step": step,
                 "suspension": suspended,
+                "context": context,
                 "previous": None if previous is None else Name(previous),
                 "parent_occurrence": (
                     None if parent_occurrence is None else Name(parent_occurrence)
