@@ -11,6 +11,12 @@ from typing import Any, Iterator
 from .model import Frame, OfferSpec, ProtocolSpec, Transition, canonical_bytes, content_id
 from .occurrence import FrontierBlueprint, InstanceBlueprint
 from .cuts import CutElaboration
+from .meta import (
+    ACTUALIZER_ROLE,
+    ELABORATOR_ROLE,
+    actualizer_state,
+    elaborator_state,
+)
 
 
 class TrustedError(RuntimeError):
@@ -240,6 +246,10 @@ class TrustedMachinery:
               possibility_name TEXT NOT NULL REFERENCES observed_possibilities(name),
               cut_name TEXT NOT NULL REFERENCES causal_cuts(name),
               PRIMARY KEY(possibility_name,cut_name)
+            );
+            CREATE TABLE IF NOT EXISTS observed_possibility_actualizers(
+              possibility_name TEXT PRIMARY KEY REFERENCES observed_possibilities(name),
+              projection_name TEXT NOT NULL UNIQUE REFERENCES projections(name)
             );
             CREATE TABLE IF NOT EXISTS observed_reaction_inputs(
               possibility_name TEXT NOT NULL REFERENCES observed_possibilities(name),
