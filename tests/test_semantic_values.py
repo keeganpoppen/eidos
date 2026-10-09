@@ -156,76 +156,88 @@ def test_named_value_binding_is_immutable_and_content_addressed():
 
 
 
-def test_specialized_semantic_columns_are_only_indexes():
+def test_observer_ontology_tables_are_gone_and_semantics_still_work():
     tm = TrustedMachinery()
+
+    tables = {
+        row["name"]
+        for row in tm.db.execute(
+            "SELECT name FROM sqlite_master WHERE type='table'"
+        ).fetchall()
+    }
+    removed = {
+        "causal_cuts",
+        "cut_members",
+        "cut_elaboration_authorities",
+        "cut_admissions",
+        "cut_admission_cuts",
+        "observed_possibilities",
+        "observed_possibility_actualizers",
+        "observed_reaction_inputs",
+        "observed_reaction_outputs",
+        "observed_occurrences",
+        "observed_occurrence_cuts",
+        "observed_occurrence_inputs",
+        "observed_occurrence_outputs",
+    }
+    assert removed.isdisjoint(tables)
+
     p = protocol()
     installed = tm.install_occurrence_blueprint(
         blueprint=elaborate_genesis(
             p,
             holders={"A": "alice", "B": "bob"},
         ),
-        request_id="index-genesis",
+        request_id="tableless-genesis",
     )
     cut = tm.create_observed_cut(
         instance=installed["instance"],
-        observer="real-observer",
+        observer="observer",
         protocol_cid=p.cid,
         projections=[
             installed["projections"]["projection:A"],
             installed["projections"]["projection:B"],
         ],
         elaborator="elaborator",
-        request_id="index-cut",
+        request_id="tableless-cut",
     )
 
-    # Corrupt fields that used to be semantic sources.
-    tm.db.execute(
-        "UPDATE causal_cuts SET observer=?,protocol_cid=? WHERE name=?",
-        ("WRONG-OBSERVER", "WRONG-PROTOCOL", cut["cut"]),
-    )
-    interpreted_cut = tm.causal_cut(cut["cut"])
-    assert interpreted_cut["observer"] == "real-observer"
-    assert interpreted_cut["protocol_cid"] == p.cid
+    assert tm.causal_cut(cut["cut"])["state"] == "open"
 
     blueprint = elaborate_cuts(
         p,
         cuts=(observed_cut(tm, cut["cut"]),),
         elaborator="elaborator",
         actualizer="actualizer",
+        knowledge=("model:domain",),
     )
     admitted = tm.admit_cut_elaboration(
         blueprint=blueprint,
         authorities={cut["cut"]: cut["elaborator_projection"]},
-        request_id="index-elaborate",
+        request_id="tableless-elaborate",
     )
-    possibility = next(iter(admitted["possibilities"].values()))
 
-    tm.db.execute(
-        "UPDATE observed_possibilities "
-        "SET reaction=?,elaborator=?,actualizer=? WHERE name=?",
-        ("WRONG-REACTION", "WRONG-E", "WRONG-A", possibility),
-    )
-    interpreted_possibility = tm.observed_possibility(possibility)
-    assert interpreted_possibility["reaction"] == "advance"
-    assert interpreted_possibility["proof"] == blueprint.proof
-    assert interpreted_possibility["elaborator"] == "elaborator"
-    assert interpreted_possibility["actualizer"] == "actualizer"
+    assert tm.causal_cut(cut["cut"])["state"] == "elaborated"
+    possibility = next(iter(admitted["possibilities"].values()))
+    possibility_view = tm.observed_possibility(possibility)
+    assert possibility_view["state"] == "open"
+    assert possibility_view["reaction"] == "advance"
+    assert possibility_view["elaboration"] == admitted["occurrence"]
 
     occurred = tm.actualize_observed(
         possibility=possibility,
         actualizer="actualizer",
         authority=admitted["actualizers"][possibility],
-        observation={"truth": "semantic-value"},
-        request_id="index-actualize",
+        observation={"truth": "named-values"},
+        request_id="tableless-actualize",
     )
 
-    tm.db.execute(
-        "UPDATE observed_occurrences "
-        "SET actualizer=?,observation_json=? WHERE name=?",
-        ("WRONG-ACTUALIZER", '{"truth":"index"}', occurred["occurrence"]),
-    )
-    interpreted_occurrence = tm.observed_occurrence(occurred["occurrence"])
-    assert interpreted_occurrence["actualizer"] == "actualizer"
-    assert interpreted_occurrence["observation"] == {
-        "truth": "semantic-value"
-    }
+    assert tm.causal_cut(cut["cut"])["state"] == "historical"
+    assert tm.observed_possibility(possibility)["state"] == "occurred"
+
+    occurrence_view = tm.observed_occurrence(occurred["occurrence"])
+    assert occurrence_view["possibility_name"] == possibility
+    assert occurrence_view["actualizer"] == "actualizer"
+    assert occurrence_view["observation"] == {"truth": "named-values"}
+    assert occurrence_view["cuts"] == [cut["cut"]]
+
