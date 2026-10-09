@@ -1318,6 +1318,19 @@ class TrustedMachinery:
                 for possibility in possibilities.values()
             }
 
+            # Generic addressability: ModelDerivations are ordinary Values.
+            # Their schemas are interpreted above Trusted Machinery.
+            derivation_names: list[str] = []
+            derivation_cids: dict[str, str] = {}
+            for derivation in blueprint.derivations:
+                derivation_name = self._new_name(db, "derivation")
+                derivation_names.append(derivation_name)
+                derivation_cids[derivation_name] = self._bind_eidos_value(
+                    db,
+                    name=derivation_name,
+                    value=derivation,
+                )
+
             possibility_values: dict[str, str] = {}
             for possibility, projection in actualizers.items():
                 seed = possibility_seeds[possibility]
@@ -1360,6 +1373,7 @@ class TrustedMachinery:
                     context=blueprint.context,
                     facts=tuple(blueprint.facts),
                     inferences=tuple(blueprint.inferences),
+                    derivations=tuple(derivation_names),
                     possibilities=tuple(possibilities.values()),
                     consumed=tuple(committed["consumed"]),
                     established=tuple(committed["established"].values()),
@@ -1379,9 +1393,11 @@ class TrustedMachinery:
                     "knowledge": list(blueprint.knowledge),
                     "possibilities": possibilities,
                     "actualizer_projections": actualizers,
+                    "derivations": derivation_names,
+                    "derivation_cids": derivation_cids,
                     "value": elaboration_cid,
                     "possibility_values": possibility_values,
-                    "new_names": possibility_names,
+                    "new_names": possibility_names + derivation_names,
                 },
             )
             result = {
@@ -1389,6 +1405,7 @@ class TrustedMachinery:
                 "proof": blueprint.proof,
                 "possibilities": possibilities,
                 "actualizers": actualizers,
+                "derivations": derivation_names,
                 "value": elaboration_cid,
                 "possibility_values": possibility_values,
             }
