@@ -441,6 +441,7 @@ def test_prepared_consultation_survives_commit_before_continuation_resume():
     # exactly what the specialist said, before the authority transaction.
     prepared_name, prepared = runner._prepare(
         run=run, checkpoint=checkpoint,
+        context=state.get("context"),
         suspended=suspension, descriptor=descriptor,
     )
     assert len(calls) == 1
