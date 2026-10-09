@@ -20,7 +20,7 @@ from eidos.core import (
     Suspended,
     Var,
 )
-from eidos.facets import (
+from eidos.experiments.facets import (
     Clause,
     Facet,
     PraxisFacets,
