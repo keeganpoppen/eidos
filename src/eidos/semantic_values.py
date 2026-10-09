@@ -57,6 +57,7 @@ def cut_value(
 def possibility_value(
     *,
     name: str,
+    elaboration: str,
     proof: str,
     reaction: str,
     cuts: tuple[str, ...],
@@ -67,6 +68,7 @@ def possibility_value(
     return _record(
         "Possibility",
         name=Name(name),
+        elaboration=Name(elaboration),
         proof=proof,
         reaction=reaction,
         cuts=tuple(Name(cut) for cut in cuts),
