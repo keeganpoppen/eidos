@@ -274,12 +274,7 @@ class ModelProcessRunner:
         return ProcessProgress(run=run, checkpoint=checkpoint)
 
     def advance(self, checkpoint: str) -> ProcessProgress:
-        """Commit one informational exchange and resume the saved continuation.
-
-        Repeating this call after the commit is idempotent. In particular,
-        it reuses an already persisted ModelPreparedStep and an already
-        committed TM occurrence, then reconstructs the next checkpoint.
-        """
+        """Commit one process interaction; recover deterministically on retry."""
 
         state = _require_kind(
             self.trusted.named_eidos_value(checkpoint)["value"],
@@ -293,16 +288,41 @@ class ModelProcessRunner:
         if not isinstance(step, int) or step < 0 or step >= self.max_steps:
             raise ModelExecutionError("model process step budget exceeded")
         run = run_ref.value
-        self._check_suspension(suspended, suspended.socket.name.value)
-        self._check_projection(run, suspended.socket.name.value)
         descriptor = _require_kind(
             self.trusted.named_eidos_value(run)["value"], "ModelProcess"
         )
+        context = state.get("context")
+        if not isinstance(context, Name):
+            # Backward compatible with checkpoints created by older experiments.
+            context = descriptor.get("context")
+        if not isinstance(context, Name):
+            raise ModelExecutionError("process checkpoint lacks a Context Name")
+
+        self._check_suspension(suspended, suspended.socket.name.value)
+        holder = self._check_projection(run, suspended.socket.name.value)
         prepared_name, prepared = self._prepare(
-            run=run, checkpoint=checkpoint,
+            run=run, checkpoint=checkpoint, context=context,
             suspended=suspended, descriptor=descriptor,
         )
         response = prepared.get("response")
+        next_context = context
+        source_occurrence: Name | None = None
+        if suspended.operation == ACQUIRE:
+            if _field(response, "$kind") != "AcquiredContext":
+                raise ModelExecutionError("Acquire must return AcquiredContext")
+            next_context = response.get("context")
+            source_occurrence = response.get("disclosure")
+            if not isinstance(next_context, Name) or not isinstance(source_occurrence, Name):
+                raise ModelExecutionError("acquisition lacks named Context or causal source")
+
+        target_holder = holder
+        if suspended.operation == HANDOFF:
+            if _field(response, "$kind") != "HandoffAccepted":
+                raise ModelExecutionError("Handoff must return HandoffAccepted")
+            target_holder = response.get("target")
+            if not isinstance(target_holder, str) or not target_holder:
+                raise ModelExecutionError("handoff target must be nonempty")
+
         grant_key = f"step:{step + 1}"
         commit = self.trusted.commit_projection_occurrence(
             kind="ModelInteraction",
@@ -310,7 +330,7 @@ class ModelProcessRunner:
             establishes=(
                 ProjectionGrant(
                     key=grant_key,
-                    holder=descriptor.get("model").value,
+                    holder=target_holder,
                     description=projection_value(
                         key=f"model-process:{grant_key}",
                         role=PROCESS_ROLE,
@@ -325,6 +345,12 @@ class ModelProcessRunner:
                 "operation": suspended.operation.value,
                 "request": to_data(suspended.argument),
                 "response_cid": content_id(response),
+                "context": context.value,
+                "next_context": next_context.value,
+                "causal_source": (
+                    None if source_occurrence is None else source_occurrence.value
+                ),
+                "next_holder": target_holder,
             },
             request_id=f"{run}:{checkpoint}:interact",
         )
@@ -340,8 +366,12 @@ class ModelProcessRunner:
                 "operation": suspended.operation,
                 "request": suspended.argument,
                 "response": response,
+                "context": context,
+                "next_context": next_context,
+                "causal_source": source_occurrence,
                 "consumed": suspended.socket.name,
                 "successor": Name(next_socket),
+                "next_holder": target_holder,
             }),
             request_id=f"{run}:{checkpoint}:occurrence-value",
         )
@@ -357,6 +387,8 @@ class ModelProcessRunner:
         checkpoints = self._checkpoint_lineage(checkpoint)
         events = self._occurred_lineage(checkpoints) + (occurrence,)
         if isinstance(resumed, Done):
+            if target_holder != holder:
+                raise ModelExecutionError("Handoff must produce a resumable continuation")
             return self._finish(
                 run=run,
                 projection=next_socket,
@@ -364,6 +396,7 @@ class ModelProcessRunner:
                 events=events,
                 checkpoints=checkpoints,
                 parent=occurrence,
+                context=next_context,
                 request_id=f"{run}:{checkpoint}:finish",
             )
         if not isinstance(resumed, Suspended):
@@ -375,10 +408,14 @@ class ModelProcessRunner:
             suspended=resumed,
             previous=checkpoint,
             parent_occurrence=occurrence,
+            context=next_context,
             request_id=f"{run}:{checkpoint}:next-checkpoint",
         )
         return ProcessProgress(
-            run=run, checkpoint=next_checkpoint, occurrence=occurrence
+            run=run,
+            checkpoint=next_checkpoint,
+            occurrence=occurrence,
+            handoff_to=target_holder if target_holder != holder else None,
         )
 
     def execute(
