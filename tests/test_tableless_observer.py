@@ -1,5 +1,6 @@
 import pytest
 
+from eidos.genesis import admit_genesis
 from eidos.cuts import ObservedCut, elaborate_cuts
 from eidos.occurrence import (
     FrontierProjection,
@@ -68,11 +69,10 @@ def cut_value_view(tm: TrustedMachinery, cut: str) -> ObservedCut:
 def setup_branching():
     tm = TrustedMachinery()
     protocol = branching_protocol()
-    installed = tm.install_occurrence_blueprint(
-        blueprint=elaborate_genesis(
-            protocol,
-            holders={"A": "alice", "B": "bob"},
-        ),
+    installed = admit_genesis(
+        tm,
+        protocol,
+        holders={"A": "alice", "B": "bob"},
         request_id="branching-genesis",
     )
     cut = tm.create_observed_cut(
