@@ -539,16 +539,50 @@ class TrustedMachinery:
             )
             return result
 
+    def _put_eidos_value(
+        self,
+        db: sqlite3.Connection,
+        value: Any,
+    ) -> str:
+        cid = core_content_id(value)
+        db.execute(
+            "INSERT OR IGNORE INTO eidos_values(cid,body_json) VALUES (?,?)",
+            (cid, core_canonical_bytes(value).decode("utf-8")),
+        )
+        return cid
+
+    def _bind_eidos_value(
+        self,
+        db: sqlite3.Connection,
+        *,
+        name: str,
+        value: Any,
+    ) -> str:
+        if db.execute(
+            "SELECT 1 FROM names WHERE name=?",
+            (name,),
+        ).fetchone() is None:
+            raise KeyError(name)
+
+        cid = self._put_eidos_value(db, value)
+        existing = db.execute(
+            "SELECT cid FROM named_eidos_values WHERE name=?",
+            (name,),
+        ).fetchone()
+        if existing is not None and existing["cid"] != cid:
+            raise Conflict(
+                f"Name {name!r} is already bound to another immutable Value"
+            )
+        db.execute(
+            "INSERT OR IGNORE INTO named_eidos_values(name,cid) VALUES (?,?)",
+            (name, cid),
+        )
+        return cid
+
     def put_eidos_value(self, value: Any) -> str:
         """Persist any ordinary immutable Eidos Core value by content identity."""
 
-        cid = core_content_id(value)
-        body = core_canonical_bytes(value).decode("utf-8")
-        self.db.execute(
-            "INSERT OR IGNORE INTO eidos_values(cid,body_json) VALUES (?,?)",
-            (cid, body),
-        )
-        return cid
+        return self._put_eidos_value(self.db, value)
 
     def eidos_value(self, cid: str) -> Any:
         row = self.db.execute(
@@ -576,29 +610,7 @@ class TrustedMachinery:
             old = self._idem(db, request_id, "bind_eidos_value", payload)
             if old is not None:
                 return old
-            if db.execute(
-                "SELECT 1 FROM names WHERE name=?",
-                (name,),
-            ).fetchone() is None:
-                raise KeyError(name)
-
-            cid = core_content_id(value)
-            db.execute(
-                "INSERT OR IGNORE INTO eidos_values(cid,body_json) VALUES (?,?)",
-                (cid, core_canonical_bytes(value).decode("utf-8")),
-            )
-            existing = db.execute(
-                "SELECT cid FROM named_eidos_values WHERE name=?",
-                (name,),
-            ).fetchone()
-            if existing is not None and existing["cid"] != cid:
-                raise Conflict(
-                    f"Name {name!r} is already bound to another immutable Value"
-                )
-            db.execute(
-                "INSERT OR IGNORE INTO named_eidos_values(name,cid) VALUES (?,?)",
-                (name, cid),
-            )
+            cid = self._bind_eidos_value(db, name=name, value=value)
             self._event(
                 db,
                 "eidos_value_bound",
