@@ -1664,23 +1664,43 @@ class TrustedMachinery:
             return result
 
     def causal_cut(self, cut: str) -> dict[str, Any]:
-        row = self.db.execute(
+        index = self.db.execute(
             "SELECT * FROM causal_cuts WHERE name=?",
             (cut,),
         ).fetchone()
-        if row is None:
+        if index is None:
             raise KeyError(cut)
-        item = dict(row)
-        item["projections"] = [
-            dict(r)
-            for r in self.db.execute(
-                "SELECT p.name,p.role,p.protocol_state,p.holder,p.disposition "
-                "FROM cut_members cm "
-                "JOIN projections p ON p.name=cm.projection_name "
-                "WHERE cm.cut_name=? ORDER BY p.role,p.name",
-                (cut,),
-            ).fetchall()
-        ]
+
+        semantic = self.named_eidos_value(cut)["value"]
+        if (
+            not isinstance(semantic, RecordValue)
+            or semantic.get("$kind") != "Cut"
+        ):
+            raise Conflict(f"Name {cut!r} does not denote a Cut Value")
+
+        parent_cut = semantic.get("parent_cut")
+        parent_occurrence = semantic.get("parent_occurrence")
+        item = dict(index)
+        item["observer"] = str(semantic.get("observer"))
+        item["protocol_cid"] = str(semantic.get("protocol"))
+        item["parent_cut"] = (
+            None if parent_cut is None else parent_cut.value
+        )
+        item["parent_occurrence"] = (
+            None if parent_occurrence is None else parent_occurrence.value
+        )
+        item["projections"] = []
+        for reference in semantic.get("projections"):
+            if not isinstance(reference, CoreName):
+                raise Conflict("Cut projection references must be Names")
+            row = self.db.execute(
+                "SELECT name,role,protocol_state,holder,disposition "
+                "FROM projections WHERE name=?",
+                (reference.value,),
+            ).fetchone()
+            if row is None:
+                raise KeyError(reference.value)
+            item["projections"].append(dict(row))
         return item
 
     def admit_cut_elaboration(
@@ -2326,56 +2346,103 @@ class TrustedMachinery:
             return result
 
     def observed_possibility(self, possibility: str) -> dict[str, Any]:
-        row = self.db.execute(
+        index = self.db.execute(
             "SELECT * FROM observed_possibilities WHERE name=?",
             (possibility,),
         ).fetchone()
-        if row is None:
+        if index is None:
             raise KeyError(possibility)
-        item = dict(row)
+
+        semantic = self.named_eidos_value(possibility)["value"]
+        if (
+            not isinstance(semantic, RecordValue)
+            or semantic.get("$kind") != "Possibility"
+        ):
+            raise Conflict(
+                f"Name {possibility!r} does not denote a Possibility Value"
+            )
+
+        item = dict(index)
+        item["proof"] = str(semantic.get("proof"))
+        item["reaction"] = str(semantic.get("reaction"))
         item["cuts"] = [
-            r["cut_name"]
-            for r in self.db.execute(
-                "SELECT cut_name FROM observed_possibility_cuts "
-                "WHERE possibility_name=? ORDER BY cut_name",
-                (possibility,),
-            ).fetchall()
+            reference.value
+            for reference in semantic.get("cuts")
+            if isinstance(reference, CoreName)
         ]
         item["inputs"] = [
-            r["projection_name"]
-            for r in self.db.execute(
-                "SELECT projection_name FROM observed_reaction_inputs "
-                "WHERE possibility_name=? ORDER BY rowid",
-                (possibility,),
-            ).fetchall()
+            reference.value
+            for reference in semantic.get("inputs")
+            if isinstance(reference, CoreName)
         ]
-        actualizer = self.db.execute(
-            "SELECT projection_name FROM observed_possibility_actualizers "
-            "WHERE possibility_name=?",
-            (possibility,),
-        ).fetchone()
-        item["actualizer_projection"] = (
-            None if actualizer is None else actualizer["projection_name"]
-        )
+        actualizer = semantic.get("actualizer")
+        if not isinstance(actualizer, CoreName):
+            raise Conflict("Possibility actualizer reference must be a Name")
+        item["actualizer_projection"] = actualizer.value
+
+        elaboration = semantic.get("elaboration")
+        if isinstance(elaboration, CoreName):
+            item["elaboration"] = elaboration.value
+            elaboration_value_ = self.named_eidos_value(elaboration.value)["value"]
+            if (
+                isinstance(elaboration_value_, RecordValue)
+                and elaboration_value_.get("$kind") == "Elaboration"
+            ):
+                item["elaborator"] = str(
+                    elaboration_value_.get("elaborator")
+                )
+                item["actualizer"] = str(
+                    elaboration_value_.get("actualizer")
+                )
         return item
 
     def observed_occurrence(self, occurrence: str) -> dict[str, Any]:
-        row = self.db.execute(
+        index = self.db.execute(
             "SELECT * FROM observed_occurrences WHERE name=?",
             (occurrence,),
         ).fetchone()
-        if row is None:
+        if index is None:
             raise KeyError(occurrence)
-        item = dict(row)
-        item["observation"] = json.loads(item.pop("observation_json"))
+
+        semantic = self.named_eidos_value(occurrence)["value"]
+        if (
+            not isinstance(semantic, RecordValue)
+            or semantic.get("$kind") != "Occurrence"
+        ):
+            raise Conflict(
+                f"Name {occurrence!r} does not denote an Occurrence Value"
+            )
+
+        item = dict(index)
+        possibility = semantic.get("possibility")
+        if not isinstance(possibility, CoreName):
+            raise Conflict("Occurrence possibility reference must be a Name")
+        item["possibility_name"] = possibility.value
+        item["actualizer"] = str(semantic.get("actualizer"))
+        item.pop("observation_json", None)
+        item["observation"] = semantic.get("observation")
         item["cuts"] = [
-            r["cut_name"]
-            for r in self.db.execute(
-                "SELECT cut_name FROM observed_occurrence_cuts "
-                "WHERE occurrence_name=? ORDER BY cut_name",
-                (occurrence,),
-            ).fetchall()
+            reference.value
+            for reference in semantic.get("cause_cuts")
+            if isinstance(reference, CoreName)
         ]
+        item["successor_cuts"] = [
+            reference.value
+            for reference in semantic.get("successor_cuts")
+            if isinstance(reference, CoreName)
+        ]
+        item["consumed"] = [
+            reference.value
+            for reference in semantic.get("consumed")
+            if isinstance(reference, CoreName)
+        ]
+        item["established"] = [
+            reference.value
+            for reference in semantic.get("established")
+            if isinstance(reference, CoreName)
+        ]
+
+        # Legacy compatibility fields remain derived indexes.
         item["inputs"] = [
             r["projection_name"]
             for r in self.db.execute(
