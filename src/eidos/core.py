@@ -177,6 +177,34 @@ class Prim(Term):
 
 
 @dataclass(frozen=True)
+class Lambda(Term):
+    """First-class Eidos code with lexical capture and situated Role lookup."""
+
+    parameters: tuple[str, ...]
+    body: Term
+
+
+@dataclass(frozen=True)
+class Apply(Term):
+    function: Term
+    arguments: tuple[Term, ...]
+
+
+@dataclass(frozen=True)
+class Closure:
+    """A serializable lexical closure.
+
+    Only the lexical environment is captured. Role Bindings remain situated:
+    applying the same Closure under a different realization can therefore
+    specialize its open semantic parameters differently.
+    """
+
+    parameters: tuple[str, ...]
+    body: Term
+    lexical: LexicalEnv
+
+
+@dataclass(frozen=True)
 class With(Term):
     """Realize `body` under a persistent scoped Role binding."""
 
@@ -245,6 +273,23 @@ class PrimFrame(KontFrame):
 
 
 @dataclass(frozen=True)
+class ApplyFunctionFrame(KontFrame):
+    arguments: tuple[Term, ...]
+
+
+@dataclass(frozen=True)
+class ApplyArgumentFrame(KontFrame):
+    closure: Closure
+    completed: tuple[Any, ...]
+    remaining: tuple[Term, ...]
+
+
+@dataclass(frozen=True)
+class RestoreLexicalFrame(KontFrame):
+    lexical: LexicalEnv
+
+
+@dataclass(frozen=True)
 class WithValueFrame(KontFrame):
     role: Role
     body: Term
@@ -267,7 +312,7 @@ class PerformSocketFrame(KontFrame):
 
 @dataclass(frozen=True)
 class PerformArgumentFrame(KontFrame):
-    socket: Socket
+    socket: Any
     operation: Name
     result_as: str
     successor_as: str
@@ -461,6 +506,61 @@ class PraxisCore:
                             Returned(self._primitive(operation, completed)),
                             rest,
                         )
+                case ApplyFunctionFrame(arguments):
+                    if not isinstance(value, Closure):
+                        raise RealizationError("Apply expects a Closure")
+                    if len(arguments) != len(value.parameters):
+                        raise RealizationError(
+                            f"closure expects {len(value.parameters)} arguments, "
+                            f"got {len(arguments)}"
+                        )
+                    if not arguments:
+                        state = self._state(
+                            state,
+                            value.body,
+                            rest + (RestoreLexicalFrame(state.lexical),),
+                            lexical=value.lexical,
+                        )
+                    else:
+                        state = self._state(
+                            state,
+                            arguments[0],
+                            rest
+                            + (
+                                ApplyArgumentFrame(
+                                    value, (), arguments[1:]
+                                ),
+                            ),
+                        )
+                case ApplyArgumentFrame(closure, completed, remaining):
+                    completed += (value,)
+                    if remaining:
+                        state = self._state(
+                            state,
+                            remaining[0],
+                            rest
+                            + (
+                                ApplyArgumentFrame(
+                                    closure, completed, remaining[1:]
+                                ),
+                            ),
+                        )
+                    else:
+                        lexical = closure.lexical
+                        for parameter, argument in zip(
+                            closure.parameters, completed, strict=True
+                        ):
+                            lexical = lexical.bind(parameter, argument)
+                        state = self._state(
+                            state,
+                            closure.body,
+                            rest + (RestoreLexicalFrame(state.lexical),),
+                            lexical=lexical,
+                        )
+                case RestoreLexicalFrame(lexical):
+                    state = self._state(
+                        state, Returned(value), rest, lexical=lexical
+                    )
                 case WithValueFrame(role, body, binding_name):
                     outer = state.bindings
                     state = self._state(
@@ -476,8 +576,6 @@ class PraxisCore:
                 case PerformSocketFrame(
                     operation, argument, result_as, successor_as, then
                 ):
-                    if not isinstance(value, Socket):
-                        raise RealizationError("perform target must realize to a Socket")
                     state = self._state(
                         state,
                         argument,
@@ -491,19 +589,20 @@ class PraxisCore:
                 case PerformArgumentFrame(
                     socket, operation, result_as, successor_as, then
                 ):
-                    return Suspended(
-                        socket=socket,
+                    outcome = self._perform_target(
+                        state=state,
+                        target=socket,
                         operation=operation,
                         argument=value,
-                        continuation=Continuation(
-                            result_as=result_as,
-                            successor_as=successor_as,
-                            then=then,
-                            lexical=state.lexical,
-                            bindings=state.bindings,
-                            stack=rest,
-                        ),
+                        result_as=result_as,
+                        successor_as=successor_as,
+                        then=then,
+                        rest=rest,
                     )
+                    if isinstance(outcome, MachineState):
+                        state = outcome
+                    else:
+                        return outcome
                 case _:
                     raise TypeError(frame)
 
@@ -550,6 +649,16 @@ class PraxisCore:
                     arguments[0],
                     state.stack + (PrimFrame(operation, (), arguments[1:]),),
                 )
+            case Lambda(parameters, body):
+                return self._state(
+                    state, Returned(Closure(parameters, body, state.lexical))
+                )
+            case Apply(function, arguments):
+                return self._state(
+                    state,
+                    function,
+                    state.stack + (ApplyFunctionFrame(arguments),),
+                )
             case With(role, value, body, binding_name):
                 return self._state(
                     state,
@@ -572,6 +681,43 @@ class PraxisCore:
                 )
             case _:
                 raise TypeError(term)
+
+    def _perform_target(
+        self,
+        *,
+        state: MachineState,
+        target: Any,
+        operation: Name,
+        argument: Any,
+        result_as: str,
+        successor_as: str,
+        then: Term,
+        rest: tuple[KontFrame, ...],
+    ) -> MachineState | Realization:
+        """Interpret the terminal target of perform.
+
+        Core recognizes only live relational Socket descriptions. Derived
+        realizers may override this hook to keep interpreting richer ordinary
+        Values locally before eventually delegating a terminal Socket here.
+        """
+
+        if not isinstance(target, Socket):
+            raise RealizationError(
+                "perform target must realize to a Socket in Eidos Core"
+            )
+        return Suspended(
+            socket=target,
+            operation=operation,
+            argument=argument,
+            continuation=Continuation(
+                result_as=result_as,
+                successor_as=successor_as,
+                then=then,
+                lexical=state.lexical,
+                bindings=state.bindings,
+                stack=rest,
+            ),
+        )
 
     @staticmethod
     def _state(
@@ -623,6 +769,9 @@ _CORE_CLASSES: tuple[type[Any], ...] = (
     Record,
     Get,
     Prim,
+    Lambda,
+    Apply,
+    Closure,
     With,
     Perform,
     Returned,
@@ -630,6 +779,9 @@ _CORE_CLASSES: tuple[type[Any], ...] = (
     RecordFrame,
     GetFrame,
     PrimFrame,
+    ApplyFunctionFrame,
+    ApplyArgumentFrame,
+    RestoreLexicalFrame,
     WithValueFrame,
     RestoreBindingsFrame,
     PerformSocketFrame,
