@@ -134,11 +134,20 @@ implementations are:
 
 - declarative implications;
 - a first-class serializable Eidos Closure realized under situated Model Roles;
-- an explicitly registered delegated executor, including a subprocess adapter.
+- an explicitly registered delegated executor, including a subprocess adapter;
+- a resumable process Closure that can `Inspect`, `Consult`, `Acquire` a newly
+  disclosed Cut, or `Handoff` its live continuation to another holder.
 
 They can derive the same epistemic fact from the same Context without creating
 or transferring any world projection authority. An Elaboration commits their
 derivation Values as separately named, inspectable provenance.
+
+The [`CUT_EXCHANGE.md`](CUT_EXCHANGE.md) protocol shows how an observer
+can explicitly disclose a Cut to a running Model. Its new Context is immutable,
+parent-linked, and retains the authoritative source disclosure Name. Merely
+knowing a Cut Name—even if it appears inside an Eidos Closure—does not confer
+inspection rights in the scoped Model runner or authority over the Cut's live
+participant projections.
 
 The generic semantic lens now traverses first-class Role Bindings, closures,
 and other Eidos dataclasses as well as RecordValues, so the input context,
