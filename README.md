@@ -70,8 +70,10 @@ continuations and informational interactions are durable named Values.
 All four receive a `ModelInput` Value containing the Context, grounded facts,
 Cuts, and remaining attention, and eventually return a `ModelProposal` with
 claims, cited premises, and an execution receipt. A process Model can suspend
-on its own linear Socket to inspect contextual Values or consult a separately
-admitted specialist, then resume from a persisted Eidos continuation—even
+on its own linear Socket to inspect contextual Values, **acquire an
+additional observer Cut through a source-domain disclosure**, consult a
+separately admitted specialist, or **hand off its one-shot continuation to a
+different holder**. It can resume from a persisted Eidos continuation—even
 under a new runner after a crash.
 
 A committed Elaboration binds each run's **ModelDerivation** as a separate
@@ -247,6 +249,7 @@ See:
 - [`docs/EPISTEMICS.md`](docs/EPISTEMICS.md) — named Knowledge, Models, Attention, and progressive epistemic Contexts;
 - [`docs/MODEL_EXECUTION.md`](docs/MODEL_EXECUTION.md) — executable Model contract and provenance;
 - [`docs/MODEL_PROCESSES.md`](docs/MODEL_PROCESSES.md) — resumable Model continuations, informational Reactions, and crash recovery;
+- [`docs/CUT_EXCHANGE.md`](docs/CUT_EXCHANGE.md) — source-domain disclosure, scoped acquisition, and linear handoff;
 - [`docs/META_PROTOCOL.md`](docs/META_PROTOCOL.md) — Elaborate / Actualize as ordinary Eidos Socket operations;
 - [`docs/SEMANTIC_VALUES.md`](docs/SEMANTIC_VALUES.md) — tableless semantic objects, addressable provenance, and lenses;
 - [`docs/SUMMARY_TREE.md`](docs/SUMMARY_TREE.md) — hindsight-first semantic tree over Codex evidence;
