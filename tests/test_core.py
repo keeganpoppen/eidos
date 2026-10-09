@@ -8,6 +8,7 @@ from eidos.core import (
     Closure,
     Done,
     Lambda,
+    Let,
     LexicalEnv,
     Lit,
     Name,
