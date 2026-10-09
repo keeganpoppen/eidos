@@ -13,9 +13,10 @@ role is a singleton process.
 """
 
 from dataclasses import dataclass
-from typing import Iterable
+from typing import Any, Callable, Iterable
 
 from .model import content_id
+from .epistemics import Inference, interpret_context
 from .occurrence import (
     FrontierPossibilitySeed,
     FrontierProjection,
@@ -50,6 +51,9 @@ class CutElaboration:
     knowledge: tuple[str, ...]
     projections: tuple[FrontierProjection, ...]
     possibilities: tuple[FrontierPossibilitySeed, ...]
+    context: str | None = None
+    facts: tuple[str, ...] = ()
+    inferences: tuple[Inference, ...] = ()
 
     @property
     def proof(self) -> str:
@@ -63,6 +67,8 @@ def elaborate_cuts(
     elaborator: str,
     actualizer: str,
     knowledge: Iterable[str] = (),
+    context: str | None = None,
+    resolve: Callable[[str], Any] | None = None,
 ) -> CutElaboration:
     """Derive adjacent possibilities visible across a collection of cuts.
 
@@ -77,6 +83,19 @@ def elaborate_cuts(
         raise ValueError("at least one observed cut is required")
     if any(cut.protocol_cid != protocol.cid for cut in materialized):
         raise ValueError("all cuts must commit to the same protocol")
+
+    facts: tuple[str, ...] = ()
+    inferences: tuple[Inference, ...] = ()
+    if context is not None:
+        if resolve is None:
+            raise ValueError("named epistemic contexts require a Value resolver")
+        epistemic = interpret_context(
+            context,
+            resolve=resolve,
+            cuts=(cut.name for cut in materialized),
+        )
+        facts = epistemic.facts
+        inferences = epistemic.inferences
 
     by_name: dict[str, FrontierProjection] = {}
     by_role: dict[str, FrontierProjection] = {}
@@ -97,7 +116,7 @@ def elaborate_cuts(
 
     possibilities: list[FrontierPossibilitySeed] = []
     for rule in protocol.reactions:
-        if not _enabled(rule, by_role):
+        if not _enabled(rule, by_role, facts=facts):
             continue
         consumes = tuple(by_role[required.role].name for required in rule.requires)
         successors = tuple(
@@ -135,13 +154,20 @@ def elaborate_cuts(
         knowledge=tuple(sorted(set(knowledge))),
         projections=projections,
         possibilities=tuple(possibilities),
+        context=context,
+        facts=facts,
+        inferences=inferences,
     )
 
 
 def _enabled(
     rule: ReactionRule,
     by_role: dict[str, FrontierProjection],
+    *,
+    facts: tuple[str, ...] = (),
 ) -> bool:
+    if not set(rule.requires_facts) <= set(facts):
+        return False
     for required in rule.requires:
         projection = by_role.get(required.role)
         if projection is None or projection.state != required.state:
