@@ -104,9 +104,13 @@ class ModelProcessRunner:
         _require_kind(
             self.trusted.named_eidos_value(executor)["value"], "ModelExecutor"
         )
-        _require_kind(
+        named_model = _require_kind(
             self.trusted.named_eidos_value(model)["value"], "Model"
         )
+        if named_model.get("engine") != "process":
+            raise ModelExecutionError(
+                "consultation admission requires a process Model"
+            )
         self.consultations.setdefault(model, set()).add(executor)
 
     def start(
@@ -125,6 +129,20 @@ class ModelProcessRunner:
             raise ModelExecutionError("ModelInput context must be a Name")
         if not isinstance(program, Closure):
             raise ModelExecutionError("ModelProcess requires a Closure")
+        declared = _require_kind(
+            self.trusted.named_eidos_value(name)["value"], "Model"
+        )
+        if (
+            declared.get("engine") != "process"
+            or declared.get("implementation") != program
+        ):
+            raise ModelExecutionError(
+                "process program must match the immutable named Model"
+            )
+        if request.get("model") != Name(name):
+            raise ModelExecutionError(
+                "ModelInput must name the executable Model"
+            )
         invocation = request_id or f"process:{uuid4().hex}"
         allowed_executors = tuple(
             Name(executor) for executor in sorted(self.consultations.get(name, ()))
