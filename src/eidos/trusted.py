@@ -2011,7 +2011,7 @@ class TrustedMachinery:
                 or actualizer_ref.value != authority
             ):
                 raise Conflict(
-                    "Actualizer authority does not match Possibility Value"
+                    "Actualizer projection does not match Possibility Value"
                 )
 
             actualizer_row = db.execute(
