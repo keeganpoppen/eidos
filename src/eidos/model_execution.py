@@ -124,6 +124,7 @@ def execute_model(
     request: RecordValue,
     resolve: Callable[[str], Any],
     adapters: Mapping[str, ModelAdapter] | None = None,
+    process_runner: Any | None = None,
 ) -> tuple[tuple[ModelCandidate, ...], RecordValue]:
     """Run one Model through its chosen realization and return a Derivation Value."""
 
@@ -135,6 +136,7 @@ def execute_model(
     if not isinstance(context, Name):
         raise ModelExecutionError("ModelInput.context must be a Name")
     executor_name: Name | None = None
+    process_ref: Name | None = None
 
     if mode == "rules":
         if implementation is not None:
@@ -171,6 +173,20 @@ def execute_model(
                 "a local Model Closure must finish without unbound Roles or perform"
             )
         proposal = result.value
+    elif mode == "process":
+        if not isinstance(implementation, Closure):
+            raise ModelExecutionError("process Model implementation must be an Eidos Closure")
+        if process_runner is None:
+            raise ModelExecutionError(
+                "resumable Model requires an explicitly configured process runner"
+            )
+        proposal, process_ref = process_runner.execute(
+            name=name,
+            program=implementation,
+            request=request,
+        )
+        if not isinstance(process_ref, Name):
+            raise ModelExecutionError("Model process must return its outcome Name")
     elif mode == "delegated":
         if not isinstance(implementation, Name):
             raise ModelExecutionError("delegated Model must name its executor")
@@ -221,6 +237,7 @@ def execute_model(
         "model": Name(name),
         "executor": executor_name,
         "engine": mode,
+        "process": process_ref,
         "input": request,
         "proposal": proposal,
     })
