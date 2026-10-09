@@ -144,3 +144,96 @@ def test_generic_commit_cannot_atomically_cross_authority_instances():
             fact={},
             request_id="cross-instance",
         )
+
+
+
+def test_authority_domain_and_projection_tables_contain_only_authority_facts():
+    tm = TrustedMachinery()
+    p, out = installed(tm)
+
+    domain_columns = [
+        row["name"]
+        for row in tm.db.execute("PRAGMA table_info(authority_domains)").fetchall()
+    ]
+    projection_columns = [
+        row["name"]
+        for row in tm.db.execute("PRAGMA table_info(projections)").fetchall()
+    ]
+
+    assert domain_columns == ["name"]
+    assert projection_columns == [
+        "name",
+        "domain_name",
+        "holder",
+        "disposition",
+    ]
+
+    domain = tm.authority_domain(out["domain"])
+    assert domain["description"].get("$kind") == "AuthorityDomain"
+    assert domain["description"].get("protocol") == p.name
+    assert domain["description"].get("protocol_cid") == p.cid
+
+
+def test_projection_description_is_immutable_while_holder_authority_moves():
+    tm = TrustedMachinery()
+    _, out = installed(tm)
+    projection = out["projections"]["projection:A"]
+
+    before = tm.named_eidos_value(projection)
+    semantic = before["value"]
+    assert semantic.get("$kind") == "Projection"
+    assert semantic.get("role") == "A"
+    assert semantic.get("state") == "a0"
+    assert tm.projection(projection)["holder"] == "alice"
+
+    tm.transfer_projection(
+        projection=projection,
+        from_holder="alice",
+        to_holder="specialist",
+        request_id="delegate-A",
+    )
+
+    after = tm.named_eidos_value(projection)
+    assert after["cid"] == before["cid"]
+    assert after["value"] == semantic
+    assert tm.projection(projection)["holder"] == "specialist"
+    assert tm.projection(projection)["role"] == "A"
+    assert tm.projection(projection)["protocol_state"] == "a0"
+
+
+def test_successor_projection_semantics_are_values_not_machine_columns():
+    tm = TrustedMachinery()
+    _, out = installed(tm)
+    old = out["projections"]["projection:A"]
+
+    committed = tm.commit_projection_occurrence(
+        kind="advance",
+        consumes=(old,),
+        establishes=(
+            ProjectionGrant(
+                key="next:A",
+                holder="alice",
+                description=projection_value(
+                    key="next:A",
+                    role="A",
+                    state="a1",
+                ),
+            ),
+        ),
+        fact={},
+        request_id="semantic-successor",
+    )
+
+    successor = committed["established"]["next:A"]
+    row = tm.db.execute(
+        "SELECT * FROM projections WHERE name=?",
+        (successor,),
+    ).fetchone()
+    assert set(row.keys()) == {
+        "name",
+        "domain_name",
+        "holder",
+        "disposition",
+    }
+    assert tm.named_eidos_value(successor)["value"].get("state") == "a1"
+    assert tm.projection(successor)["protocol_state"] == "a1"
