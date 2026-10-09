@@ -135,7 +135,7 @@ def test_semantic_neighborhood_expands_progressively_by_depth():
     assert two[elaboration].depth == 2
 
 
-def test_unbound_authority_names_remain_edges_without_becoming_semantic_nodes():
+def test_capability_names_resolve_to_descriptions_without_granting_authority():
     tm, _, _, _, occurrence = build_history()
 
     neighborhood = walk_named_values(
@@ -146,12 +146,32 @@ def test_unbound_authority_names_remain_edges_without_becoming_semantic_nodes():
     nodes = neighborhood.by_name()
 
     occurrence_node = nodes[occurrence]
-    referenced = {name.value for name in occurrence_node.references}
+    referenced = {
+        name.value
+        for name in occurrence_node.references
+        if name.value.startswith("projection_")
+    }
+    assert referenced
 
-    # Projection capabilities are referenced by the semantic Value, but they do
-    # not need to denote persisted semantic Values themselves.
-    assert any(name.startswith("projection_") for name in referenced)
-    assert all(
-        not name.startswith("projection_")
-        for name in nodes
+    described = referenced & set(nodes)
+    assert described
+    for projection in described:
+        node = nodes[projection]
+        assert node.value.get("$kind") == "Projection"
+
+    # Semantic inspection does not change or manufacture authority.
+    before = {
+        projection: tm.projection(projection)["disposition"]
+        for projection in referenced
+    }
+    walk_named_values(
+        tuple(referenced),
+        resolve=resolve(tm),
+        depth=1,
     )
+    after = {
+        projection: tm.projection(projection)["disposition"]
+        for projection in referenced
+    }
+    assert after == before
+
