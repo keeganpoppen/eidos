@@ -694,15 +694,6 @@ class TrustedMachinery:
             ).fetchone()
             if row is None:
                 raise KeyError(blueprint.frontier)
-            if row["state"] != "open":
-                raise Conflict(
-                    f"frontier {blueprint.frontier!r} is {row['state']}, not open"
-                )
-            if row["protocol_cid"] != blueprint.protocol_cid:
-                raise Conflict("frontier proof names a different protocol commitment")
-            if row["parent_occurrence"] != blueprint.parent_occurrence:
-                raise Conflict("frontier proof names the wrong parent occurrence")
-
             authority_row = db.execute(
                 "SELECT frontier_name,disposition FROM elaboration_authorities "
                 "WHERE token=?",
@@ -714,6 +705,15 @@ class TrustedMachinery:
                 or authority_row["disposition"] != "live"
             ):
                 raise Conflict("elaboration authority is not live for this frontier")
+
+            if row["state"] != "open":
+                raise Conflict(
+                    f"frontier {blueprint.frontier!r} is {row['state']}, not open"
+                )
+            if row["protocol_cid"] != blueprint.protocol_cid:
+                raise Conflict("frontier proof names a different protocol commitment")
+            if row["parent_occurrence"] != blueprint.parent_occurrence:
+                raise Conflict("frontier proof names the wrong parent occurrence")
 
             expected = [
                 dict(r)
