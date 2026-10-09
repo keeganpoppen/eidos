@@ -509,12 +509,12 @@ class TrustedMachinery:
         blueprint: InstanceBlueprint,
         request_id: str,
     ) -> dict[str, Any]:
-        """Install an already-elaborated possibility space mechanically.
+        """Install generation zero and its already-elaborated possibility space.
 
-        The blueprint is semantic input produced above Trusted Machinery. This
-        method assigns durable Names to the current projection capabilities and
-        to every latent Reaction possibility, but it does not decide whether
-        any Reaction is meaningful or enabled by an observation.
+        The semantic dual supplies a protocol commitment plus the exact initial
+        projections and latent Reactions. Trusted Machinery materializes those
+        capabilities and creates one linear protocol-frontier capability whose
+        state is already elaborated for generation zero.
         """
 
         payload = asdict(blueprint)
@@ -539,7 +539,9 @@ class TrustedMachinery:
                         f"{sorted(unknown)!r}"
                     )
 
+            protocol_cid = blueprint.protocol_cid or content_id(blueprint)
             instance = self._new_name(db, "instance")
+            frontier = self._new_name(db, "frontier")
             db.execute(
                 "INSERT INTO occurrence_instances(name,protocol,blueprint_json) VALUES (?,?,?)",
                 (
@@ -548,9 +550,15 @@ class TrustedMachinery:
                     json.dumps(payload, sort_keys=True, separators=(",", ":")),
                 ),
             )
+            db.execute(
+                "INSERT INTO protocol_frontiers("
+                "name,instance_name,protocol_cid,parent_occurrence,generation,state"
+                ") VALUES (?,?,?,?,?,?)",
+                (frontier, instance, protocol_cid, None, 0, "elaborated"),
+            )
 
             projections: dict[str, str] = {}
-            new_names = [instance]
+            new_names = [instance, frontier]
             for seed in blueprint.projections:
                 projection = self._new_name(db, "projection")
                 projections[seed.key] = projection
@@ -569,6 +577,11 @@ class TrustedMachinery:
                         "live",
                     ),
                 )
+                db.execute(
+                    "INSERT INTO frontier_members(frontier_name,projection_name) "
+                    "VALUES (?,?)",
+                    (frontier, projection),
+                )
 
             possibilities: dict[str, str] = {}
             for seed in blueprint.possibilities:
@@ -586,6 +599,11 @@ class TrustedMachinery:
                         seed.reaction,
                         "open",
                     ),
+                )
+                db.execute(
+                    "INSERT INTO possibility_frontiers(possibility_name,frontier_name) "
+                    "VALUES (?,?)",
+                    (possibility, frontier),
                 )
                 for projection_key in seed.consumes:
                     db.execute(
@@ -614,6 +632,9 @@ class TrustedMachinery:
                 {
                     "instance": instance,
                     "protocol": blueprint.protocol,
+                    "protocol_cid": protocol_cid,
+                    "frontier": frontier,
+                    "generation": 0,
                     "projections": projections,
                     "possibilities": possibilities,
                     "new_names": new_names,
@@ -621,6 +642,8 @@ class TrustedMachinery:
             )
             result = {
                 "instance": instance,
+                "frontier": frontier,
+                "protocol_cid": protocol_cid,
                 "projections": projections,
                 "possibilities": possibilities,
             }
@@ -633,6 +656,154 @@ class TrustedMachinery:
             )
             return result
 
+    def admit_frontier(
+        self,
+        *,
+        blueprint: FrontierBlueprint,
+        request_id: str,
+    ) -> dict[str, Any]:
+        """Admit one recursively elaborated possibility space.
+
+        The frontier Name is a linear capability minted by the previous
+        occurrence. The semantic elaborator presents a proof-shaped blueprint
+        anchored to that capability and to the same protocol commitment.
+
+        Trusted Machinery does not re-run protocol semantics. It checks
+        provenance, freshness, and exact frontier membership, records the proof,
+        and materializes the latent possibilities.
+        """
+
+        payload = asdict(blueprint)
+        payload["proof"] = blueprint.proof
+        with self._tx() as db:
+            old = self._idem(db, request_id, "admit_frontier", payload)
+            if old is not None:
+                return old
+
+            row = db.execute(
+                "SELECT * FROM protocol_frontiers WHERE name=?",
+                (blueprint.frontier,),
+            ).fetchone()
+            if row is None:
+                raise KeyError(blueprint.frontier)
+            if row["state"] != "open":
+                raise Conflict(
+                    f"frontier {blueprint.frontier!r} is {row['state']}, not open"
+                )
+            if row["protocol_cid"] != blueprint.protocol_cid:
+                raise Conflict("frontier proof names a different protocol commitment")
+            if row["parent_occurrence"] != blueprint.parent_occurrence:
+                raise Conflict("frontier proof names the wrong parent occurrence")
+
+            expected = [
+                dict(r)
+                for r in db.execute(
+                    "SELECT p.name,p.role,p.protocol_state,p.holder,p.disposition "
+                    "FROM frontier_members fm "
+                    "JOIN projections p ON p.name=fm.projection_name "
+                    "WHERE fm.frontier_name=? ORDER BY p.role,p.name",
+                    (blueprint.frontier,),
+                ).fetchall()
+            ]
+            supplied = sorted(
+                [
+                    {
+                        "name": p.name,
+                        "role": p.role,
+                        "protocol_state": p.state,
+                        "holder": p.holder,
+                        "disposition": "live",
+                    }
+                    for p in blueprint.projections
+                ],
+                key=lambda item: (item["role"], item["name"]),
+            )
+            if expected != supplied:
+                raise Conflict("frontier proof does not match authoritative live frontier")
+
+            live_names = {item["name"] for item in expected}
+            possibilities: dict[str, str] = {}
+            new_names: list[str] = []
+            for seed in blueprint.possibilities:
+                if not set(seed.consumes) <= live_names:
+                    raise Conflict(
+                        f"possibility {seed.key!r} consumes projections outside frontier"
+                    )
+                possibility = self._new_name(db, "possibility")
+                possibilities[seed.key] = possibility
+                new_names.append(possibility)
+                db.execute(
+                    "INSERT INTO reaction_possibilities("
+                    "name,instance_name,seed_key,reaction,state"
+                    ") VALUES (?,?,?,?,?)",
+                    (
+                        possibility,
+                        row["instance_name"],
+                        seed.key,
+                        seed.reaction,
+                        "open",
+                    ),
+                )
+                db.execute(
+                    "INSERT INTO possibility_frontiers(possibility_name,frontier_name) "
+                    "VALUES (?,?)",
+                    (possibility, blueprint.frontier),
+                )
+                for projection in seed.consumes:
+                    db.execute(
+                        "INSERT INTO reaction_inputs(possibility_name,projection_name) "
+                        "VALUES (?,?)",
+                        (possibility, projection),
+                    )
+                for ordinal, successor in enumerate(seed.establishes):
+                    db.execute(
+                        "INSERT INTO reaction_outputs("
+                        "possibility_name,ordinal,output_key,role,protocol_state,holder"
+                        ") VALUES (?,?,?,?,?,?)",
+                        (
+                            possibility,
+                            ordinal,
+                            successor.key,
+                            successor.role,
+                            successor.state,
+                            successor.holder,
+                        ),
+                    )
+
+            db.execute(
+                "INSERT INTO frontier_admissions(frontier_name,proof,blueprint_json) "
+                "VALUES (?,?,?)",
+                (
+                    blueprint.frontier,
+                    blueprint.proof,
+                    json.dumps(payload, sort_keys=True, separators=(",", ":")),
+                ),
+            )
+            db.execute(
+                "UPDATE protocol_frontiers SET state='elaborated' WHERE name=?",
+                (blueprint.frontier,),
+            )
+            self._event(
+                db,
+                "frontier_elaborated",
+                {
+                    "frontier": blueprint.frontier,
+                    "instance": row["instance_name"],
+                    "protocol_cid": blueprint.protocol_cid,
+                    "parent_occurrence": blueprint.parent_occurrence,
+                    "proof": blueprint.proof,
+                    "possibilities": possibilities,
+                    "new_names": new_names,
+                },
+            )
+            result = {
+                "frontier": blueprint.frontier,
+                "proof": blueprint.proof,
+                "possibilities": possibilities,
+            }
+            self._idem_put(db, request_id, "admit_frontier", payload, result)
+            return result
+
     def commit_occurrence(
         self,
         *,
@@ -642,16 +813,9 @@ class TrustedMachinery:
     ) -> dict[str, Any]:
         """Atomically turn one latent possibility into a causal occurrence.
 
-        This method does not interpret the Reaction name or the observation. It
-        checks only mechanical facts:
-
-        * the selected possibility is still open;
-        * every predeclared input projection is still live;
-        * those projections are consumed exactly once;
-        * only the successor templates already attached to this possibility are
-          materialized as new live projection capabilities;
-        * competing possibilities sharing a consumed projection become
-          precluded in the same transaction.
+        Participant projections and the protocol-frontier capability are both
+        linear. A successful occurrence spends the current frontier and mints
+        exactly one successor frontier in the open, not-yet-elaborated state.
         """
 
         payload = {"possibility": possibility, "observation": observation}
@@ -661,7 +825,10 @@ class TrustedMachinery:
                 return old
 
             possibility_row = db.execute(
-                "SELECT * FROM reaction_possibilities WHERE name=?",
+                "SELECT rp.*,pf.frontier_name "
+                "FROM reaction_possibilities rp "
+                "JOIN possibility_frontiers pf ON pf.possibility_name=rp.name "
+                "WHERE rp.name=?",
                 (possibility,),
             ).fetchone()
             if possibility_row is None:
@@ -670,6 +837,15 @@ class TrustedMachinery:
                 raise Conflict(
                     f"reaction possibility {possibility!r} is "
                     f"{possibility_row['state']}, not open"
+                )
+
+            frontier_row = db.execute(
+                "SELECT * FROM protocol_frontiers WHERE name=?",
+                (possibility_row["frontier_name"],),
+            ).fetchone()
+            if frontier_row is None or frontier_row["state"] != "elaborated":
+                raise Conflict(
+                    "reaction possibility does not belong to a live elaborated frontier"
                 )
 
             input_rows = db.execute(
@@ -689,7 +865,8 @@ class TrustedMachinery:
                 )
 
             occurrence = self._new_name(db, "occurrence")
-            new_names = [occurrence]
+            new_frontier = self._new_name(db, "frontier")
+            new_names = [occurrence, new_frontier]
             consumed = [row["name"] for row in input_rows]
 
             for projection in consumed:
@@ -726,24 +903,21 @@ class TrustedMachinery:
                 )
 
             db.execute(
+                "UPDATE reaction_possibilities SET state='precluded' "
+                "WHERE name IN ("
+                "SELECT possibility_name FROM possibility_frontiers "
+                "WHERE frontier_name=?"
+                ") AND state='open' AND name<>?",
+                (frontier_row["name"], possibility),
+            )
+            db.execute(
                 "UPDATE reaction_possibilities SET state='occurred' WHERE name=?",
                 (possibility,),
             )
-
-            placeholders = ",".join("?" for _ in consumed)
-            if consumed:
-                competing = db.execute(
-                    "SELECT DISTINCT rp.name FROM reaction_possibilities rp "
-                    "JOIN reaction_inputs ri ON ri.possibility_name=rp.name "
-                    f"WHERE rp.state='open' AND ri.projection_name IN ({placeholders})",
-                    tuple(consumed),
-                ).fetchall()
-                for row in competing:
-                    db.execute(
-                        "UPDATE reaction_possibilities SET state='precluded' "
-                        "WHERE name=?",
-                        (row["name"],),
-                    )
+            db.execute(
+                "UPDATE protocol_frontiers SET state='spent' WHERE name=?",
+                (frontier_row["name"],),
+            )
 
             db.execute(
                 "INSERT INTO occurrences("
@@ -770,6 +944,37 @@ class TrustedMachinery:
                     (occurrence, projection, ordinal),
                 )
 
+            db.execute(
+                "INSERT INTO protocol_frontiers("
+                "name,instance_name,protocol_cid,parent_occurrence,generation,state"
+                ") VALUES (?,?,?,?,?,?)",
+                (
+                    new_frontier,
+                    possibility_row["instance_name"],
+                    frontier_row["protocol_cid"],
+                    occurrence,
+                    int(frontier_row["generation"]) + 1,
+                    "open",
+                ),
+            )
+
+            live_rows = db.execute(
+                "SELECT name FROM projections "
+                "WHERE instance_name=? AND disposition='live' ORDER BY role,name",
+                (possibility_row["instance_name"],),
+            ).fetchall()
+            for row in live_rows:
+                db.execute(
+                    "INSERT INTO frontier_members(frontier_name,projection_name) "
+                    "VALUES (?,?)",
+                    (new_frontier, row["name"]),
+                )
+            db.execute(
+                "INSERT INTO occurrence_frontiers(occurrence_name,frontier_name) "
+                "VALUES (?,?)",
+                (occurrence, new_frontier),
+            )
+
             self._event(
                 db,
                 "occurrence_committed",
@@ -778,6 +983,9 @@ class TrustedMachinery:
                     "instance": possibility_row["instance_name"],
                     "possibility": possibility,
                     "reaction": possibility_row["reaction"],
+                    "previous_frontier": frontier_row["name"],
+                    "next_frontier": new_frontier,
+                    "generation": int(frontier_row["generation"]) + 1,
                     "consumed": consumed,
                     "successors": successor_by_key,
                     "observation": observation,
@@ -790,6 +998,7 @@ class TrustedMachinery:
                 "reaction": possibility_row["reaction"],
                 "consumed": consumed,
                 "successors": successor_by_key,
+                "frontier": new_frontier,
             }
             self._idem_put(
                 db,
@@ -799,6 +1008,31 @@ class TrustedMachinery:
                 result,
             )
             return result
+
+    def frontier(self, frontier: str) -> dict[str, Any]:
+        row = self.db.execute(
+            "SELECT * FROM protocol_frontiers WHERE name=?",
+            (frontier,),
+        ).fetchone()
+        if row is None:
+            raise KeyError(frontier)
+        item = dict(row)
+        item["projections"] = [
+            dict(r)
+            for r in self.db.execute(
+                "SELECT p.name,p.role,p.protocol_state,p.holder,p.disposition "
+                "FROM frontier_members fm "
+                "JOIN projections p ON p.name=fm.projection_name "
+                "WHERE fm.frontier_name=? ORDER BY p.role,p.name",
+                (frontier,),
+            ).fetchall()
+        ]
+        admission = self.db.execute(
+            "SELECT proof FROM frontier_admissions WHERE frontier_name=?",
+            (frontier,),
+        ).fetchone()
+        item["proof"] = None if admission is None else admission["proof"]
+        return item
 
     def projection(self, projection: str) -> dict[str, Any]:
         row = self.db.execute(
