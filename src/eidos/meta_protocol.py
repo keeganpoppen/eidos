@@ -140,6 +140,13 @@ class MetaProtocolDriver:
         self.executors[name] = adapter
         self.process_runner.executors[name] = adapter
 
+    def authorize_model_consultation(self, *, model: str, executor: str) -> None:
+        """Admit a particular process Model's authority to consult one executor."""
+
+        self.process_runner.authorize_consultation(
+            model=model, executor=executor
+        )
+
     def react(self, suspended: Suspended, *, request_id: str) -> Reaction:
         """Turn one meta-protocol suspension into its authoritative Reaction."""
 
