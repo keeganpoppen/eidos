@@ -3,8 +3,12 @@ import json
 import pytest
 
 from eidos.core import (
+    Apply,
     Bindings,
+    Closure,
     Done,
+    Lambda,
+    LexicalEnv,
     Lit,
     Name,
     Need,
@@ -206,3 +210,62 @@ def test_suspension_preserves_the_surrounding_control_stack():
         ),
     )
     assert resumed == Done(42, Bindings())
+
+
+
+def test_lambda_is_first_class_serializable_code_with_lexical_capture():
+    praxis = PraxisCore()
+    made = praxis.realize(
+        Let(
+            "captured",
+            Lit(40),
+            Lambda(
+                ("argument",),
+                Prim("add", (Var("captured"), Var("argument"))),
+            ),
+        )
+    )
+    assert isinstance(made, Done)
+    assert isinstance(made.value, Closure)
+
+    closure = made.value
+    encoded = to_data(closure)
+    assert from_data(json.loads(json.dumps(encoded))) == closure
+
+    result = praxis.realize(Apply(Lit(closure), (Lit(2),)))
+    assert result == Done(42, Bindings())
+
+
+def test_closure_captures_lexical_values_but_roles_remain_situated():
+    praxis = PraxisCore()
+    offset = Role("offset")
+    made = praxis.realize(Lambda((), Need(offset)))
+    assert isinstance(made, Done)
+    closure = made.value
+
+    first = praxis.realize(
+        Apply(Lit(closure), ()),
+        bindings=Bindings().bind(offset, 7),
+    )
+    second = praxis.realize(
+        Apply(Lit(closure), ()),
+        bindings=Bindings().bind(offset, 9),
+    )
+
+    assert first == Done(7, Bindings().bind(offset, 7))
+    assert second == Done(9, Bindings().bind(offset, 9))
+
+
+def test_let_is_lexically_scoped_across_enclosing_control():
+    praxis = PraxisCore()
+    result = praxis.realize(
+        Prim(
+            "add",
+            (
+                Let("x", Lit(1), Var("x")),
+                Var("x"),
+            ),
+        ),
+        lexical=LexicalEnv().bind("x", 10),
+    )
+    assert result == Done(11, Bindings())
