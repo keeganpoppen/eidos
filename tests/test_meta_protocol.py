@@ -198,6 +198,14 @@ def test_elaborate_and_actualize_are_ordinary_eidos_socket_operations():
     assert elaboration_reaction.consumed_sockets == (
         Socket(Name(left["elaborator_projection"])),
     )
+    elaborate_authority = tm.authority_occurrence(
+        elaboration_reaction.name.value
+    )
+    assert elaborate_authority["kind"] == "Elaborate"
+    assert elaborate_authority["inputs"] == [
+        left["elaborator_projection"]
+    ]
+
     possibility_key, possibility = only_entry(elaborated.get("possibilities"))
     assert isinstance(possibility, Name)
     actualizer = elaborated.get("actualizers").get(possibility.value)
@@ -215,6 +223,14 @@ def test_elaborate_and_actualize_are_ordinary_eidos_socket_operations():
     consumed = set(actualization_reaction.consumed_sockets)
     assert actualizer in consumed
     assert len(consumed) == 3  # Actualizer + A + B.
+
+    actualize_authority = tm.authority_occurrence(
+        actualization_reaction.name.value
+    )
+    assert actualize_authority["kind"] == "Actualize"
+    assert {
+        Socket(Name(name)) for name in actualize_authority["inputs"]
+    } == consumed
 
     occurrence = actualized.get("occurrence")
     assert isinstance(occurrence, Name)
@@ -314,6 +330,13 @@ def test_joint_elaborate_is_a_multi_socket_meta_reaction():
         left_elaborator,
         right_elaborator,
     }
+    joint_authority = tm.authority_occurrence(reaction.name.value)
+    assert joint_authority["kind"] == "Elaborate"
+    assert set(joint_authority["inputs"]) == {
+        left_elaborator.name.value,
+        right_elaborator.name.value,
+    }
+
     _, possibility = only_entry(joined.get("possibilities"))
     assert isinstance(possibility, Name)
     row = tm.observed_possibility(possibility.value)
