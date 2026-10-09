@@ -16,6 +16,41 @@ def _record(kind: str, **fields: Any) -> RecordValue:
     return RecordValue.from_mapping({"$kind": kind, **fields})
 
 
+
+
+def projection_value(
+    *,
+    key: str,
+    role: str,
+    state: str,
+) -> RecordValue:
+    """Semantic description of a projection capability.
+
+    Holder and live/spent disposition are deliberately absent: those are
+    authority facts maintained by Trusted Machinery.
+    """
+
+    return _record(
+        "Projection",
+        key=key,
+        role=role,
+        state=state,
+    )
+
+
+def authority_domain_value(
+    *,
+    protocol: str,
+    protocol_cid: str,
+) -> RecordValue:
+    """Semantic description bound to an authority-local domain Name."""
+
+    return _record(
+        "AuthorityDomain",
+        protocol=protocol,
+        protocol_cid=protocol_cid,
+    )
+
 def projection_template_value(
     *,
     key: str,
