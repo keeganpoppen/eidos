@@ -40,6 +40,7 @@ class ReactionRule:
     name: str
     requires: tuple[ProjectionTemplate, ...]
     successors: tuple[ProjectionTemplate, ...]
+    requires_facts: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         required_roles = [projection.role for projection in self.requires]
@@ -47,6 +48,11 @@ class ReactionRule:
             raise ValueError("reaction rule requires at least one projection")
         if len(set(required_roles)) != len(required_roles):
             raise ValueError("reaction rule requires a role more than once")
+
+        if any(not fact for fact in self.requires_facts):
+            raise ValueError("knowledge preconditions must be nonempty facts")
+        if len(set(self.requires_facts)) != len(self.requires_facts):
+            raise ValueError("duplicate knowledge precondition")
 
         successor_roles = [projection.role for projection in self.successors]
         if len(set(successor_roles)) != len(successor_roles):
