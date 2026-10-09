@@ -2,10 +2,10 @@
 
 > **Who understands a Cut, and how they do it, is situated. The authority of the Cut remains separate.**
 
-The same Model role can be occupied by an ordinary declarative rule model, an
-Eidos Closure, or a deliberately registered delegated executor. Their common
-interface is made of **ordinary immutable Eidos Values**, not host callables
-hidden inside Core or another permission system invented by the interpreter.
+The same Model role can be occupied by an ordinary declarative rule model,
+a pure Eidos Closure, a deliberately registered delegated executor, **or a
+resumable Eidos process**. Their common input/output contract is made of
+ordinary immutable Eidos Values, not host callables hidden inside Core.
 
 Implementation: [`model_execution.py`](../src/eidos/model_execution.py);
 orchestration: [`epistemics.py`](../src/eidos/epistemics.py);
@@ -20,6 +20,10 @@ Each named `Model` Value has one implementation mode:
 - `closure`: an ordinary serializable `Closure` executed through `PraxisCore`;
 - `delegated`: the Name of an inspectable `ModelExecutor` descriptor, whose
   host explicitly binds it to an executable adapter.
+- `process`: a first-class Eidos Closure realized through an explicitly
+  admitted process-local authority domain. It may suspend on ordinary
+  informational Socket operations, persist its continuation, and resume after
+  receiving reactions.
 
 The request to each implementation is an ordinary `ModelInput` Value:
 
@@ -59,6 +63,25 @@ only while its situated Attention budget permits another inference.
 This is validation of *support references*, not verification of logical
 entailment for arbitrary Closures or external models. Such conclusions remain
 attributable claims made by their Models.
+
+## Resumable Model processes
+
+A Model whose engine is `process` may `perform model:Inspect` or
+`perform model:Consult` on its own process Socket rather than returning its
+ModelProposal immediately. Generic TM occurrences consume one local process
+capability and mint its next projection per step. Each pending computation is
+checkpointed as a serializable Eidos `Suspended` Value; received replies,
+interaction receipts, and the final proposal are all named and inspectable.
+
+Consultation is doubly explicit: the host must register the executor adapter
+**and** admit a Model-specific right to consult it, captured in the process
+genesis description. Knowing an executor Name alone permits neither a call
+nor access to the observed world's participant authority.
+
+The eventual ModelDerivation links to its ModelProcessOutcome Name, which in
+turn links to each checkpoint and informational occurrence. See
+[`MODEL_PROCESSES.md`](MODEL_PROCESSES.md) for the lifecycle, crash-window
+pressure tests, joint-Cut use case, and limitations.
 
 ## What changes between implementations?
 
@@ -165,6 +188,15 @@ promise exactly-once external execution.
   including their inputs, receipts, executor Names, and provenance.
 - The Actualizer remains a separate ordinary Socket operation requiring live
   projection authority.
+- A resumable process can inspect two observer-relative Cuts, consult a
+  separately authorized specialist, and return one ModelProposal after
+  multiple durable informational Reactions.
+- The process survives a runner restart between interactions; a test also
+  injects a crash after TM commit but before continuation resume, and verifies
+  that the prepared response is reused.
+- A process cannot inspect an arbitrary Name outside its Context or consult
+  an executor merely because that executor is registered.
+
 
 ## Next pressure point
 
