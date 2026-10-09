@@ -389,3 +389,184 @@ def test_model_facts_do_not_create_missing_world_projections():
         by_role,
         facts=knowledge.facts,
     )
+
+
+
+def test_joint_specialist_elaboration_uses_two_grounded_cuts_without_new_authority():
+    joint_protocol = RecursiveProtocol(
+        name="joint-epistemic-recognition",
+        initial=(
+            ProjectionTemplate("A", "observing"),
+            ProjectionTemplate("B", "observing"),
+        ),
+        reactions=(
+            ReactionRule(
+                name="recognize-together",
+                requires=(
+                    ProjectionTemplate("A", "observing"),
+                    ProjectionTemplate("B", "observing"),
+                ),
+                successors=(
+                    ProjectionTemplate("A", "recognized"),
+                    ProjectionTemplate("B", "recognized"),
+                ),
+                requires_facts=("joint:recognized",),
+            ),
+        ),
+    )
+    tm = TrustedMachinery()
+    genesis = admit_genesis(
+        tm,
+        joint_protocol,
+        holders={"A": "alice", "B": "bob"},
+        request_id="joint-knowledge-genesis",
+    )
+    left = tm.create_observed_cut(
+        instance=genesis["instance"],
+        observer="O1",
+        protocol_cid=joint_protocol.cid,
+        projections=[genesis["projections"]["projection:A"]],
+        elaborator="elaborator:left",
+        request_id="joint-knowledge-left",
+    )
+    right = tm.create_observed_cut(
+        instance=genesis["instance"],
+        observer="O2",
+        protocol_cid=joint_protocol.cid,
+        projections=[genesis["projections"]["projection:B"]],
+        elaborator="elaborator:right",
+        request_id="joint-knowledge-right",
+    )
+
+    claim_a = persist(
+        tm, "knowledge", knowledge_value("signal:A", grounds=(left["cut"],))
+    )
+    claim_b = persist(
+        tm, "knowledge", knowledge_value("signal:B", grounds=(right["cut"],))
+    )
+    model = persist(
+        tm,
+        "model",
+        model_value(
+            "cross-cut-correspondence",
+            rules=(
+                implication_value(
+                    ("signal:A", "signal:B"), "joint:recognized"
+                ),
+            ),
+            sources=(claim_a, claim_b),
+        ),
+    )
+    attention = persist(
+        tm, "attention", attention_value(inference_budget=1)
+    )
+    context = persist(
+        tm,
+        "context",
+        context_value(
+            cuts=(left["cut"], right["cut"]),
+            knowledge=(claim_a, claim_b),
+            models=(model,),
+            attention=attention,
+        ),
+    )
+
+    assert elaborate_cuts(
+        joint_protocol,
+        cuts=(cut_view(tm, left["cut"]),),
+        elaborator="elaborator:left",
+        actualizer="actualizer:joint",
+    ).possibilities == ()
+    assert elaborate_cuts(
+        joint_protocol,
+        cuts=(cut_view(tm, right["cut"]),),
+        elaborator="elaborator:right",
+        actualizer="actualizer:joint",
+    ).possibilities == ()
+
+    before_context_cid = tm.named_eidos_value(context)["cid"]
+    tm.transfer_projection(
+        projection=left["elaborator_projection"],
+        from_holder="elaborator:left",
+        to_holder="elaborator:specialist",
+        request_id="joint-specialist-left",
+    )
+    tm.transfer_projection(
+        projection=right["elaborator_projection"],
+        from_holder="elaborator:right",
+        to_holder="elaborator:specialist",
+        request_id="joint-specialist-right",
+    )
+    assert tm.named_eidos_value(context)["cid"] == before_context_cid
+
+    driver = MetaProtocolDriver(tm)
+    driver.register(joint_protocol)
+    praxis = PraxisCore()
+    term = elaborate_operation(
+        Lit(Socket(Name(left["elaborator_projection"]))),
+        protocol_cid=joint_protocol.cid,
+        cuts=(left["cut"], right["cut"]),
+        authorities={
+            left["cut"]: left["elaborator_projection"],
+            right["cut"]: right["elaborator_projection"],
+        },
+        context=context,
+        actualizer="actualizer:joint",
+        result_as="result",
+        successor_as="next",
+        then=Var("result"),
+    )
+    suspended = praxis.realize(term)
+    assert isinstance(suspended, Suspended)
+    reaction = driver.react(suspended, request_id="joint-specialist-elaborate")
+    assert {socket.name.value for socket in reaction.consumed_sockets} == {
+        left["elaborator_projection"], right["elaborator_projection"]
+    }
+
+    result = praxis.resume(suspended, reaction)
+    assert isinstance(result, Done)
+    possibilities = result.value.get("possibilities").as_dict()
+    assert len(possibilities) == 1
+    assert next(iter(possibilities)).endswith("reaction:recognize-together")
+
+    elaboration = tm.named_eidos_value(reaction.name.value)["value"]
+    assert elaboration.get("context") == Name(context)
+    assert elaboration.get("inferences")[0].get("premises") == (
+        "signal:A", "signal:B"
+    )
+    assert {ref.value for ref in elaboration.get("cuts")} == {
+        left["cut"], right["cut"]
+    }
+
+
+def test_later_understanding_of_a_spent_cut_does_not_restore_authority():
+    tm, p, cut, refs = world()
+    original = derive(tm, p, cut, refs["shallow"])
+    admitted = tm.admit_cut_elaboration(
+        blueprint=original,
+        authorities={cut["cut"]: cut["elaborator_projection"]},
+        request_id="original-shallow-world",
+    )
+    look = next(iter(admitted["possibilities"].values()))
+    tm.actualize_observed(
+        possibility=look,
+        actualizer="actualizer:sky",
+        authority=admitted["actualizers"][look],
+        observation={"did": "look"},
+        request_id="actualize-shallow-world",
+    )
+
+    retrospective = derive(tm, p, cut, refs["deep"])
+    assert {possibility.reaction for possibility in retrospective.possibilities} == {
+        "simply-look", "recognize-pattern"
+    }
+    assert tm.causal_cut(cut["cut"])["state"] == "historical"
+
+    from eidos.trusted import Conflict
+
+    with pytest.raises(Conflict, match="Elaborator projection"):
+        tm.admit_cut_elaboration(
+            blueprint=retrospective,
+            authorities={cut["cut"]: cut["elaborator_projection"]},
+            request_id="retrospective-cannot-admit",
+        )
