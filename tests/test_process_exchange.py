@@ -4,7 +4,7 @@ from eidos.core import (
     Done, Get, Lambda, Lit, Name, Need, Perform, PraxisCore, Record,
     RecordValue, Socket, Suspended, Var,
 )
-from eidos.cut_exchange import CutExchangeError, disclose_cut
+from eidos.cut_exchange import CutExchangeError, disclose_cut, validate_disclosure
 from eidos.epistemics import (
     attention_value, context_value, interpret_context, knowledge_value,
     model_value,
@@ -19,7 +19,8 @@ from eidos.model_process import (
     inspection_request, consultation_request,
 )
 from eidos.occurrence import ProjectionTemplate, ReactionRule, RecursiveProtocol
-from eidos.trusted import TrustedMachinery
+from eidos.authority import ProjectionGrant
+from eidos.trusted import StaleProjection, TrustedMachinery
 
 
 def persist(tm, kind, value):
@@ -441,3 +442,97 @@ def test_acquisition_extends_epistemic_context_but_not_outer_elaboration_authori
     possibility = tm.observed_possibility(candidate)
     assert possibility["inputs"] == [genesis["projections"]["projection:A"]]
     assert tm.projection(genesis["projections"]["projection:B"])["disposition"] == "live"
+
+
+
+def test_source_disclosure_recovers_commit_before_value_binding():
+    tm, _, genesis, left, right, refs = world(
+        protocol_mode="disclosure-crash-test"
+    )
+    runner = ModelProcessRunner(tm)
+    process = runner.start(
+        name=refs["model"],
+        program=refs["program"],
+        request=refs["input"],
+        request_id="disclosure-crash-recipient",
+    )
+    source_authority = genesis["projections"]["projection:Discloser"]
+    description = tm.named_eidos_value(source_authority)["value"]
+    request_id = "source-crash-after-commit"
+    commit = tm.commit_projection_occurrence(
+        kind="DiscloseCut",
+        consumes=(source_authority,),
+        establishes=(
+            ProjectionGrant(
+                key="next:discloser",
+                holder="O2",
+                description=description,
+            ),
+        ),
+        fact={
+            "cut": right["cut"],
+            "recipient_run": process.run,
+            "recipient_model": refs["model"],
+            "observer": "O2",
+        },
+        request_id=f"{request_id}:commit",
+    )
+    disclosure = commit["occurrence"]
+    assert tm.projection(source_authority)["disposition"] == "spent"
+    with pytest.raises(KeyError):
+        tm.named_eidos_value(disclosure)
+
+    # Another host resumes the source domain by replaying the same admitted
+    # causal event; the already-spent projection is not consumed again.
+    recovered = disclose_cut(
+        tm,
+        cut=right["cut"],
+        discloser_projection=source_authority,
+        recipient_run=process.run,
+        recipient_model=refs["model"],
+        request_id=request_id,
+    )
+    assert recovered["disclosure"] == disclosure
+    assert recovered["successor_discloser"] == commit["established"]["next:discloser"]
+    assert validate_disclosure(
+        tm,
+        disclosure=disclosure,
+        cut=right["cut"],
+        recipient_run=process.run,
+        recipient_model=refs["model"],
+    ).get("$kind") == "CutDisclosure"
+
+    again = disclose_cut(
+        tm,
+        cut=right["cut"],
+        discloser_projection=source_authority,
+        recipient_run=process.run,
+        recipient_model=refs["model"],
+        request_id=request_id,
+    )
+    assert again == recovered
+
+    with pytest.raises(StaleProjection):
+        disclose_cut(
+            tm,
+            cut=right["cut"],
+            discloser_projection=source_authority,
+            recipient_run=process.run,
+            recipient_model=refs["model"],
+            request_id="a-second-disclosure-cannot-reuse-spent-authority",
+        )
+
+    second_process = runner.start(
+        name=refs["model"],
+        program=refs["program"],
+        request=refs["input"],
+        request_id="different-recipient-run",
+    )
+    with pytest.raises(CutExchangeError, match="not addressed"):
+        validate_disclosure(
+            tm,
+            disclosure=disclosure,
+            cut=right["cut"],
+            recipient_run=second_process.run,
+            recipient_model=refs["model"],
+        )
