@@ -2148,6 +2148,7 @@ class TrustedMachinery:
                 )
 
             consumed_set = set(consumed)
+            successor_cut_members: dict[str, list[str]] = {}
             for old_cut in cause_cuts:
                 cut_row = cut_rows[old_cut]
                 new_cut = successor_cuts[old_cut]
@@ -2178,6 +2179,7 @@ class TrustedMachinery:
                     "WHERE cm.cut_name=? ORDER BY p.role,p.name",
                     (old_cut,),
                 ).fetchall()
+                successor_cut_members[new_cut] = []
                 for member in members:
                     projection = member["name"]
                     if projection in consumed_set:
@@ -2188,12 +2190,44 @@ class TrustedMachinery:
                         "INSERT INTO cut_members(cut_name,projection_name) VALUES (?,?)",
                         (new_cut, projection),
                     )
+                    successor_cut_members[new_cut].append(projection)
                 db.execute(
                     "INSERT INTO observed_occurrence_cuts("
                     "occurrence_name,cut_name"
                     ") VALUES (?,?)",
                     (occurrence, old_cut),
                 )
+
+            successor_cut_values: dict[str, str] = {}
+            for old_cut, new_cut in successor_cuts.items():
+                cut_row = cut_rows[old_cut]
+                successor_cut_values[new_cut] = self._bind_eidos_value(
+                    db,
+                    name=new_cut,
+                    value=cut_value(
+                        name=new_cut,
+                        observer=cut_row["observer"],
+                        protocol_cid=cut_row["protocol_cid"],
+                        projections=tuple(successor_cut_members[new_cut]),
+                        parent_cut=old_cut,
+                        parent_occurrence=occurrence,
+                    ),
+                )
+
+            occurrence_cid = self._bind_eidos_value(
+                db,
+                name=occurrence,
+                value=occurrence_value(
+                    occurrence=occurrence,
+                    reaction=row["reaction"],
+                    possibility=possibility,
+                    cause_cuts=tuple(cause_cuts),
+                    successor_cuts=tuple(successor_cuts.values()),
+                    observation=observation,
+                    consumed=tuple(committed["consumed"]),
+                    established=tuple(committed["established"].values()),
+                ),
+            )
 
             self._event(
                 db,
@@ -2211,6 +2245,8 @@ class TrustedMachinery:
                     "consumed": consumed,
                     "successors": successors,
                     "observation": observation,
+                    "value": occurrence_cid,
+                    "successor_cut_values": successor_cut_values,
                     "new_names": cut_names,
                 },
             )
@@ -2225,6 +2261,8 @@ class TrustedMachinery:
                 "elaborators": elaborators,
                 "consumed": consumed,
                 "successors": successors,
+                "value": occurrence_cid,
+                "successor_cut_values": successor_cut_values,
             }
             self._idem_put(db, request_id, "actualize_observed", payload, result)
             return result
