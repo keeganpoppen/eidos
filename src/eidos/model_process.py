@@ -25,8 +25,10 @@ from .core import (
     Apply, Bindings, Closure, Done, Lit, Name, PraxisCore, Reaction,
     RecordValue, Role, Socket, Suspended, canonical_bytes, content_id, to_data,
 )
-from .epistemics import _require_kind, context_value
-from .lenses import walk_named_values
+from .epistemics import (
+    ATTENTION_ROLE, KNOWLEDGE_ROLE, MODELS_ROLE,
+    _require_kind, context_value,
+)
 from .cut_exchange import cut_request, validate_disclosure
 from .model_execution import (
     MODEL_CONTEXT_ROLE, MODEL_INPUT_ROLE, MODEL_ROLE,
@@ -505,15 +507,8 @@ class ModelProcessRunner:
             target = request.get("target")
             if not isinstance(target, Name):
                 raise ModelExecutionError("Inspect target must be a Name")
-            roots = (context, *cuts)
-            neighborhood = walk_named_values(
-                roots,
-                resolve=lambda name: self.trusted.named_eidos_value(name)["value"],
-                depth=12,
-            )
-            if len(neighborhood.nodes) > self.max_scope_nodes:
-                raise ModelExecutionError("inspection exceeds scoped context limit")
-            if target.value not in neighborhood.by_name():
+            allowed = self._inspection_scope(context)
+            if target.value not in allowed:
                 raise ModelExecutionError("Inspect target is outside scoped Context")
             return RecordValue.from_mapping({
                 "$kind": "InspectedValue",
@@ -635,6 +630,70 @@ class ModelProcessRunner:
         raise ModelExecutionError(
             f"operation {suspended.operation.value!r} is not an epistemic interaction"
         )
+
+    def _inspection_scope(self, context: Name) -> set[str]:
+        """Explicitly admitted semantic inspection scope, not graph reachability.
+
+        Generic lenses follow Names inside arbitrary code and can display them
+        as references. That is not a permission check: a Closure may contain
+        the Name of a Cut the process has not yet acquired. This scope derives
+        only from the admitted Context and its explicitly bound ingredients.
+        """
+
+        allowed: set[str] = set()
+        cursor: Name | None = context
+        visited: set[str] = set()
+        while cursor is not None:
+            if cursor.value in visited:
+                raise ModelExecutionError("cyclic inspection Context ancestry")
+            visited.add(cursor.value)
+            allowed.add(cursor.value)
+            value = _require_kind(
+                self.trusted.named_eidos_value(cursor.value)["value"],
+                "ElaborationContext",
+            )
+            for reference in value.get("cuts"):
+                if not isinstance(reference, Name):
+                    raise ModelExecutionError("Context Cut must be a Name")
+                allowed.add(reference.value)
+                observed = _require_kind(
+                    self.trusted.named_eidos_value(reference.value)["value"],
+                    "Cut",
+                )
+                for projection in observed.get("projections"):
+                    if not isinstance(projection, Name):
+                        raise ModelExecutionError("Cut projection must be a Name")
+                    allowed.add(projection.value)
+
+            bindings = value.get("bindings")
+            if not isinstance(bindings, Bindings):
+                raise ModelExecutionError("Context must contain ordinary Role Bindings")
+            for role in (KNOWLEDGE_ROLE, MODELS_ROLE):
+                for reference in bindings.lookup(role):
+                    if not isinstance(reference, Name):
+                        raise ModelExecutionError("Context evidence must be named")
+                    allowed.add(reference.value)
+                    # Deliberately do not recursively follow Names inside
+                    # Model code, arbitrary claims, or executable closures.
+            try:
+                attention = bindings.lookup(ATTENTION_ROLE)
+            except KeyError:
+                attention = None
+            if attention is not None:
+                if not isinstance(attention, Name):
+                    raise ModelExecutionError("Attention must be a Name")
+                allowed.add(attention.value)
+
+            disclosure = value.get("acquisition")
+            if isinstance(disclosure, Name):
+                allowed.add(disclosure.value)
+            parent = value.get("parent")
+            if parent is not None and not isinstance(parent, Name):
+                raise ModelExecutionError("Context parent must be a Name")
+            cursor = parent
+            if len(allowed) > self.max_scope_nodes:
+                raise ModelExecutionError("inspection exceeds scoped Context limit")
+        return allowed
 
     def _finish(
         self,
