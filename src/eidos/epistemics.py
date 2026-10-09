@@ -73,6 +73,7 @@ def model_value(
     rules: Iterable[RecordValue] = (),
     sources: Iterable[Name | str] = (),
     implementation: Closure | Name | str | None = None,
+    process: bool = False,
 ) -> RecordValue:
     """Bind the same Model Role to rules, Eidos code, or a delegated executor.
 
@@ -88,10 +89,12 @@ def model_value(
         _require_kind(rule, "Implication")
     if implementation is not None and rules:
         raise ValueError("a Model has one implementation, not rules and an executor")
+    if process and not isinstance(implementation, Closure):
+        raise ValueError("process Models require a first-class Eidos Closure")
     if implementation is None:
         engine = "rules"
     elif isinstance(implementation, Closure):
-        engine = "closure"
+        engine = "process" if process else "closure"
     else:
         engine = "delegated"
         implementation = _name(implementation)
@@ -184,6 +187,7 @@ def interpret_context(
     resolve: Resolver,
     cuts: Iterable[str],
     adapters: Mapping[str, ModelAdapter] | None = None,
+    process_runner: Any | None = None,
 ) -> EpistemicResult:
     """Interpret a situated Context, optionally invoking registered executors.
 
@@ -305,6 +309,7 @@ def interpret_context(
                     request=request,
                     resolve=resolve,
                     adapters=adapters,
+                    process_runner=process_runner,
                 )
                 evaluated[ref] = candidates
                 derivations.append(derivation)
