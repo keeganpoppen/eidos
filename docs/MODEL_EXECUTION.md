@@ -219,16 +219,25 @@ See [`CUT_EXCHANGE.md`](CUT_EXCHANGE.md) for the two-domain causal exchange,
 disclosure recovery, and the crucial distinction between generic semantic
 Name traversal and explicitly admitted inspection scope.
 
+## Open discovery is now executable
+
+The pending-discovery experiment proposed above has landed. A Model may issue
+a question to a named provider without knowing the eventual Cut's Name;
+its `AwaitDiscovery` continuation stays suspended across source deferrals.
+An observer may refuse, or select and offer a Cut through separate linear
+source-domain authority. Only a verified terminal decision resumes the Model.
+
+The resulting derivation remains attributable and cannot create or transfer
+world participant authority. See [`DISCOVERY.md`](DISCOVERY.md) for the
+question/answer protocol, its source-side responder chain, and the explicitly
+limited local trust model.
+
 ## Next pressure point
 
-This remains an attributable *claim calculus*, not a proof checker, an
-authenticated remote process system, or a fully asynchronous scheduler.
+The Model/requester can now wait, but the responder is still driven through
+host-side APIs. Making the **observer itself a resumable nema**—which may
+deliberate, defer, consult a specialist, or refuse—is the next natural
+semantic-unification test.
 
-I would now explore a **pending discovery/disclosure protocol** in which a
-Model need not even know a useful Cut's Name at the outset. A peer observer
-could defer, refuse, or select evidence; those choices and the eventual
-recipient incorporation would all have independent causal histories.
-
-A richer derivation graph—confidence, competing explanations, support and
-counterevidence—can sit above the same ModelInput/ModelProposal boundary
-without granting any more causal authority.
+Richer competing explanations, uncertainty, and support/counterevidence can
+be added to ModelProposal without weakening the live-authority boundary.
