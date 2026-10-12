@@ -43,11 +43,17 @@ def protocol_value(
     *,
     role: str,
     operations: Iterable[RecordValue],
+    checkpoint_kind: str = "ProcessCheckpoint",
+    process_alias: str = "process",
 ) -> RecordValue:
     """An inspectable semantic description of legal local continuations."""
 
     if not role:
         raise ValueError("a protocol needs a projection role")
+    if not checkpoint_kind or not process_alias:
+        raise ValueError("a process protocol needs checkpoint description fields")
+    if process_alias in ("$kind", "step", "suspension", "previous", "parent_occurrence"):
+        raise ValueError("process alias conflicts with checkpoint machinery")
     entries = tuple(operations)
     seen: set[Name] = set()
     for entry in entries:
@@ -66,6 +72,8 @@ def protocol_value(
         "$kind": "ProcessProtocol",
         "projection_role": role,
         "operations": entries,
+        "checkpoint_kind": checkpoint_kind,
+        "process_alias": process_alias,
     })
 
 
@@ -187,7 +195,10 @@ class ProcessRuntime:
             extras=tuple(
                 (key, value)
                 for key, value in state.fields
-                if key not in ("$kind", "process", "step", "suspension")
+                if key not in (
+                    "$kind", "process", "step", "suspension",
+                    "previous", "parent_occurrence",
+                )
             ),
         )
 
@@ -333,10 +344,15 @@ class ProcessRuntime:
     ) -> str:
         """Persist an ordinary residual computation independent of local Role."""
 
-        # One universal checkpoint schema. Compatibility wrappers may add their
-        # old field aliases, but the machine only reads these common fields.
-        value = RecordValue.from_mapping({
-            "$kind": "ProcessCheckpoint",
+        process_descriptor = self.trusted.named_eidos_value(process)["value"]
+        named_protocol = process_descriptor.get("protocol")
+        protocol = self.trusted.named_eidos_value(named_protocol.value)["value"]
+        alias = protocol.get("process_alias")
+        contents = dict(extras)
+        contents.pop("previous", None)
+        contents.pop("parent_occurrence", None)
+        contents.update({
+            "$kind": protocol.get("checkpoint_kind"),
             "process": Name(process),
             "step": step,
             "suspension": suspended,
@@ -344,8 +360,9 @@ class ProcessRuntime:
             "parent_occurrence": (
                 None if parent_occurrence is None else Name(parent_occurrence)
             ),
-            **extras,
         })
+        contents[alias] = Name(process)
+        value = RecordValue.from_mapping(contents)
         identity = (
             request_id or
             f"{process}:{previous if previous is not None else 'initial'}:next-checkpoint"
