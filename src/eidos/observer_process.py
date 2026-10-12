@@ -234,42 +234,49 @@ class ObserverProcessRunner:
         )
 
     def advance(self, checkpoint: str) -> ObserverProgress:
-        """Commit one source-side process event and resume the saved continuation."""
+        """Advance one ordinary ProcessProtocol step through the shared machine."""
 
-        state = _require_kind(
-            self.trusted.named_eidos_value(checkpoint)["value"],
-            "ObserverCheckpoint",
-        )
-        process_ref = state.get("observer_process")
-        inquiry_ref = state.get("inquiry")
-        suspended = state.get("suspension")
-        step = state.get("step")
-        if (
-            not isinstance(process_ref, Name)
-            or not isinstance(inquiry_ref, Name)
-            or not isinstance(suspended, Suspended)
-            or not isinstance(step, int)
-            or step < 0
-            or step >= self.max_steps
-        ):
-            raise ModelExecutionError("invalid or exhausted ObserverCheckpoint")
-        process, inquiry = process_ref.value, inquiry_ref.value
+        try:
+            progressed = self.machine.advance(
+                checkpoint,
+                interpret=self._interpret_step,
+                finish=self._finish_continuation,
+                validate=self._validate_process_state,
+                identity=self.identity,
+            )
+        except ProcessRuntimeError as exc:
+            raise ModelExecutionError(str(exc)) from exc
         descriptor = _require_kind(
-            self.trusted.named_eidos_value(process)["value"], "ObserverProcess"
+            self.trusted.named_eidos_value(progressed.process)["value"],
+            "ObserverProcess",
         )
-        observer = descriptor.get("observer")
-        if descriptor.get("inquiry") != inquiry_ref:
-            raise ModelExecutionError("observer checkpoint has wrong Inquiry")
+        return ObserverProgress(
+            process=progressed.process,
+            inquiry=descriptor.get("inquiry").value,
+            checkpoint=progressed.checkpoint,
+            outcome=progressed.outcome,
+            occurrence=progressed.occurrence,
+        )
 
+    def _validate_process_state(self, state: ProcessState) -> None:
+        descriptor = _require_kind(state.descriptor, "ObserverProcess")
+        inquiry = descriptor.get("inquiry")
+        if not isinstance(inquiry, Name) or state.get("inquiry") != inquiry:
+            raise ModelExecutionError("observer checkpoint has wrong Inquiry")
         self._check_suspension(
-            suspended,
-            inquiry=inquiry,
-            responder=suspended.socket.name.value,
-            observer=observer,
+            state.suspended,
+            inquiry=inquiry.value,
+            responder=state.suspended.socket.name.value,
+            observer=descriptor.get("observer"),
         )
-        authority = self.trusted.projection(suspended.socket.name.value)
-        if self.identity is not None and self.identity != authority["holder"]:
-            raise ModelExecutionError("observer continuation belongs to another holder")
+
+    def _interpret_step(self, state: ProcessState) -> ProcessReaction:
+        process, checkpoint = state.process, state.checkpoint
+        descriptor = state.descriptor
+        inquiry_ref = descriptor.get("inquiry")
+        inquiry = inquiry_ref.value
+        suspended = state.suspended
+        observer = descriptor.get("observer")
 
         if suspended.operation in (OBSERVER_INSPECT, OBSERVER_CONSULT):
             prepared_name, prepared = self._prepare(
@@ -278,20 +285,19 @@ class ObserverProcessRunner:
             )
             response = prepared.get("response")
             current = suspended.socket.name.value
-            grants = (
-                ProjectionGrant(
-                    key="next:responder",
-                    holder=observer,
-                    description=self.trusted.named_eidos_value(current)["value"],
-                ),
-            )
             event = self.trusted.commit_projection_occurrence(
                 kind={
                     OBSERVER_INSPECT: "ObserverInspect",
                     OBSERVER_CONSULT: "ObserverConsult",
                 }[suspended.operation],
                 consumes=(current,),
-                establishes=grants,
+                establishes=(
+                    ProjectionGrant(
+                        key="next:responder",
+                        holder=observer,
+                        description=self.trusted.named_eidos_value(current)["value"],
+                    ),
+                ),
                 fact={
                     "inquiry": inquiry,
                     "observer_process": process,
@@ -309,7 +315,7 @@ class ObserverProcessRunner:
                 value=RecordValue.from_mapping({
                     "$kind": "ObserverInteraction",
                     "inquiry": inquiry_ref,
-                    "observer_process": process_ref,
+                    "observer_process": Name(process),
                     "checkpoint": Name(checkpoint),
                     "operation": suspended.operation,
                     "prepared": Name(prepared_name),
@@ -321,8 +327,8 @@ class ObserverProcessRunner:
                 request_id=f"{process}:{checkpoint}:occurrence",
             )
         else:
-            # Defer/Offer/Refuse are source-side protocol transitions, using
-            # exactly the responder projection currently held by this process.
+            # Interpretation of inquiry decisions belongs to this protocol,
+            # not to the process machine's generic continuation loop.
             argument = suspended.argument
             if not isinstance(argument, RecordValue):
                 raise ModelExecutionError("observer decision must be an Eidos Value")
@@ -345,9 +351,8 @@ class ObserverProcessRunner:
                 "cut": None if cut is None else Name(cut),
             })
 
-        continued = PraxisCore().resume(
-            suspended,
-            Reaction(
+        return ProcessReaction(
+            reaction=Reaction(
                 name=Name(occurrence),
                 consumed=suspended.socket,
                 successor=(
@@ -356,55 +361,35 @@ class ObserverProcessRunner:
                 value=response,
             ),
         )
-        if isinstance(continued, Done):
-            if suspended.operation not in (OBSERVER_OFFER, OBSERVER_REFUSE):
-                raise ModelExecutionError(
-                    "observer process cannot finish without Offer or Refuse"
-                )
-            lineage = self._lineage(checkpoint)
-            outcome = self._persist(
-                kind="observer-outcome",
-                request_id=f"{process}:{checkpoint}:outcome",
-                value=RecordValue.from_mapping({
-                    "$kind": "ObserverOutcome",
-                    "observer_process": process_ref,
-                    "inquiry": inquiry_ref,
-                    "context": descriptor.get("context"),
-                    "decision": Name(occurrence),
-                    "result": continued.value,
-                    "checkpoints": tuple(Name(name) for name in lineage),
-                    "occurrences": tuple(
-                        Name(name) for name in
-                        self._occurred_lineage(lineage) + (occurrence,)
-                    ),
-                }),
-            )
-            return ObserverProgress(
-                process=process, inquiry=inquiry,
-                occurrence=occurrence, outcome=outcome,
-            )
 
-        if not isinstance(continued, Suspended):
-            raise ModelExecutionError("observer process must suspend or complete")
-        if next_responder is None:
+    def _finish_continuation(self, completed: ProcessContinuation) -> str:
+        state = completed.state
+        if state.suspended.operation not in (OBSERVER_OFFER, OBSERVER_REFUSE):
             raise ModelExecutionError(
-                "terminal source decision cannot establish another continuation"
+                "observer process cannot finish without Offer or Refuse"
             )
-        self._check_suspension(
-            continued,
-            inquiry=inquiry,
-            responder=next_responder,
-            observer=observer,
-        )
-        successor_checkpoint = self._checkpoint(
-            process=process, inquiry=inquiry,
-            step=step + 1, suspended=continued,
-            previous=checkpoint, parent_occurrence=occurrence,
-            request_id=f"{process}:{checkpoint}:next-checkpoint",
-        )
-        return ObserverProgress(
-            process=process, inquiry=inquiry,
-            checkpoint=successor_checkpoint, occurrence=occurrence,
+        if not isinstance(completed.resumed, Done):
+            raise ModelExecutionError("observer did not complete its continuation")
+        descriptor = state.descriptor
+        inquiry = descriptor.get("inquiry")
+        occurrence = completed.transition.reaction.name.value
+        return self._persist(
+            kind="observer-outcome",
+            request_id=f"{state.process}:{state.checkpoint}:outcome",
+            value=RecordValue.from_mapping({
+                "$kind": "ObserverOutcome",
+                "observer_process": Name(state.process),
+                "inquiry": inquiry,
+                "context": descriptor.get("context"),
+                "decision": Name(occurrence),
+                "result": completed.resumed.value,
+                "checkpoints": tuple(
+                    Name(name) for name in completed.checkpoints
+                ),
+                "occurrences": tuple(
+                    Name(name) for name in completed.occurrences
+                ),
+            }),
         )
 
     def _decision(
