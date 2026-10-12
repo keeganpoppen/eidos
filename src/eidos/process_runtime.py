@@ -31,11 +31,13 @@ def operation_value(
     name: Name | str,
     *,
     terminal: bool = False,
+    may_wait: bool = False,
 ) -> RecordValue:
     return RecordValue.from_mapping({
         "$kind": "ProtocolOperation",
         "name": name if isinstance(name, Name) else Name(name),
         "terminal": terminal,
+        "may_wait": may_wait,
     })
 
 
@@ -61,8 +63,15 @@ def protocol_value(
             raise ValueError("protocol operations must be ordinary ProtocolOperation Values")
         name = entry.get("name")
         terminal = entry.get("terminal")
-        if not isinstance(name, Name) or not isinstance(terminal, bool):
-            raise ValueError("operation requires a Name and terminal flag")
+        may_wait = entry.get("may_wait")
+        if (
+            not isinstance(name, Name)
+            or not isinstance(terminal, bool)
+            or not isinstance(may_wait, bool)
+        ):
+            raise ValueError(
+                "operation requires a Name and boolean terminal/may_wait flags"
+            )
         if name in seen:
             raise ValueError("duplicate protocol operation")
         seen.add(name)
@@ -317,6 +326,12 @@ class ProcessRuntime:
 
         transition = interpret(state)
         if isinstance(transition, ProcessPending):
+            if not self.operation(
+                state.protocol, state.suspended.operation
+            ).get("may_wait"):
+                raise ProcessRuntimeError(
+                    "this ProcessProtocol operation may not remain pending"
+                )
             return ProcessResult(
                 process=state.process,
                 checkpoint=checkpoint,
