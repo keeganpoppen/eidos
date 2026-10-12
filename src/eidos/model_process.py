@@ -133,11 +133,14 @@ class ModelProcessRunner:
         identity: str | None = None,
         max_steps: int = 8,
         max_scope_nodes: int = 256,
+        machine: ProcessRuntime | None = None,
     ) -> None:
         if max_steps <= 0 or max_scope_nodes <= 0:
             raise ValueError("process budgets must be positive")
         self.trusted = trusted
-        self.machine = ProcessRuntime(trusted, max_steps=max_steps)
+        self.machine = machine if machine is not None else ProcessRuntime(
+            trusted, max_steps=max_steps
+        )
         self.executors = dict(executors or {})
         self.consultations: dict[str, set[str]] = {}
         self.providers = dict(providers or {})
@@ -257,6 +260,7 @@ class ModelProcessRunner:
                 process_alias="run",
             ),
         )
+        self._register_realizer(protocol)
         allowed_executors = tuple(
             Name(executor) for executor in sorted(self.consultations.get(name, ()))
         )
@@ -332,17 +336,24 @@ class ModelProcessRunner:
         )
         return ProcessProgress(run=run, checkpoint=checkpoint)
 
+    def _register_realizer(self, protocol: Name | str) -> None:
+        self.machine.register_protocol(
+            protocol,
+            interpret=self._interpret_step,
+            finish=self._finish_continuation,
+            validate=self._validate_process_state,
+            identity=self.identity,
+        )
+
     def advance(self, checkpoint: str) -> ProcessProgress:
-        """Advance one ordinary ProcessProtocol step through the shared machine."""
+        """Interpret the protocol bound to a named Eidos process."""
 
         try:
-            result = self.machine.advance(
-                checkpoint,
-                interpret=self._interpret_step,
-                finish=self._finish_continuation,
-                validate=self._validate_process_state,
-                identity=self.identity,
-            )
+            state = self.machine.load(checkpoint)
+            if state.descriptor.get("$kind") != "ModelProcess":
+                raise ProcessRuntimeError("ModelProcess runner received a different protocol")
+            self._register_realizer(state.descriptor.get("protocol"))
+            result = self.machine.advance_registered(checkpoint)
         except ProcessRuntimeError as exc:
             raise ModelExecutionError(str(exc)) from exc
         return ProcessProgress(
