@@ -231,6 +231,12 @@ not a distributed scheduler or an authenticated remote actor transport.
 - Only a later `Actualize` against the world's live participant projections
   can authoritatively change the world.
 
-The next pressure test is to allow an observer to **defer or refuse**
-disclosure, and to let a Model seek an initially unnamed Cut using a resumable
-relational discovery protocol rather than an immediate host callback.
+That pressure test is now implemented in
+[`DISCOVERY.md`](DISCOVERY.md): a Model commits a named, open Inquiry through
+`Discover`, then suspends on `AwaitDiscovery`. An observer can accept the
+Inquiry, defer repeatedly, refuse, or offer a previously unnamed Cut through a
+linear source-domain InquiryResponder projection. The recipient only advances
+after a terminal source decision.
+
+The next step is to represent the **source observer's own deliberation** as a
+resumable process rather than host-driven acceptance and decision methods.
