@@ -252,7 +252,11 @@ def test_live_codex_round_trip_is_rendered_from_persisted_trace(tmp_path: Path):
                 for item in turn["items"]
                 if item["type"] == "agentMessage"
             ]
-            if items and items[-1].get("text") == "hello from live":
+            if (
+                items
+                and items[-1].get("text") == "hello from live"
+                and items[-1].get("complete") is True
+            ):
                 break
             time.sleep(0.01)
             payload = thread_payload(store, thread_id)
