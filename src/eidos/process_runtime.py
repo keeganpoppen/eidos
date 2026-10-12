@@ -138,6 +138,16 @@ Interpreter = Callable[[ProcessState], ProcessPending | ProcessReaction]
 Finisher = Callable[[ProcessContinuation], str]
 
 
+@dataclass(frozen=True)
+class ProcessRealizer:
+    """Placement-specific interpretation of one named ProcessProtocol."""
+
+    interpret: Interpreter
+    finish: Finisher
+    validate: Callable[[ProcessState], None] | None = None
+    identity: str | None = None
+
+
 class ProcessRuntime:
     """Durable causal progression without a requester/responder special case."""
 
@@ -146,6 +156,58 @@ class ProcessRuntime:
             raise ValueError("max_steps must be positive")
         self.trusted = trusted
         self.max_steps = max_steps
+        self.realizers: dict[str, ProcessRealizer] = {}
+
+    def register_protocol(
+        self,
+        protocol: Name | str,
+        *,
+        interpret: Interpreter,
+        finish: Finisher,
+        validate: Callable[[ProcessState], None] | None = None,
+        identity: str | None = None,
+    ) -> None:
+        """Explicitly place one named protocol in this process host.
+
+        The ProcessProtocol Value establishes legal operations and authority
+        role. The host callback is its chosen *realization*, not an ability
+        inferred from possessing the protocol's Name.
+        """
+
+        name = protocol.value if isinstance(protocol, Name) else protocol
+        value = self.trusted.named_eidos_value(name)["value"]
+        if not isinstance(value, RecordValue) or value.get("$kind") != "ProcessProtocol":
+            raise ProcessRuntimeError("registration requires a named ProcessProtocol")
+        self.realizers[name] = ProcessRealizer(
+            interpret=interpret,
+            finish=finish,
+            validate=validate,
+            identity=identity,
+        )
+
+    def advance_registered(self, checkpoint: str) -> ProcessResult:
+        """Progress whichever protocol is named by the checkpoint's process.
+
+        Nothing here distinguishes requester/responder. The matching host
+        realization must already have been explicitly registered.
+        """
+
+        state = self.load(checkpoint)
+        protocol = state.descriptor.get("protocol")
+        if not isinstance(protocol, Name):
+            raise ProcessRuntimeError("process must name its protocol")
+        realizer = self.realizers.get(protocol.value)
+        if realizer is None:
+            raise ProcessRuntimeError(
+                f"no interpreter registered for protocol {protocol.value!r}"
+            )
+        return self.advance(
+            checkpoint,
+            interpret=realizer.interpret,
+            finish=realizer.finish,
+            validate=realizer.validate,
+            identity=realizer.identity,
+        )
 
     def load(self, checkpoint: str, *, identity: str | None = None) -> ProcessState:
         state = self.trusted.named_eidos_value(checkpoint)["value"]
