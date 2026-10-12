@@ -238,5 +238,13 @@ Inquiry, defer repeatedly, refuse, or offer a previously unnamed Cut through a
 linear source-domain InquiryResponder projection. The recipient only advances
 after a terminal source decision.
 
-The next step is to represent the **source observer's own deliberation** as a
-resumable process rather than host-driven acceptance and decision methods.
+That next step is implemented in
+[`OBSERVER_PROCESSES.md`](OBSERVER_PROCESSES.md). The source observer's
+`InquiryResponder` Socket now runs a durable Eidos Closure, with genuine
+`Inspect`, `Consult`, `Defer`, `Offer`, and `Refuse` suspensions and
+Reactions. It can use a pure conditional to branch on specialist advice,
+while the requester's `AwaitDiscovery` remains pending.
+
+There is still no global transaction spanning source and requester. Initial
+source acceptance remains explicitly host-admitted; subsequent deliberation
+and terminal decisions belong to the observer's own resumable process.
