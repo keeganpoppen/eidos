@@ -113,6 +113,17 @@ def test_a_third_role_needs_no_requester_or_responder_runtime():
 
     with pytest.raises(ProcessRuntimeError, match="no interpreter registered"):
         machine.advance_registered(checkpoint)
+
+    machine.register_protocol(
+        protocol,
+        interpret=lambda state: ProcessPending("some-unrelated-question"),
+        finish=finish,
+        identity="actor:echo",
+    )
+    with pytest.raises(ProcessRuntimeError, match="may not remain pending"):
+        machine.advance_registered(checkpoint)
+    assert tm.projection(socket.name.value)["disposition"] == "live"
+
     machine.register_protocol(
         protocol, interpret=interpret, finish=finish, identity="actor:echo",
     )
@@ -314,6 +325,11 @@ def test_one_host_interleaves_requester_and_responder_by_protocol_identity():
     model_protocol = tm.named_eidos_value(model_started.run)["value"].get("protocol")
     observer_protocol = tm.named_eidos_value(source_started.process)["value"].get("protocol")
     assert model_protocol != observer_protocol
+    seeker_protocol = tm.named_eidos_value(model_protocol.value)["value"]
+    assert any(
+        op.get("name") == AWAIT_DISCOVERY and op.get("may_wait")
+        for op in seeker_protocol.get("operations")
+    )
     assert tm.named_eidos_value(model_protocol.value)["value"].get("projection_role") == "ModelProcess"
     assert tm.named_eidos_value(observer_protocol.value)["value"].get("projection_role") == "InquiryResponder"
 
