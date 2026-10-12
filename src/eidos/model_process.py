@@ -886,10 +886,16 @@ class ModelProcessRunner:
             raise ModelExecutionError(
                 "Model attempted perform against a Socket outside its own continuation"
             )
-        if suspended.operation not in (
-            INSPECT, CONSULT, ACQUIRE, HANDOFF, DISCOVER, AWAIT_DISCOVERY
-        ):
-            raise ModelExecutionError("Model attempted an inadmissible operation")
+        projection = self.trusted.projection(expected)
+        descriptor = self.trusted.named_eidos_value(
+            projection["domain_name"]
+        )["value"]
+        protocol_ref = descriptor.get("protocol")
+        protocol = self.trusted.named_eidos_value(protocol_ref.value)["value"]
+        try:
+            self.machine.operation(protocol, suspended.operation)
+        except ProcessRuntimeError as exc:
+            raise ModelExecutionError(str(exc)) from exc
 
     def _checkpoint(
         self,
@@ -902,60 +908,20 @@ class ModelProcessRunner:
         context: Name,
         request_id: str,
     ) -> str:
-        return self._persist(
-            kind="model-checkpoint",
-            value=RecordValue.from_mapping({
-                "$kind": "ModelCheckpoint",
-                "run": Name(run),
-                "step": step,
-                "suspension": suspended,
-                "context": context,
-                "previous": None if previous is None else Name(previous),
-                "parent_occurrence": (
-                    None if parent_occurrence is None else Name(parent_occurrence)
-                ),
-            }),
+        return self.machine.checkpoint(
+            process=run,
+            step=step,
+            suspended=suspended,
+            previous=previous,
+            parent_occurrence=parent_occurrence,
+            extras={"context": context},
             request_id=request_id,
         )
 
-    def _checkpoint_lineage(self, checkpoint: str) -> tuple[str, ...]:
-        result: list[str] = []
-        visited: set[str] = set()
-        cursor: str | None = checkpoint
-        while cursor is not None:
-            if cursor in visited:
-                raise ModelExecutionError("cyclic model checkpoint history")
-            visited.add(cursor)
-            result.append(cursor)
-            row = _require_kind(
-                self.trusted.named_eidos_value(cursor)["value"],
-                "ModelCheckpoint",
-            )
-            previous = row.get("previous")
-            cursor = None if previous is None else previous.value
-        return tuple(reversed(result))
-
-    def _occurred_lineage(self, checkpoints: tuple[str, ...]) -> tuple[str, ...]:
-        events: list[str] = []
-        for checkpoint in checkpoints:
-            row = _require_kind(
-                self.trusted.named_eidos_value(checkpoint)["value"],
-                "ModelCheckpoint",
-            )
-            parent = row.get("parent_occurrence")
-            if isinstance(parent, Name):
-                events.append(parent.value)
-        return tuple(events)
-
     def _persist(self, *, kind: str, value: RecordValue, request_id: str) -> str:
-        name = self.trusted.reserve_name(
-            kind=kind, request_id=f"{request_id}:reserve"
+        return self.machine.persist(
+            kind=kind, value=value, request_id=request_id
         )
-        self._bind(
-            name=name, value=value,
-            request_id=f"{request_id}:bind",
-        )
-        return name
 
     def _bind(self, *, name: str, value: RecordValue, request_id: str) -> None:
         self.trusted.bind_eidos_value(
