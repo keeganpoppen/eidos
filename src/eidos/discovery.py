@@ -500,47 +500,88 @@ def _terminal_reply(trusted: TrustedMachinery, inquiry: str) -> str | None:
 
 
 def _responder_in_lineage(trusted: TrustedMachinery, inquiry: str, responder: str) -> bool:
+    """Follow source-side linear authority, including observer-process steps.
+
+    Only generic source-domain occurrences can advance an InquiryResponder.
+    An arbitrary semantic Value referring to its Name cannot extend authority.
+    """
+
     accepted = _accepted(trusted, inquiry)
     if accepted is None:
         return False
     _, admission = accepted
-    ref = admission.get("responder")
-    if not isinstance(ref, Name):
+    original = admission.get("responder")
+    if not isinstance(original, Name):
         return False
-    current = ref.value
+    _, provider = _inquiry(trusted, inquiry)
+    domain = provider.get("source_domain").value
+    holder = provider.get("observer")
+    current = original.value
+    visited: set[str] = set()
     for _ in range(128):
         if current == responder:
             return True
-        next_ = None
+        if current in visited:
+            raise DiscoveryError("cyclic source responder authority history")
+        visited.add(current)
+        transitions: list[str] = []
         for occurrence, record in trusted.named_values():
-            if not (
-                isinstance(record, RecordValue)
-                and _get(record, "$kind") == "DiscoveryDecision"
-                and _get(record, "inquiry") == Name(inquiry)
-                and _get(record, "decision") == "defer"
-                and _get(record, "responder") == Name(current)
-            ):
+            if not isinstance(record, RecordValue):
                 continue
-            next_ref = record.get("next_responder")
-            if not isinstance(next_ref, Name):
-                raise DiscoveryError("deferral lacks successor responder")
+            kind = _get(record, "$kind")
+            if _get(record, "inquiry") != Name(inquiry):
+                continue
+            if kind == "DiscoveryDecision" and _get(record, "decision") == "defer":
+                if _get(record, "responder") != Name(current):
+                    continue
+                expected_kind = "DiscoveryDefer"
+            elif kind == "ObserverInteraction":
+                if _get(record, "responder") != Name(current):
+                    continue
+                expected_kind = {
+                    "observer:Inspect": "ObserverInspect",
+                    "observer:Consult": "ObserverConsult",
+                }.get(_get(record, "operation").value if isinstance(
+                    _get(record, "operation"), Name
+                ) else "")
+                if expected_kind is None:
+                    continue
+            else:
+                continue
+
+            successor = _get(record, "next_responder")
+            if not isinstance(successor, Name):
+                raise DiscoveryError("source step lacks successor responder Name")
             try:
                 causal = trusted.authority_occurrence(occurrence)
             except KeyError as exc:
-                raise DiscoveryError("deferral lacks a source occurrence") from exc
+                raise DiscoveryError("source step has no authority occurrence") from exc
             if (
-                causal["kind"] != "DiscoveryDefer"
+                causal["kind"] != expected_kind
+                or causal["domain_name"] != domain
                 or causal["fact"].get("inquiry") != inquiry
                 or causal["inputs"] != [current]
-                or causal["outputs"].get("next:responder") != next_ref.value
+                or causal["outputs"].get("next:responder") != successor.value
             ):
-                raise DiscoveryError("deferral chain has invalid causal authority")
-            next_ = next_ref.value
-            break
-        if next_ is None:
+                raise DiscoveryError("source responder lineage lacks real authority")
+            old = trusted.projection(current)
+            new = trusted.projection(successor.value)
+            for row in (old, new):
+                if (
+                    row.get("role") != "InquiryResponder"
+                    or row.get("protocol_state") != f"inquiry:{inquiry}"
+                    or row["domain_name"] != domain
+                    or row["holder"] != holder
+                ):
+                    raise DiscoveryError("source responder continuation is incompatible")
+            transitions.append(successor.value)
+
+        if not transitions:
             return False
-        current = next_
-    raise DiscoveryError("responder deferral chain exceeds supported depth")
+        if len(transitions) > 1:
+            raise DiscoveryError("ambiguous source responder successor")
+        current = transitions[0]
+    raise DiscoveryError("responder chain exceeds supported depth")
 
 
 def _check_source_projection(projection: dict[str, Any], provider: RecordValue, *, role: str) -> None:
