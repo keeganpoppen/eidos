@@ -17,7 +17,7 @@ from eidos.lenses import referenced_names
 from eidos.model_execution import ModelExecutionError, model_input
 from eidos.model_process import (
     AWAIT_DISCOVERY, DISCOVER, INSPECT, PROCESS_SOCKET_ROLE,
-    ModelProcessRunner,
+    ModelProcessPending, ModelProcessRunner,
 )
 from eidos.occurrence import ProjectionTemplate, RecursiveProtocol
 from eidos.trusted import StaleProjection, TrustedMachinery
@@ -426,3 +426,45 @@ def test_inquiry_acceptance_requires_requester_to_commit_its_question():
             discloser_projection=genesis["projections"]["projection:Discloser"],
             request_id="premature-acceptance",
         )
+
+
+
+def test_sync_model_execution_surfaces_durable_pending_condition():
+    tm, left, right, genesis, refs = world()
+    runner = ModelProcessRunner(tm)
+    runner.authorize_discovery(
+        model=refs["model"], provider=refs["provider"],
+    )
+    with pytest.raises(ModelProcessPending) as exc:
+        runner.execute(
+            name=refs["model"],
+            program=refs["closure"],
+            request=refs["input"],
+        )
+
+    pending = exc.value.progress
+    assert pending.pending
+    assert pending.checkpoint
+    checkpoint = tm.named_eidos_value(pending.checkpoint)["value"]
+    assert checkpoint.get("suspension").operation == AWAIT_DISCOVERY
+    assert tm.projection(
+        checkpoint.get("suspension").socket.name.value
+    )["disposition"] == "live"
+
+    source = accept_inquiry(
+        tm, inquiry=pending.pending,
+        discloser_projection=genesis["projections"]["projection:Discloser"],
+        request_id="pending-execute-accept",
+    )
+    decide_inquiry(
+        tm, inquiry=pending.pending,
+        responder_projection=source["responder"],
+        decision="offer", cut=right["cut"],
+        request_id="pending-execute-offer",
+    )
+    resumed = ModelProcessRunner(tm).advance(pending.checkpoint)
+    assert resumed.pending is None
+    completed = ModelProcessRunner(tm).advance(resumed.checkpoint)
+    assert completed.outcome
+    final = tm.named_eidos_value(completed.outcome)["value"]
+    assert final.get("proposal").get("receipt").get("cut") == Name(right["cut"])
