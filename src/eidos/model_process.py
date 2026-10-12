@@ -253,9 +253,13 @@ class ModelProcessRunner:
             request_id=f"{invocation}:protocol",
             value=protocol_value(
                 role=PROCESS_ROLE,
-                operations=tuple(operation_value(name) for name in (
-                    INSPECT, CONSULT, ACQUIRE, HANDOFF, DISCOVER, AWAIT_DISCOVERY
-                )),
+                operations=tuple(
+                    operation_value(name, may_wait=(name == AWAIT_DISCOVERY))
+                    for name in (
+                        INSPECT, CONSULT, ACQUIRE, HANDOFF, DISCOVER,
+                        AWAIT_DISCOVERY,
+                    )
+                ),
                 checkpoint_kind="ModelCheckpoint",
                 process_alias="run",
             ),
