@@ -165,6 +165,15 @@ class Get(Term):
     field: str
 
 
+@dataclass(frozen=True)
+class If(Term):
+    """Pure conditional; only the chosen branch is realized."""
+
+    condition: Term
+    then: Term
+    otherwise: Term
+
+
 Primitive = Literal["add", "concat", "eq"]
 
 
@@ -263,6 +272,12 @@ class RecordFrame(KontFrame):
 @dataclass(frozen=True)
 class GetFrame(KontFrame):
     field: str
+
+
+@dataclass(frozen=True)
+class IfFrame(KontFrame):
+    then: Term
+    otherwise: Term
 
 
 @dataclass(frozen=True)
@@ -499,6 +514,10 @@ class PraxisCore:
                     if not isinstance(value, RecordValue):
                         raise RealizationError("Get expects a RecordValue")
                     state = self._state(state, Returned(value.get(field)), rest)
+                case IfFrame(then, otherwise):
+                    if not isinstance(value, bool):
+                        raise RealizationError("If condition must evaluate to bool")
+                    state = self._state(state, then if value else otherwise, rest)
                 case PrimFrame(operation, completed, remaining):
                     completed += (value,)
                     if remaining:
@@ -649,6 +668,10 @@ class PraxisCore:
                 return self._state(
                     state, record, state.stack + (GetFrame(field),)
                 )
+            case If(condition, then, otherwise):
+                return self._state(
+                    state, condition, state.stack + (IfFrame(then, otherwise),)
+                )
             case Prim(operation, arguments):
                 if not arguments:
                     return self._state(
@@ -778,6 +801,7 @@ _CORE_CLASSES: tuple[type[Any], ...] = (
     Let,
     Record,
     Get,
+    If,
     Prim,
     Lambda,
     Apply,
@@ -788,6 +812,7 @@ _CORE_CLASSES: tuple[type[Any], ...] = (
     LetValueFrame,
     RecordFrame,
     GetFrame,
+    IfFrame,
     PrimFrame,
     ApplyFunctionFrame,
     ApplyArgumentFrame,
