@@ -513,7 +513,7 @@ def _responder_in_lineage(trusted: TrustedMachinery, inquiry: str, responder: st
     original = admission.get("responder")
     if not isinstance(original, Name):
         return False
-    _, provider = _inquiry(trusted, inquiry)
+    inquiry_value, provider = _inquiry(trusted, inquiry)
     domain = provider.get("source_domain").value
     holder = provider.get("observer")
     current = original.value
@@ -562,9 +562,7 @@ def _responder_in_lineage(trusted: TrustedMachinery, inquiry: str, responder: st
                 if (
                     _get(process, "$kind") != "ObserverProcess"
                     or _get(process, "inquiry") != Name(inquiry)
-                    or _get(process, "provider") != Name(
-                        _inquiry(trusted, inquiry)[0].get("provider").value
-                    )
+                    or _get(process, "provider") != inquiry_value.get("provider")
                     or _get(checkpoint, "$kind") != "ObserverCheckpoint"
                     or _get(checkpoint, "observer_process") != process_ref
                     or _get(checkpoint, "inquiry") != Name(inquiry)
