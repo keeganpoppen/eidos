@@ -333,32 +333,50 @@ class ModelProcessRunner:
         return ProcessProgress(run=run, checkpoint=checkpoint)
 
     def advance(self, checkpoint: str) -> ProcessProgress:
-        """Commit one process interaction; recover deterministically on retry."""
+        """Advance one ordinary ProcessProtocol step through the shared machine."""
 
-        state = _require_kind(
-            self.trusted.named_eidos_value(checkpoint)["value"],
-            "ModelCheckpoint",
+        try:
+            result = self.machine.advance(
+                checkpoint,
+                interpret=self._interpret_step,
+                finish=self._finish_continuation,
+                validate=self._validate_process_state,
+                identity=self.identity,
+            )
+        except ProcessRuntimeError as exc:
+            raise ModelExecutionError(str(exc)) from exc
+        return ProcessProgress(
+            run=result.process,
+            checkpoint=result.checkpoint,
+            outcome=result.outcome,
+            occurrence=result.occurrence,
+            pending=result.pending,
+            handoff_to=result.handoff_to,
         )
-        run_ref = state.get("run")
-        suspended = state.get("suspension")
-        step = state.get("step")
-        if not isinstance(run_ref, Name) or not isinstance(suspended, Suspended):
-            raise ModelExecutionError("malformed ModelCheckpoint")
-        if not isinstance(step, int) or step < 0 or step >= self.max_steps:
-            raise ModelExecutionError("model process step budget exceeded")
-        run = run_ref.value
-        descriptor = _require_kind(
-            self.trusted.named_eidos_value(run)["value"], "ModelProcess"
-        )
-        context = state.get("context")
-        if not isinstance(context, Name):
-            # Backward compatible with checkpoints created by older experiments.
-            context = descriptor.get("context")
+
+    def _validate_process_state(self, state: ProcessState) -> None:
+        descriptor = state.descriptor
+        if descriptor.get("$kind") != "ModelProcess":
+            raise ModelExecutionError("ModelProcess must use its own named description")
+        context = state.get("context", descriptor.get("context"))
         if not isinstance(context, Name):
             raise ModelExecutionError("process checkpoint lacks a Context Name")
+        self._check_projection(
+            state.process, state.suspended.socket.name.value
+        )
 
-        self._check_suspension(suspended, suspended.socket.name.value)
-        holder = self._check_projection(run, suspended.socket.name.value)
+    def _interpret_step(
+        self, state: ProcessState,
+    ) -> ProcessPending | ProcessReaction:
+        run, checkpoint = state.process, state.checkpoint
+        suspended, step = state.suspended, state.step
+        descriptor = state.descriptor
+        context = state.get("context", descriptor.get("context"))
+        holder = state.holder
+
+        # Pending is a semantic result, not a failed operation or a hidden
+        # scheduler loop. The process Socket stays live and its checkpoint
+        # remains the same while the source observer deliberates.
         if suspended.operation == AWAIT_DISCOVERY:
             request = suspended.argument
             if (
@@ -370,11 +388,7 @@ class ModelProcessRunner:
             inquiry = request.get("inquiry").value
             status = poll_inquiry(self.trusted, inquiry)
             if status["status"] in ("pending", "deferred"):
-                return ProcessProgress(
-                    run=run,
-                    checkpoint=checkpoint,
-                    pending=inquiry,
-                )
+                return ProcessPending(inquiry)
 
         prepared_name, prepared = self._prepare(
             run=run, checkpoint=checkpoint, context=context,
@@ -383,6 +397,7 @@ class ModelProcessRunner:
         response = prepared.get("response")
         next_context = context
         source_occurrence: Name | None = None
+
         if (
             suspended.operation == ACQUIRE
             or (
@@ -465,47 +480,38 @@ class ModelProcessRunner:
             }),
             request_id=f"{run}:{checkpoint}:occurrence-value",
         )
-        resumed = PraxisCore().resume(
-            suspended,
-            Reaction(
+        return ProcessReaction(
+            reaction=Reaction(
                 name=Name(occurrence),
                 consumed=suspended.socket,
                 successor=Socket(Name(next_socket)),
                 value=response,
             ),
-        )
-        checkpoints = self._checkpoint_lineage(checkpoint)
-        events = self._occurred_lineage(checkpoints) + (occurrence,)
-        if isinstance(resumed, Done):
-            if target_holder != holder:
-                raise ModelExecutionError("Handoff must produce a resumable continuation")
-            return self._finish(
-                run=run,
-                projection=next_socket,
-                proposal=resumed.value,
-                events=events,
-                checkpoints=checkpoints,
-                parent=occurrence,
-                context=next_context,
-                request_id=f"{run}:{checkpoint}:finish",
-            )
-        if not isinstance(resumed, Suspended):
-            raise ModelExecutionError("resumed Model must suspend or complete")
-        self._check_suspension(resumed, next_socket)
-        next_checkpoint = self._checkpoint(
-            run=run,
-            step=step + 1,
-            suspended=resumed,
-            previous=checkpoint,
-            parent_occurrence=occurrence,
-            context=next_context,
-            request_id=f"{run}:{checkpoint}:next-checkpoint",
-        )
-        return ProcessProgress(
-            run=run,
-            checkpoint=next_checkpoint,
-            occurrence=occurrence,
+            extras=(("context", next_context),),
             handoff_to=target_holder if target_holder != holder else None,
+        )
+
+    def _finish_continuation(self, resumed: ProcessContinuation) -> str:
+        state = resumed.state
+        if not isinstance(resumed.resumed, Done):
+            raise ModelExecutionError("process is not complete")
+        if resumed.transition.handoff_to is not None:
+            raise ModelExecutionError("Handoff must produce a resumable continuation")
+        context = dict(resumed.extras).get("context")
+        if not isinstance(context, Name):
+            raise ModelExecutionError("completed Model lacks a Context")
+        successor = resumed.transition.reaction.successor
+        if successor is None:
+            raise ModelExecutionError("completed Model lost its successor Socket")
+        return self._finish(
+            run=state.process,
+            projection=successor.name.value,
+            proposal=resumed.resumed.value,
+            events=resumed.occurrences,
+            checkpoints=resumed.checkpoints,
+            parent=resumed.transition.reaction.name.value,
+            context=context,
+            request_id=f"{state.process}:{state.checkpoint}:finish",
         )
 
     def execute(
