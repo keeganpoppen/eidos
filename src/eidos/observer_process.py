@@ -216,7 +216,7 @@ class ObserverProcessRunner:
             self.trusted.named_eidos_value(checkpoint)["value"],
             "ObserverCheckpoint",
         )
-        process_ref = state.get("process")
+        process_ref = state.get("observer_process")
         inquiry_ref = state.get("inquiry")
         suspended = state.get("suspension")
         step = state.get("step")
