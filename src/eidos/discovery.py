@@ -82,6 +82,41 @@ def open_inquiry(
     return name
 
 
+def discovery_inbox(trusted: TrustedMachinery, *, provider: str) -> tuple[RecordValue, ...]:
+    """Rebuildable view of unanswered source inquiries for one provider.
+
+    The inbox is derived from named Values and committed occurrence history;
+    it is not another authoritative mailbox table. Reading an inquiry does
+    not grant the reader source-domain responder authority.
+    """
+
+    _provider(trusted, provider)
+    items: list[RecordValue] = []
+    for name, value in trusted.named_values():
+        if (
+            not isinstance(value, RecordValue)
+            or _get(value, "$kind") != "DiscoveryInquiry"
+            or _get(value, "provider") != Name(provider)
+        ):
+            continue
+        _require_opened(trusted, name, value)
+        status = poll_inquiry(trusted, name)
+        if status["status"] in ("offer", "refuse"):
+            continue
+        items.append(RecordValue.from_mapping({
+            "$kind": "DiscoveryInboxItem",
+            "inquiry": Name(name),
+            "question": value.get("question"),
+            "run": value.get("run"),
+            "model": value.get("model"),
+            "status": status["status"],
+            "latest_decision": (
+                None if status["decision"] is None else Name(status["decision"])
+            ),
+        }))
+    return tuple(items)
+
+
 def accept_inquiry(
     trusted: TrustedMachinery,
     *,
