@@ -30,6 +30,9 @@ from .epistemics import (
     _require_kind, context_value,
 )
 from .cut_exchange import cut_request, validate_disclosure
+from .discovery import (
+    DiscoveryError, await_discovery, discover_request, open_inquiry, poll_inquiry,
+)
 from .model_execution import (
     MODEL_CONTEXT_ROLE, MODEL_INPUT_ROLE, MODEL_ROLE,
     ModelAdapter, ModelExecutionError,
@@ -43,6 +46,8 @@ INSPECT = Name("model:Inspect")
 CONSULT = Name("model:Consult")
 ACQUIRE = Name("model:Acquire")
 HANDOFF = Name("model:Handoff")
+DISCOVER = Name("model:Discover")
+AWAIT_DISCOVERY = Name("model:AwaitDiscovery")
 PROCESS_ROLE = "ModelProcess"
 
 
@@ -77,6 +82,7 @@ class ProcessProgress:
     outcome: str | None = None
     occurrence: str | None = None
     handoff_to: str | None = None
+    pending: str | None = None
 
 
 def inspection_request(target: Name | str) -> RecordValue:
@@ -120,6 +126,7 @@ class ModelProcessRunner:
         self.consultations: dict[str, set[str]] = {}
         self.providers = dict(providers or {})
         self.acquisitions: dict[str, set[str]] = {}
+        self.discoveries: dict[str, set[str]] = {}
         self.handoffs: dict[str, set[str]] = {}
         self.identity = identity
         self.max_steps = max_steps
@@ -157,6 +164,23 @@ class ModelProcessRunner:
         )
         self._require_process_model(model)
         self.acquisitions.setdefault(model, set()).add(provider)
+
+    def authorize_discovery(self, *, model: str, provider: str) -> None:
+        """Admit permission to ask open questions of this source observer.
+
+        The provider must name its authority-local source domain, but knowing
+        the provider Name does not entitle the process to the provider's Cuts.
+        """
+
+        value = self.trusted.named_eidos_value(provider)["value"]
+        if (
+            not isinstance(value, RecordValue)
+            or value.get("$kind") != "DiscoveryProvider"
+        ):
+            raise ModelExecutionError("discovery requires a DiscoveryProvider Value")
+        self.trusted.authority_domain(value.get("source_domain").value)
+        self._require_process_model(model)
+        self.discoveries.setdefault(model, set()).add(provider)
 
     def authorize_handoff(self, *, model: str, target: str) -> None:
         """Admit a target holder for linear process continuation transfer."""
@@ -211,6 +235,9 @@ class ModelProcessRunner:
         allowed_providers = tuple(
             Name(provider) for provider in sorted(self.acquisitions.get(name, ()))
         )
+        allowed_discoveries = tuple(
+            Name(provider) for provider in sorted(self.discoveries.get(name, ()))
+        )
         allowed_handoffs = tuple(sorted(self.handoffs.get(name, ())))
         owner = self.identity or name
         domain = self.trusted.admit_authority_domain(
@@ -222,6 +249,7 @@ class ModelProcessRunner:
                 "program": program,
                 "allowed_executors": allowed_executors,
                 "allowed_providers": allowed_providers,
+                "allowed_discoveries": allowed_discoveries,
                 "allowed_handoffs": allowed_handoffs,
             }),
             establishes=(
@@ -302,6 +330,23 @@ class ModelProcessRunner:
 
         self._check_suspension(suspended, suspended.socket.name.value)
         holder = self._check_projection(run, suspended.socket.name.value)
+        if suspended.operation == AWAIT_DISCOVERY:
+            request = suspended.argument
+            if (
+                not isinstance(request, RecordValue)
+                or request.get("$kind") != "AwaitDiscoveryRequest"
+                or not isinstance(request.get("inquiry"), Name)
+            ):
+                raise ModelExecutionError("AwaitDiscovery requires an Inquiry Name")
+            inquiry = request.get("inquiry").value
+            status = poll_inquiry(self.trusted, inquiry)
+            if status["status"] in ("pending", "deferred"):
+                return ProcessProgress(
+                    run=run,
+                    checkpoint=checkpoint,
+                    pending=inquiry,
+                )
+
         prepared_name, prepared = self._prepare(
             run=run, checkpoint=checkpoint, context=context,
             suspended=suspended, descriptor=descriptor,
@@ -309,7 +354,13 @@ class ModelProcessRunner:
         response = prepared.get("response")
         next_context = context
         source_occurrence: Name | None = None
-        if suspended.operation == ACQUIRE:
+        if (
+            suspended.operation == ACQUIRE
+            or (
+                suspended.operation == AWAIT_DISCOVERY
+                and _field(response, "$kind") == "AcquiredContext"
+            )
+        ):
             if _field(response, "$kind") != "AcquiredContext":
                 raise ModelExecutionError("Acquire must return AcquiredContext")
             next_context = response.get("context")
@@ -502,6 +553,85 @@ class ModelProcessRunner:
             "ElaborationContext",
         )
         cuts = context_value_.get("cuts")
+        if suspended.operation == DISCOVER:
+            _require_kind(request, "DiscoverRequest")
+            provider = request.get("provider")
+            question = request.get("question")
+            if (
+                not isinstance(provider, Name)
+                or provider not in descriptor.get("allowed_discoveries")
+            ):
+                raise ModelExecutionError(
+                    "Discover requires an explicitly admitted DiscoveryProvider"
+                )
+            if not isinstance(question, str) or not question.strip():
+                raise ModelExecutionError("Discover requires a nonempty open question")
+            inquiry = open_inquiry(
+                self.trusted,
+                run=run,
+                model=descriptor.get("model").value,
+                context=context.value,
+                checkpoint=checkpoint,
+                provider=provider.value,
+                question=question,
+                request_id=f"{run}:{checkpoint}:inquiry",
+            )
+            return RecordValue.from_mapping({
+                "$kind": "DiscoveryOpened",
+                "inquiry": Name(inquiry),
+                "provider": provider,
+                "question": question,
+            })
+
+        if suspended.operation == AWAIT_DISCOVERY:
+            _require_kind(request, "AwaitDiscoveryRequest")
+            inquiry_ref = request.get("inquiry")
+            if not isinstance(inquiry_ref, Name):
+                raise ModelExecutionError("AwaitDiscovery requires Inquiry Name")
+            inquiry = _require_kind(
+                self.trusted.named_eidos_value(inquiry_ref.value)["value"],
+                "DiscoveryInquiry",
+            )
+            if (
+                inquiry.get("run") != Name(run)
+                or inquiry.get("model") != descriptor.get("model")
+            ):
+                raise ModelExecutionError("Inquiry is addressed to another process")
+            decision = poll_inquiry(self.trusted, inquiry_ref.value)
+            if decision["status"] in ("pending", "deferred"):
+                raise ModelExecutionError(
+                    "inquiry still pending; continuation must remain suspended"
+                )
+            causal_source = Name(decision["decision"])
+            if decision["status"] == "refuse":
+                return RecordValue.from_mapping({
+                    "$kind": "DiscoveryRefused",
+                    "inquiry": inquiry_ref,
+                    "context": context,
+                    "decision": causal_source,
+                })
+            cut = Name(decision["cut"])
+            if cut in cuts:
+                raise ModelExecutionError("discovered Cut is already admitted")
+            next_context = self._persist(
+                kind="context",
+                value=context_value(
+                    cuts=(*cuts, cut),
+                    parent=context,
+                    acquisition=causal_source,
+                ),
+                request_id=f"{run}:{checkpoint}:discovered-context",
+            )
+            return RecordValue.from_mapping({
+                "$kind": "AcquiredContext",
+                "inquiry": inquiry_ref,
+                "context": Name(next_context),
+                "prior_context": context,
+                "cut": cut,
+                "disclosure": causal_source,
+                "provider": inquiry.get("provider"),
+            })
+
         if suspended.operation == INSPECT:
             _require_kind(request, "InspectRequest")
             target = request.get("target")
@@ -768,7 +898,9 @@ class ModelProcessRunner:
             raise ModelExecutionError(
                 "Model attempted perform against a Socket outside its own continuation"
             )
-        if suspended.operation not in (INSPECT, CONSULT, ACQUIRE, HANDOFF):
+        if suspended.operation not in (
+            INSPECT, CONSULT, ACQUIRE, HANDOFF, DISCOVER, AWAIT_DISCOVERY
+        ):
             raise ModelExecutionError("Model attempted an inadmissible operation")
 
     def _checkpoint(
