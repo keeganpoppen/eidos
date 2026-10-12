@@ -222,7 +222,8 @@ class ObserverProcessRunner:
         if not isinstance(realized, Suspended):
             raise ModelExecutionError("observer program must suspend on responder Socket")
         self._check_suspension(
-            realized, inquiry=inquiry, responder=responder, observer=observer
+            realized, inquiry=inquiry, responder=responder,
+            observer=observer, process=process,
         )
         checkpoint = self._checkpoint(
             process=process, inquiry=inquiry, step=0,
@@ -268,6 +269,7 @@ class ObserverProcessRunner:
             inquiry=inquiry.value,
             responder=state.suspended.socket.name.value,
             observer=descriptor.get("observer"),
+            process=state.process,
         )
 
     def _interpret_step(self, state: ProcessState) -> ProcessReaction:
@@ -528,18 +530,25 @@ class ObserverProcessRunner:
         inquiry: str,
         responder: str,
         observer: str,
+        process: str,
     ) -> None:
         if suspended.socket.name.value != responder:
             raise ModelExecutionError("observer performed on a foreign Socket")
-        if suspended.operation not in (
-            OBSERVER_INSPECT, OBSERVER_CONSULT,
-            OBSERVER_DEFER, OBSERVER_OFFER, OBSERVER_REFUSE,
-        ):
-            raise ModelExecutionError("observer attempted inadmissible operation")
+        description = _require_kind(
+            self.trusted.named_eidos_value(process)["value"],
+            "ObserverProcess",
+        )
+        protocol_ref = description.get("protocol")
+        protocol = self.trusted.named_eidos_value(protocol_ref.value)["value"]
+        try:
+            self.machine.operation(protocol, suspended.operation)
+        except ProcessRuntimeError as exc:
+            raise ModelExecutionError(str(exc)) from exc
+
         row = self.trusted.projection(responder)
         _, provider = _inquiry(self.trusted, inquiry)
         if (
-            row.get("role") != "InquiryResponder"
+            row.get("role") != protocol.get("projection_role")
             or row.get("protocol_state") != f"inquiry:{inquiry}"
             or row["domain_name"] != provider.get("source_domain").value
             or row["holder"] != observer
@@ -564,48 +573,15 @@ class ObserverProcessRunner:
         parent_occurrence: str | None,
         request_id: str,
     ) -> str:
-        return self._persist(
-            kind="observer-checkpoint",
+        return self.machine.checkpoint(
+            process=process,
+            step=step,
+            suspended=suspended,
+            previous=previous,
+            parent_occurrence=parent_occurrence,
+            extras={"inquiry": Name(inquiry)},
             request_id=request_id,
-            value=RecordValue.from_mapping({
-                "$kind": "ObserverCheckpoint",
-                "observer_process": Name(process),
-                "inquiry": Name(inquiry),
-                "step": step,
-                "suspension": suspended,
-                "previous": None if previous is None else Name(previous),
-                "parent_occurrence": (
-                    None if parent_occurrence is None else Name(parent_occurrence)
-                ),
-            }),
         )
-
-    def _lineage(self, checkpoint: str) -> tuple[str, ...]:
-        result: list[str] = []
-        seen: set[str] = set()
-        cursor: str | None = checkpoint
-        while cursor is not None:
-            if cursor in seen:
-                raise ModelExecutionError("cyclic observer checkpoint lineage")
-            seen.add(cursor)
-            result.append(cursor)
-            value = _require_kind(
-                self.trusted.named_eidos_value(cursor)["value"], "ObserverCheckpoint"
-            )
-            previous = value.get("previous")
-            cursor = None if previous is None else previous.value
-        return tuple(reversed(result))
-
-    def _occurred_lineage(self, lineage: tuple[str, ...]) -> tuple[str, ...]:
-        events: list[str] = []
-        for checkpoint in lineage:
-            value = _require_kind(
-                self.trusted.named_eidos_value(checkpoint)["value"], "ObserverCheckpoint"
-            )
-            parent = value.get("parent_occurrence")
-            if isinstance(parent, Name):
-                events.append(parent.value)
-        return tuple(events)
 
     def _persist(
         self,
@@ -614,13 +590,9 @@ class ObserverProcessRunner:
         value: RecordValue,
         request_id: str,
     ) -> str:
-        name = self.trusted.reserve_name(
-            kind=kind, request_id=f"{request_id}:reserve"
+        return self.machine.persist(
+            kind=kind, value=value, request_id=request_id,
         )
-        self.trusted.bind_eidos_value(
-            name=name, value=value, request_id=f"{request_id}:bind"
-        )
-        return name
 
 
 def _field(value: Any, key: str) -> Any:
