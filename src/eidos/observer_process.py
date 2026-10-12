@@ -106,11 +106,14 @@ class ObserverProcessRunner:
         identity: str | None = None,
         max_steps: int = 16,
         max_scope_nodes: int = 256,
+        machine: ProcessRuntime | None = None,
     ) -> None:
         if max_steps <= 0 or max_scope_nodes <= 0:
             raise ValueError("observer process budgets must be positive")
         self.trusted = trusted
-        self.machine = ProcessRuntime(trusted, max_steps=max_steps)
+        self.machine = machine if machine is not None else ProcessRuntime(
+            trusted, max_steps=max_steps
+        )
         self.executors = dict(executors or {})
         self.identity = identity
         self.max_steps = max_steps
@@ -178,6 +181,7 @@ class ObserverProcessRunner:
                 process_alias="observer_process",
             ),
         )
+        self._register_realizer(protocol)
         accepted = accept_inquiry(
             self.trusted,
             inquiry=inquiry,
@@ -234,17 +238,24 @@ class ObserverProcessRunner:
             process=process, inquiry=inquiry, checkpoint=checkpoint
         )
 
+    def _register_realizer(self, protocol: Name | str) -> None:
+        self.machine.register_protocol(
+            protocol,
+            interpret=self._interpret_step,
+            finish=self._finish_continuation,
+            validate=self._validate_process_state,
+            identity=self.identity,
+        )
+
     def advance(self, checkpoint: str) -> ObserverProgress:
-        """Advance one ordinary ProcessProtocol step through the shared machine."""
+        """Progress whichever named ProcessProtocol this observer possesses."""
 
         try:
-            progressed = self.machine.advance(
-                checkpoint,
-                interpret=self._interpret_step,
-                finish=self._finish_continuation,
-                validate=self._validate_process_state,
-                identity=self.identity,
-            )
+            loaded = self.machine.load(checkpoint)
+            if loaded.descriptor.get("$kind") != "ObserverProcess":
+                raise ProcessRuntimeError("Observer runner received a different protocol")
+            self._register_realizer(loaded.descriptor.get("protocol"))
+            progressed = self.machine.advance_registered(checkpoint)
         except ProcessRuntimeError as exc:
             raise ModelExecutionError(str(exc)) from exc
         descriptor = _require_kind(
