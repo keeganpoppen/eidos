@@ -28,6 +28,10 @@ from .epistemics import admitted_inspection_scope, _require_kind
 from .model_execution import ModelAdapter, ModelExecutionError
 from .semantic_values import projection_value
 from .trusted import TrustedMachinery
+from .process_runtime import (
+    ProcessRuntime, ProcessRuntimeError, ProcessReaction, ProcessPending,
+    ProcessContinuation, ProcessState, operation_value, protocol_value,
+)
 
 
 OBSERVER_SOCKET_ROLE = Role("discovery", "responder-socket")
@@ -106,6 +110,7 @@ class ObserverProcessRunner:
         if max_steps <= 0 or max_scope_nodes <= 0:
             raise ValueError("observer process budgets must be positive")
         self.trusted = trusted
+        self.machine = ProcessRuntime(trusted, max_steps=max_steps)
         self.executors = dict(executors or {})
         self.identity = identity
         self.max_steps = max_steps
@@ -157,6 +162,22 @@ class ObserverProcessRunner:
                 "ModelExecutor",
             )
 
+        protocol = self.machine.persist(
+            kind="process-protocol",
+            request_id=f"{request_id}:protocol",
+            value=protocol_value(
+                role="InquiryResponder",
+                operations=(
+                    operation_value(OBSERVER_INSPECT),
+                    operation_value(OBSERVER_CONSULT),
+                    operation_value(OBSERVER_DEFER),
+                    operation_value(OBSERVER_OFFER, terminal=True),
+                    operation_value(OBSERVER_REFUSE, terminal=True),
+                ),
+                checkpoint_kind="ObserverCheckpoint",
+                process_alias="observer_process",
+            ),
+        )
         accepted = accept_inquiry(
             self.trusted,
             inquiry=inquiry,
@@ -168,6 +189,8 @@ class ObserverProcessRunner:
             request_id=f"{request_id}:process",
             value=RecordValue.from_mapping({
                 "$kind": "ObserverProcess",
+                "protocol": Name(protocol),
+                "authority_domain": Name(source_domain),
                 "inquiry": Name(inquiry),
                 "provider": question.get("provider"),
                 "observer": observer,
