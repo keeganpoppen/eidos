@@ -157,14 +157,26 @@ idempotently with the same request ID.
 - An `ObserverAdvice` is an attributable recommendation. Its truth and
   judgment are not guaranteed by TM.
 
-## The next useful pressure point
+## The shared process runtime
 
-The *requester* and *responder* are now both Eidos processes. The remaining
-asymmetry is mostly in their separate host drivers and in the initial
-`Accept` admission.
+That mechanical unification is now implemented in
+[`PROCESS_RUNTIME.md`](PROCESS_RUNTIME.md). Both participants name an
+ordinary immutable ProcessProtocol Value defining their local Socket role and
+legal operations; both advance through the same `ProcessRuntime`.
 
-The next worthwhile experiment is to **derive both process drivers from an
-ordinary protocol definition of legal operations and authorized reactions**,
-without reintroducing a bespoke evaluator or global scheduler. That would
-make the distinction between requester and responder primarily the Roles and
-Sockets each locally possesses.
+Source-side `Inspect`, `Consult`, and `Defer` establish successor
+InquiryResponder projections. `Offer` and `Refuse` are terminal *because
+the named protocol describes them as such*. No observer special case is
+built into Praxis or the shared continuation engine.
+
+The existing Model/Observer runner names survive as semantic interpretation
+facades: they know what an Inquiry, Cut, consultation, or Context means, while
+the shared machine does the checkpoint, authority, Reaction, and resume
+work. A single host can interleave both protocols solely through the generic
+registered-protocol entry point. A third unrelated Role is tested against
+that same runtime.
+
+What remains distinct is semantic authority genesis (including the observer's
+initial Accept) and the host realization of each protocol operation. Those
+are not yet a fully derived Eidos operation-handler library, nor remotely
+authenticated actors.
