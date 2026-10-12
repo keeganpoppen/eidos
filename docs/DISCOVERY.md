@@ -219,7 +219,15 @@ The code assumes one admitted linear responder chain per Inquiry. Host-side
 concurrent acceptance must eventually be serialized as a protocol admission,
 rather than relying on an in-process precheck before generic commit.
 
-The next useful experiment is to represent the **provider itself as a
-resumable nema**: it can deliberate about an unfamiliar question, request
-additional context of its own, and eventually offer, refuse, or defer—all
-without the requester demanding an immediate synchronous answer.
+The responding observer can now itself execute a resumable Eidos
+Closure over the existing InquiryResponder projection. It can inspect its own
+Context, defer, consult a specialist, and dynamically choose Offer or Refuse
+using the ordinary Eidos `If` term. Its continuations, informational
+Reactions, and terminal answer remain named and durably inspectable.
+
+See [`OBSERVER_PROCESSES.md`](OBSERVER_PROCESSES.md) for the full source-side
+semantics, restarted observer tests, and strict responder lineage checks.
+
+The next worthwhile pressure test is to factor the requester's and
+responder's separate host drivers into one general way to interpret ordinary
+protocol operations over the Sockets each participant locally possesses.
