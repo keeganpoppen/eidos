@@ -549,6 +549,35 @@ def _responder_in_lineage(trusted: TrustedMachinery, inquiry: str, responder: st
             else:
                 continue
 
+            if kind == "ObserverInteraction":
+                process_ref = _get(record, "observer_process")
+                checkpoint_ref = _get(record, "checkpoint")
+                if (
+                    not isinstance(process_ref, Name)
+                    or not isinstance(checkpoint_ref, Name)
+                ):
+                    raise DiscoveryError("observer step lacks process/checkpoint provenance")
+                process = trusted.named_eidos_value(process_ref.value)["value"]
+                checkpoint = trusted.named_eidos_value(checkpoint_ref.value)["value"]
+                if (
+                    _get(process, "$kind") != "ObserverProcess"
+                    or _get(process, "inquiry") != Name(inquiry)
+                    or _get(process, "provider") != Name(
+                        _inquiry(trusted, inquiry)[0].get("provider").value
+                    )
+                    or _get(checkpoint, "$kind") != "ObserverCheckpoint"
+                    or _get(checkpoint, "observer_process") != process_ref
+                    or _get(checkpoint, "inquiry") != Name(inquiry)
+                ):
+                    raise DiscoveryError("observer step contradicts its saved process")
+                suspension = _get(checkpoint, "suspension")
+                if (
+                    suspension is None
+                    or suspension.socket.name != Name(current)
+                    or suspension.operation != _get(record, "operation")
+                ):
+                    raise DiscoveryError("observer step contradicts its continuation")
+
             successor = _get(record, "next_responder")
             if not isinstance(successor, Name):
                 raise DiscoveryError("source step lacks successor responder Name")
@@ -564,6 +593,15 @@ def _responder_in_lineage(trusted: TrustedMachinery, inquiry: str, responder: st
                 or causal["outputs"].get("next:responder") != successor.value
             ):
                 raise DiscoveryError("source responder lineage lacks real authority")
+            if kind == "ObserverInteraction":
+                if (
+                    causal["fact"].get("observer_process") != process_ref.value
+                    or causal["fact"].get("checkpoint") != checkpoint_ref.value
+                    or causal["fact"].get("operation") != suspension.operation.value
+                    or causal["fact"].get("response_cid")
+                    != content_id(record.get("response"))
+                ):
+                    raise DiscoveryError("observer step has incompatible causal evidence")
             old = trusted.projection(current)
             new = trusted.projection(successor.value)
             for row in (old, new):
