@@ -503,7 +503,7 @@ class ModelProcessRunner:
         successor = resumed.transition.reaction.successor
         if successor is None:
             raise ModelExecutionError("completed Model lost its successor Socket")
-        return self._finish(
+        completed = self._finish(
             run=state.process,
             projection=successor.name.value,
             proposal=resumed.resumed.value,
@@ -513,6 +513,9 @@ class ModelProcessRunner:
             context=context,
             request_id=f"{state.process}:{state.checkpoint}:finish",
         )
+        if completed.outcome is None:
+            raise ModelExecutionError("process finisher failed to name an outcome")
+        return completed.outcome
 
     def execute(
         self,
