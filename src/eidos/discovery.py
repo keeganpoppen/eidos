@@ -128,7 +128,19 @@ def accept_inquiry(
 
     value, provider = _inquiry(trusted, inquiry)
     _require_opened(trusted, inquiry, value)
-    if _accepted(trusted, inquiry):
+    previous = _accepted(trusted, inquiry)
+    if previous is not None:
+        event_name, record = previous
+        causal = trusted.authority_occurrence(event_name)
+        if (
+            _get(record, "request_id") == request_id
+            and causal["inputs"] == [discloser_projection]
+        ):
+            return {
+                "acceptance": event_name,
+                "responder": causal["outputs"]["responder"],
+                "next_discloser": causal["outputs"]["next:discloser"],
+            }
         raise DiscoveryError("inquiry already has a source responder")
     authority = trusted.projection(discloser_projection)
     _check_source_projection(authority, provider, role="Discloser")
@@ -169,6 +181,7 @@ def accept_inquiry(
         "responder": Name(committed["established"]["responder"]),
         "next_discloser": Name(committed["established"]["next:discloser"]),
         "observer": provider.get("observer"),
+        "request_id": request_id,
     })
     trusted.bind_eidos_value(
         name=committed["occurrence"],
@@ -200,7 +213,23 @@ def decide_inquiry(
     accepted = _accepted(trusted, inquiry)
     if accepted is None:
         raise DiscoveryError("observer must first accept the inquiry")
-    if _terminal_reply(trusted, inquiry) is not None:
+    terminal = _terminal_reply(trusted, inquiry)
+    if terminal is not None:
+        record = trusted.named_eidos_value(terminal)["value"]
+        causal = trusted.authority_occurrence(terminal)
+        actual_decision = causal["fact"]["decision"]
+        if (
+            _get(record, "request_id") == request_id
+            and actual_decision == decision
+            and causal["inputs"] == [responder_projection]
+            and causal["fact"].get("cut") == cut
+        ):
+            return {
+                "decision": decision,
+                "occurrence": terminal,
+                "responder": None,
+                "cut": cut,
+            }
         raise DiscoveryError("inquiry already has a terminal response")
     if (decision == "offer") != (cut is not None):
         raise DiscoveryError("only an offer may name a Cut")
@@ -259,6 +288,7 @@ def decide_inquiry(
             "provider": value.get("provider"),
             "observer": provider.get("observer"),
             "responder": Name(responder_projection),
+            "request_id": request_id,
         })
     else:
         evidence = RecordValue.from_mapping({
@@ -268,6 +298,7 @@ def decide_inquiry(
             "provider": value.get("provider"),
             "responder": Name(responder_projection),
             "next_responder": None if successor is None else Name(successor),
+            "request_id": request_id,
         })
     trusted.bind_eidos_value(
         name=committed["occurrence"],
