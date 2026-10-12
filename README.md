@@ -76,6 +76,12 @@ separately admitted specialist, or **hand off its one-shot continuation to a
 different holder**. It can resume from a persisted Eidos continuation—even
 under a new runner after a crash.
 
+A Model can also `Discover` by asking a named provider an **open question
+without knowing the useful Cut's Name**. Its `AwaitDiscovery` continuation
+stays suspended while the observer accepts, defers, offers evidence, or refuses.
+The observer's answer and the Model's eventual incorporation are separate
+authority-local occurrences.
+
 A committed Elaboration binds each run's **ModelDerivation** as a separate
 immutable, named Value, so a lens can inspect precisely what code/model ran,
 what input it saw, and what it asserted. External execution requires explicit
@@ -250,6 +256,7 @@ See:
 - [`docs/MODEL_EXECUTION.md`](docs/MODEL_EXECUTION.md) — executable Model contract and provenance;
 - [`docs/MODEL_PROCESSES.md`](docs/MODEL_PROCESSES.md) — resumable Model continuations, informational Reactions, and crash recovery;
 - [`docs/CUT_EXCHANGE.md`](docs/CUT_EXCHANGE.md) — source-domain disclosure, scoped acquisition, and linear handoff;
+- [`docs/DISCOVERY.md`](docs/DISCOVERY.md) — open inquiries, source-side deferral/refusal/offer, and resumable waiting;
 - [`docs/META_PROTOCOL.md`](docs/META_PROTOCOL.md) — Elaborate / Actualize as ordinary Eidos Socket operations;
 - [`docs/SEMANTIC_VALUES.md`](docs/SEMANTIC_VALUES.md) — tableless semantic objects, addressable provenance, and lenses;
 - [`docs/SUMMARY_TREE.md`](docs/SUMMARY_TREE.md) — hindsight-first semantic tree over Codex evidence;
