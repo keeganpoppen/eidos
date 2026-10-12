@@ -39,6 +39,10 @@ from .model_execution import (
 )
 from .semantic_values import projection_value
 from .trusted import TrustedMachinery
+from .process_runtime import (
+    ProcessRuntime, ProcessRuntimeError, ProcessReaction, ProcessPending,
+    ProcessContinuation, ProcessState, operation_value, protocol_value,
+)
 
 
 PROCESS_SOCKET_ROLE = Role("elaboration", "process-socket")
@@ -133,6 +137,7 @@ class ModelProcessRunner:
         if max_steps <= 0 or max_scope_nodes <= 0:
             raise ValueError("process budgets must be positive")
         self.trusted = trusted
+        self.machine = ProcessRuntime(trusted, max_steps=max_steps)
         self.executors = dict(executors or {})
         self.consultations: dict[str, set[str]] = {}
         self.providers = dict(providers or {})
@@ -240,6 +245,18 @@ class ModelProcessRunner:
                 "ModelInput must name the executable Model"
             )
         invocation = request_id or f"process:{uuid4().hex}"
+        protocol = self.machine.persist(
+            kind="process-protocol",
+            request_id=f"{invocation}:protocol",
+            value=protocol_value(
+                role=PROCESS_ROLE,
+                operations=tuple(operation_value(name) for name in (
+                    INSPECT, CONSULT, ACQUIRE, HANDOFF, DISCOVER, AWAIT_DISCOVERY
+                )),
+                checkpoint_kind="ModelCheckpoint",
+                process_alias="run",
+            ),
+        )
         allowed_executors = tuple(
             Name(executor) for executor in sorted(self.consultations.get(name, ()))
         )
@@ -255,6 +272,7 @@ class ModelProcessRunner:
             description=RecordValue.from_mapping({
                 "$kind": "ModelProcess",
                 "model": Name(name),
+                "protocol": Name(protocol),
                 "context": context,
                 "input": request,
                 "program": program,
