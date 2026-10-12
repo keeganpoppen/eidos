@@ -164,18 +164,23 @@ idempotent if their side effects matter. The supplied `DiscloseCut` helper
 uses a generic TM idempotency key for exactly that local source occurrence,
 not for arbitrary external network effects.
 
-## Next pressure point
+## Open-ended discovery builds on this exchange
 
-The exchange and handoff protocols work as synchronous, in-process
-orchestrations over separately durable authority domains. A natural next
-step is to replace the host callback with an addressable, pending relational
-session: the provider can suspend, an observer can admit or refuse disclosure,
-and the receiving Model can incorporate the result later.
+The known-Cut `Acquire` protocol described above remains useful, but the
+question-first protocol is now executable too. See
+[`DISCOVERY.md`](DISCOVERY.md).
 
-Then an acquired Cut need not be known even by Name when the Model begins;
-discovery itself could become another resumable Eidos protocol.
+A Model can `Discover` by supplying a provider and question, **without
+naming the Cut**. It then performs `AwaitDiscovery` and remains suspended
+until the observer's source-domain InquiryResponder authority produces an
+Offer or Refusal. Deferrals preserve the waiting Model Socket. An Offer is
+verified as a source occurrence before it becomes a new immutable Context.
 
-It would also be worth representing *model-side evidential updates* from a
-newly acquired Cut as explicit Knowledge Values, rather than only inspecting
-its structural Cut Value and asking a specialist to interpret it. That is
-separate from—and cannot imply—acquisition of world authority.
+The two paths share the same boundary: knowledge of a Name doesn't confer
+inspection or world-actualization authority, and each observer domain has its
+own causal history.
+
+The next useful pressure test is to let the source observer itself be an
+ordinary resumable nema, rather than an externally driven response API. It
+could investigate, consult, defer or refuse, and ultimately choose what to
+disclose.
