@@ -38,6 +38,14 @@ consuming the waiting process projection or inventing an answer.
 
 No background scheduler, global observer, or cross-domain lock is required.
 
+The older synchronous Model convenience entry point cannot complete while an
+inquiry remains pending. Rather than busy-loop, it raises a typed
+`ModelProcessPending` carrying the persisted checkpoint and Inquiry Name. An
+orchestrator can resume that process through `ModelProcessRunner.advance`
+after the source decision arrives. The current outer `Elaborate` adapter does
+**not** yet automatically correlate and resume its own pending attempt across
+multiple invocations; that is a separate orchestration step.
+
 ## The observer's independent causal history
 
 A `DiscoveryProvider` Value describes the source authority domain and
