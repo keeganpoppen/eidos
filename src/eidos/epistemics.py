@@ -15,7 +15,7 @@ from dataclasses import dataclass
 from typing import Any, Callable, Iterable, Mapping
 
 from .core import Bindings, Closure, Name, RecordValue, Role, content_id as core_content_id
-from .model_execution import ModelAdapter, ModelCandidate, execute_model, model_input
+from .model_execution import ModelAdapter, ModelCandidate, ModelExecutionError, execute_model, model_input
 
 
 KNOWLEDGE_ROLE = Role("elaboration", "knowledge")
@@ -384,6 +384,67 @@ def interpret_context(
         inferences=tuple(inferred),
         derivations=tuple(derivations),
     )
+
+
+def admitted_inspection_scope(
+    context: Name,
+    *,
+    resolve: Resolver,
+    max_nodes: int = 256,
+) -> set[str]:
+    """The explicitly admitted epistemic scope; never arbitrary Name reachability.
+
+    Both the requesting and responding processes use this rule. A reference in
+    program source or a generic semantic lens must not authorize inspection.
+    """
+
+    allowed: set[str] = set()
+    cursor: Name | None = context
+    visited: set[str] = set()
+    while cursor is not None:
+        if cursor.value in visited:
+            raise ModelExecutionError("cyclic inspection Context ancestry")
+        visited.add(cursor.value)
+        allowed.add(cursor.value)
+        value = _require_kind(resolve(cursor.value), "ElaborationContext")
+        for reference in value.get("cuts"):
+            if not isinstance(reference, Name):
+                raise ModelExecutionError("Context Cut must be a Name")
+            allowed.add(reference.value)
+            observed = _require_kind(resolve(reference.value), "Cut")
+            for projection in observed.get("projections"):
+                if not isinstance(projection, Name):
+                    raise ModelExecutionError("Cut projection must be a Name")
+                allowed.add(projection.value)
+
+        bindings = value.get("bindings")
+        if not isinstance(bindings, Bindings):
+            raise ModelExecutionError("Context must contain ordinary Role Bindings")
+        for role in (KNOWLEDGE_ROLE, MODELS_ROLE):
+            for reference in bindings.lookup(role):
+                if not isinstance(reference, Name):
+                    raise ModelExecutionError("Context evidence must be named")
+                allowed.add(reference.value)
+                # No recursive traversal through code, claims, or model Values.
+        try:
+            attention = bindings.lookup(ATTENTION_ROLE)
+        except KeyError:
+            attention = None
+        if attention is not None:
+            if not isinstance(attention, Name):
+                raise ModelExecutionError("Attention must be a Name")
+            allowed.add(attention.value)
+
+        disclosure = value.get("acquisition")
+        if isinstance(disclosure, Name):
+            allowed.add(disclosure.value)
+        parent = value.get("parent")
+        if parent is not None and not isinstance(parent, Name):
+            raise ModelExecutionError("Context parent must be a Name")
+        cursor = parent
+        if len(allowed) > max_nodes:
+            raise ModelExecutionError("inspection exceeds scoped Context limit")
+    return allowed
 
 
 def _require_kind(value: Any, kind: str) -> RecordValue:
