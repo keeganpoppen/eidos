@@ -7,6 +7,7 @@ from eidos.core import (
     Bindings,
     Closure,
     Done,
+    If,
     Lambda,
     Let,
     LexicalEnv,
@@ -308,3 +309,38 @@ def test_reaction_may_join_multiple_socket_capabilities():
     assert isinstance(resumed, Done)
     assert resumed.value.get("result") == "joined"
     assert resumed.value.get("next") == successor
+
+
+
+def test_pure_if_selects_only_one_branch_and_round_trips():
+    praxis = PraxisCore()
+    expression = If(
+        Prim("eq", (Lit("offer"), Lit("offer"))),
+        Lit("authorized possibility"),
+        Perform(
+            socket=Lit(Socket(Name("socket:unwanted"))),
+            operation=Name("operation:never"),
+            argument=Lit(None),
+            result_as="reply",
+            successor_as="successor",
+            then=Var("reply"),
+        ),
+    )
+    restored = from_data(to_data(expression))
+    assert restored == expression
+    result = praxis.realize(restored)
+    assert isinstance(result, Done)
+    assert result.value == "authorized possibility"
+
+    reject = praxis.realize(
+        If(
+            Lit(False),
+            Lit("not chosen"),
+            Lit("refuse"),
+        )
+    )
+    assert isinstance(reject, Done)
+    assert reject.value == "refuse"
+
+    with pytest.raises(RealizationError, match="bool"):
+        praxis.realize(If(Lit("truthy"), Lit(1), Lit(2)))
