@@ -85,6 +85,17 @@ class ProcessProgress:
     pending: str | None = None
 
 
+class ModelProcessPending(ModelExecutionError):
+    """A durable Model continuation is awaiting an external causal decision."""
+
+    def __init__(self, progress: ProcessProgress) -> None:
+        self.progress = progress
+        super().__init__(
+            f"Model process {progress.run} awaits inquiry {progress.pending}; "
+            f"resume checkpoint {progress.checkpoint} after an observer replies"
+        )
+
+
 def inspection_request(target: Name | str) -> RecordValue:
     return RecordValue.from_mapping({
         "$kind": "InspectRequest",
@@ -494,6 +505,8 @@ class ModelProcessRunner:
                 raise ModelExecutionError(
                     "process handoff requires another explicitly selected runner"
                 )
+            if progress.pending is not None:
+                raise ModelProcessPending(progress)
             progress = self.advance(progress.checkpoint)
         if progress.outcome is None:
             raise ModelExecutionError("Model process did not produce an outcome")
