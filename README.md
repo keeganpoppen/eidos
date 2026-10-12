@@ -98,6 +98,24 @@ epistemic interactions consume only its private process-domain projections,
 never the participant projections in the world being studied. The Actualizer
 still requires a separate live capability transaction.
 
+### A runtime for ordinary processes
+
+Requester and responder are now **situated protocol roles**, not separate
+execution engines. Each process description names an immutable
+`ProcessProtocol` Value recording its projection Role and legal operations,
+including which operations are terminal or permitted to remain pending.
+
+One [`ProcessRuntime`](src/eidos/process_runtime.py) validates the local
+Socket, verifies each TM-backed Reaction, resumes the saved Praxis
+continuation, and persists successor checkpoints. A trusted host explicitly
+registers the semantic interpreter for each named protocol; the runtime
+doesn't distinguish Models, observers, or any other role.
+
+The tests exercise a third, unrelated `Echo` participant and interleave a
+requesting Model with an answering observer on **one host through the same
+generic entry point**. Semantic interpreters for discovery, refusal, or Cut
+inspection remain libraries above the shared machinery.
+
 ### Trusted Machinery™
 
 The current observer-relative path uses a deliberately narrow SQLite/WAL-backed substrate:
@@ -264,6 +282,7 @@ See:
 - [`docs/CUT_EXCHANGE.md`](docs/CUT_EXCHANGE.md) — source-domain disclosure, scoped acquisition, and linear handoff;
 - [`docs/DISCOVERY.md`](docs/DISCOVERY.md) — open inquiries, source-side deferral/refusal/offer, and resumable waiting;
 - [`docs/OBSERVER_PROCESSES.md`](docs/OBSERVER_PROCESSES.md) — source observer as a resumable process over InquiryResponder authority;
+- [`docs/PROCESS_RUNTIME.md`](docs/PROCESS_RUNTIME.md) — one named-protocol continuation machine for all process roles;
 - [`docs/META_PROTOCOL.md`](docs/META_PROTOCOL.md) — Elaborate / Actualize as ordinary Eidos Socket operations;
 - [`docs/SEMANTIC_VALUES.md`](docs/SEMANTIC_VALUES.md) — tableless semantic objects, addressable provenance, and lenses;
 - [`docs/SUMMARY_TREE.md`](docs/SUMMARY_TREE.md) — hindsight-first semantic tree over Codex evidence;
