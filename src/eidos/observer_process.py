@@ -21,7 +21,8 @@ from .core import (
     Role, Socket, Suspended, canonical_bytes, content_id, to_data,
 )
 from .discovery import (
-    DiscoveryError, _inquiry, accept_inquiry, decide_inquiry, poll_inquiry,
+    DiscoveryError, _inquiry, _responder_in_lineage,
+    accept_inquiry, decide_inquiry, poll_inquiry,
 )
 from .epistemics import admitted_inspection_scope, _require_kind
 from .model_execution import ModelAdapter, ModelExecutionError
@@ -539,6 +540,10 @@ class ObserverProcessRunner:
             raise ModelExecutionError("observer has no live responder authority")
         if self.identity is not None and self.identity != observer:
             raise ModelExecutionError("observer process holder mismatch")
+        if not _responder_in_lineage(self.trusted, inquiry, responder):
+            raise ModelExecutionError(
+                "observer responder Socket has no admitted causal lineage"
+            )
 
     def _checkpoint(
         self,
