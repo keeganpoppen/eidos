@@ -2,7 +2,7 @@ import pytest
 
 from eidos.core import (
     Done, Get, If, Lambda, Lit, Name, Need, Perform, PraxisCore, Prim,
-    Record, RecordValue, Socket, Suspended, Var, from_data, to_data,
+    Record, RecordValue, Socket, Suspended, Var, content_id, from_data, to_data,
 )
 from eidos.discovery import (
     discovery_provider_value, discover_request, poll_inquiry,
@@ -26,6 +26,7 @@ from eidos.observer_process import (
     refuse_request,
 )
 from eidos.occurrence import ProjectionTemplate, RecursiveProtocol
+from eidos.authority import ProjectionGrant
 from eidos.trusted import TrustedMachinery
 
 
@@ -465,3 +466,80 @@ def test_observer_program_cannot_spend_foreign_participant_socket():
             request_id="rogue-socket-program",
         )
     assert tm.projection(admitted["projections"]["projection:B"])["disposition"] == "live"
+
+
+
+def test_observer_recovers_consultation_commit_before_praxis_resume():
+    """Recover an already committed source-domain information event."""
+
+    tm, admitted, left, right, refs = world()
+    requester, asked, pending = issue_question(tm, refs)
+    calls = []
+    source = ObserverProcessRunner(
+        tm, executors={refs["executor"]: advice_executor(refs, "offer", calls)},
+        identity="O2",
+    )
+    started = source.start(
+        inquiry=pending.pending,
+        discloser_projection=admitted["projections"]["projection:Discloser"],
+        context=refs["observer_context"],
+        program=observer_program(right["cut"], refs["executor"]),
+        allowed_executors=(refs["executor"],),
+        request_id="source-crash-window",
+    )
+    inspected = source.advance(started.checkpoint)
+    deferred = source.advance(inspected.checkpoint)
+    checkpoint = deferred.checkpoint
+    snapshot = tm.named_eidos_value(checkpoint)["value"]
+    suspended = snapshot.get("suspension")
+    descriptor = tm.named_eidos_value(started.process)["value"]
+
+    # Specialist has replied and the response was durably prepared.
+    prepared_name, prepared = source._prepare(
+        process=started.process, checkpoint=checkpoint,
+        descriptor=descriptor, suspended=suspended,
+    )
+    assert len(calls) == 1
+
+    current = suspended.socket.name.value
+    committed = tm.commit_projection_occurrence(
+        kind="ObserverConsult",
+        consumes=(current,),
+        establishes=(
+            ProjectionGrant(
+                key="next:responder",
+                holder="O2",
+                description=tm.named_eidos_value(current)["value"],
+            ),
+        ),
+        fact={
+            "inquiry": pending.pending,
+            "observer_process": started.process,
+            "checkpoint": checkpoint,
+            "operation": suspended.operation.value,
+            "prepared": prepared_name,
+            "response_cid": content_id(prepared.get("response")),
+        },
+        request_id=f"{started.process}:{checkpoint}:step",
+    )
+    assert tm.projection(current)["disposition"] == "spent"
+    with pytest.raises(KeyError):
+        tm.named_eidos_value(committed["occurrence"])
+
+    # A completely new runner, without the specialist callback, uses the
+    # original idempotent TM receipt and prepared answer to resume.
+    recovered = ObserverProcessRunner(tm, identity="O2")
+    next_ = recovered.advance(checkpoint)
+    assert next_.checkpoint
+    assert next_.occurrence == committed["occurrence"]
+    assert tm.named_eidos_value(next_.occurrence)["value"].get("$kind") == "ObserverInteraction"
+    assert tm.named_eidos_value(next_.checkpoint)["value"].get("suspension").operation == OBSERVER_OFFER
+    assert recovered.advance(checkpoint) == next_
+    assert len(calls) == 1
+
+    completed = recovered.advance(next_.checkpoint)
+    assert completed.outcome
+    assert poll_inquiry(tm, pending.pending)["status"] == "offer"
+    assert world_state(tm, admitted) == {
+        "projection:A": "live", "projection:B": "live"
+    }
