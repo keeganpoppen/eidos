@@ -13,11 +13,11 @@ from eidos.epistemics import (
 from eidos.genesis import admit_genesis
 from eidos.lenses import walk_named_values
 from eidos.model_execution import (
-    ModelExecutionError, consultation_request, executor_value, model_input,
+    ModelExecutionError, executor_value, model_input,
 )
 from eidos.model_process import (
     AWAIT_DISCOVERY, DISCOVER, INSPECT, PROCESS_SOCKET_ROLE, ModelProcessRunner,
-    inspection_request,
+    inspection_request, consultation_request,
 )
 from eidos.observer_process import (
     OBSERVER_CONSULT, OBSERVER_CONTEXT_ROLE, OBSERVER_DEFER, OBSERVER_INSPECT,
