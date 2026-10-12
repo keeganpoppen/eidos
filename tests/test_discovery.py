@@ -6,7 +6,7 @@ from eidos.core import (
 )
 from eidos.discovery import (
     DiscoveryError, accept_inquiry, await_discovery, decide_inquiry,
-    discover_request, discovery_provider_value, poll_inquiry,
+    discover_request, discovery_provider_value, discovery_inbox, poll_inquiry,
 )
 from eidos.epistemics import (
     attention_value, context_value, knowledge_value, model_value,
@@ -211,6 +211,10 @@ def test_question_is_causal_and_stays_pending_across_observer_deferrals():
     assert named.get("question") == "What else might illuminate this observation?"
     assert named.get("provider") == Name(refs["provider"])
     assert poll_inquiry(tm, inquiry)["status"] == "pending"
+    inbox = discovery_inbox(tm, provider=refs["provider"])
+    assert len(inbox) == 1
+    assert inbox[0].get("inquiry") == Name(inquiry)
+    assert inbox[0].get("status") == "pending"
     pending = tm.named_eidos_value(requested.checkpoint)["value"]
     waiting_socket = pending.get("suspension").socket.name.value
     assert tm.projection(waiting_socket)["disposition"] == "live"
@@ -222,6 +226,11 @@ def test_question_is_causal_and_stays_pending_across_observer_deferrals():
         request_id="discovery-accept",
     )
     assert tm.authority_occurrence(accepted["acceptance"])["kind"] == "DiscoveryAccept"
+    assert accept_inquiry(
+        tm, inquiry=inquiry,
+        discloser_projection=genesis["projections"]["projection:Discloser"],
+        request_id="discovery-accept",
+    ) == accepted
     deferred = decide_inquiry(
         tm, inquiry=inquiry,
         responder_projection=accepted["responder"],
@@ -231,6 +240,7 @@ def test_question_is_causal_and_stays_pending_across_observer_deferrals():
     assert deferred["responder"] is not None
     assert tm.authority_occurrence(deferred["occurrence"])["kind"] == "DiscoveryDefer"
     assert poll_inquiry(tm, inquiry)["status"] == "deferred"
+    assert discovery_inbox(tm, provider=refs["provider"])[0].get("status") == "deferred"
     assert runner.advance(requested.checkpoint).pending == inquiry
     assert tm.projection(waiting_socket)["disposition"] == "live"
 
@@ -246,6 +256,13 @@ def test_question_is_causal_and_stays_pending_across_observer_deferrals():
         "decision": offered["occurrence"],
         "cut": right["cut"],
     }
+    assert discovery_inbox(tm, provider=refs["provider"]) == ()
+    assert decide_inquiry(
+        tm, inquiry=inquiry,
+        responder_projection=deferred["responder"],
+        decision="offer", cut=right["cut"],
+        request_id="discovery-offer",
+    ) == offered
     resumed = ModelProcessRunner(tm).advance(requested.checkpoint)
     assert resumed.checkpoint is not None
     assert resumed.pending is None
@@ -292,12 +309,14 @@ def test_observer_can_refuse_and_requester_resumes_without_new_cut():
         request_id="discovery-refuse",
     )
     assert poll_inquiry(tm, awaiting.pending)["status"] == "refuse"
+    assert discovery_inbox(tm, provider=refs["provider"]) == ()
     completed = ModelProcessRunner(tm).advance(requested.checkpoint)
     assert completed.outcome
     outcome = tm.named_eidos_value(completed.outcome)["value"]
     proposal = outcome.get("proposal")
     assert proposal.get("context") == Name(refs["context"])
     receipt = proposal.get("receipt")
+    assert tm.authority_occurrence(outcome.get("events")[-1].value)["fact"]["causal_source"] == refused["occurrence"]
     assert receipt.get("$kind") == "DiscoveryRefused"
     assert receipt.get("decision") == Name(refused["occurrence"])
     assert len(outcome.get("events")) == 2
@@ -353,3 +372,57 @@ def test_unadmitted_discovery_provider_cannot_issue_an_open_inquiry():
     with pytest.raises(ModelExecutionError, match="explicitly admitted DiscoveryProvider"):
         runner.advance(started.checkpoint)
     assert tm.projection(genesis["projections"]["projection:Discloser"])["disposition"] == "live"
+
+
+
+def test_forged_acceptance_value_cannot_create_responder_authority():
+    tm, left, right, genesis, refs = world()
+    runner, started, requested, awaiting = issue(tm, refs)
+    inquiry = awaiting.pending
+    forged = persist(
+        tm,
+        "forged-discovery-acceptance",
+        RecordValue.from_mapping({
+            "$kind": "DiscoveryAcceptance",
+            "inquiry": Name(inquiry),
+            "provider": Name(refs["provider"]),
+            "responder": Name(genesis["projections"]["projection:B"]),
+            "next_discloser": Name(genesis["projections"]["projection:Discloser"]),
+        }),
+    )
+
+    with pytest.raises(DiscoveryError, match="authoritative occurrence"):
+        accept_inquiry(
+            tm, inquiry=inquiry,
+            discloser_projection=genesis["projections"]["projection:Discloser"],
+            request_id="accept-with-forged-sibling",
+        )
+    assert tm.projection(genesis["projections"]["projection:Discloser"])["disposition"] == "live"
+
+
+def test_inquiry_acceptance_requires_requester_to_commit_its_question():
+    tm, left, right, genesis, refs = world()
+    runner = ModelProcessRunner(tm)
+    runner.authorize_discovery(model=refs["model"], provider=refs["provider"])
+    started = runner.start(
+        name=refs["model"], program=refs["closure"],
+        request=refs["input"], request_id="discover-not-yet-committed",
+    )
+    from eidos.discovery import open_inquiry
+
+    inquiry = open_inquiry(
+        tm,
+        run=started.run,
+        model=refs["model"],
+        context=refs["context"],
+        checkpoint=started.checkpoint,
+        provider=refs["provider"],
+        question="What else might illuminate this observation?",
+        request_id="premature-inquiry",
+    )
+    with pytest.raises(DiscoveryError, match="not been committed"):
+        accept_inquiry(
+            tm, inquiry=inquiry,
+            discloser_projection=genesis["projections"]["projection:Discloser"],
+            request_id="premature-acceptance",
+        )
