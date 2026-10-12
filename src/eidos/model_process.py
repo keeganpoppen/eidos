@@ -368,6 +368,14 @@ class ModelProcessRunner:
             if not isinstance(next_context, Name) or not isinstance(source_occurrence, Name):
                 raise ModelExecutionError("acquisition lacks named Context or causal source")
 
+        if (
+            suspended.operation == AWAIT_DISCOVERY
+            and _field(response, "$kind") == "DiscoveryRefused"
+        ):
+            source_occurrence = response.get("decision")
+            if not isinstance(source_occurrence, Name):
+                raise ModelExecutionError("refusal lacks a causal source")
+
         target_holder = holder
         if suspended.operation == HANDOFF:
             if _field(response, "$kind") != "HandoffAccepted":
