@@ -331,11 +331,14 @@ def _inquiry(trusted: TrustedMachinery, name: str) -> tuple[RecordValue, RecordV
 
 
 def _require_opened(trusted: TrustedMachinery, name: str, inquiry: RecordValue) -> None:
-    """The receiver must have actually issued this inquiry as a causal step."""
+    """The requester must have committed this exact inquiry as a causal step."""
 
     checkpoint = inquiry.get("checkpoint")
     run = inquiry.get("run")
-    if not isinstance(checkpoint, Name) or not isinstance(run, Name):
+    model = inquiry.get("model")
+    provider = inquiry.get("provider")
+    context = inquiry.get("context")
+    if any(not isinstance(ref, Name) for ref in (checkpoint, run, model, provider, context)):
         raise DiscoveryError("inquiry has invalid source references")
     step = trusted.named_eidos_value(checkpoint.value)["value"]
     if not isinstance(step, RecordValue) or step.get("$kind") != "ModelCheckpoint":
@@ -343,45 +346,91 @@ def _require_opened(trusted: TrustedMachinery, name: str, inquiry: RecordValue) 
     suspended = step.get("suspension")
     if suspended.operation.value != "model:Discover":
         raise DiscoveryError("inquiry did not originate from Discover")
-    if step.get("run") != run:
-        raise DiscoveryError("inquiry checkpoint is outside recipient process")
-    for _, record in trusted.named_values():
-        if (
+    if step.get("run") != run or step.get("context") != context:
+        raise DiscoveryError("inquiry contradicts requesting checkpoint")
+    request = suspended.argument
+    if (
+        not isinstance(request, RecordValue)
+        or request.get("$kind") != "DiscoverRequest"
+        or request.get("provider") != provider
+        or request.get("question") != inquiry.get("question")
+    ):
+        raise DiscoveryError("inquiry contradicts original question")
+    process = trusted.named_eidos_value(run.value)["value"]
+    if not isinstance(process, RecordValue) or process.get("model") != model:
+        raise DiscoveryError("inquiry names an unrelated recipient Model")
+    for occurrence, record in trusted.named_values():
+        if not (
             isinstance(record, RecordValue)
             and _get(record, "$kind") == "ModelInteraction"
             and _get(record, "checkpoint") == checkpoint
             and _get(record, "operation") == suspended.operation
             and _get(record, "run") == run
-            and _get(record, "response") is not None
             and _get(_get(record, "response"), "inquiry") == Name(name)
+        ):
+            continue
+        try:
+            causal = trusted.authority_occurrence(occurrence)
+        except KeyError:
+            continue
+        if (
+            causal["kind"] == "ModelInteraction"
+            and causal["domain_name"] == run.value
+            and causal["fact"].get("operation") == suspended.operation.value
+            and causal["fact"].get("checkpoint") == checkpoint.value
+            and causal["fact"].get("response_cid") == content_id(record.get("response"))
         ):
             return
     raise DiscoveryError("inquiry has not been committed by its requester")
 
 
 def _accepted(trusted: TrustedMachinery, inquiry: str) -> tuple[str, RecordValue] | None:
+    inquiry_value, provider = _inquiry(trusted, inquiry)
+    matches: list[tuple[str, RecordValue]] = []
     for name, value in trusted.named_values():
         if (
             isinstance(value, RecordValue)
             and _get(value, "$kind") == "DiscoveryAcceptance"
             and _get(value, "inquiry") == Name(inquiry)
         ):
-            return name, value
-    return None
+            matches.append((name, value))
+    if len(matches) > 1:
+        raise DiscoveryError("multiple source responder admissions for one inquiry")
+    if not matches:
+        return None
+    name, value = matches[0]
+    try:
+        causal = trusted.authority_occurrence(name)
+    except KeyError as exc:
+        raise DiscoveryError("acceptance has no authoritative occurrence") from exc
+    responder = value.get("responder")
+    successor = value.get("next_discloser")
+    if (
+        causal["kind"] != "DiscoveryAccept"
+        or causal["domain_name"] != provider.get("source_domain").value
+        or causal["fact"].get("inquiry") != inquiry
+        or causal["fact"].get("provider") != inquiry_value.get("provider").value
+        or causal["fact"].get("recipient_run") != inquiry_value.get("run").value
+        or causal["fact"].get("recipient_model") != inquiry_value.get("model").value
+        or not isinstance(responder, Name)
+        or responder.value != causal["outputs"].get("responder")
+        or not isinstance(successor, Name)
+        or successor.value != causal["outputs"].get("next:discloser")
+        or len(causal["inputs"]) != 1
+    ):
+        raise DiscoveryError("acceptance Value contradicts source authority")
+    source = trusted.projection(causal["inputs"][0])
+    _check_source_projection(source, provider, role="Discloser")
+    target = trusted.projection(responder.value)
+    _check_source_projection(target, provider, role="InquiryResponder")
+    if target.get("protocol_state") != f"inquiry:{inquiry}":
+        raise DiscoveryError("acceptance issued responder for another inquiry")
+    return name, value
 
 
 def _terminal_reply(trusted: TrustedMachinery, inquiry: str) -> str | None:
-    for name, record in trusted.named_values():
-        if not isinstance(record, RecordValue) or _get(record, "inquiry") != Name(inquiry):
-            continue
-        if _get(record, "$kind") == "CutDisclosure":
-            return name
-        if (
-            _get(record, "$kind") == "DiscoveryDecision"
-            and _get(record, "decision") == "refuse"
-        ):
-            return name
-    return None
+    status = poll_inquiry(trusted, inquiry)
+    return status["decision"] if status["status"] in ("offer", "refuse") else None
 
 
 def _responder_in_lineage(trusted: TrustedMachinery, inquiry: str, responder: str) -> bool:
@@ -397,17 +446,31 @@ def _responder_in_lineage(trusted: TrustedMachinery, inquiry: str, responder: st
         if current == responder:
             return True
         next_ = None
-        for name, record in trusted.named_values():
-            if (
+        for occurrence, record in trusted.named_values():
+            if not (
                 isinstance(record, RecordValue)
                 and _get(record, "$kind") == "DiscoveryDecision"
                 and _get(record, "inquiry") == Name(inquiry)
                 and _get(record, "decision") == "defer"
                 and _get(record, "responder") == Name(current)
             ):
-                next_ref = record.get("next_responder")
-                next_ = next_ref.value if isinstance(next_ref, Name) else None
-                break
+                continue
+            next_ref = record.get("next_responder")
+            if not isinstance(next_ref, Name):
+                raise DiscoveryError("deferral lacks successor responder")
+            try:
+                causal = trusted.authority_occurrence(occurrence)
+            except KeyError as exc:
+                raise DiscoveryError("deferral lacks a source occurrence") from exc
+            if (
+                causal["kind"] != "DiscoveryDefer"
+                or causal["fact"].get("inquiry") != inquiry
+                or causal["inputs"] != [current]
+                or causal["outputs"].get("next:responder") != next_ref.value
+            ):
+                raise DiscoveryError("deferral chain has invalid causal authority")
+            next_ = next_ref.value
+            break
         if next_ is None:
             return False
         current = next_
