@@ -82,6 +82,12 @@ stays suspended while the observer accepts, defers, offers evidence, or refuses.
 The observer's answer and the Model's eventual incorporation are separate
 authority-local occurrences.
 
+The observer can now itself be a **resumable Eidos process**, running on the
+source domain's ordinary InquiryResponder Socket. It can inspect its own
+admitted Context, defer, consult a specialist, and branch in pure Eidos code
+to offer evidence or refuse. Both sides therefore have durable continuations
+and independent causal histories; neither is the other's scheduler.
+
 A committed Elaboration binds each run's **ModelDerivation** as a separate
 immutable, named Value, so a lens can inspect precisely what code/model ran,
 what input it saw, and what it asserted. External execution requires explicit
@@ -257,6 +263,7 @@ See:
 - [`docs/MODEL_PROCESSES.md`](docs/MODEL_PROCESSES.md) — resumable Model continuations, informational Reactions, and crash recovery;
 - [`docs/CUT_EXCHANGE.md`](docs/CUT_EXCHANGE.md) — source-domain disclosure, scoped acquisition, and linear handoff;
 - [`docs/DISCOVERY.md`](docs/DISCOVERY.md) — open inquiries, source-side deferral/refusal/offer, and resumable waiting;
+- [`docs/OBSERVER_PROCESSES.md`](docs/OBSERVER_PROCESSES.md) — source observer as a resumable process over InquiryResponder authority;
 - [`docs/META_PROTOCOL.md`](docs/META_PROTOCOL.md) — Elaborate / Actualize as ordinary Eidos Socket operations;
 - [`docs/SEMANTIC_VALUES.md`](docs/SEMANTIC_VALUES.md) — tableless semantic objects, addressable provenance, and lenses;
 - [`docs/SUMMARY_TREE.md`](docs/SUMMARY_TREE.md) — hindsight-first semantic tree over Codex evidence;
