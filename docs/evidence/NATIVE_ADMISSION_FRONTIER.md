@@ -270,3 +270,107 @@ must remain distinct.
 Documentation verification for this follow-up: `tests/test_seed_context.py` **5
 passed** and `git diff --check` passed. These checks validate repository continuity
 and formatting, not the lifecycle inference. No new dynamic admission test ran.
+
+## 2026-10-13 source appendix: closure before the first thread
+
+**Conditional proposed controls; no new dynamic result.** The bounded follow-up
+reviewed exact public `rust-v0.154.0` source. It found no remaining pre-closure
+OAuth writer among the reviewed startup paths under the following narrower
+conditions: one fresh process and unique Ephemeral storage; an immutable static
+catalog supplied at process startup; both OTEL exporters `none`; plugins, apps,
+hooks and AgentIdentity disabled; no existing threads; exact managed Plus/Pro
+account acknowledgement and successful normal managed config loading; and only
+initialize, one device login, ordered account/config reads, then the first thread
+and turn.
+Issuer access and existing issuer tunnels close before that first thread. The
+production gate remains closed; this is not an exhaustive writer proof or a
+claim that token claims have been frozen in a native execution.
+
+The startup catalog has a second concrete role beyond controlling offered tools.
+The [model worker](https://github.com/openai/codex/blob/rust-v0.154.0/codex-rs/app-server/src/models_refresh_worker.rs#L30)
+starts immediately and repeats every **4 minutes 30 seconds**, independently of
+the 15-minute cloud-config timer. With a dynamic catalog, even its refresh
+eligibility check reaches `auth().await`. Supplying the catalog at startup
+[selects `StaticModelsManager`](https://github.com/openai/codex/blob/rust-v0.154.0/codex-rs/model-provider/src/provider.rs#L444):
+its [catalog read ignores the online refresh strategy](https://github.com/openai/codex/blob/rust-v0.154.0/codex-rs/models-manager/src/manager.rs#L556),
+and picker filtering uses cached auth. Thus the worker still exists but does not
+refresh OAuth through this path. A short post-login lifetime alone would not
+exclude a dynamic worker already running during a longer device-code login.
+
+A separate [turn-cost worker](https://github.com/openai/codex/blob/rust-v0.154.0/codex-rs/app-server/src/turn_cost_worker.rs#L100)
+starts when either log or metrics exporter is OTLP HTTP/gRPC. It subscribes to
+auth changes and probes immediately and after those changes; the probe reaches
+`auth().await` without needing a thread or an additional client RPC. The proposed
+configuration pins both fields explicitly:
+
+```toml
+[otel]
+exporter = "none"
+metrics_exporter = "none"
+```
+
+These values are accepted by the tagged
+[configuration schema](https://github.com/openai/codex/blob/rust-v0.154.0/codex-rs/core/config.schema.json#L2815).
+With them, `TurnCostWorker::spawn` returns `None`. The post-login plugin-change
+task is also unjoined, but its
+[MCP refresh visits existing threads](https://github.com/openai/codex/blob/rust-v0.154.0/codex-rs/app-server/src/mcp_refresh.rs#L31),
+and disabled plugin paths return before their network work. This excludes those
+reviewed producers before closure in the fresh, threadless candidate.
+
+The proposed acknowledgement sequence is matching `account/login/completed`,
+then `account/updated`, then `account/read(refreshToken=false)` and a successful
+normal managed `config/read`. The first notification precedes auth reload and
+cloud-loader replacement. Account update follows the awaited post-login config
+work, but that work can log and swallow errors; account read can also fall back
+to startup configuration. Neither is sufficient alone.
+
+The public [`config/read` handler](https://github.com/openai/codex/blob/rust-v0.154.0/codex-rs/app-server/src/request_processors/config_processor.rs#L100)
+does propagate errors. Its
+[service](https://github.com/openai/codex/blob/rust-v0.154.0/codex-rs/app-server/src/config_manager_service.rs#L115)
+loads configuration layers with the current loader, including when `cwd` is
+omitted. Normal managed loading then
+[propagates `cloud_config_bundle.get()` errors](https://github.com/openai/codex/blob/rust-v0.154.0/codex-rs/config/src/loader/mod.rs#L200).
+A successful response therefore excludes a cached cloud startup error at that
+read, provided `ignore_managed_requirements` is false and no concurrent loader
+replacement is admitted. This matters because a
+[cached startup timeout selects a five-second retry](https://github.com/openai/codex/blob/rust-v0.154.0/codex-rs/cloud-config/src/service.rs#L472),
+not the ordinary 15-minute interval. This acknowledgement establishes the loader
+result; it does not join every auth task. Total process lifetime, including login,
+must remain below the ordinary refresh interval for this particular inference.
+
+Closing only before `turn/start` is too late for the proposal:
+[session initialization calls `auth().await`](https://github.com/openai/codex/blob/rust-v0.154.0/codex-rs/core/src/session/session.rs#L973),
+and [startup prewarm](https://github.com/openai/codex/blob/rust-v0.154.0/codex-rs/core/src/session_startup_prewarm.rs#L186)
+can resolve request auth independently of AgentIdentity being disabled. Closure
+must precede `thread/start`. These later auth attempts and immediate provider-401
+recovery remain useful synthetic challenges: source inference predicts issuer
+refusal, not their absence. If an authored WebSocket response uses HTTP 426, label
+the resulting [HTTP fallback](https://github.com/openai/codex/blob/rust-v0.154.0/codex-rs/core/src/client.rs#L1809)
+explicitly; it does not show that built-in WebSockets were disabled by configuration.
+
+An extra `account/rateLimits/read` is a useful deliberately broader negative
+control, not an endogenous call in the permitted sequence. An unsolicited
+rate-limit notification may simply
+[forward a token-count event](https://github.com/openai/codex/blob/rust-v0.154.0/codex-rs/app-server/src/bespoke_event_handling.rs#L1692).
+Neither that notification nor successful account/config reads prove a global
+auth-writer barrier. In particular, closing a stream cannot recall a successful
+token response already delivered to native code. The proposed source conditions
+and the upcoming isolated lifecycle cases must remain separate from eventual
+real-account admission evidence.
+
+Appendix verification: `tests/test_seed_context.py` **5 passed** and
+`git diff --check` passed. These are documentation checks only. This review made
+no native, login, credential or provider calls and changed no production code.
+
+The subsequent [offline lifecycle packet](../agents/NATIVE_MANAGED_LIFECYCLE_TASK.md)
+exposed two additional post-thread producers. Explicit
+[`analytics.enabled=false`](https://github.com/openai/codex/blob/rust-v0.154.0/codex-rs/analytics/src/client.rs#L239)
+omits the analytics queue; this is independent of OTEL settings. The app-server
+[unconditionally installs Git attribution](https://github.com/openai/codex/blob/rust-v0.154.0/codex-rs/app-server/src/extensions.rs#L94).
+Its [policy resolver](https://github.com/openai/codex/blob/rust-v0.154.0/codex-rs/ext/git-attribution/src/policy.rs#L53)
+reads authenticated user settings and can perform 401 recovery. Its renderer
+contributes developer-role governance text, not tool registration. Closing the
+issuer before thread creation covers these later refresh attempts, but does not
+remove the settings request or make the selected packet the complete native
+context. The revised offline contract admits one exact authored settings response;
+production admission remains closed.

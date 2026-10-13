@@ -113,8 +113,15 @@ class FixtureHttpError(ValueError):
         self.status, self.reason, self.record = status, reason, record
 
 
-def read_fixture_http_request(connection: socket.socket, deadline: float) -> dict[str, Any]:
-    """Read one bounded message; shared by local-only fixture services."""
+def read_fixture_http_request(
+    connection: socket.socket, deadline: float, *,
+    allowed_authorizations: frozenset[str] = frozenset(),
+) -> dict[str, Any]:
+    """Read one bounded local fixture message; auth is refused by default.
+
+    An authored managed-auth fixture may supply exact synthetic header values.
+    This is fixture matching, not caller authentication.
+    """
     record: dict[str, Any] = {}
     def receive(count: int) -> bytes:
         remaining = deadline - time.monotonic()
@@ -146,7 +153,8 @@ def read_fixture_http_request(connection: socket.socket, deadline: float) -> dic
                 raise ValueError("duplicate-header")
             headers[name] = value.strip()
         record.update(method=method, target=target, headers=headers)
-        if any(name in headers for name in ("authorization", "transfer-encoding", "content-encoding")):
+        if (any(name in headers for name in ("transfer-encoding", "content-encoding"))
+                or "authorization" in headers and headers["authorization"] not in allowed_authorizations):
             raise FixtureHttpError(400, "unsupported-header", record)
         length = int(headers.get("content-length", "0"))
         if not 0 <= length <= MAX_BODY:

@@ -7,6 +7,7 @@ its key and the authored plaintext response. The native executable is unchanged.
 from __future__ import annotations
 
 import argparse
+from collections.abc import Mapping
 from contextlib import contextmanager
 from dataclasses import asdict, dataclass
 import hashlib
@@ -22,6 +23,7 @@ import subprocess
 import tempfile
 import threading
 import time
+from types import MappingProxyType
 from typing import Any, Callable
 
 _spec = importlib.util.spec_from_file_location(
@@ -71,7 +73,10 @@ class Refused(ValueError):
         super().__init__(reason)
 
 
-def read_connect(connection: socket.socket, limits: TunnelLimits) -> dict[str, Any]:
+def read_connect(
+    connection: socket.socket, limits: TunnelLimits, *,
+    authorities: frozenset[str] = frozenset({AUTHORITY}),
+) -> dict[str, Any]:
     deadline = time.monotonic() + limits.parse_seconds
     data = bytearray()
     while b"\r\n\r\n" not in data:
@@ -112,7 +117,7 @@ def read_connect(connection: socket.socket, limits: TunnelLimits) -> dict[str, A
             raise Refused(400, "unexpected-connect-body")
         # Exact fixed authority comparison intentionally rejects normalization
         # ambiguities, alternate ports, IPs, suffixes, userinfo and URL forms.
-        if authority != AUTHORITY:
+        if authority not in authorities:
             raise Refused(403, "destination-refused", authority=authority)
         if headers.get("host") != authority:
             raise Refused(400, "host-mismatch")
@@ -125,8 +130,25 @@ def read_connect(connection: socket.socket, limits: TunnelLimits) -> dict[str, A
 
 class ConnectBroker:
     """Bounded fixed-destination tunnel, not a logical caller authenticator."""
-    def __init__(self, open_endpoint: Callable[[], socket.socket], limits: TunnelLimits | None = None):
-        self.open_endpoint = open_endpoint
+    def __init__(
+        self, open_endpoint: Callable[[], socket.socket] | None = None,
+        limits: TunnelLimits | None = None, *,
+        destinations: Mapping[str, Callable[[], socket.socket]] | None = None,
+    ):
+        if (open_endpoint is None) == (destinations is None):
+            raise ValueError("provide one endpoint callback or a fixed destination map")
+        endpoints = {AUTHORITY: open_endpoint} if destinations is None else dict(destinations)
+        if not endpoints or any(
+            not isinstance(authority, str)
+            or not re.fullmatch(r"[a-z0-9]+(?:[.-][a-z0-9]+)*:[1-9][0-9]{0,4}", authority)
+            or int(authority.rsplit(":", 1)[1]) > 65535 or not callable(endpoint)
+            for authority, endpoint in endpoints.items()
+        ):
+            raise ValueError("fixed canonical host:port endpoint callbacks required")
+        self.endpoints = MappingProxyType(endpoints)
+        self.authorities = frozenset(endpoints)
+        self.closed_authorities: set[str] = set()
+        self.authority_sockets: dict[str, set[socket.socket]] = {name: set() for name in endpoints}
         self.limits = limits or TunnelLimits()
         self.lock = threading.Lock()
         self.stop = threading.Event()
@@ -157,21 +179,25 @@ class ConnectBroker:
             self.events.append(event)
             self.sockets.add(client)
         try:
-            event.update(read_connect(client, self.limits))
+            event.update(read_connect(client, self.limits, authorities=self.authorities))
+            authority = event["authority"]
             with self.lock:
                 if not self.admitted:
                     raise Refused(403, "not-admitted")
                 if self.stop.is_set() or self.total_bytes >= self.limits.aggregate_bytes:
                     raise Refused(429, "aggregate-limit-or-closed")
+                if authority in self.closed_authorities:
+                    raise Refused(403, "destination-closed", authority=authority)
                 if self.active >= self.limits.max_active:
                     raise Refused(429, "concurrency-limit")
                 self.active += 1
                 self.peak_active = max(self.peak_active, self.active)
                 reserved = True
                 # Opening is local socketpair construction, never DNS/TCP dial.
-                upstream = self.open_endpoint()
+                upstream = self.endpoints[authority]()
                 self.opened += 1
                 self.sockets.add(upstream)
+                self.authority_sockets[authority].update((client, upstream))
             client.sendall(b"HTTP/1.1 200 Connection Established\r\n\r\n")
             event["status"] = 200
             event["reason"] = self.bridge(client, upstream, event)
@@ -190,6 +216,9 @@ class ConnectBroker:
                 if reserved:
                     self.active -= 1
                 self.sockets.discard(client)
+                if "authority" in event:
+                    self.authority_sockets[event["authority"]].discard(client)
+                    self.authority_sockets[event["authority"]].discard(upstream)
                 if upstream is not None:
                     self.sockets.discard(upstream)
             if upstream is not None:
@@ -263,13 +292,30 @@ class ConnectBroker:
                             ended.add(connection)
             return "closed"
 
+    def close_authority(self, authority: str) -> None:
+        """Irreversibly close this route and its active streams.
+
+        Bytes already delivered to the client cannot be recalled. This is not an
+        authentication-state barrier in the native process.
+        """
+        with self.lock:
+            if authority not in self.endpoints:
+                raise ValueError("unknown fixed authority")
+            self.closed_authorities.add(authority)
+            sockets = tuple(self.authority_sockets[authority])
+        self._shutdown(sockets)
+
+    @staticmethod
+    def _shutdown(sockets) -> None:
+        for connection in sockets:
+            try: connection.shutdown(socket.SHUT_RDWR)
+            except OSError: pass
+
     def close(self) -> None:
         self.stop.set()
         with self.lock:
             sockets = tuple(self.sockets)
-        for connection in sockets:
-            try: connection.shutdown(socket.SHUT_RDWR)
-            except OSError: pass
+        self._shutdown(sockets)
 
 
 class EndpointBroker(catalog.tool_probe.ToolFixtureBroker):
@@ -301,7 +347,15 @@ class EndpointBroker(catalog.tool_probe.ToolFixtureBroker):
         return response
 
 
-def make_certificates(directory: Path) -> dict[str, Path]:
+def make_certificates(
+    directory: Path, *, extra_fixed_hostnames: Mapping[str, str] | None = None,
+) -> dict[str, Path]:
+    hostnames = {"valid": "provider.fixture.invalid", "wrongHost": "wrong.fixture.invalid"}
+    for name, hostname in (extra_fixed_hostnames or {}).items():
+        if (name in hostnames or not re.fullmatch(r"[a-zA-Z][a-zA-Z0-9]*", name)
+                or not re.fullmatch(r"[a-z0-9]+(?:[.-][a-z0-9]+)*", hostname)):
+            raise ValueError("distinct fixed certificate label and hostname required")
+        hostnames[name] = hostname
     def openssl(*args: str) -> None:
         subprocess.run(["/usr/bin/openssl", *args], check=True, timeout=10, capture_output=True)
     ca, ca_key = directory / "ca.pem", directory / "ca.key"
@@ -309,7 +363,7 @@ def make_certificates(directory: Path) -> dict[str, Path]:
             "-subj", "/CN=Nema Disposable Fixture CA", "-addext", "basicConstraints=critical,CA:TRUE",
             "-addext", "keyUsage=critical,keyCertSign,cRLSign", "-keyout", str(ca_key), "-out", str(ca))
     paths = {"ca": ca}
-    for name, hostname in (("valid", "provider.fixture.invalid"), ("wrongHost", "wrong.fixture.invalid")):
+    for name, hostname in hostnames.items():
         key, request, cert, ext = (directory / (name + suffix) for suffix in (".key", ".csr", ".pem", ".ext"))
         ext.write_text(f"subjectAltName=DNS:{hostname}\nbasicConstraints=CA:FALSE\nkeyUsage=digitalSignature,keyEncipherment\nextendedKeyUsage=serverAuth\n")
         openssl("req", "-new", "-newkey", "rsa:2048", "-nodes", "-config", "/dev/null", "-subj", "/CN=" + hostname,
@@ -322,10 +376,14 @@ def make_certificates(directory: Path) -> dict[str, Path]:
 
 class TlsFixture:
     """Adapter for the existing serial native runner; owns TLS endpoint workers."""
-    def __init__(self, prompt: str, variant: str, paths: dict[str, Path]):
-        self.endpoint = EndpointBroker(prompt, variant)
+    def __init__(
+        self, prompt: str, variant: str, paths: dict[str, Path], *,
+        endpoint: Any = None, certificate: str | None = None,
+    ):
+        self.endpoint = EndpointBroker(prompt, variant) if endpoint is None else endpoint
         self.tls = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
-        certificate = "wrongHost" if variant == "wrongHost" else "valid"
+        if certificate is None:
+            certificate = "wrongHost" if variant == "wrongHost" else "valid"
         self.tls.load_cert_chain(paths[certificate + "Cert"], paths[certificate + "Key"])
         self.lock = threading.Lock()
         self.endpoint_sockets: set[socket.socket] = set()

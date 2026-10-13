@@ -1,6 +1,6 @@
 # Continuing development frontier
 
-**Provisional strategic understanding · 2026-10-13 · integration base `e708c9d`.**
+**Provisional strategic understanding · 2026-10-13 · inspected base `13abac7`.**
 The [current handoff](CURRENT_HANDOFF.md) owns verified status and runnable steps;
 this document owns revisable conjectures and opportunity ordering. It does not
 replace the [destination](../vision/DESTINATION.md) or [V1](../roadmap/V1.md).
@@ -34,24 +34,26 @@ These are hypotheses, not established invariants or additional release gates.
    completion without inventing success across a gap. Independent counterexamples
    caught EOF, parser, byte-boundary and recovery errors. Wire budgets do not imply
    process CPU/RSS, outbound traffic or total database quotas.
-2. **Active native discriminator: managed-auth lifecycle (C6).**
+2. **Active integration frontier: an owned native lifecycle (C6).**
    The [opaque HTTPS experiment](../evidence/NATIVE_TLS_CONNECT_EXPERIMENT.md)
-   establishes native proxy/custom-CA behavior against a fixed local destination:
-   valid synthetic recovery, wrong-host rejection before plaintext, refused redirect
-   and honest retry/timeout accounting. Parser, received bytes, buffers, time and
-   shutdown are bounded. Ciphertext proxy evidence remains separate from plaintext
-   owned by the authored endpoint. This is no-auth transport, not live admission.
+   establishes native proxy/custom-CA behavior against fixed local destinations.
+   The [managed lifecycle experiment](../evidence/NATIVE_MANAGED_LIFECYCLE_EXPERIMENT.md)
+   now observes near-expiry Plus→Free before readiness, and issuer denial after
+   endogenous 401 recovery when issuer closure precedes thread creation. Its
+   bounded stop leaves the native terminal unknown. Analytics must be explicitly
+   disabled; mandatory Git attribution settings are native-added governance
+   context. Static catalog, both OTEL exporters and ordered successful config
+   loading exclude specific background writers, not every possible writer.
+   Buffered successful token bytes remain outside tunnel closure's reach.
 
-   The [independent lifecycle review](../evidence/NATIVE_ADMISSION_FRONTIER.md#2026-10-13-independent-follow-up-exact-personal-plan-lifecycle)
-   narrows the next experiment. Exact Plus/Pro excludes initial cloud eligibility;
-   closing the issuer could block future default OAuth refresh. Cached reads,
-   post-login configuration and already buffered successful token responses remain
-   distinct obligations. Build a wholly synthetic native-owned ephemeral issuer
-   discriminator and test a proposed admission barrier before exposing a real
-   sign-in. Account-auth RPC serialization may cover some operations but is not a
-   presumed global barrier. Distinguish deliberately overbroad control-RPC races
-   from writers reachable through the candidate's actual narrow RPC allowlist.
-   No credential copying, real account/model calls or production gate change.
+   Next require one successful managed synthetic turn and durable artifact/reopen
+   recovery under the same controls. Couple that discriminator to one owned capsule
+   per pinned investigation attempt: preserve C0 through login/reload/later edits,
+   cancel only the owned process, never reconstruct authority after restart, and
+   privately preserve raw login/account evidence. Reuse the existing worker/API;
+   do not create a second agent loop. Fresh Ephemeral login per attempt is a
+   provisional isolation choice with unmeasured usability cost. Production
+   admission stays closed; no real account/model calls are part of this contract.
 
    The [derived catalog policy](../evidence/NATIVE_DERIVED_CATALOG_EXPERIMENT.md)
    remains an established prerequisite: Astra Lite declares empty tools and rejects
@@ -96,9 +98,9 @@ not mature-world axioms.
 
 ## Current integration boundary and next contract
 
-The previous saved-question/catalog integration is `e708c9d` (public CI passed);
-the [handoff](CURRENT_HANDOFF.md) identifies opaque HTTPS/inquiry verification
-and the next managed-auth lifecycle discriminator. See [D28/D29](../roadmap/DECISIONS.md) and linked evidence. The active
+The preceding opaque HTTPS/inquiry integration is `13abac7` (public CI passed);
+the [handoff](CURRENT_HANDOFF.md) identifies managed-lifecycle verification
+and the next positive-recovery / owned-capsule contract. See [D28/D29](../roadmap/DECISIONS.md) and linked evidence. The active
 read index is a derived performance adapter, not a second provenance authority.
 Native process/synthetic transport research is independent of production admission.
 

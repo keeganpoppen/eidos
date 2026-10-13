@@ -1,97 +1,96 @@
-# Current handoff — opaque native HTTPS and independent inquiry recovery
+# Current handoff — native-managed lifecycle established offline
 
-**NEMA-SEED-1 · 2026-10-13 · integration base `e708c9d` on main.**
+**NEMA-SEED-1 · 2026-10-13 · inspected implementation base `13abac7` on main.**
 The continuing mission remains active; [PROGRAM](PROGRAM.md) owns conjectures.
-The preceding [saved-question/catalog integration](history/SAVED_QUESTION_AND_DERIVED_CATALOG.md)
-is pushed as `e708c9db51bd1c57f22c22adf72f9ee11a55c061`; [CI passed](https://github.com/keeganpoppen/eidos/actions/runs/38467785175).
+The preceding opaque HTTPS/inquiry integration is pushed as
+`13abac78358d1d31b736a7803fc79d61843833d1`;
+[CI passed](https://github.com/keeganpoppen/eidos/actions/runs/38470142447).
+Its substantive handoff is [archived](history/OPAQUE_TLS_AND_INDEPENDENT_INQUIRIES.md).
 A green milestone does not complete the mission or V1.
 
-## Integrated evidence
+## Integrated outcome
 
-The [opaque CONNECT experiment](../evidence/NATIVE_TLS_CONNECT_EXPERIMENT.md)
-confirms native HTTPS_PROXY/custom CA behavior through a namespace-local relay and
-an exact destination-to-socketpair mapping with no DNS/upstream implementation.
-A separate authored TLS endpoint holds fixture private keys outside the namespace;
-the proxy sees encrypted bytes. Valid TLS recovers exact synthetic text. A trusted
-wrong-host certificate delivers no plaintext HTTP; the native observation ends in
-a consumer timeout, not an invented terminal. A redirected host is refused before
-endpoint creation; native then retries the original endpoint and receives 409.
-Zero configured retries does not imply one observed connection attempt.
+C6 / V1-05/12: the [accepted contract](NATIVE_MANAGED_LIFECYCLE_TASK.md) and
+[experiment](../evidence/NATIVE_MANAGED_LIFECYCLE_EXPERIMENT.md) now challenge
+native-owned ephemeral login against a wholly authored local TLS issuer/provider.
+No owner credentials, real authentication/model/upstream calls, production profile
+change or live admission. The reviewed 0.154.0 binary runs in the existing
+isolated namespace with fixed local endpoint factories and bounded capture.
 
-Contribution `96de975` plus `9c0274a`; [contract](NATIVE_TLS_CONNECT_TASK.md).
-Root owns the shared catalog runner's optional expected URL and context-managed
-fixture injection, with active sockets closed before the server join. Defaults
-remain unchanged. Limits bound parser bytes/time, two active tunnels, per-direction
-buffers, received bytes (one non-forwarded proof byte), aggregate receipt, idle and
-tunnel lifetime. Native uses the stricter existing serial relay. Source/byte-count
-metadata and source-matched trusted recorder limits accompany the raw evidence.
+Near-expiry Plus login emits matching login completion before a held refresh
+finishes. After release, generation B is Free; account update and ordered reads
+see Free and the candidate rejects it without a thread or turn. This bounded
+observation is not a global auth-writer barrier.
 
-The C2 scout and regression `bc2878b` establish that existing Discover/Await supports
-two pending inquiries under one local process identity: B is offered while A is
-pending, the database/executor reopen, A is refused, then exact receipts incorporate
-in program order. Replay creates no new occurrences and spent/wrong response
-authority is refused. No kernel or product admission change: Investigation remains
-explicitly singular. This is not native-stack migration or evidence that plural
-product admission is useful. Separate investigations and grounded results remain
-available for independent work.
+Far-expiry Plus login passes the ordered account/config checks. The issuer is
+closed before thread startup. The exact provider sequence is WebSocket 426,
+mandatory Git settings false/200, two Responses Lite 401s, then issuer CONNECT
+403 before endpoint creation. The next CONNECT exceeds the unchanged cap, which
+latches a local stop and closes native. **No native terminal or post-abort account
+read is recovered.** Accepted negative evidence does not mean a completed turn.
+
+The raw artifact retains three earlier development pairs: unexpected analytics,
+mandatory settings refusal, and the initially unlatched cap stop. Explicitly
+disabling analytics and admitting one reviewed settings-false response corrected
+the candidate. Native-added governance context remains distinct from the selected
+packet. Source review covers static catalog, both OTEL exporters, successful
+post-login config loading and buffered-token limitations; see the
+[frontier appendix](../evidence/NATIVE_ADMISSION_FRONTIER.md).
+
+Root shared helpers now support an immutable fixed destination map, irreversible
+per-authority closure, explicit authored TLS endpoints/certificates and exact
+synthetic Authorization matching. Earlier no-auth defaults remain unchanged.
+Independent socket tests challenge active closure, parsed-before-open races,
+shared quotas, caller-map mutation, malformed framing and header variants.
+
+Contributions incorporated: native_frontier `a35f98f`, independent acceptance
+`62f893b` / `bf3cd56`, source review `6adc195`. Root owns shared helpers, documentation,
+integration and main commit. No runtime/kernel/frontend change in this wave.
 
 ## Verification
 
-- Parent full suite: **1,026 Python passed / 50 explicit native checks skipped**.
-- Parent independent native TLS reproduction: **58 checks passed**, three contained
-  turns / six CONNECT attempts / three authored fixture HTTP requests; **zero real
-  model/upstream/auth calls or credentials**. Report:
-  `/tmp/native_tls_connect_parent_20261013.json`. Valid, certificate-negative and
-  redirect outcomes match committed development evidence. All TLS workers joined,
-  active tunnels returned to zero, capture limits match trusted records, and no
-  capture gap/diagnostic error was reported.
-- Independent default socket/certificate review and final code/prose review found
-  no blocking counterexample. Script SHA-256
-  `a03cd9a3fe4df42b4d8c29a1dee9e2330da1d8c448aa273620fde6c837da1926`.
-  Pure counterexamples additionally reject copied limit-source, changed limits and
-  diagnostic failure. Default tests launch no native process.
-- Parent inquiry/discovery/runtime checks: **19 passed**. Context links and diff
-  checks passed. No UI changed: e708c9d's **78 Bun / 416 assertions**, clean Svelte
-  check/build and desktop/390px browser reproduction remain previous-wave evidence.
+- Parent full default suite: **1,161 passed / 52 explicit native checks skipped**
+  in 23.19 seconds; durable local log `/tmp/nema-managed-parent-suite.log`.
+- Parent independently executed the final `f52508f3…d3fbe6` lifecycle script.
+  `/tmp/native_managed_lifecycle_parent_20261013.json`, SHA-256
+  `6fe042ffd06e6f775ece39f69e6a6a70e22b786e06eb1ed42b0532e3047969b2`.
+  Both raw cases satisfy all current opt-in assertions; an independent reviewer
+  verified correlation, exact sequence and all six source hashes. The original
+  pytest summary was unavailable after context rollover, so no check count is
+  inferred from it. Re-evaluation used the recorded report without another launch.
+  Totals: **2 native login RPCs, 1 acknowledged turn, 7 issuer / 4 provider HTTP
+  requests, 13 CONNECT attempts; zero real auth/model/upstream requests**.
+- Both parent cases join all workers, leave zero active tunnels and report no
+  capture gap/diagnostic error. Absence of the expected auth file is a narrow file
+  observation, not proof of no native state writes. No aggregate CPU/RSS/disk quota.
+- Parent reran the earlier native TLS suite against the new shared seams:
+  **58 passed**, 3 contained turns / 6 CONNECT attempts / 3 fixture HTTP requests;
+  `/tmp/native_tls_connect_shared_seams_20261013.json`. Outcomes match prior evidence.
+- Independent final lifecycle defaults: **78 passed / 2 native skips**. Review
+  found and fixed abort/held-refresh races, inaccurate read-limit wording and
+  assessor gaps for missing acknowledgements or reordered issuer denial.
+- No UI changed. Previous-wave **78 Bun tests / 416 assertions**, clean Svelte
+  check/build and desktop/390px browser evidence remain historical, not rerun here.
 
-## Admission decision and next discriminator
+## Next integrated loop and active ownership
 
-The independent [managed-auth lifecycle review](../evidence/NATIVE_ADMISSION_FRONTIER.md#2026-10-13-independent-follow-up-exact-personal-plan-lifecycle)
-(`9439f71`) narrows the possible next path without opening production. Exact pinned
-Plus/Pro auth excludes cloud-bundle eligibility, but account reads can remain cached,
-login completion precedes config work and later refresh can change credentials.
-Closing auth.openai.com plus all existing issuer tunnels can block future default
-OAuth refresh, provided no successful response remains buffered and no other writer
-is admitted. No account/config RPC was established as a global auth-writer barrier.
-AgentIdentity is a separate optional native lifecycle; its default registration
-also uses the issuer and its feature is disabled by default for this tag.
+Do not prolong research into a collection of negative probes. The next narrow
+native discriminator is successful authored text SSE after the same managed login,
+issuer closure and settings response, with correlated artifact/reopen recovery.
+Root must freeze its contract before native calls; native_frontier is currently
+scouting the smallest reuse, without execution authorization for that next case.
 
-**Next runnable work:** native_frontier scouts, read-only, the smallest wholly local
-synthetic device-code issuer experiment. Identify authored JWT-shaped fields and
-endpoints, account/updated ordering, transient failure, immediate 401 and delayed
-successful refresh crossing issuer closure. It must test/falsify a barrier rather
-than assume one. Source-specific issuer/refresh overrides are fixture hooks, not
-live admission controls. Root freezes the next contract before any such native
-login RPC, even though all credentials would be synthetic. No real auth, provider,
-private state, Desktop ownership or production gate change is authorized here.
+In parallel, history_ui is reviewing private control evidence for one capsule per
+pinned investigation attempt. A capsule must own the fresh process and login,
+preserve C0 through browser reload/later C1 edits, cancel exactly its owned process,
+and recover persisted work without reconstructing live authority. Login/account
+raw records must be privately preserved, not silently dropped or exposed through
+ordinary source selection/export. Keep production admission closed. A registry
+identifier is a locator, never authority reconstructed from persisted history.
 
-Root owns integration/commit/push/CI. TLS worktree `/tmp/nema-native-tls-connect`
-is frozen at `9c0274a` plus root's shared runner diff. Review/acceptance worktree
-`/tmp/nema-saved-recovery-acceptance` is frozen at `9439f71`; reviewer is available
-for the next independent challenge. Inquiry worktree
-`/tmp/nema-multiple-discovery-recovery` is clean at `bc2878b`; history_ui is idle.
-No fixture services remain. No human decision blocks offline development.
-
-The next experience discriminator needs a returning owner and explicitly supplied
-sanitized history: recover a rejected alternative/support, identify the unresolved
-question and review a context packet. Human usefulness remains unmeasured; more
-synthetic preview variants would not close that gap. C4 activation stays deferred.
-
-## Claims deliberately still open
-
-Opaque CONNECT cannot distinguish provider traffic from other allowed-host paths.
-Fixture matching and relay identity do not authenticate arbitrary callers. Transport
-bounds are not aggregate CPU/RSS/SQLite quotas. No real plan entitlement, supported
-managed-auth execution or model-quality evidence exists in this wave. Native
-production admission stays closed. Unknown native outcomes and unreceived tails
-remain unknown; no exactly-once external-effect claim is made.
+Next runnable action: integrate this wave, then freeze the positive managed-turn
+packet and the smallest capsule vertical contract through the existing worker/API.
+Default and authored-process tests must prove cancel-during-login gives zero turns,
+late completion cannot revive a closed capsule, and lost terminal acknowledgement
+recovers without another native start. Real-account usability and login-per-attempt
+friction remain unmeasured. No indispensable human decision blocks offline work.

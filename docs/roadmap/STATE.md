@@ -6,6 +6,34 @@ The baseline GitHub Actions run `38240774514` completed successfully: pytest and
 
 Refresh this file when implementation claims materially change. Keep historical audit IDs instead of quietly relabelling old evidence as current.
 
+## Offline native-managed lifecycle — 2026-10-13
+
+Integration base `13abac7`; [contract](../agents/NATIVE_MANAGED_LIFECYCLE_TASK.md),
+[experiment and raw evidence](../evidence/NATIVE_MANAGED_LIFECYCLE_EXPERIMENT.md).
+Native-owned ephemeral synthetic login now has ordering and refresh evidence.
+Near-expiry Plus refreshes to Free before account readiness; the candidate rejects
+it with zero threads/turns. Far-expiry Plus passes ordered account/config checks;
+issuer closure before thread creation denies an endogenous refresh after two
+provider 401s. The next CONNECT exceeds the fixed cap and deliberately closes
+native. There is **no recovered native terminal or post-abort account read**.
+
+Initial attempts discovered analytics and mandatory Git attribution settings.
+Analytics is explicitly disabled. One reviewed settings-false response is admitted
+on the existing local provider; native governance context remains distinct from
+selected context. Failed attempts remain raw evidence. Per-authority tunnel
+closure cannot recall token bytes already delivered or buffered inside native.
+No global writer barrier, real account usability or production admission follows.
+
+Parent default suite: **1,161 passed / 52 explicit native skips**. Independent
+parent lifecycle reproduction matches both final development cases: two native
+login RPCs, one acknowledged turn, seven issuer/four provider HTTP requests,
+thirteen CONNECT attempts; zero real auth/model/upstream requests. Both recorded
+cases satisfy current opt-in assertions; the original pytest summary was not
+retained across context rollover. Workers joined, active tunnels zero, capture
+intact. Parent earlier-TLS regression against shared helpers: **58 passed**.
+No runtime or frontend change. Next: successful managed synthetic result recovery
+and a private owned-lifecycle integration through the existing investigation.
+
 ## Opaque native HTTPS and independent inquiry recovery — 2026-10-13
 
 Integration base `e708c9d`; [native experiment](../evidence/NATIVE_TLS_CONNECT_EXPERIMENT.md)
