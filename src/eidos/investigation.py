@@ -550,16 +550,36 @@ class InvestigationStore:
             return self.contexts.view(context, parent)
 
     def update_attempt(self, investigation_id: str, *, expected_attempt_id: str | None = None, **fields: Any) -> dict[str, Any]:
-        _body(fields, {"source", "threadId", "turnId", "status", "error"})
+        _body(fields, {"source", "threadId", "turnId", "status", "error", "lifecycle"})
+        progress = fields.get("lifecycle")
+        phases = ("preparing", "awaiting-sign-in", "checking", "running", "closed")
+        if "lifecycle" in fields:
+            if (not isinstance(progress, dict) or set(progress) - {"phase", "stopReason"}
+                    or progress.get("phase") not in phases
+                    or ("stopReason" in progress and (progress["phase"] != "closed"
+                        or not isinstance(progress["stopReason"], str)
+                        or progress["stopReason"] not in {"cancelled", "deadline", "failed", "completed", "owner-unavailable"}))):
+                raise InvestigationError(400, "invalid attempt lifecycle description")
         with self._transaction():
             investigation = self._load(investigation_id)
             attempt = investigation["attempt"]
             if attempt is None:
                 raise InvestigationError(409, "investigation has no attempt")
             self._check_attempt(investigation, expected_attempt_id)
+            lifecycle_changed = False
+            if progress is not None and (attempt["status"] not in {"completed", "failed"} or progress["phase"] == "closed"):
+                prior = attempt.get("lifecycle")
+                if (prior is None or (prior["phase"] != "closed"
+                        and phases.index(progress["phase"]) >= phases.index(prior["phase"]))):
+                    description = {"version": 1, **progress}
+                    if prior is None or description != {k: v for k, v in prior.items() if k != "updatedAtMs"}:
+                        attempt["lifecycle"] = {**description, "updatedAtMs": int(time.time() * 1000)}
+                        lifecycle_changed = True
             # A late timeout/failure callback must never erase an admitted
             # artifact. Recovery can race the original worker completion.
             if attempt["status"] in {"completed", "failed"}:
+                if lifecycle_changed:
+                    self._save(investigation)
                 return investigation
             for field in ("source", "threadId", "turnId"):
                 if field in fields:

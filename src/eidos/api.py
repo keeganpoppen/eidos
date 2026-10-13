@@ -483,6 +483,13 @@ class EidosAPI:
             return 200, self.investigation_reads.view(parts[2], query)
         if len(parts) == 6 and parts[3] == "artifacts" and parts[5] == "source" and method == "GET":
             return 200, self.investigation_reads.source(parts[2], parts[4], query)
+        if len(parts) == 6 and parts[3] == "attempts" and parts[5] == "control":
+            if method == "GET":
+                return 200, self.attempt_control(parts[2], parts[4])
+            if method == "POST":
+                if _json_body(handler) != {"action": "cancel"}:
+                    raise ValueError("attempt control requires only action=cancel")
+                return 200, self.cancel_attempt(parts[2], parts[4])
         if len(parts) == 4 and parts[3] == "experiments":
             if method == "GET":
                 return 200, self.investigation_experiments.list(parts[2])
@@ -602,13 +609,44 @@ class EidosAPI:
         worker = threading.Thread(target=run, daemon=True, name=f"nema-investigation-{identifier[-8:]}")
         self._investigation_threads[identifier] = worker
         try:
+            reserve = getattr(self.investigation_worker, "reserve", None)
+            if callable(reserve):
+                reserve(attempt_id)
             worker.start()
         except Exception as exc:
             if worker.ident is None:
                 self._investigation_threads.pop(identifier, None)
+                cancel = getattr(self.investigation_worker, "cancel", None)
+                if callable(cancel):
+                    cancel(attempt_id)
             self.investigations.update_attempt(identifier, expected_attempt_id=attempt_id, status="unknown", error=self._investigation_error(exc))
             raise
         return investigation
+
+    def attempt_control(self, identifier: str, attempt_id: str) -> dict[str, Any]:
+        """Describe this host's current ownership; persisted names grant none."""
+        with self._investigation_lock:
+            investigation = self.investigations.get(identifier)
+            attempt = investigation["attempt"]
+            if attempt is None or attempt["id"] != attempt_id:
+                raise InvestigationError(404, "attempt not found in the current investigation")
+            inspect = getattr(self.investigation_worker, "inspect_owned", None)
+            state = inspect(attempt_id) if callable(inspect) else {}
+            return {"attemptId": attempt_id, "owned": state.get("owned") is True,
+                    "canCancel": state.get("owned") is True and state.get("canCancel") is True}
+
+    def cancel_attempt(self, identifier: str, attempt_id: str) -> dict[str, Any]:
+        with self._investigation_lock:
+            control = self.attempt_control(identifier, attempt_id)
+            if control["owned"]:
+                cancel = getattr(self.investigation_worker, "cancel", None)
+                if callable(cancel):
+                    try:
+                        cancel(attempt_id)
+                    except Exception:
+                        raise InvestigationError(503, "Attempt stop was not confirmed; retry this same attempt.") from None
+            return {"investigation": self.investigations.get(identifier),
+                    "control": self.attempt_control(identifier, attempt_id)}
 
     def recover_investigation(self, identifier: str) -> dict[str, Any]:
         investigation = self._recover_native_investigation(identifier)

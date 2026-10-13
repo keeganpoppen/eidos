@@ -239,6 +239,15 @@ No native admission exemption or real login flow follows from this change. See
 [contract](../agents/PRIVATE_NATIVE_EVIDENCE_TASK.md) and
 [integration evidence](../evidence/PRIVATE_NATIVE_EVIDENCE_INTEGRATION.md).
 
+**Owned-control extension, base `7d3354a`:** the live host reserves the existing
+attempt before worker launch and latches exact-attempt cancellation. A durable
+stopped claim prevents prelaunch retry from reviving execution. Persisted lifecycle
+phases describe the last observation; they never reconstruct current control.
+Preparation reuses the worker's bounded pump and private recorder, with a finite
+cooperative deadline. Cancellation and native outcome remain distinct: closed
+evidence may support a completed result even after a stop request. See the
+[owned-control evidence](../evidence/OWNED_ATTEMPT_CONTROL_INTEGRATION.md).
+
 ## Deferred explorations, kept for their potential
 
 ### D22 — Names, routing, locality, and leases

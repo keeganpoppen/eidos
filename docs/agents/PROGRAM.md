@@ -1,6 +1,6 @@
 # Continuing development frontier
 
-**Provisional strategic understanding · 2026-10-13 · inspected base `6ea405a`.**
+**Provisional strategic understanding · 2026-10-13 · inspected base `7d3354a`.**
 The [current handoff](CURRENT_HANDOFF.md) owns verified status and runnable steps;
 this document owns revisable conjectures and opportunity ordering. It does not
 replace the [destination](../vision/DESTINATION.md) or [V1](../roadmap/V1.md).
@@ -53,10 +53,13 @@ These are hypotheses, not established invariants or additional release gates.
    results support inquiry, reuse and inspection. Publication waits for recorder
    closure and final validation; copied publications never revive private authority.
 
-   Next connect preparation, pending sign-in and cancellation to the existing pinned
-   attempt, preserving C0 through reload and later context edits. Use the existing
-   worker/API, keep ownership in the live host, and recover evidence without resend;
-   do not create a second agent loop. Fresh Ephemeral login per attempt is a
+   The [owned-attempt integration](../evidence/OWNED_ATTEMPT_CONTROL_INTEGRATION.md)
+   now connects preparation and cancellation to the existing pinned attempt, with
+   authored API/browser proof of C0 preservation, lost-reply retry and no late
+   launch. Live ownership remains separate from recorded progress. Next run the
+   [bounded joining experiment](NATIVE_OWNED_WORKER_TASK.md): native managed login
+   through the actual private worker, without a parallel turn loop or reader.
+   Fresh Ephemeral login per attempt is a
    provisional isolation choice with unmeasured usability cost. Production
    admission stays closed; no real account/model calls are part of this contract.
 
@@ -103,9 +106,9 @@ not mature-world axioms.
 
 ## Current integration boundary and next contract
 
-The preceding managed-lifecycle integration is `6ea405a` (public CI passed);
-the [handoff](CURRENT_HANDOFF.md) identifies positive native recovery, private
-publication and the next owned-lifecycle contract. See [D28–D30](../roadmap/DECISIONS.md)
+The preceding private-publication integration is `7d3354a` (public CI passed);
+the [handoff](CURRENT_HANDOFF.md) identifies owned-attempt verification and the
+next native worker joining contract. See [D28–D30](../roadmap/DECISIONS.md)
 and linked evidence. The active
 read index is a derived performance adapter, not a second provenance authority.
 Native process/synthetic transport research is independent of production admission.

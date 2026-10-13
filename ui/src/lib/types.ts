@@ -211,8 +211,16 @@ export type InvestigationAttempt = {
     manifestId?: string | null;
     contextRequestName?: string | null;
     error: string | null;
+  lifecycle?: {
+    version: 1;
+    phase: 'preparing' | 'awaiting-sign-in' | 'checking' | 'running' | 'closed';
+    updatedAtMs: number;
+    stopReason?: 'cancelled' | 'deadline' | 'failed' | 'completed' | 'owner-unavailable';
+  };
   continuedFrom?: InquiryLineage;
 };
+
+export type OwnedAttemptControl = { attemptId: string; owned: boolean; canCancel: boolean };
 
 export type InvestigationArtifact = {
   id: string;

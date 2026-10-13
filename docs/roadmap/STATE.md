@@ -6,6 +6,25 @@ The baseline GitHub Actions run `38240774514` completed successfully: pytest and
 
 Refresh this file when implementation claims materially change. Keep historical audit IDs instead of quietly relabelling old evidence as current.
 
+## Owned attempt preparation and cancellation — 2026-10-13
+
+Integration base `7d3354a`; [contract](../agents/OWNED_ATTEMPT_CONTROL_TASK.md),
+[evidence](../evidence/OWNED_ATTEMPT_CONTROL_INTEGRATION.md). Existing attempts now
+retain fixed lifecycle observations while live ownership is inspected separately.
+The current host can stop exactly its reserved child, including before launch.
+Prelaunch stopped claims survive restart; copied names cannot reconstruct control.
+Lost stop replies retain an explicit exact-attempt retry beside local draft/save
+state. Cancellation preserves raw private evidence and never invents a terminal.
+
+Parent **1,276 Python passed / 53 explicit native skips**; final API wording check
+**12 passed**. Browser proof includes held preparation/reload, lost cancel reply,
+retry, late release with zero turn, and a separate exact-C0 completion at desktop/
+390px. Frontend **96 tests / 486 assertions**, clean Svelte/build; after actual API
+restart, 24 GETs / zero POSTs preserved exact history without relaunch. All authored
+subprocesses, no new native/model/auth calls. The cooperative preparation hook is
+not arbitrary Python thread interruption, and production native admission stays
+closed. Next: join the offline managed native fixture to this actual private worker.
+
 ## Private publication and positive managed text — 2026-10-13
 
 Integration base `6ea405a`; [private integration evidence](../evidence/PRIVATE_NATIVE_EVIDENCE_INTEGRATION.md)

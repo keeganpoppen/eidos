@@ -21,7 +21,7 @@ from typing import Any, Callable, Literal, Mapping, Sequence
 import uuid
 
 from .codex import AppServerClient, AppServerLimits
-from .investigation_worker import NativeInvestigationError, NativeInvestigationWorker
+from .investigation_worker import NativeInvestigationError, NativeInvestigationWorker, NativePreparation
 from .trace import TraceRecord, TraceStore
 
 
@@ -244,6 +244,14 @@ def validate_publication(trace: TraceStore, attempt: Mapping[str, Any], context:
         raise PrivateEvidenceError("publication-conflict", status="failed") from None
 
 
+@dataclass
+class _OwnedAttempt:
+    cancelled: bool = False
+    started: bool = False
+    closed: bool = False
+    worker: NativeInvestigationWorker | None = None
+
+
 class PrivateInvestigationWorker:
     @staticmethod
     def public_error(exc: Exception) -> str:
@@ -253,16 +261,21 @@ class PrivateInvestigationWorker:
 
     def __init__(self, trace: TraceStore, command: Sequence[str] | None = None, *,
                  execution_evidence: Literal["synthetic", "unverified"] = "unverified",
-                 limits: PrivateEvidenceLimits | None = None) -> None:
+                 limits: PrivateEvidenceLimits | None = None,
+                 preparation: Callable[[NativePreparation], None] | None = None,
+                 preparation_timeout: float = 120) -> None:
         trace.require_workbench()
         self.trace = trace
         self.limits = limits or PrivateEvidenceLimits()
-        self._legacy = NativeInvestigationWorker(trace, command, execution_evidence=execution_evidence)
+        self._legacy = NativeInvestigationWorker(trace, command, execution_evidence=execution_evidence,
+                                                preparation=preparation, preparation_timeout=preparation_timeout)
+        self.preparation, self.preparation_timeout = preparation, preparation_timeout
         self.command = self._legacy.command
         self.execution_profile = self._legacy.execution_profile
         self.execution_evidence = self._legacy.execution_evidence
         self._lock = threading.RLock()
         self._workers: set[NativeInvestigationWorker] = set()
+        self._owned: dict[str, _OwnedAttempt] = {}
         self._stores: dict[str, _PrivateTrace] = {}
         self._closed = False
         with trace._lock:
@@ -283,6 +296,41 @@ class PrivateInvestigationWorker:
                 self.root = Path(trace._private_investigation_directory.name)
             else:
                 self.root = Path(str(trace.path) + ".private")
+
+    def reserve(self, attempt_id: str) -> None:
+        """Reserve before the controller starts its thread; never revive history."""
+        if not isinstance(attempt_id, str) or not 0 < len(attempt_id) <= 300:
+            raise ValueError("invalid attempt identity")
+        with self.trace._lock:
+            bound = self.trace.db.execute("SELECT 1 FROM private_investigation_bindings WHERE attempt_id=?",
+                                          (attempt_id,)).fetchone()
+        with self._lock:
+            if self._closed and attempt_id not in self._owned:
+                raise PrivateEvidenceError("worker-closed")
+            if not bound and attempt_id not in self._owned:
+                self._owned[attempt_id] = _OwnedAttempt()
+
+    def inspect_owned(self, attempt_id: str) -> dict[str, bool]:
+        with self._lock:
+            owned = self._owned.get(attempt_id)
+            live = owned is not None and not owned.closed
+            return {"owned": live, "canCancel": live and not owned.cancelled}
+
+    def cancel(self, attempt_id: str) -> None:
+        with self._lock:
+            owned = self._owned.get(attempt_id)
+            if owned is None or owned.closed:
+                return
+            owned.cancelled = True
+            worker = owned.worker
+        if worker is not None:
+            try:
+                worker.close()
+            except Exception as exc:
+                clients = getattr(worker, "_private_clients", [])
+                source = clients[0].source if len(clients) == 1 else None
+                self._diagnose(worker.trace, source, exc)
+                raise PrivateEvidenceError("cancellation-failed") from None
 
     def _directory(self, path: Path) -> None:
         try:
@@ -348,6 +396,10 @@ class PrivateInvestigationWorker:
             try:
                 binding = _binding(self.trace, attempt, context)
                 state = binding["state"]
+                if fields.get("closedBeforeLaunch") is True:
+                    if state["attempt"].get("source") is not None:
+                        raise PrivateEvidenceError("binding-conflict", status="failed")
+                    state["closedBeforeLaunch"] = True
                 for name in ("source", "threadId", "turnId"):
                     if name in fields:
                         if not isinstance(fields[name], str) or not 0 < len(fields[name]) <= 300:
@@ -369,7 +421,8 @@ class PrivateInvestigationWorker:
             clients.append(client)
             return client
         worker = NativeInvestigationWorker(store, self.command, execution_evidence=self.execution_evidence,
-                                           client_factory=factory)
+                                           client_factory=factory, preparation=self.preparation,
+                                           preparation_timeout=self.preparation_timeout)
         worker.execution_profile = self.execution_profile
         worker._private_clients = clients
         return worker
@@ -433,10 +486,24 @@ class PrivateInvestigationWorker:
         worker = None
         lease = None
         binding = None
+        owned = None
+        reason = "failed"
+        owns_run = False
         try:
+            self.reserve(attempt["id"])
             with self._lock:
-                if self._closed:
-                    raise PrivateEvidenceError("worker-closed")
+                owned = self._owned.get(attempt["id"])
+                if owned is not None:
+                    if owned.started or owned.closed:
+                        owned = None  # Duplicate calls may recover, but never share live control.
+                    else:
+                        owned.started = True
+                        owns_run = True
+            if owned is None:
+                result = self.recover(attempt, context)
+                if result is None:
+                    raise PrivateEvidenceError("outcome-unknown")
+                return result
             # A competing SQLite writer must not hold the cancellation lock.
             binding, claimed = self._claim(attempt, context)
             if not claimed:
@@ -445,25 +512,47 @@ class PrivateInvestigationWorker:
                     raise PrivateEvidenceError("outcome-unknown")
                 return result
             with self._lock:
-                if self._closed:
-                    raise PrivateEvidenceError("worker-closed")
-                store = self._store(binding, create=True)
-                lease = self._writer_lease(store)
-                if lease.fd is None:
-                    raise PrivateEvidenceError("recording-in-progress")
-                worker = self._worker(store)
-                self._workers.add(worker)
+                cancelled_before_launch = self._closed or owned.cancelled
+                if not cancelled_before_launch:
+                    store = self._store(binding, create=True)
+                    lease = self._writer_lease(store)
+                    if lease.fd is None:
+                        raise PrivateEvidenceError("recording-in-progress")
+                    worker = self._worker(store)
+                    self._workers.add(worker)
+                    owned.worker = worker
+            if cancelled_before_launch:
+                self._remember(attempt, context, {"closedBeforeLaunch": True})
+                raise PrivateEvidenceError("cancelled")
 
             def remember(**fields: Any) -> None:
+                nonlocal reason
                 self._remember(attempt, context, fields)
                 binding["state"]["attempt"].update({key: value for key, value in fields.items()
                                                   if key in {"source", "threadId", "turnId"}})
                 # No raw private event/error is forwarded into public projections.
                 public = {key: value for key, value in fields.items() if key in {"source", "threadId", "turnId", "status"}}
+                lifecycle = fields.get("lifecycle")
+                if lifecycle is not None:
+                    if (not isinstance(lifecycle, dict) or lifecycle.keys() - {"phase", "stopReason"}
+                            or lifecycle.get("phase") not in {"preparing", "awaiting-sign-in", "checking", "running", "closed"}
+                            or ("stopReason" in lifecycle and lifecycle["stopReason"] not in
+                                {"cancelled", "deadline", "failed", "completed", "owner-unavailable"})):
+                        raise PrivateEvidenceError("invalid-lifecycle")
+                    if lifecycle["phase"] == "closed":
+                        reason = lifecycle.get("stopReason", "failed")
+                    else:
+                        public["lifecycle"] = dict(lifecycle)
+                        store.append(source=binding["state"]["attempt"].get("source", "private-investigation"),
+                                     direction="internal", message={"method": "$capsule/lifecycle", "params": lifecycle})
                 if public:
                     update(**public)
 
-            worker.run(attempt, context, remember)
+            run_error = None
+            try:
+                worker.run(attempt, context, remember)
+            except Exception as exc:
+                run_error = exc
             if any(reader.is_alive() for reader in self._readers(worker)):
                 raise PrivateEvidenceError("capture-still-closing")
             with self.trace._lock:
@@ -472,9 +561,15 @@ class PrivateInvestigationWorker:
             # finally cleanup. Publish only the closed incarnation's result.
             artifact = worker.recover(binding["state"]["attempt"], context)
             if artifact is None:
+                if run_error is not None:
+                    raise run_error
                 raise PrivateEvidenceError("outcome-unknown")
-            return self._publish(binding, artifact)
+            result = self._publish(binding, artifact)
+            reason = "completed"
+            return result
         except Exception as exc:
+            reason = "cancelled" if owned is not None and owned.cancelled else (
+                "deadline" if reason == "deadline" or getattr(exc, "stop_reason", None) == "deadline" else "failed")
             self._diagnose(store, binding["state"]["attempt"].get("source") if binding is not None else None, exc)
             if isinstance(exc, PrivateEvidenceError):
                 raise
@@ -486,6 +581,11 @@ class PrivateInvestigationWorker:
                     self._workers.discard(worker)
             if lease is not None:
                 lease.finish(self._readers(worker))
+            if owns_run:
+                with self._lock:
+                    owned.closed = True
+                    owned.worker = None
+                update(lifecycle={"phase": "closed", "stopReason": reason})
 
     def recover(self, attempt: Mapping[str, Any], context: Mapping[str, Any]) -> dict[str, Any] | None:
         store = None
@@ -496,6 +596,8 @@ class PrivateInvestigationWorker:
                 if binding is None:
                     return self._legacy.recover(attempt, context)
                 published = _publication(self.trace, binding)
+                if binding["state"].get("closedBeforeLaunch") is True:
+                    return None
             try:
                 store = self._store(binding)
             except PrivateEvidenceError as exc:
@@ -561,6 +663,9 @@ class PrivateInvestigationWorker:
     def close(self) -> None:
         with self._lock:
             self._closed = True
+            for owned in self._owned.values():
+                if not owned.closed:
+                    owned.cancelled = True
             workers = tuple(self._workers)
         for worker in workers:
             worker.close()

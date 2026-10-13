@@ -9,6 +9,7 @@
   import ArtifactLineage from './ArtifactLineage.svelte';
   import CatalogPicker from './CatalogPicker.svelte';
   import { savedWork, type ResultSummary } from './saved-work';
+  import { AttemptControlClient, type AttemptControlState } from './attempt-control';
   import { artifactInputDiff, artifactInputKey, artifactKind, changedFrozenArtifactInputs, readArtifactInputs, sameArtifactInputs, type ArtifactSourceTarget } from './artifact-inputs';
   import { sameSelections } from './semantic';
   import type { ArtifactInputSelection, FrozenArtifactInput, EvidenceSelection, Investigation, InvestigationArtifact, InvestigationContext, InvestigationCapabilities } from './types';
@@ -42,6 +43,11 @@
   let disposed = false;
   let restoreAfterLoad = true;
   let lineageTarget = $state<(ArtifactSourceTarget & { snapshot?: FrozenArtifactInput }) | null>(null);
+  let controlClient: AttemptControlClient | undefined;
+  let attemptControl = $state<AttemptControlState>({ target: null, control: null, reading: false, sending: false, pending: false, error: '', notice: '' });
+  const ownedTarget = $derived(current?.attempt ? JSON.stringify([current.id, current.attempt.id]) : '');
+  const lifecycleLabels = { preparing: 'Preparing', 'awaiting-sign-in': 'Awaiting sign-in', checking: 'Checking preparation', running: 'Running', closed: 'Closed locally' };
+  const stopLabels = { cancelled: 'Stop requested locally', deadline: 'Time limit reached', failed: 'Local work failed', completed: 'Local work finished', 'owner-unavailable': 'Owner unavailable' };
 
   const activeContext = $derived(current?.contexts.find((context) => context.id === current?.currentContextId));
   const preview = $derived(current?.contexts.find((context) => context.id === previewId) ?? activeContext);
@@ -209,7 +215,22 @@
       if (!disposed && request === navigation && selectedId === id && !busy) current = result;
     } catch (cause) {
       if (!disposed && request === navigation && selectedId === id) error = cause instanceof Error ? cause.message : String(cause);
+    } finally {
+      if (!disposed && request === navigation && selectedId === id && !busy && controlClient?.state.target?.attemptId === current?.attempt?.id) void controlClient?.inspect();
     }
+  }
+
+  async function stopAttempt() {
+    if (!current?.attempt || busy || !controlClient) return;
+    if (controlClient.state.target?.investigationId !== current.id || controlClient.state.target.attemptId !== current.attempt.id) return;
+    const before = current;
+    const result = await controlClient.cancel();
+    if (!result || disposed || selectedId !== before.id || current?.attempt?.id !== before.attempt?.id) return;
+    if (result.investigation.id !== before.id || result.investigation.attempt?.id !== before.attempt?.id) return;
+    // A later view may contain a recovered outcome. Never replace it with an
+    // older stop acknowledgement, or restore the owner's editable draft fields.
+    if (current === before) useInvestigation(result.investigation, false, true);
+    else void refresh();
   }
 
   function changeRationale(index: number, rationale: string) {
@@ -217,6 +238,11 @@
   }
 
   onMount(() => {
+    controlClient = new AttemptControlClient({
+      getItem: (key) => localStorage.getItem(key),
+      setItem: (key, value) => localStorage.setItem(key, value),
+      removeItem: (key) => localStorage.removeItem(key)
+    }, (state) => attemptControl = state);
     void api<InvestigationCapabilities>('/api/investigations/capabilities').then((value) => capabilities = value).catch(() => {});
     let rememberedId = '';
     try {
@@ -251,7 +277,15 @@
       }
     })();
     poll = setInterval(() => void refresh(), 1500);
-    return () => { disposed = true; navigation++; if (poll) clearInterval(poll); };
+    return () => { disposed = true; navigation++; controlClient?.dispose(); if (poll) clearInterval(poll); };
+  });
+
+  $effect(() => {
+    const target = ownedTarget;
+    if (!ready || !controlClient) return;
+    const [investigationId, attemptId] = target ? JSON.parse(target) : [];
+    controlClient.select(target ? { investigationId, attemptId } : null);
+    void controlClient.inspect();
   });
 
   $effect(() => {
@@ -405,7 +439,7 @@
       <div class="work-status"><h3>{current.title}</h3><span class:uncertain={current.status === 'unknown'}>{current.status}</span></div>
       <p class="object-ref">{current.id}</p>
       {#if current.status === 'dispatching' || current.status === 'running'}
-        <p>Waiting for this native attempt. You can switch sources or reload; the investigation retains its identity.</p>
+        <p>This attempt retains its saved input and identity through reload. Live control is checked separately from recorded progress.</p>
       {:else if current.status === 'unknown'}
         <p>Native outcome is unknown. Check recorded evidence to find a completed result. This action never resends the task.</p>
       {:else if current.status === 'failed'}
@@ -415,6 +449,25 @@
         <p class="work-muted">Native attempt {current.attempt.status} · {current.attempt.id}</p>
         {#if current.attempt.threadId}<p class="work-muted">Native thread {current.attempt.threadId}</p>{/if}
         {#if current.attempt.error}<p class="work-error">{current.attempt.error}</p>{/if}
+        <div class="attempt-control" aria-label="Owned attempt control" data-owned-attempt-id={current.attempt.id}>
+          {#if current.attempt.lifecycle?.version === 1}
+            <p aria-live="polite">Last recorded phase: <strong>{lifecycleLabels[current.attempt.lifecycle.phase]}</strong>{#if current.attempt.lifecycle.stopReason} · {stopLabels[current.attempt.lifecycle.stopReason]}{/if}</p>
+            <p class="work-muted">Observed locally {new Date(current.attempt.lifecycle.updatedAtMs).toLocaleString()}</p>
+            <p class="object-ref">Pinned input {current.attempt.contextId}</p>
+          {/if}
+          {#if attemptControl.target?.investigationId === current.id && attemptControl.target.attemptId === current.attempt.id}
+            {#if attemptControl.control && !attemptControl.control.owned}<p class="work-muted">Live control is unavailable in this app. Showing the last recorded progress.</p>{/if}
+            {#if attemptControl.pending}
+              <p class="work-notice" role="status">{attemptControl.sending ? 'Requesting a local stop for this attempt…' : 'The stop reply was not confirmed. Retry targets this same attempt.'}</p>
+              <button class="work-secondary" disabled={busy || attemptControl.sending} onclick={stopAttempt}>Retry stopping this attempt</button>
+            {:else if attemptControl.control?.canCancel}
+              <button class="work-secondary" disabled={busy || attemptControl.sending} onclick={stopAttempt}>Stop this attempt</button>
+              <p class="work-muted">Requests a stop of this app’s owned work. Recorded evidence determines the native outcome.</p>
+            {/if}
+            {#if attemptControl.notice}<p class="work-notice" role="status">{attemptControl.notice}</p>{/if}
+            {#if attemptControl.error}<p class="work-error" role="alert">{attemptControl.error}</p><button class="work-secondary" disabled={attemptControl.reading || attemptControl.sending} onclick={() => controlClient?.inspect()}>Refresh attempt control</button>{/if}
+          {/if}
+        </div>
       {/if}
       {#if current.attempt}
         <button class="work-secondary" disabled={busy} onclick={() => act('recover', {})}>Check recorded outcome</button>

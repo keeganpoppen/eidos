@@ -8,6 +8,7 @@ Recorded dispatch is not proof of delivery, and recovery never resends it.
 
 from dataclasses import dataclass, replace
 import json
+import math
 import queue
 from pathlib import Path
 import re
@@ -22,9 +23,65 @@ from .trace import TraceRecord, TraceStore
 
 
 class NativeInvestigationError(RuntimeError):
-    def __init__(self, message: str, *, status: str = "unknown") -> None:
+    def __init__(self, message: str, *, status: str = "unknown", stop_reason: str = "failed") -> None:
         super().__init__(message)
         self.status = status
+        self.stop_reason = stop_reason
+
+
+class NativePreparation:
+    """Bounded trusted-host preparation on the worker's existing event pump.
+
+    Hooks must wait through these methods. This is not a sandbox for arbitrary
+    Python callbacks, and cannot forcibly interrupt an unrelated Python wait.
+    """
+
+    METHODS = frozenset({"account/login/start", "account/login/cancel", "account/read", "config/read"})
+
+    def __init__(self, client: AppServerClient, events: queue.Queue, errors: queue.Queue,
+                 remaining: Callable[[], float], phase: Callable[[str], None]) -> None:
+        self._client, self._events, self._errors = client, events, errors
+        self._remaining, self._phase = remaining, phase
+        self._finished = threading.Event()
+
+    def remaining(self) -> float:
+        if self._finished.is_set():
+            raise NativeInvestigationError("preparation has ended")
+        return self._remaining()
+
+    def _finish(self) -> None:
+        self._finished.set()
+
+    def request(self, method: str, params: Any = None) -> dict[str, Any]:
+        if method not in self.METHODS:
+            raise NativeInvestigationError("preparation RPC is not allowed", status="failed")
+        result = self._client.request(method, params, timeout=self.remaining())
+        self.remaining()
+        return result
+
+    def recv_event(self, timeout: float | None = None) -> dict[str, Any]:
+        if timeout is not None and (not math.isfinite(timeout) or timeout <= 0):
+            raise ValueError("preparation event timeout must be finite and positive")
+        deadline = time.monotonic() + min(self.remaining(), timeout if timeout is not None else math.inf)
+        while True:
+            self.remaining()
+            if not self._errors.empty():
+                raise self._errors.get_nowait()
+            wait = min(0.1, deadline - time.monotonic())
+            if wait <= 0:
+                raise TimeoutError("timed out waiting for preparation event")
+            try:
+                event = self._events.get(timeout=wait)
+                self.remaining()
+                return event
+            except queue.Empty:
+                continue
+
+    def phase(self, value: str) -> None:
+        if value not in {"awaiting-sign-in", "checking"}:
+            raise ValueError("invalid preparation phase")
+        self.remaining()
+        self._phase(value)
 
 
 NativeRequestState = Literal[
@@ -364,11 +421,16 @@ class NativeInvestigationWorker:
         self, trace: TraceStore, command: Sequence[str] | None = None, *,
         execution_evidence: Literal["synthetic", "unverified"] = "unverified",
         client_factory: Callable[..., AppServerClient] | None = None,
+        preparation: Callable[[NativePreparation], None] | None = None,
+        preparation_timeout: float = 120,
     ) -> None:
         if execution_evidence not in {"synthetic", "unverified"}:
             raise ValueError("only synthetic or unverified custom execution evidence may be declared")
         self.trace = trace
         self._client_factory = client_factory
+        if not math.isfinite(preparation_timeout) or preparation_timeout <= 0:
+            raise ValueError("preparation timeout must be finite and positive")
+        self.preparation, self.preparation_timeout = preparation, preparation_timeout
         # A trusted host may identify a synthetic fixture, but cannot declare
         # native model observation. Recovery uses this incarnation's recorded
         # admission evidence, never the current worker's constructor setting.
@@ -479,7 +541,7 @@ class NativeInvestigationWorker:
     def _remaining(deadline: float) -> float:
         remaining = deadline - time.monotonic()
         if remaining <= 0:
-            raise NativeInvestigationError("native worker deadline expired; delivery or completion may be unknown")
+            raise NativeInvestigationError("native worker deadline expired; delivery or completion may be unknown", stop_reason="deadline")
         return remaining
 
     def run(
@@ -488,6 +550,21 @@ class NativeInvestigationWorker:
         context: Mapping[str, Any],
         update: Callable[..., None],
         *,
+        on_event: Callable[[NativeSpecialistEvent], None] | None = None,
+    ) -> dict[str, Any]:
+        reason = "failed"
+        try:
+            artifact = self._run(attempt, context, update, on_event=on_event)
+            reason = "completed"
+            return artifact
+        except Exception as exc:
+            reason = "cancelled" if self._closed else getattr(exc, "stop_reason", "failed")
+            raise
+        finally:
+            update(lifecycle={"phase": "closed", "stopReason": reason})
+
+    def _run(
+        self, attempt: Mapping[str, Any], context: Mapping[str, Any], update: Callable[..., None], *,
         on_event: Callable[[NativeSpecialistEvent], None] | None = None,
     ) -> dict[str, Any]:
         with self._clients_lock:
@@ -502,11 +579,20 @@ class NativeInvestigationWorker:
         if not isinstance(prompt, str) or not prompt.strip():
             raise ValueError("context must contain the reviewed prompt")
 
-        deadline = time.monotonic() + timeout
+        deadline = time.monotonic() + (self.preparation_timeout if self.preparation is not None else timeout)
         state = dict(attempt)
         events: queue.Queue[dict[str, Any]] = queue.Queue(maxsize=512)
         errors: queue.Queue[Exception] = queue.Queue()
         stopped = threading.Event()
+        expired = threading.Event()
+
+        def active_remaining() -> float:
+            with self._clients_lock:
+                if self._closed:
+                    raise NativeInvestigationError("owned worker was cancelled", stop_reason="cancelled")
+            if expired.is_set():
+                raise NativeInvestigationError("native worker deadline expired", stop_reason="deadline")
+            return self._remaining(deadline)
 
         def remember(**fields: Any) -> None:
             update(**fields)
@@ -519,6 +605,7 @@ class NativeInvestigationWorker:
             # Persist the incarnation before process launch. A crash before the
             # subsequent native acknowledgement must remain visibly uncertain.
             remember(source=client.source)
+            remember(lifecycle={"phase": "preparing"})
             adapter = NativeSpecialistAdapter(self.trace, state, context, client.source, on_event)
             closure_reason = "Owned worker transport closed; no pending native interaction is resumable."
 
@@ -598,7 +685,8 @@ class NativeInvestigationWorker:
                 # An independent deadline closes our child even under native
                 # backpressure; closing cannot relaunch this incarnation.
                 def expire() -> None:
-                    errors.put(NativeInvestigationError("native worker deadline expired; outcome may be unknown"))
+                    expired.set()
+                    errors.put(NativeInvestigationError("native worker deadline expired; outcome may be unknown", stop_reason="deadline"))
                     client.close()
                 watchdog = threading.Timer(self._remaining(deadline), expire)
                 watchdog.daemon = True
@@ -606,6 +694,21 @@ class NativeInvestigationWorker:
                 reader = threading.Thread(target=pump, daemon=True, name="nema-investigation-events")
                 reader.start()
                 client.initialize(timeout=min(10.0, self._remaining(deadline)))
+                if self.preparation is not None:
+                    preparation = NativePreparation(client, events, errors, active_remaining,
+                        lambda phase: remember(lifecycle={"phase": phase}))
+                    try:
+                        self.preparation(preparation)
+                    finally:
+                        preparation._finish()
+                    active_remaining()
+                    watchdog.cancel()
+                    watchdog.join()
+                    active_remaining()
+                    deadline = time.monotonic() + timeout
+                    watchdog = threading.Timer(timeout, expire)
+                    watchdog.daemon = True
+                    watchdog.start()
                 if self.execution_profile is not None:
                     # The configured provider/login preference is not an
                     # acknowledgement of the account this process is using.
@@ -619,6 +722,7 @@ class NativeInvestigationWorker:
                         raise NativeInvestigationError(
                             f"native subscription admission failed: {exc}", status="failed",
                         ) from exc
+                active_remaining()
                 result = client.request("thread/start", {
                     "cwd": cwd,
                     "approvalPolicy": "never",
@@ -638,6 +742,7 @@ class NativeInvestigationWorker:
                     metadata={"attemptId": attempt.get("id"), "contextId": context["id"]},
                 )
                 self._check_tool_inventory(client, thread["id"], deadline)
+                active_remaining()
                 result = client.request("turn/start", {
                     "threadId": thread["id"],
                     "input": [{"type": "text", "text": prompt}],
@@ -647,7 +752,7 @@ class NativeInvestigationWorker:
                 turn = result.get("turn")
                 if not isinstance(turn, dict) or not isinstance(turn.get("id"), str):
                     raise NativeInvestigationError("turn/start did not acknowledge a native turn")
-                remember(turnId=turn["id"], status="running")
+                remember(turnId=turn["id"], status="running", lifecycle={"phase": "running"})
 
                 while True:
                     # A terminal event is already durably recorded before it
@@ -671,6 +776,8 @@ class NativeInvestigationWorker:
                             raise NativeInvestigationError("native turn ended without a recoverable artifact")
                         return artifact
             except Exception as exc:
+                if expired.is_set():
+                    exc = NativeInvestigationError("native worker deadline expired; outcome may be unknown", stop_reason="deadline")
                 if not isinstance(exc, NativeInvestigationError) and not errors.empty():
                     exc = errors.get_nowait()
                 closure_reason = f"Local worker stopped: {type(exc).__name__}: {exc}. Native delivery/outcome may be unknown."
