@@ -1,0 +1,68 @@
+{
+  "schema_version": 1,
+  "seed_id": "NEMA-SEED-1",
+  "created": "2026-10-12",
+  "implementation_base": "6963a0c8d9530005a7998e71aa53e30fe13ea3da",
+  "default_branch_at_seed": "main",
+  "entrypoint": "START_HERE.md",
+  "reading_order": [
+    "AGENTS.md",
+    "START_HERE.md",
+    "docs/vision/DESTINATION.md",
+    "docs/roadmap/V1.md",
+    "docs/roadmap/STATE.md",
+    "docs/roadmap/WORKSTREAMS.md"
+  ],
+  "root_documents": [
+    "README.md",
+    "AGENTS.md",
+    "START_HERE.md"
+  ],
+  "implementation_snapshot": "IMPLEMENTATION.md",
+  "canonical_documents": [
+    "docs/vision/DESTINATION.md",
+    "docs/vision/SEMANTICS.md",
+    "docs/vision/MEMBRANE.md",
+    "docs/vision/INTERACTION.md",
+    "docs/vision/REFLECTION.md",
+    "docs/roadmap/V1.md",
+    "docs/roadmap/WORKSTREAMS.md",
+    "docs/roadmap/STATE.md",
+    "docs/roadmap/DECISIONS.md"
+  ],
+  "operating_documents": [
+    "docs/agents/ORCHESTRATION.md",
+    "docs/agents/BOOTSTRAP.md",
+    "docs/agents/CONTINUITY.md",
+    "docs/agents/CURRENT_HANDOFF.md",
+    "docs/agents/SOURCES.md"
+  ],
+  "scoped_guides": [
+    "src/eidos/AGENTS.md",
+    "ui/AGENTS.md",
+    "docs/AGENTS.md",
+    "tests/AGENTS.md"
+  ],
+  "skills": [
+    {"name": "nema-bootstrap", "path": ".agents/skills/nema-bootstrap/SKILL.md"},
+    {"name": "nema-ship-loop", "path": ".agents/skills/nema-ship-loop/SKILL.md"},
+    {"name": "nema-boundary-review", "path": ".agents/skills/nema-boundary-review/SKILL.md"},
+    {"name": "nema-preserve-context", "path": ".agents/skills/nema-preserve-context/SKILL.md"}
+  ],
+  "acceptance_ids": [
+    "V1-01", "V1-02", "V1-03", "V1-04", "V1-05", "V1-06",
+    "V1-07", "V1-08", "V1-09", "V1-10", "V1-11", "V1-12"
+  ],
+  "workstream_ids": ["W0", "W1", "W2", "W3", "W4", "W5", "W6", "W7", "W8"],
+  "decision_ids": [
+    "D01", "D02", "D03", "D04", "D05", "D06", "D07", "D08", "D09",
+    "D10", "D11", "D12", "D13", "D14", "D15", "D16", "D17", "D18",
+    "D19", "D20", "D21", "D22", "D23", "D24", "D25"
+  ],
+  "validation": {
+    "context_integrity": "uv run pytest tests/test_seed_context.py",
+    "python": "uv run pytest",
+    "ui": "cd ui && bun run check && bun run build"
+  },
+  "status_note": "This manifest indexes an aspirational seed and an as-of implementation audit. It does not attest completion of V1 or verification of a future checkout."
+}

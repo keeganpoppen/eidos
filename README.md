@@ -1,290 +1,59 @@
-# eidos
+# Eidos / Nema
 
-A small executable experiment in reflective computation, observer-relative causal structure, and **Trusted Machinery™** for linear authority.
+**A personal computational world for working with agents—and working on the way you work with them.**
 
-The current working thesis is:
+Nema's first realization is a reflective workspace around native Codex/app-server. It preserves real execution evidence, makes context and continuations inspectable, and lets people and agents compose many views, delegate investigations, explore alternatives, and improve the machinery without erasing its history.
 
-> **Semantic structure lives in Values. Names make it addressable. Capabilities carry causal authority. Occurrences make history.**
+Eidos is the expression/continuation language beneath that ambition. It is not a replacement for Codex's agent loop, and the project is not finished when one more small calculus example passes.
 
-And the Trusted Machinery underneath them is intentionally boring:
+> Semantic structure lives in Values. Names make it addressable. Capabilities carry causal authority. Occurrences make history.
 
-> **atomically commit an occurrence over live linear authority.**
+## New session?
 
-`eidos` is not an agent framework. It is becoming the semantic/runtime substrate for a Nema meta-harness around Codex/app-server.
+Read **[START_HERE.md](START_HERE.md)**. This repository is the durable continuation artifact of its founding design conversation.
 
-## What exists
+The short path is [destination](docs/vision/DESTINATION.md) → [transformative V1](docs/roadmap/V1.md) → [current state](docs/roadmap/STATE.md) → [parallel workstreams](docs/roadmap/WORKSTREAMS.md). [AGENTS.md](AGENTS.md) supplies operational guidance; [the bootstrap prompt](docs/agents/BOOTSTRAP.md) starts a fresh high-effort session. Optional repository skills are in `.agents/skills/`.
 
-### Eidos / Praxis
+## The experience we are trying to make possible
 
-Eidos Core is a persistent value language with Names, Roles/Bindings, first-class closures, ordinary structural Values, and authority-bearing Sockets.
+Open months of prior work without rereading months of chat. Move from a claim to its evidence, from a pending question to the continuation it blocks, from a proposed change to its actual diff. Place different interpretations alongside one another. Give a specialist exactly the context and authority its task requires. Fork a historical question without accidentally replaying live effects. Resume after interruption. Turn a discovered improvement into a tested, reviewable change to the environment itself.
 
-Praxis realizes ordinary computation locally until it reaches:
+The user, their agents, processes, terminal sessions, browser surfaces, and local or remote executors should inhabit one addressable semantic medium, rather than independent conversations with lossy handoffs.
 
-```text
-perform socket.Operation(argument)
-```
+## What exists today
 
-At that boundary it returns a serializable suspended continuation. `perform` is not a special case for agents, tools, Elaborators, or Actualizers: all of those are ordinary Socket operations.
+There are two substantial bodies of implementation to connect deliberately:
 
-A Reaction may jointly consume several Sockets. A local continuation resumes when its Socket is among the capabilities consumed by the authoritative occurrence.
+- A Codex JSONL client/proxy, trace persistence/import, a live Python API and SvelteKit UI, and a hindsight-oriented semantic tree over recorded conversation evidence.
+- An experimental Eidos evaluator and linear-authority substrate: Values, Names, situated Roles/Bindings, Closures, Sockets, multi-input Reactions, observer-relative Cuts, executable Models, context acquisition/discovery, and a generic named-protocol continuation runtime.
 
-### Observer-relative semantics
+The [implementation overview](IMPLEMENTATION.md) and existing [runtime checkpoint](docs/PROCESS_RUNTIME.md) describe these in more detail. The [state audit](docs/roadmap/STATE.md) distinguishes local demonstrations from production guarantees. In particular, host registration and holder strings are not a secure remote capability system; generic commit is a privileged interface, not permission for arbitrary clients to mint successors.
 
-There is no privileged global frontier.
-
-A **Cut** is an ordinary immutable Eidos Value describing one observer-relative causal boundary. Several Cuts can be elaborated jointly, letting a richer observer/specialist/subagent relate facts that no one Cut could expose alone.
-
-```text
-Cut C1 ---\
-           +-- Elaborator --> Possibility R
-Cut C2 ---/
-```
-
-Knowledge, Models, Attention, and epistemic Contexts are now ordinary named Eidos Values. Contexts inherit prior contexts and bind these ingredients through ordinary Roles. A bounded Model inference can enable a protocol-defined Reaction from the **same Cuts and participant authority** that could not previously be derived.
-
-Historical Cuts remain meaningful after their capabilities are spent, so later reasoning can improve an old model without resurrecting the old world's causal power.
-
-`Elaborator` and `Actualizer` are ordinary roles backed by ordinary projection capabilities:
-
-```text
-Elaborator projections
-        |
-      Elaborate
-        v
-Possibilities + Actualizer projections
-        |
-      Actualize
-        v
-Occurrence + successor projections + successor Elaborators
-```
-
-Elaboration and actualization differ semantically, not mechanically.
-
-### Executable Models
-
-The Model Role has four realizations: declarative rules, a pure
-first-class **Eidos Closure**, an explicitly registered **delegated executor**
-(including subprocess transport), or a **resumable Eidos process** whose
-continuations and informational interactions are durable named Values.
-
-All four receive a `ModelInput` Value containing the Context, grounded facts,
-Cuts, and remaining attention, and eventually return a `ModelProposal` with
-claims, cited premises, and an execution receipt. A process Model can suspend
-on its own linear Socket to inspect contextual Values, **acquire an
-additional observer Cut through a source-domain disclosure**, consult a
-separately admitted specialist, or **hand off its one-shot continuation to a
-different holder**. It can resume from a persisted Eidos continuation—even
-under a new runner after a crash.
-
-A Model can also `Discover` by asking a named provider an **open question
-without knowing the useful Cut's Name**. Its `AwaitDiscovery` continuation
-stays suspended while the observer accepts, defers, offers evidence, or refuses.
-The observer's answer and the Model's eventual incorporation are separate
-authority-local occurrences.
-
-The observer can now itself be a **resumable Eidos process**, running on the
-source domain's ordinary InquiryResponder Socket. It can inspect its own
-admitted Context, defer, consult a specialist, and branch in pure Eidos code
-to offer evidence or refuse. Both sides therefore have durable continuations
-and independent causal histories; neither is the other's scheduler.
-
-A committed Elaboration binds each run's **ModelDerivation** as a separate
-immutable, named Value, so a lens can inspect precisely what code/model ran,
-what input it saw, and what it asserted. External execution requires explicit
-registration; simply knowing an executor Name cannot invoke it.
-
-Executable claims remain epistemic assertions. The process's own
-epistemic interactions consume only its private process-domain projections,
-never the participant projections in the world being studied. The Actualizer
-still requires a separate live capability transaction.
-
-### A runtime for ordinary processes
-
-Requester and responder are now **situated protocol roles**, not separate
-execution engines. Each process description names an immutable
-`ProcessProtocol` Value recording its projection Role and legal operations,
-including which operations are terminal or permitted to remain pending.
-
-One [`ProcessRuntime`](src/eidos/process_runtime.py) validates the local
-Socket, verifies each TM-backed Reaction, resumes the saved Praxis
-continuation, and persists successor checkpoints. A trusted host explicitly
-registers the semantic interpreter for each named protocol; the runtime
-doesn't distinguish Models, observers, or any other role.
-
-The tests exercise a third, unrelated `Echo` participant and interleave a
-requesting Model with an answering observer on **one host through the same
-generic entry point**. Semantic interpreters for discovery, refusal, or Cut
-inspection remain libraries above the shared machinery.
-
-### Trusted Machinery™
-
-The current observer-relative path uses a deliberately narrow SQLite/WAL-backed substrate:
-
-- durable fresh Names;
-- immutable content-addressed Eidos Values and immutable Name→Value bindings;
-- identity-only authority domains;
-- projection authority facts: domain, holder, live/spent disposition;
-- generic atomic authority occurrences over consumed/established projections;
-- delegation, idempotency, and durable causal history.
-
-A projection's **role/state/key are not machine columns**. They live in the immutable `Projection` Value bound to the projection Name. Holder and live/spent disposition remain machine authority facts.
-
-Genesis is explicitly separate: an authority domain and its initial projections are admitted once. Normal occurrence commit cannot mint authority from nothing.
-
-Cut, Elaboration, Possibility, Occurrence, protocol meaning, and semantic indexes are all ordinary Values / library conventions above this substrate.
-
-### Derived semantic lenses
-
-Addressable semantic context is traversable without a privileged ontology.
-
-`walk_named_values(..., depth=N)` follows Names embedded in Values, so an observer can progressively expand from an Occurrence into its Possibility, Elaboration, Cuts, projection descriptions, and further context.
-
-`SemanticIndex` is explicitly disposable and rebuildable from the canonical Name→Value relation. Indexes accelerate interpretation; they never become the source of truth.
-
-### Codex boundary
-
-`AppServerClient` is a traced JSONL client for `codex app-server`; `CodexPlace` treats one app-server process as one evaluator realm that may host many threads.
-
-`TraceStore` preserves native JSON records and cheap indexing projections without normalizing unknown fields away.
-
-Existing Codex threads can be hydrated into our store:
-
-```bash
-uv run eidos codex-sync .eidos/traces.db --recent 3
-```
-
-Future JSONL traffic can be recorded transparently:
-
-```bash
-uv run eidos codex-proxy .eidos/traces.db -- codex app-server --listen stdio://
-```
-
-### Live SvelteKit chat + trace surface
-
-The primary UI is now a SvelteKit 3 / Svelte 5 client. It talks to a small Python API that owns the live Codex app-server process and projects only from persisted Eidos evidence.
-
-The easiest development path is:
-
-```bash
-bash scripts/dev.sh
-# -> Eidos UI: http://127.0.0.1:5173
-```
-
-Or run the two halves separately:
-
-```bash
-# terminal 1
-uv run eidos serve .eidos/traces.db
-
-# terminal 2
-cd ui
-bun install
-bun run dev
-```
-
-The Vite dev server proxies `/api` to Eidos on `127.0.0.1:8765`.
-
-From the UI you can start a native Codex thread, resume an imported thread, send messages, watch persisted agent/reasoning/tool activity appear live, run semantic observers, and navigate their non-contiguous support ranges. Obvious Markdown in user/assistant/reasoning text is rendered and sanitized.
-
-The old Python-rendered trace pages remain available at `http://127.0.0.1:8765` as a fallback/debug surface.
-
-The live UI is still driven entirely by Eidos-persisted data: user/assistant messages, command executions, file changes, tool calls, live reasoning deltas when Codex exposes them, and the native event spine. Imported old history and future live observations use the same projection path while retaining their different evidence sources.
-
-### Hindsight-first semantic tree
-
-A semantic tree is a **versioned retrospective interpretation over the evidence**, not a replacement transcript. The current build pipeline is:
-
-```text
-raw trace
-  ↓ deterministic weighted story substrate
-global hindsight brief                     medium
-  ↓
-parallel retrospective leaf enrichment     low
-  ↓
-importance-weighted parallel rollups        medium
-  ↓
-final retrospective synthesis              medium
-  ↓
-provenance tree → raw support ranges
-```
-
-The deterministic substrate deliberately foregrounds user messages and final assistant answers and collapses routine command/tool/file churn. Leaf windows are planned by **semantic mass**, not raw record count, so a 500-record tool detour does not automatically earn five times the inference budget of a short conceptual exchange.
-
-Every semantic region is still inspected. Leaf workers are historical forks truncated at local completed-turn cutoffs whenever possible, so they inherit the real native past while the global retro injects future knowledge. They may explicitly return no durable episode when a region has little to offer. Surviving nodes carry importance, confidence, and trace support; low-importance nodes pack more densely in reducer groups while important nodes receive more synthesis bandwidth. At every rollup the governing question is:
-
-> Given the final state of the story, what information from these children is still necessary to understand this region at the next scale?
-
-The result is a recursive tree, not merely a two-level outline. Importance should sharpen upward. The Svelte focus pane lets you descend through child nodes and back to their supporting transcript regions.
-
-Run it with:
-
-```bash
-uv run eidos codex-observe .eidos/traces.db THREAD_ID
-```
-
-or use **REWRITE WITH HINDSIGHT** in the UI. Progress reports the current global/enrichment/reducer stage rather than an opaque spinner.
-
-Leaf workers default to `low` reasoning effort; global and rollup synthesis use `medium`. Eidos only auto-selects another model when `model/list` clearly advertises a small/mini/efficient option that supports low effort; otherwise it uses the default/inherited model rather than guessing. Overrides:
-
-```bash
-EIDOS_SUMMARY_MODEL=<leaf-model>
-EIDOS_SYNTHESIS_MODEL=<merge-model>
-EIDOS_SUMMARY_CONCURRENCY=4
-```
-
-Concurrency is bounded to at most 8 workers. Semantic worker threads are ephemeral, read-only, hidden from the ordinary thread list, and still fully traced.
-
-Old sequential retrospective/experimental maps remain queryable as legacy revisions, but the hindsight tree is the default semantic interpretation.
-
-
-
-## Develop / test
-
-Eidos uses [uv](https://docs.astral.sh/uv/) for the Python environment, dependency resolution, and command execution. There is no manual virtualenv activation or pip workflow.
+## Develop
 
 ```bash
 uv sync
 uv run pytest
-```
-
-Run project commands through uv as well:
-
-```bash
 uv run eidos --help
 ```
 
-## Current semantic vocabulary
-
-```text
-Value
-Name
-Role / Binding
-Projection / Socket
-Cut
-Elaborator
-Possibility
-Actualizer
-Reaction / Occurrence
-Trusted Machinery™
+```bash
+cd ui
+bun install
+bun run check
+bun run build
 ```
 
-A Name identifies; knowing one grants no authority. A projection capability may be semantically inspectable through the immutable Value bound to its Name while its holder/live-spent status remains separate authority state.
+To run the local development workspace:
 
-A Cut is observer-relative, not a global world state. Elaboration expands an addressable causal situation into adjacent possibility; Actualization resolves one such possibility into authoritative history through the generic occurrence substrate.
+```bash
+bash scripts/dev.sh
+```
 
-See:
+The existing dev setup serves the UI on loopback port 5173 and the Python API on 8765. Inspect [scripts/dev.sh](scripts/dev.sh) and the current CLI before changing launch behavior. Native Codex use requires the user's authorized local installation and consumes real resources. Keep auth material and personal traces out of this public repository.
 
-- [`docs/CORE.md`](docs/CORE.md) — executable Core language nucleus;
-- [`docs/OBSERVER_CUTS.md`](docs/OBSERVER_CUTS.md) — observer-relative causal cuts and joint elaboration;
-- [`docs/EPISTEMICS.md`](docs/EPISTEMICS.md) — named Knowledge, Models, Attention, and progressive epistemic Contexts;
-- [`docs/MODEL_EXECUTION.md`](docs/MODEL_EXECUTION.md) — executable Model contract and provenance;
-- [`docs/MODEL_PROCESSES.md`](docs/MODEL_PROCESSES.md) — resumable Model continuations, informational Reactions, and crash recovery;
-- [`docs/CUT_EXCHANGE.md`](docs/CUT_EXCHANGE.md) — source-domain disclosure, scoped acquisition, and linear handoff;
-- [`docs/DISCOVERY.md`](docs/DISCOVERY.md) — open inquiries, source-side deferral/refusal/offer, and resumable waiting;
-- [`docs/OBSERVER_PROCESSES.md`](docs/OBSERVER_PROCESSES.md) — source observer as a resumable process over InquiryResponder authority;
-- [`docs/PROCESS_RUNTIME.md`](docs/PROCESS_RUNTIME.md) — one named-protocol continuation machine for all process roles;
-- [`docs/META_PROTOCOL.md`](docs/META_PROTOCOL.md) — Elaborate / Actualize as ordinary Eidos Socket operations;
-- [`docs/SEMANTIC_VALUES.md`](docs/SEMANTIC_VALUES.md) — tableless semantic objects, addressable provenance, and lenses;
-- [`docs/SUMMARY_TREE.md`](docs/SUMMARY_TREE.md) — hindsight-first semantic tree over Codex evidence;
-- [`experiments/README.md`](experiments/README.md) — archived pressure tests that shaped the current model.
+## Architecture in one breath
 
+**Preserve before interpreting. Name what matters. Realize locally until interaction is required. Commit only admitted live authority. Keep evidence, interpretation, and power separate. Present meaningful continuations, not just data. Let the same machinery inspect and improve itself.**
+
+The strong language in those sentences describes design commitments, not proof of complete implementation. The next success is a reliable, coherent everyday workflow, not a larger catalogue of abstractions.
