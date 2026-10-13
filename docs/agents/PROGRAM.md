@@ -1,6 +1,6 @@
 # Continuing development frontier
 
-**Provisional strategic understanding · 2026-10-13 · integration base `555a317`.**
+**Provisional strategic understanding · 2026-10-13 · integration base `e708c9d`.**
 The [current handoff](CURRENT_HANDOFF.md) owns verified status and runnable steps;
 this document owns revisable conjectures and opportunity ordering. It does not
 replace the [destination](../vision/DESTINATION.md) or [V1](../roadmap/V1.md).
@@ -19,7 +19,7 @@ These are hypotheses, not established invariants or additional release gates.
 | ID | Mature property and current evidence | Missing prerequisite / discriminating experiment |
 | --- | --- | --- |
 | C1 | Grounded artifacts compose into larger work without flattening provenance. Exact frozen result inputs now support a synthetic A→B→C chain, original-support recovery and separate adoption snapshots. | Test longer and conflicting chains in useful native work. A cited input proves supply, not its claims. The synthetic chain does not establish answer quality or practical reorientation speed. Copied results carry no continuation authority. |
-| C2 | A small continuation vocabulary supports useful delegation despite opaque native stacks. Named ProcessRuntime protocols exist; the investigation program is fixed Discover→AwaitDiscovery and A2 is a newly admitted attempt. | Two independent inquiries, refusal and executor restart should preserve one task identity and accepted results without hidden per-case host state. Failure challenges the vocabulary; it does not automatically justify a kernel rewrite. |
+| C2 | A small continuation vocabulary supports useful delegation despite opaque native stacks. Named ProcessRuntime protocols exist; the investigation program is fixed Discover→AwaitDiscovery and A2 is a newly admitted attempt. | A local regression now opens two inquiries, receives B before A, reopens the database, refuses A and incorporates both exact receipts under one process identity. Await order remains explicit. Product admission is deliberately singular; expand it only for a demonstrated same-task need, not because the vocabulary can express it. |
 | C3 | Explicit source relationships and attention limits outperform larger undirected context. Weighted hindsight trees and synthetic one-hop selection exist. | Held-out sanitized histories with irrelevant links, conflicting updates and dispersed support must improve controlling-decision recovery without increasing unsupported conclusions. Existing fixture scores are not this evidence. |
 | C4 | Reviewed interpretation changes improve future work while historical pins remain stable. Immutable manifests and experiment reviews exist; adoption currently activates nothing. | Activate a bounded context recipe for future drafts, inspect its actual next preview/request pin, then roll back. Historical pins must remain identical and the earlier future behavior must return without editing global instructions. |
 | C5 | Several durable lenses over shared references reduce reorientation work. Frozen bindings exist, and stable server pages now preserve exact evidence under append/reload; named compiled arrangements now persist as immutable same-database snapshots. | The 1,200-turn recovery and 1,000-owner transfer cases now pass. Recorded experiments now retain exact context-only alternatives in saved views. Saved-question preview now exposes exact question, rationale, baseline and raw support before replacing the working arrangement. Next evaluate this with a returning person. Scripted success still does not measure human reorientation. |
@@ -34,25 +34,31 @@ These are hypotheses, not established invariants or additional release gates.
    completion without inventing success across a gap. Independent counterexamples
    caught EOF, parser, byte-boundary and recovery errors. Wire budgets do not imply
    process CPU/RSS, outbound traffic or total database quotas.
-2. **Active native discriminator: opaque HTTPS transport (C6).**
-   The [derived-catalog evidence](../evidence/NATIVE_DERIVED_CATALOG_EXPERIMENT.md)
-   establishes a transparent two-field local startup policy: Astra Lite declares
-   empty tools and rejects the resource/clock challenges. Original public metadata
-   still registers tools and executes clock despite supported agent/sleep controls.
-   Preserve both source and derivation; this is not exhaustive hidden-handler proof.
-   The next offline fixture challenges supported native HTTPS_PROXY and custom CA
-   behavior through a destination-limited opaque CONNECT relay: valid TLS,
-   wrong-host certificates, redirect refusal, bounded streams and owned shutdown.
-   Its broker has no DNS/upstream path; plaintext belongs only to the authored TLS
-   endpoint. This does not admit real accounts or observe opaque production bodies.
+2. **Active native discriminator: managed-auth lifecycle (C6).**
+   The [opaque HTTPS experiment](../evidence/NATIVE_TLS_CONNECT_EXPERIMENT.md)
+   establishes native proxy/custom-CA behavior against a fixed local destination:
+   valid synthetic recovery, wrong-host rejection before plaintext, refused redirect
+   and honest retry/timeout accounting. Parser, received bytes, buffers, time and
+   shutdown are bounded. Ciphertext proxy evidence remains separate from plaintext
+   owned by the authored endpoint. This is no-auth transport, not live admission.
 
-   Managed sign-in remains a separate unresolved boundary. Exact Plus/Pro source
-   eligibility excludes initial cloud policy, but auth refresh can change the plan
-   and later fetch cloud requirements from the same host as inference. A cached
-   account read does not freeze that lifecycle. Keep production closed; investigate
-   the concrete supported lifecycle rather than inventing account authority from
-   a model catalog. Ordinary Responses remains a simpler model candidate if an
-   eventual account supports it. No credentials or real model calls are implicit.
+   The [independent lifecycle review](../evidence/NATIVE_ADMISSION_FRONTIER.md#2026-10-13-independent-follow-up-exact-personal-plan-lifecycle)
+   narrows the next experiment. Exact Plus/Pro excludes initial cloud eligibility;
+   closing the issuer could block future default OAuth refresh. Cached reads,
+   post-login configuration and already buffered successful token responses remain
+   distinct obligations. Build a wholly synthetic native-owned ephemeral issuer
+   discriminator and test a proposed admission barrier before exposing a real
+   sign-in. Account-auth RPC serialization may cover some operations but is not a
+   presumed global barrier. Distinguish deliberately overbroad control-RPC races
+   from writers reachable through the candidate's actual narrow RPC allowlist.
+   No credential copying, real account/model calls or production gate change.
+
+   The [derived catalog policy](../evidence/NATIVE_DERIVED_CATALOG_EXPERIMENT.md)
+   remains an established prerequisite: Astra Lite declares empty tools and rejects
+   resource/clock challenges with the labelled two-field patch. Preserve exact
+   source/derivation and trust in the reviewed executable. This is not exhaustive
+   hidden-handler proof. Ordinary Responses remains a simpler candidate if the
+   eventual account supports it.
 3. **Established product loop: return to a saved question (C1/C5).**
    The [recovery acceptance](../evidence/SAVED_QUESTION_RECOVERY_INTEGRATION.md)
    verifies discoverable entry, exact question/rationale/result preview and raw
@@ -62,10 +68,14 @@ These are hypotheses, not established invariants or additional release gates.
    changed UI were exercised against the same saved fixture. Scripted availability,
    exact recovery and navigation are established; human benefit remains unmeasured.
 
-   **Next product scout:** challenge C2's fixed one-inquiry product topology with two
-   independent pending questions, refusal and restart. Distinguish the continuation
-   vocabulary's actual capacity from an adapter's singular fields. Do not pluralize
-   every schema without a concrete user loop; separate investigations may suffice.
+   **C2 scout outcome:** existing Discover/Await already supports two independent
+   pending questions, out-of-order source decisions and local executor restart.
+   The permanent regression preserves ordered incorporation, spent response
+   authority and replay without new occurrences. Keep singular product admission:
+   separate investigations and exact result inputs currently cover independent
+   questions. The next experience discriminator is a returning owner using an
+   explicitly supplied sanitized history to recover support and build a context;
+   synthetic UI cases alone cannot establish usefulness or justify C4 activation.
 4. **Established baseline: substantial saved work (C1/C5).** The 1,200-turn history
    and 1,000-owner HTTP/browser cases preserve stable source membership, bounded
    metadata pages, conditional reads, exact artifact detail and dirty draft/retry
@@ -86,9 +96,9 @@ not mature-world axioms.
 
 ## Current integration boundary and next contract
 
-The previous bounded-capture integration is `555a317` (public CI passed); the
-[handoff](CURRENT_HANDOFF.md) identifies saved-question/catalog verification and
-the next native/product lanes. See [D28/D29](../roadmap/DECISIONS.md) and linked evidence. The active
+The previous saved-question/catalog integration is `e708c9d` (public CI passed);
+the [handoff](CURRENT_HANDOFF.md) identifies opaque HTTPS/inquiry verification
+and the next managed-auth lifecycle discriminator. See [D28/D29](../roadmap/DECISIONS.md) and linked evidence. The active
 read index is a derived performance adapter, not a second provenance authority.
 Native process/synthetic transport research is independent of production admission.
 

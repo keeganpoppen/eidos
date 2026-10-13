@@ -130,3 +130,143 @@ the acknowledged account/provider and admitted configuration to the same process
 incarnation before a separately authorized model turn. Do not reinterpret a prior
 no-model authorization, cached report or successful unit test as live authority.
 The parent integrator owns canonical STATE/handoff updates and final integration.
+
+## 2026-10-13 independent follow-up: exact personal-plan lifecycle
+
+**Source inference only; the production gate remains closed.** This follow-up read
+the public `rust-v0.154.0` source cache and retrieved the exact tagged AgentIdentity
+and session source files. It made no native, login, credential or upstream-provider
+calls. Exact native-confirmed `authMode=chatgpt`,
+`account.type=chatgpt`, `requiresOpenaiAuth=true`, and `planType` equal to `plus` or
+`pro` define a narrower candidate than admission of all authenticated accounts.
+They do not establish entitlement, successful freshness, or permanent plan binding.
+
+The tagged [cloud eligibility predicate](https://github.com/openai/codex/blob/rust-v0.154.0/codex-rs/cloud-config/src/service.rs#L50)
+excludes Plus and Pro under the exact
+[plan-family predicates](https://github.com/openai/codex/blob/rust-v0.154.0/codex-rs/protocol/src/account.rs#L59).
+Startup checks eligibility before either cache or network access; refresh checks
+it again. The reviewed storage-loader variants still use that service. No bypass
+of this bundle eligibility check was identified in those entrypoints. This is not
+a proof that every authenticated startup request is a cloud-bundle request or that
+the entire application has no other HTTP path.
+
+Three concrete lifecycle limitations qualify a single account acknowledgement:
+
+1. [Managed request auth](https://github.com/openai/codex/blob/rust-v0.154.0/codex-rs/model-provider/src/auth.rs#L126)
+   reads current credentials and checks account ID, user ID and workspace class,
+   not exact plan. Plus to Free/Go retains that class. Plus to Business changes it
+   and fails this particular provider check; do not claim that provider guard is
+   absent. Separately, `auth()` can proactively refresh near-expiry credentials,
+   and 401 recovery can reload and refresh immediately. A short turn lifetime
+   alone does not rule either out.
+2. [`account/read`](https://github.com/openai/codex/blob/rust-v0.154.0/codex-rs/app-server/src/request_processors/account_processor.rs#L1105)
+   discards `refresh_token_if_requested`'s outcome. A transient refresh failure can
+   leave a cached Plus account reportable; `refreshToken=true` is not itself proof
+   of a successful refresh. See the
+   [transient outcome](https://github.com/openai/codex/blob/rust-v0.154.0/codex-rs/app-server/src/request_processors/account_processor.rs#L1017)
+   and [cached account projection](https://github.com/openai/codex/blob/rust-v0.154.0/codex-rs/model-provider/src/provider.rs#L401).
+3. [`login/completed` is sent first](https://github.com/openai/codex/blob/rust-v0.154.0/codex-rs/app-server/src/request_processors/account_processor.rs#L907),
+   before auth reload, cloud-loader replacement, config synchronization and
+   conditional plugin-cache refresh. `account/updated` follows those operations.
+   Login completion alone therefore cannot acknowledge the completed post-login
+   configuration lifecycle. Conditional
+   [curated/remote plugin refresh](https://github.com/openai/codex/blob/rust-v0.154.0/codex-rs/app-server/src/request_processors/account_processor.rs#L227)
+   also prevents inferring "no other post-login HTTP" solely from bundle eligibility.
+
+The [loader task](https://github.com/openai/codex/blob/rust-v0.154.0/codex-rs/cloud-config/src/bundle_loader.rs#L62)
+calls `get_latest` and then starts its refresh loop even if the first Plus lookup
+returned `None`. At the first ordinary 15-minute refresh, changed eligible auth can
+permit a bundle fetch. A still-ineligible account ends that loop.
+[Successful refresh](https://github.com/openai/codex/blob/rust-v0.154.0/codex-rs/cloud-config/src/service.rs#L472)
+updates the cache and the loader's `latest_bundle`; subsequent config loads can
+observe it. This is **not** evidence that every existing thread's effective policy
+is immediately replaced. Explicit loader replacement after login is a separate
+operation, and actual application depends on later config loading/consumption.
+
+### Narrower proposal: close the issuer before admitting a turn
+
+The proposal now under review is a fresh, native-owned managed device-code login
+in one process using a unique ephemeral `CODEX_HOME`; then close `auth.openai.com`
+egress **and all existing issuer tunnels**, deny subsequent login/import/auth
+mutation RPCs, and permit only `chatgpt.com` during the admitted turn. This has a
+stronger source basis than merely limiting elapsed time:
+
+- Device-code login
+  [polls and exchanges through its issuer](https://github.com/openai/codex/blob/rust-v0.154.0/codex-rs/login/src/device_code_auth.rs#L162),
+  then persists tokens through the selected native storage mode. Explicit
+  [ephemeral storage](https://github.com/openai/codex/blob/rust-v0.154.0/codex-rs/login/src/auth/storage.rs#L459)
+  is an in-process map keyed by the home; its
+  [reload path](https://github.com/openai/codex/blob/rust-v0.154.0/codex-rs/login/src/auth/manager.rs#L1466)
+  has no persistent fallback when ephemeral mode is selected. A cached reload
+  does not itself acquire new token claims if no other writer changes that map.
+- Managed OAuth refresh uses
+  [`https://auth.openai.com/oauth/token`](https://github.com/openai/codex/blob/rust-v0.154.0/codex-rs/login/src/auth/manager.rs#L199)
+  by default. Only a successfully decoded response reaches
+  [token persistence and reload](https://github.com/openai/codex/blob/rust-v0.154.0/codex-rs/login/src/auth/manager.rs#L3031).
+  With that destination unavailable and no admitted override, immediate 401
+  recovery has no successful refresh path in the reviewed code. It may fail or
+  retain/retry old credentials; neither outcome proves account entitlement.
+- No reviewed `chatgpt.com` response path writes managed OAuth token/plan fields.
+  The account rate-limit path returns its response without updating those fields.
+  This is a bounded source finding, not an exhaustive native runtime observation.
+
+**Conditional conclusion:** closing the issuer can preserve the admitted managed
+token claims if the native process has no remaining successful token response
+waiting to commit and no other admitted writer. Closing a tunnel alone does not
+discard a response already buffered/decoded inside native code; a delayed
+successful response could persist after the phase transition. The admission
+sequence must establish that earlier issuer work is complete before its final
+account/config acknowledgement. Neither reviewed account nor config RPC was
+established as a global barrier over auth writers. That ordering remains a blocker
+to admission; elapsed quiet time is not a substitute for testing it.
+
+Another native-owned storage writer exists outside the login RPC path:
+[managed AgentIdentity bootstrap](https://github.com/openai/codex/blob/rust-v0.154.0/codex-rs/login/src/auth/manager.rs#L734)
+can run during [request auth resolution](https://github.com/openai/codex/blob/rust-v0.154.0/codex-rs/model-provider/src/auth.rs#L240)
+when `AgentIdentityAuthPolicy::ChatGptAuth` is selected. Its
+[persistence operation](https://github.com/openai/codex/blob/rust-v0.154.0/codex-rs/login/src/auth/manager.rs#L894)
+adds an agent identity record and leaves the managed OAuth token/plan fields
+unchanged. Consequently token-claim stability must not be inflated into a claim
+that all effective request credentials or all native auth storage are immutable.
+AgentIdentity derivation could be a separately scoped and acknowledged native
+credential lifecycle; its presence is not automatically disallowed.
+
+For this tag, [the feature registry](https://github.com/openai/codex/blob/rust-v0.154.0/codex-rs/features/src/lib.rs#L1751)
+defines `use_agent_identity` as under development and disabled by default. The
+[session constructor](https://github.com/openai/codex/blob/rust-v0.154.0/codex-rs/core/src/session/session.rs#L1463)
+maps that disabled feature to `JwtOnly`, which prevents managed-ChatGPT bootstrap.
+`features.use_agent_identity=false` is a recognized version-specific configuration
+pin, not a newly verified native acknowledgement or universal managed-policy
+override. The production
+[registration endpoint base](https://github.com/openai/codex/blob/rust-v0.154.0/codex-rs/agent-identity/src/lib.rs#L40)
+is `https://auth.openai.com/api/accounts`, with `/v1/agent/register` and
+`/v1/agent/{id}/task/register` appended. Issuer closure blocks those new default
+registrations too. The `chatgpt.com` JWKS path verifies an already supplied identity
+JWT; it does not mint replacement managed OAuth tokens. Endpoint overrides
+`CODEX_AGENT_IDENTITY_AUTHAPI_BASE_URL` and `CODEX_AGENT_IDENTITY_JWKS_BASE_URL`
+exist in [the native implementation](https://github.com/openai/codex/blob/rust-v0.154.0/codex-rs/login/src/auth/agent_identity.rs#L26)
+and must be absent from this narrowed proposal. No alternate remaining-host
+credential writer was found for the resulting fresh managed flow.
+
+The source accepts `CODEX_APP_SERVER_LOGIN_ISSUER` during
+[login option construction](https://github.com/openai/codex/blob/rust-v0.154.0/codex-rs/app-server/src/request_processors/account_processor.rs#L577)
+and `CODEX_REFRESH_TOKEN_URL_OVERRIDE` in the
+[refresh endpoint selector](https://github.com/openai/codex/blob/rust-v0.154.0/codex-rs/login/src/auth/manager.rs#L1719).
+An override redirecting refresh to the remaining allowed host would defeat the
+issuer-closure argument. These version-specific source hooks can support a later
+wholly synthetic issuer experiment; they are not established documented live
+admission controls and must not enter the eventual live environment accidentally.
+
+Next discriminators, without opening production admission: synthetic device-code
+completion/config ordering; transient refresh failure; a delayed successful token
+response spanning phase closure; immediate 401 after issuer closure; Plus→Go and
+Plus→Business counterfactual refresh responses; denied late login/import attempts;
+and conditional AgentIdentity/plugin startup. Observe both rejected new CONNECTs
+and termination of existing issuer tunnels. Opaque `chatgpt.com` TLS still does not
+distinguish a provider request from another request to that host. Source inference,
+local fixture evidence and eventual separately authorized real-account evidence
+must remain distinct.
+
+Documentation verification for this follow-up: `tests/test_seed_context.py` **5
+passed** and `git diff --check` passed. These checks validate repository continuity
+and formatting, not the lifecycle inference. No new dynamic admission test ran.

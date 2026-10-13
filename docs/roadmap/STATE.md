@@ -6,6 +6,37 @@ The baseline GitHub Actions run `38240774514` completed successfully: pytest and
 
 Refresh this file when implementation claims materially change. Keep historical audit IDs instead of quietly relabelling old evidence as current.
 
+## Opaque native HTTPS and independent inquiry recovery — 2026-10-13
+
+Integration base `e708c9d`; [native experiment](../evidence/NATIVE_TLS_CONNECT_EXPERIMENT.md)
+and [handoff](../agents/CURRENT_HANDOFF.md) identify this wave. Native HTTPS_PROXY
+and custom CA behavior now have disconnected fixture evidence: valid TLS recovers
+an authored result, a trusted wrong-host certificate delivers no plaintext HTTP,
+and a redirected destination is refused before opening an endpoint. Native retries
+were observed despite zero configured retry settings. The wrong-host case ends in
+a consumer timeout with no observed terminal; that outcome remains incomplete.
+The proxy carries encrypted bytes; a separate authored endpoint owns plaintext.
+No DNS/upstream path, real account or production admission is introduced.
+
+Parent checks: **1,026 Python passed / 50 explicit native checks skipped** and
+**58 native TLS opt-in checks passed**. Parent reproduction made three contained
+turns, six CONNECT attempts and three fixture HTTP requests, with zero real model,
+upstream or auth calls. Received-byte/buffer/time limits, exact trusted capture
+policy and worker shutdown passed. These are not aggregate CPU/RSS/SQLite quotas.
+No frontend changed; previous-wave UI evidence is retained separately.
+
+A new local process regression confirms two independent pending Discover inquiries,
+B offered before A, database/executor restart, A refusal, ordered incorporation and
+exact replay without new occurrences. It needs no runtime change; the product's
+single-inquiry admission remains explicit. This does not establish native-stack
+resumption or a user need for plural admission. Parent focused checks: **19 passed**.
+
+The [independent managed-auth review](../evidence/NATIVE_ADMISSION_FRONTIER.md#2026-10-13-independent-follow-up-exact-personal-plan-lifecycle)
+finds issuer closure could constrain future OAuth refresh, but a successful response
+already buffered in native code may still commit. A synthetic issuer lifecycle
+experiment is the next discriminator. No global auth-writer barrier or live
+admission follows from a cached account/config acknowledgement.
+
 ## Saved-question recovery and derived startup catalog — 2026-10-13
 
 Integration base `555a317`; [rendered acceptance](../evidence/SAVED_QUESTION_RECOVERY_INTEGRATION.md)

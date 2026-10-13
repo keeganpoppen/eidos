@@ -7,6 +7,8 @@ No credentials, upstream route, shell/code call, or production profile is used.
 from __future__ import annotations
 
 import argparse
+from collections.abc import Callable
+from contextlib import AbstractContextManager, ExitStack
 import hashlib
 import importlib.util
 import json
@@ -156,9 +158,11 @@ def analyze_request(event: dict[str, Any], prompt: str) -> dict[str, Any]:
 def run_case(
     helper: Path, model: str, catalog: bytes, *,
     config: str | None = None, limits: AppServerLimits | None = None,
+    expected_base_url: str | None = None,
+    fixture_factory: Callable[[Path, str, str], AbstractContextManager[Any]] | None = None,
 ) -> dict[str, Any]:
     """Run one authored fixture with explicit startup input and capture policy."""
-    with tempfile.TemporaryDirectory(prefix="nema-model-catalog-") as temporary:
+    with tempfile.TemporaryDirectory(prefix="nema-model-catalog-") as temporary, ExitStack() as fixtures:
         root = Path(temporary)
         boundary.prepare(root, helper)
         (root / "fixture/models.json").write_bytes(catalog)
@@ -171,7 +175,8 @@ def run_case(
         (root / "state/codex/config.toml").write_text(config)
         (root / "fixture/relay.py").write_text(transport.RELAY)
         (root / "fixture/launcher.py").write_text(transport.LAUNCHER)
-        broker = CatalogFixtureBroker(prompt, model)
+        broker = (CatalogFixtureBroker(prompt, model) if fixture_factory is None
+                  else fixtures.enter_context(fixture_factory(root, prompt, model)))
 
         class Handler(socketserver.BaseRequestHandler):
             def handle(self) -> None:
@@ -205,7 +210,8 @@ def run_case(
                 replies["config/read"] = client.request("config/read", {"includeLayers": False})
                 effective = replies["config/read"]["config"]
                 provider = effective["model_providers"][transport.PROVIDER]
-                expected_url = "http://127.0.0.1:" + (root / "state/relay-port").read_text() + "/v1"
+                expected_url = (expected_base_url if expected_base_url is not None else
+                                "http://127.0.0.1:" + (root / "state/relay-port").read_text() + "/v1")
                 if (effective["model_provider"] != transport.PROVIDER or provider["base_url"] != expected_url
                         or provider["requires_openai_auth"] is not False
                         or effective.get("model_catalog_json") != "/fixture/models.json"
@@ -254,9 +260,11 @@ def run_case(
                 watchdog.cancel()
                 client.close()
                 stop.set()
+                fixtures.close()
                 service.join(timeout=3)
                 if service.is_alive():
                     raise RuntimeError("fixture service did not stop")
+        fixtures.close()
         records = [{"seq": r.seq, "source": r.source, "direction": r.direction, "rawText": r.raw_text}
                    for r in trace.records()]
         trace.close()
