@@ -228,6 +228,9 @@ export type InvestigationArtifact = {
   executionEvidence?: 'synthetic' | 'native-observed' | 'unverified';
   nativeArtifactId?: string;
   continuationId?: string;
+  inquiryId?: string;
+  responseId?: string;
+  decisionOccurrenceId?: string | null;
   evidenceContextId?: string | null;
   continuedFrom?: InquiryLineage;
 };

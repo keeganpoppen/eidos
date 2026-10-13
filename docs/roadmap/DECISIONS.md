@@ -185,6 +185,28 @@ it adds no competing provenance store or new authority kernel. Local manifests
 describe supply, not truth, authentication or complete provider context. See the
 [composition evidence](../evidence/ARTIFACT_COMPOSITION_INTEGRATION.md).
 
+### D29 — Save compiled arrangements as immutable reference snapshots
+
+**Accepted, 2026-10-13**, integration base `b9f75ea`. A named comparison captures
+its exact applied arrangement and focus, rather than a semantic request to resolve
+again against newer inquiry or result state. It is an ordinary immutable context
+manifest Value with a thin local metadata/idempotency index. Opening is an explicit
+browser operation. Changed arrangements create copies with ancestry; no mutable
+shared workspace head or automatic browser-state synchronization is introduced.
+
+New saves validate source ownership and inquiry/experiment relationships. Existing
+snapshots and exact successful retries survive later missing sources; unresolved
+references remain inspectable and repair creates a copy. Snapshots contain no
+draft prose, raw histories, executable handles or transferred authority. The same
+database is the persistence boundary; cross-database sharing is not established.
+
+Passage selectors record their renderer/parser version. A different renderer
+keeps exact artifact and record references but cannot silently reinterpret a block
+offset. Retry identity is independent of installed renderer compatibility: after
+a browser upgrade, an exact previously committed receipt still confirms the old
+captured request. Save-copy uses a new request. See the
+[contract](../agents/DURABLE_ARRANGEMENTS_TASK.md) and current handoff for verification.
+
 ## Deferred explorations, kept for their potential
 
 ### D22 — Names, routing, locality, and leases

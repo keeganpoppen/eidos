@@ -1,0 +1,255 @@
+{
+  "schemaVersion": "nema-composition-rendered/1",
+  "classification": "SYNTHETIC_REAL_BROWSER",
+  "nativeOrModelCalls": 0,
+  "freshIsolatedBrowserContext": true,
+  "original": {
+    "arrangement": {
+      "layout": "beside",
+      "left": {
+        "artifactId": "artifact_e4e7ea831450def3d221a8a6fe631896024f2af96d72ecd9fddf87d6ce8aab1c",
+        "contextId": "context_ae0d4423e66a96c6b98713c7141f485f4bf0d6483eadb595541c569c96ab3811",
+        "investigationId": "investigation_354fe96689d1439eaa0db8272bfec728"
+      },
+      "lens": "result",
+      "right": {
+        "artifactId": "artifact_ea2e0c13c1a55e09eaae654fc10a0a7e09a6509b79e109a567a60392e547035e",
+        "contextId": "context_01e24d24a52249ed23e581dac800f57af7e5f8382d990f22cd0693ffc9b5ba3e",
+        "investigationId": "investigation_ac40dba8e1014fea9fbce00d3cef1ea0"
+      }
+    },
+    "copiedFrom": "composition_574352f57de64293af69d2a50c0086b3",
+    "createdAtMs": 1791921205695,
+    "focus": {
+      "artifactId": "artifact_e4e7ea831450def3d221a8a6fe631896024f2af96d72ecd9fddf87d6ce8aab1c",
+      "blockId": "block-0",
+      "contextId": "context_ae0d4423e66a96c6b98713c7141f485f4bf0d6483eadb595541c569c96ab3811",
+      "investigationId": "investigation_354fe96689d1439eaa0db8272bfec728",
+      "seq": 1,
+      "threadId": "fixture-artifact-origin"
+    },
+    "id": "composition_1d9171d648d54f31861c78ce7b25bfe8",
+    "rendererVersion": "nema-content-blocks/v1;marked@18.1.0",
+    "schemaVersion": 1,
+    "title": "Recovery snapshot 6f8dbb37",
+    "contentId": "cm1_7fbe96a70442be287b2a94b5b05cdedae13dbb473fd8404ad8effdc9f70ef7ea"
+  },
+  "copied": {
+    "arrangement": {
+      "layout": "stacked",
+      "left": {
+        "artifactId": "artifact_e4e7ea831450def3d221a8a6fe631896024f2af96d72ecd9fddf87d6ce8aab1c",
+        "contextId": "context_ae0d4423e66a96c6b98713c7141f485f4bf0d6483eadb595541c569c96ab3811",
+        "investigationId": "investigation_354fe96689d1439eaa0db8272bfec728"
+      },
+      "lens": "result",
+      "right": {
+        "artifactId": "artifact_ea2e0c13c1a55e09eaae654fc10a0a7e09a6509b79e109a567a60392e547035e",
+        "contextId": "context_01e24d24a52249ed23e581dac800f57af7e5f8382d990f22cd0693ffc9b5ba3e",
+        "investigationId": "investigation_ac40dba8e1014fea9fbce00d3cef1ea0"
+      }
+    },
+    "copiedFrom": "composition_1d9171d648d54f31861c78ce7b25bfe8",
+    "createdAtMs": 1791921206851,
+    "focus": {
+      "artifactId": "artifact_e4e7ea831450def3d221a8a6fe631896024f2af96d72ecd9fddf87d6ce8aab1c",
+      "blockId": "block-0",
+      "contextId": "context_ae0d4423e66a96c6b98713c7141f485f4bf0d6483eadb595541c569c96ab3811",
+      "investigationId": "investigation_354fe96689d1439eaa0db8272bfec728",
+      "seq": 1,
+      "threadId": "fixture-artifact-origin"
+    },
+    "id": "composition_0867e545025d45468688f0ba8a32325a",
+    "rendererVersion": "nema-content-blocks/v1;marked@18.1.0",
+    "schemaVersion": 1,
+    "title": "Copy6f8dbb37WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW",
+    "contentId": "cm1_c07862cb8c442f7fa0e9d5e456e0749f237863ee23ce4bfbb0c260eb79f19bc3"
+  },
+  "repaired": {
+    "arrangement": {
+      "layout": "beside",
+      "left": {
+        "artifactId": "artifact_ea2e0c13c1a55e09eaae654fc10a0a7e09a6509b79e109a567a60392e547035e",
+        "contextId": "context_01e24d24a52249ed23e581dac800f57af7e5f8382d990f22cd0693ffc9b5ba3e",
+        "investigationId": "investigation_ac40dba8e1014fea9fbce00d3cef1ea0"
+      },
+      "lens": "result",
+      "right": {
+        "artifactId": "artifact_ea2e0c13c1a55e09eaae654fc10a0a7e09a6509b79e109a567a60392e547035e",
+        "contextId": "context_01e24d24a52249ed23e581dac800f57af7e5f8382d990f22cd0693ffc9b5ba3e",
+        "investigationId": "investigation_ac40dba8e1014fea9fbce00d3cef1ea0"
+      }
+    },
+    "copiedFrom": "composition_1d9171d648d54f31861c78ce7b25bfe8",
+    "createdAtMs": 1791921208835,
+    "focus": null,
+    "id": "composition_fdf4f1ca3380461a884e3908ff56cd41",
+    "rendererVersion": "nema-content-blocks/v1;marked@18.1.0",
+    "schemaVersion": 1,
+    "title": "Explicit missing-source repair 6f8dbb37",
+    "contentId": "cm1_e4310484cc528f7d95355ab2cceb7122a43fd6661894910f0121302d8571eaea"
+  },
+  "committedLostReplyRetriedSameRequestId": "752a0840-4796-49b1-a79a-78cdc5e0d86a",
+  "duplicateSnapshotCount": 0,
+  "dirtyDraftAndPendingRequestRetained": {
+    "author": "46fc27ae-53d8-49c0-a3eb-fc87bbff28c1",
+    "freshBrowser": "459e07d0-aa71-4157-8535-0ee77567a9e5"
+  },
+  "exactOriginalRawRecordRecovered": true,
+  "pendingInquiryNotRecompiled": true,
+  "artifactRecordWithoutBlockPreserved": true,
+  "unknownRendererDidNotHighlightOrRebind": true,
+  "missingSourceFixture": "HTTP404 injected for exact source owner; backend actual-row deletion covered separately",
+  "stalePreviewBlockedAfterFocusChange": true,
+  "selectingAnotherSnapshotClearedPreview": true,
+  "longTitle": {
+    "document": 0,
+    "preview": 0
+  },
+  "mobile": {
+    "width": 390,
+    "document": 0,
+    "saved": 0,
+    "focus": 0
+  },
+  "compositionReads": [
+    {
+      "context": "author",
+      "path": "/api/compositions",
+      "bodyBytes": 832,
+      "status": 200
+    },
+    {
+      "context": "author",
+      "path": "/api/compositions/composition_574352f57de64293af69d2a50c0086b3",
+      "bodyBytes": 1076,
+      "status": 200
+    },
+    {
+      "context": "fresh-browser",
+      "path": "/api/compositions",
+      "bodyBytes": 1068,
+      "status": 200
+    },
+    {
+      "context": "fresh-browser",
+      "path": "/api/compositions",
+      "bodyBytes": 272,
+      "status": 200
+    },
+    {
+      "context": "fresh-browser",
+      "path": "/api/compositions/composition_1d9171d648d54f31861c78ce7b25bfe8",
+      "bodyBytes": 1225,
+      "status": 200
+    },
+    {
+      "context": "fresh-browser",
+      "path": "/api/compositions",
+      "bodyBytes": 272,
+      "status": 200
+    },
+    {
+      "context": "fresh-browser",
+      "path": "/api/compositions",
+      "bodyBytes": 1438,
+      "status": 200
+    },
+    {
+      "context": "fresh-browser",
+      "path": "/api/compositions/composition_574352f57de64293af69d2a50c0086b3",
+      "bodyBytes": 1076,
+      "status": 200
+    },
+    {
+      "context": "fresh-browser",
+      "path": "/api/compositions/composition_574352f57de64293af69d2a50c0086b3",
+      "bodyBytes": 1076,
+      "status": 200
+    },
+    {
+      "context": "fresh-browser",
+      "path": "/api/compositions/composition_124afce34f21466a9ce991c2c42be615",
+      "bodyBytes": 952,
+      "status": 200
+    },
+    {
+      "context": "fresh-browser",
+      "path": "/api/compositions/composition_0867e545025d45468688f0ba8a32325a",
+      "bodyBytes": 1360,
+      "status": 200
+    },
+    {
+      "context": "fresh-browser",
+      "path": "/api/compositions/composition_8f1bea12e45c40528ea14c21754af13f",
+      "bodyBytes": 1178,
+      "status": 200
+    },
+    {
+      "context": "fresh-browser",
+      "path": "/api/compositions/composition_16540b82cfe54bd2a6c4038b1408b912",
+      "bodyBytes": 1181,
+      "status": 200
+    },
+    {
+      "context": "missing-source",
+      "path": "/api/compositions",
+      "bodyBytes": 1438,
+      "status": 200
+    },
+    {
+      "context": "missing-source",
+      "path": "/api/compositions/composition_1d9171d648d54f31861c78ce7b25bfe8",
+      "bodyBytes": 1225,
+      "status": 200
+    },
+    {
+      "context": "missing-source",
+      "path": "/api/compositions",
+      "bodyBytes": 1687,
+      "status": 200
+    }
+  ],
+  "mutationRequests": [
+    {
+      "context": "author",
+      "path": "/api/investigations",
+      "requestId": "46fc27ae-53d8-49c0-a3eb-fc87bbff28c1"
+    },
+    {
+      "context": "author",
+      "path": "/api/compositions",
+      "requestId": "752a0840-4796-49b1-a79a-78cdc5e0d86a"
+    },
+    {
+      "context": "author",
+      "path": "/api/compositions",
+      "requestId": "752a0840-4796-49b1-a79a-78cdc5e0d86a"
+    },
+    {
+      "context": "fresh-browser",
+      "path": "/api/investigations",
+      "requestId": "459e07d0-aa71-4157-8535-0ee77567a9e5"
+    },
+    {
+      "context": "fresh-browser",
+      "path": "/api/compositions",
+      "requestId": "001a9807-4037-4d54-af3c-ea9c0422ee28"
+    },
+    {
+      "context": "missing-source",
+      "path": "/api/compositions",
+      "requestId": "fd799111-58e2-4bce-a174-3e0d78f3fc71"
+    }
+  ],
+  "javascriptExceptions": [],
+  "screenshots": [
+    "docs/evidence/composition_snapshot_ui_2026_10_13_desktop_source.png",
+    "docs/evidence/composition_snapshot_ui_2026_10_13_desktop_preview.png",
+    "docs/evidence/composition_snapshot_ui_2026_10_13_mobile_long_title.png",
+    "docs/evidence/composition_snapshot_ui_2026_10_13_mobile_artifact_record.png",
+    "docs/evidence/composition_snapshot_ui_2026_10_13_mobile_preview.png",
+    "docs/evidence/composition_snapshot_ui_2026_10_13_mobile_unknown_renderer.png"
+  ],
+  "limits": "Same-database scripted synthetic recovery; no authentication, synchronization, native-model, or human-speed claim."
+}

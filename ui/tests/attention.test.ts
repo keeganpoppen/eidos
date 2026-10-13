@@ -51,6 +51,15 @@ test('arrangement apply/reload/undo retains exact offered focus and strips copie
   expect(JSON.stringify(restored)).not.toContain('rawText');
 });
 
+test('receipt identity includes its exact inquiry, terminal response, decision occurrence and original attempt', () => {
+  for (const field of ['inquiryId', 'responseId', 'decisionOccurrenceId', 'attemptId'] as const) {
+    const fixture = makeReflectionFixture('supplied');
+    const arrangement = evidenceChain(fixture.investigations[0])!;
+    fixture.investigations[0].artifact![field] = 'another-source';
+    expect(validateEvidenceChain(fixture.investigations, arrangement)).toContain('exact inquiry');
+  }
+});
+
 test('unknown semantic actions and missing named results never compile to authority actions', () => {
   const fixture = makeReflectionFixture('pending');
   expect(() => compileAttentionRequest({ version: 1, intent: 'dispatch', investigationId: fixture.inquiry.baseline.investigationId }, fixture.investigations, [])).toThrow('Unsupported attention intent');

@@ -16,6 +16,7 @@ from .investigation_continuations import InvestigationContinuations
 from .investigation_inquiries import terminal_inquiry
 from .investigation_experiments import InvestigationExperiments
 from .investigation_reads import InvestigationReads
+from .compositions import Compositions
 from .investigation_worker import NativeInvestigationWorker
 from .history import (
     PAGE_SIZE, SourceRecordNotFound, history_snapshot, history_version,
@@ -26,10 +27,10 @@ from .trace import TraceStore
 from .view import ItemView, project_records
 
 
-def _json_body(handler: Any) -> dict[str, Any]:
+def _json_body(handler: Any, *, max_bytes: int = 256 * 1024) -> dict[str, Any]:
     length = int(handler.headers.get("Content-Length", "0") or 0)
-    if length < 0 or length > 256 * 1024:
-        raise ValueError("request body must be at most 256 KiB")
+    if length < 0 or length > max_bytes:
+        raise ValueError(f"request body must be at most {max_bytes // 1024} KiB")
     if not length:
         return {}
     raw = handler.rfile.read(length)
@@ -306,6 +307,7 @@ class EidosAPI:
         self.investigations = InvestigationStore(store)
         self.investigation_reads = InvestigationReads(self.investigations)
         self.investigation_experiments = InvestigationExperiments(self.investigations)
+        self.compositions = Compositions(self.investigations)
         self.investigation_continuations = InvestigationContinuations(self.investigations)
         self.investigation_runtime = self.investigation_continuations.runtime
         self.investigation_worker = NativeInvestigationWorker(
@@ -348,6 +350,24 @@ class EidosAPI:
 
     def dispatch(self, handler: Any, method: str, path: str, query: dict[str, list[str]]) -> tuple[int, Any]:
         parts = [unquote(part) for part in path.split("/") if part]
+        if parts[:2] == ["api", "compositions"]:
+            try:
+                if len(parts) == 2:
+                    if method == "GET":
+                        return 200, self.compositions.list(query)
+                    if method == "POST":
+                        if query:
+                            raise InvestigationError(400, "saving an arrangement takes no query parameters")
+                        return 201, {"composition": self.compositions.create(_json_body(handler, max_bytes=16 * 1024))}
+                if len(parts) == 3 and method == "GET":
+                    if query:
+                        raise InvestigationError(400, "saved arrangement detail takes no query parameters")
+                    return 200, {"composition": self.compositions.get(parts[2])}
+                return 404, {"error": "not found"}
+            except InvestigationError as exc:
+                return exc.status, {"error": exc.message}
+            except (ValueError, TypeError, UnicodeError, RecursionError) as exc:
+                return 400, {"error": str(exc)}
         if parts[:2] == ["api", "investigations"]:
             try:
                 return self._dispatch_investigation(handler, method, parts, query)

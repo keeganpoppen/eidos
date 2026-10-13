@@ -6,6 +6,35 @@ The baseline GitHub Actions run `38240774514` completed successfully: pytest and
 
 Refresh this file when implementation claims materially change. Keep historical audit IDs instead of quietly relabelling old evidence as current.
 
+## Durable comparison snapshots and synthetic native transport — 2026-10-13
+
+Integration base `b9f75ea`; [current handoff](../agents/CURRENT_HANDOFF.md) identifies
+this wave's containing integration. [Browser acceptance](../evidence/COMPOSITION_SNAPSHOT_INTEGRATION.md)
+was independently reproduced by the parent on main. Named comparisons
+now save their compiled historical arrangement and focus as immutable ordinary
+Values. A bounded metadata catalog, explicit preview/open and save-copy ancestry
+recover them in another browser on the same database. Browser drafts remain local.
+Exact retries survive a lost response and later source loss. New saves validate
+reference ownership; unknown renderer versions retain references without silently
+reinterpreting passage offsets. See [D29](DECISIONS.md).
+
+Combined Python verification: **821 passed, 34 explicit native opt-ins skipped**.
+Final UI verification: **67 tests / 344 assertions**, Svelte **0 errors / 0 warnings**,
+build passed. Actual desktop/mobile recovery preserves dirty drafts, exact source
+bytes, old inquiry pins and retry identities; missing-source repair and unknown
+renderer handling pass without dispatch. This covers same-database synthetic
+recovery, not authentication, shared workspace synchronization or human speed.
+First preview still loads full referenced owners through the existing cache.
+
+The parent reproduced **39 tests** in the disconnected
+[synthetic-provider native experiment](../evidence/NATIVE_SYNTHETIC_TURN_EXPERIMENT.md).
+Two real native turn RPCs completed with authored SSE, persisted artifacts and
+reopen recovery under the process-denial boundary. **Zero real model/upstream calls**,
+no credentials or production gate change. Actual provider wire included native
+instructions and remaining tool schemas; text-only completion does not establish
+pre-effect tool admission or caller authentication. A separate active experiment
+challenges supported pre-turn tool controls with authored tool-call responses.
+
 ## Saved work at scale and native process boundary — 2026-10-13
 
 Integration base `1ee2821`; [measured acceptance](../evidence/SAVED_WORK_SCALE_INTEGRATION.md)

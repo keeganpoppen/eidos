@@ -61,6 +61,7 @@ export function makeReflectionFixture(stage: 'pending' | 'supplied'): Reflection
   const receipt: InvestigationArtifact = {
     ...native, id: ids.receipt, kind: 'eidos-evidence-review', nativeArtifactId: ids.native,
     continuationId: ids.continuation, evidenceContextId: ids.offered,
+    inquiryId: ids.inquiry, responseId: ids.response, decisionOccurrenceId: 'fixture:recovery-offer-occurrence-v1',
     text: `${native.text}\n\n---\n\n**Synthetic Eidos process receipt · additional evidence supplied**\n\nThe authored fixture records an offer of the separate frozen packet \`${ids.offered}\`. The original model-output fixture above remains unchanged.\n\nThis is a disclosure receipt, not a new model conclusion. The additional evidence was not part of the original input and no second native turn was run. Inspect the separately named counterfactual for an interpretation using that evidence.`
   };
   const primary: Investigation = {

@@ -52,6 +52,22 @@ describe('reference-only composition recovery', () => {
     expect(first.arrangement?.layout).toBe('beside');
   });
 
+  test('artifact-level record focus needs exact citation/thread/context membership without inventing a passage', () => {
+    const owner = structuredClone(work);
+    owner.contexts[0].records.push({ ...record, seq: 13, rawText: 'uncited record in the same packet' });
+    const focus = { ...arrangement.left, artifactId: 'artifact-a', seq: 12, threadId: 'design' };
+    const restored = readComposition(JSON.stringify({ ...emptyComposition(), focus }));
+    expect(restored.focus!.blockId).toBeUndefined();
+    expect(resolveAttention([owner], restored.focus).record?.rawText).toBe(record.rawText);
+    expect(resolveAttention([owner], { ...focus, seq: 13 }).record).toBeUndefined();
+    expect(resolveAttention([owner], { ...focus, threadId: 'other' }).record).toBeUndefined();
+    expect(resolveAttention([owner], { ...focus, contextId: 'c2' }).record).toBeUndefined();
+    expect(resolveAttention([owner], { ...focus, artifactId: 'missing' }).record).toBeUndefined();
+    // Adding an explicit block restores the narrower passage-citation check.
+    expect(resolveAttention([owner], { ...focus, blockId: 'block-0' }).record).toBeUndefined();
+    expect(resolveAttention([owner], { ...focus, blockId: 'block-0' }, [12]).record?.rawText).toBe(record.rawText);
+  });
+
   test('result pins retain the native artifact through local review and reintegration', () => {
     const native = work.artifact!;
     const ref = { ...arrangement.left, artifactId: native.id };

@@ -7,11 +7,13 @@
   import InquirySurface from './InquirySurface.svelte';
   import ArtifactLineage from './ArtifactLineage.svelte';
   import CatalogPicker from './CatalogPicker.svelte';
+  import SavedComparisons from './SavedComparisons.svelte';
+  import { openSnapshot, sameSnapshotView, snapshotRenderer, supportsBlockFocus, type CompositionSnapshot } from './composition-snapshots';
   import { savedWork, type WorkSummary } from './saved-work';
   import type { ArtifactSourceTarget } from './artifact-inputs';
   import ImprovementReview from './ImprovementReview.svelte';
   import { makeReflectionFixture } from './reflection-fixture';
-  import { contentBlocks } from './semantic';
+  import { contentBlocks, rendererVersion } from './semantic';
   import { applyArrangement, compositionKey, compileAttentionRequest, contextText, emptyComposition, evidenceChain, matchesExperiment, readComposition, resolveAttention, resolveTarget, artifacts, outputEvidence, sameArrangement, undoArrangement, validateEvidenceChain } from './comparison';
   import type { ApertureTarget, Arrangement } from './comparison';
   import type { FrozenArtifactInput, Investigation, InvestigationContext, ContextRecord, InvestigationArtifact, EvidenceSelection } from './types';
@@ -57,9 +59,12 @@
   const right = $derived(resolveTarget(investigations, arranged?.right));
   const focused = $derived(resolveTarget(investigations, composition.focus));
   const focusedArtifact = $derived(resolveAttention(investigations, composition.focus).artifact);
-  const focusedBlock = $derived(focusedArtifact ? contentBlocks(focusedArtifact.text).find((block) => block.id === composition.focus?.blockId) : null);
+  const focusSupported = $derived(supportsBlockFocus(composition.focus, snapshotRenderer(composition)));
+  const presentationFocus = $derived(focusSupported ? composition.focus : composition.focus ? { ...composition.focus, blockId: undefined } : null);
+  const focusedBlock = $derived(focusSupported && focusedArtifact ? contentBlocks(focusedArtifact.text).find((block) => block.id === composition.focus?.blockId) : null);
   const support = $derived(focusedBlock?.citations ?? (composition.focus?.seq ? [composition.focus.seq] : []));
   const focusedRecord = $derived(resolveAttention(investigations, composition.focus, focusedBlock?.citations).record);
+  const fallbackRecord = $derived(!focusSupported && focusedArtifact ? focused.context?.records.find((record) => record.seq === composition.focus?.seq && record.threadId === composition.focus.threadId && focusedArtifact.citations.includes(record.seq)) : undefined);
   const canReview = $derived(!!resolveTarget(investigations, draft.left).context && !!resolveTarget(investigations, draft.right).context && !sameArrangement(arranged, draft));
   const inquirySubjects = $derived(investigations.filter((item) => item.continuation?.inquiry));
   const activeSubject = $derived(investigations.find((item) => item.id === draft.left.investigationId && item.continuation?.inquiry) ?? inquirySubjects[0]);
@@ -174,6 +179,21 @@
     receiveInvestigation(value);
   }
 
+  function openSavedComparison(snapshot: CompositionSnapshot, owners: Investigation[]) {
+    for (const owner of owners) receiveInvestigation(owner);
+    // Cancel pending target selections and semantic proposals; a saved snapshot
+    // opens its compiled references without consulting current/latest bindings.
+    bindRequests.left++; bindRequests.right++; seenRequest = requestId;
+    composition = openSnapshot($state.snapshot(composition), snapshot);
+    draft = structuredClone(snapshot.arrangement);
+    editing = false; reviewing = false; intentError = ''; recordPage = { left: 0, right: 0 };
+    receipt = `Opened “${snapshot.title}” with its exact saved references and focus.`;
+  }
+
+  function savedComparison(snapshot: CompositionSnapshot) {
+    if (sameSnapshotView(composition, snapshot)) composition = { ...composition, snapshotId: snapshot.id };
+  }
+
   function referencedOwners(): string[] {
     return [...new Set([arranged?.left.investigationId, arranged?.right.investigationId,
       draft.left.investigationId, draft.right.investigationId, composition.focus?.investigationId, initialId]
@@ -241,14 +261,14 @@
   function focusBlock(investigation: Investigation, artifact: InvestigationArtifact, block: { id: string; citations: number[] }) {
     const context = investigation.contexts.find((c) => c.id === artifact.contextId);
     const first = context?.records.find((r) => block.citations.includes(r.seq) && artifact.citations.includes(r.seq));
-    composition = { ...composition, focus: {
+    composition = { ...composition, focusRendererVersion: rendererVersion, focus: {
       investigationId: investigation.id, contextId: artifact.contextId, artifactId: artifact.id, blockId: block.id,
       ...(first ? { seq: first.seq, threadId: first.threadId } : {})
     } };
   }
 
   function focusRecord(investigation: Investigation, context: InvestigationContext, record: ContextRecord) {
-    composition = { ...composition, focus: { investigationId: investigation.id, contextId: context.id, seq: record.seq, threadId: record.threadId } };
+    composition = { ...composition, focusRendererVersion: rendererVersion, focus: { investigationId: investigation.id, contextId: context.id, seq: record.seq, threadId: record.threadId } };
   }
 
   function chooseEvidence(seq: number) {
@@ -317,6 +337,8 @@
   {#if error}<p class="work-error" role="alert">{error} {investigations.length ? 'Showing last fetched state; it may be stale.' : 'Saved references are retained.'} <button onclick={() => void refresh()}>Retry</button></p>{/if}
   {#if storageError}<p class="work-notice" role="status">Browser storage is unavailable. This arrangement will not survive reload.</p>{/if}
   {#if receipt}<p class="composition-receipt" role="status">{receipt}</p>{/if}
+
+  <SavedComparisons {composition} active={open} {editing} onOpen={openSavedComparison} onSaved={savedComparison} />
 
   <section class="attention-intents" aria-label="Organize this investigation">
     <div class="intent-copy"><span class="eyebrow">Arrange attention</span><p>{previewVersion && activeExperiment ? 'Presentation preview · evidence before interpretation' : 'Choose a relation to bring into view.'}</p></div>
@@ -388,7 +410,7 @@
   {#if arranged}
     <div class="composition-meta"><span>Lens / {arranged.intent === 'evidence-chain' ? 'evidence, question & receipt' : arranged.lens === 'result' ? 'returned work' : 'context & evidence'} · v1</span><span>Saved references · browser arrangement · {arranged.layout === 'beside' ? 'side by side' : 'stacked'}</span></div>
     {#if arranged.intent === 'evidence-chain'}
-      <InquirySurface arrangement={arranged} {investigations} {selections} fixtureInquiry={fixture?.inquiry} focus={composition.focus} onBlock={focusBlock} onRecord={focusRecord} onUpdate={updateInvestigation} onRebind={() => stageIntent('evidence-chain', arranged.left.investigationId)} onPreview={() => openFixture('supplied')} />
+      <InquirySurface arrangement={arranged} {investigations} {selections} fixtureInquiry={fixture?.inquiry} focus={presentationFocus} onBlock={focusBlock} onRecord={focusRecord} onUpdate={updateInvestigation} onRebind={() => stageIntent('evidence-chain', arranged.left.investigationId)} onPreview={() => openFixture('supplied')} />
     {:else}
     {#if arranged.experimentId && !activeExperiment}<p class="work-notice">The named experiment cannot be resolved with these exact bindings. Its evaluation and adoption preview are unavailable.</p>{/if}
     {#if activeExperiment}
@@ -396,7 +418,7 @@
     {/if}
     {#if activeExperiment && fixture && previewVersion === fixture.improvement.afterVersion}
       {@const chain = evidenceChain(fixture.investigations[0])}
-      {#if chain}<section data-presentation-preview="evidence-first" aria-label="Evidence first presentation preview"><p class="preview-boundary">Presentation preview · bring the evidence chain before the competing interpretations</p><InquirySurface arrangement={chain} {investigations} {selections} fixtureInquiry={fixture.inquiry} focus={composition.focus} onBlock={focusBlock} onRecord={focusRecord} onUpdate={updateInvestigation} onRebind={() => stageIntent('evidence-chain', chain.left.investigationId)} onPreview={() => openFixture('supplied')} /></section>{/if}
+      {#if chain}<section data-presentation-preview="evidence-first" aria-label="Evidence first presentation preview"><p class="preview-boundary">Presentation preview · bring the evidence chain before the competing interpretations</p><InquirySurface arrangement={chain} {investigations} {selections} fixtureInquiry={fixture.inquiry} focus={presentationFocus} onBlock={focusBlock} onRecord={focusRecord} onUpdate={updateInvestigation} onRebind={() => stageIntent('evidence-chain', chain.left.investigationId)} onPreview={() => openFixture('supplied')} /></section>{/if}
     {/if}
     <div class="comparison-apertures">
       {#each sides as item (item.side)}
@@ -424,7 +446,7 @@
           {:else if item.artifact}
             {@const artifact = item.artifact}
             <p class="aperture-caption">{artifactLabel(item.investigation, artifact)} · citations establish supplied input, not proof</p>
-            <WorkContent source={artifact.text} focusedBlockId={composition.focus?.artifactId === artifact.id ? composition.focus.blockId : undefined} onFocus={(block) => focusBlock(item.investigation!, artifact, block)} />
+            <WorkContent source={artifact.text} focusedBlockId={presentationFocus?.artifactId === artifact.id ? presentationFocus.blockId : undefined} onFocus={(block) => focusBlock(item.investigation!, artifact, block)} />
             <button onclick={() => lineageTarget = { investigationId: item.investigation!.id, artifactId: artifact.id, contextId: artifact.contextId }}>Inspect result provenance</button>
             {#if artifact.unsupportedCitations.length}<p class="work-notice">Outside the supplied packet: {artifact.unsupportedCitations.map((seq) => `[evidence:${seq}]`).join(', ')}. Support is unverified.</p>{/if}
             {#if artifact.unsupportedArtifactCitations?.length}<p class="work-notice">Results outside the supplied packet: {artifact.unsupportedArtifactCitations.map((id) => `[artifact:${id}]`).join(', ')}. Support is unverified.</p>{/if}
@@ -463,12 +485,15 @@
     <header><div><span class="eyebrow">Focus / original evidence</span><h3 bind:this={evidenceHeading} tabindex="-1">{composition.focus ? 'The source stays with the claim.' : 'Inspect a claim. Keep both readings.'}</h3></div><span class="focus-shortcut">Alt E · evidence</span></header>
     {#if composition.focus}
       <div class="focus-binding"><span>{label(composition.focus)}</span><button onclick={() => composition = { ...composition, focus: null }}>Release focus</button></div>
-      {#if !focused.context || (composition.focus.artifactId && !focusedBlock)}
+      {#if !focusSupported}
+        <p class="work-notice" data-unresolved-selector>Passage selector unavailable for renderer {composition.focusRendererVersion}. The exact result and record references are retained; no passage is highlighted. Select “Inspect support” again to choose a passage with the installed renderer.</p>
+        {#if fallbackRecord}<p class="aperture-caption">Saved record · passage association unresolved</p><EvidenceRecord record={fallbackRecord} />{/if}
+      {:else if !focused.context || (composition.focus.artifactId && !focusedArtifact) || (composition.focus.blockId && !focusedBlock)}
         <p class="work-notice">This focus cannot be resolved. Its saved reference is retained; no other claim has been substituted.</p>
       {:else}
         <div class="evidence-body">
           <div class="evidence-nav">
-            <p class="aperture-caption">{focusedBlock ? 'Support cited by this passage' : 'Selected frozen context record'}</p>
+            <p class="aperture-caption">{focusedBlock ? 'Support cited by this passage' : focusedArtifact ? 'Saved record cited by this result · no passage selected' : 'Selected frozen context record'}</p>
             {#each support as seq}
               {@const valid = focused.context.records.some((r) => r.seq === seq) && (!focusedArtifact || focusedArtifact.citations.includes(seq))}
               <button data-evidence-seq={seq} disabled={!valid} aria-pressed={composition.focus.seq === seq} onclick={() => chooseEvidence(seq)}>[evidence:{seq}] {valid ? '' : '· outside packet'}</button>
@@ -477,7 +502,7 @@
               {@const input = focusedArtifact?.artifactCitations?.includes(id) ? focused.context.artifactInputs?.find((value) => value.artifactId === id) : undefined}
               <button disabled={!input} onclick={() => input && inspectArtifact(input)}>[artifact:{id}] {input ? '· inspect source result' : '· outside packet'}</button>
             {/each}
-            {#if !support.length && !focusedBlock?.artifactCitations.length}<p>No evidence cited by this passage. Its support is unverified.</p>{/if}
+            {#if !support.length && !focusedBlock?.artifactCitations.length}<p>{focusedBlock ? 'No evidence cited by this passage. Its support is unverified.' : 'No individual record selected. Inspect support beside a passage to choose one.'}</p>{/if}
             {#if focusedBlock}<details><summary>Focused passage</summary><Markdown source={focusedBlock.text} /></details>{/if}
           </div>
           <div class="evidence-record">

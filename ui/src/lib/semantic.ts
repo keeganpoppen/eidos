@@ -1,5 +1,10 @@
 import { marked } from 'marked';
+import { version as markedVersion } from 'marked/package.json';
 import type { EvidenceSelection } from './types';
+
+// Change v1 when block/citation selector semantics change; the parser version is
+// resolved from the installed package, never its dependency range.
+export const rendererVersion = `nema-content-blocks/v1;marked@${markedVersion}`;
 
 export function sameSelections(left: EvidenceSelection[], right: EvidenceSelection[]): boolean {
   return left.length === right.length && left.every((item, index) => {

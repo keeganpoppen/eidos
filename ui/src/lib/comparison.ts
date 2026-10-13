@@ -26,6 +26,8 @@ export type Composition = {
   arrangement: Arrangement | null;
   undo: Array<Arrangement | null>;
   focus: Attention | null;
+  focusRendererVersion?: string;
+  snapshotId?: string;
 };
 export const compositionKey = 'nema.composition.v1';
 export const emptyComposition = (): Composition => ({ version: 1, open: false, arrangement: null, undo: [], focus: null });
@@ -88,6 +90,8 @@ export function readComposition(raw: string | null): Composition {
     }
     return {
       version: 1, open: value.open === true, arrangement: arrangement(value.arrangement), focus,
+      ...(typeof value.focusRendererVersion === 'string' ? { focusRendererVersion: value.focusRendererVersion } : {}),
+      ...(typeof value.snapshotId === 'string' ? { snapshotId: value.snapshotId } : {}),
       undo: Array.isArray(value.undo) ? value.undo.slice(-12).map(arrangement) : []
     };
   } catch { return emptyComposition(); }
@@ -139,6 +143,7 @@ export function validateEvidenceChain(investigations: Investigation[], value: Ar
     if (!result || !bound.response || bound.response.decision === 'defer') return 'The result requires an exact terminal response.';
     if (result.kind === 'eidos-evidence-review') {
       if (result.contextId !== original.contextId || result.nativeArtifactId !== original.id || result.continuationId !== value.inquiry.continuationId) return 'The result is not the receipt for this original artifact and terminal decision.';
+      if (result.inquiryId !== value.inquiry.inquiryId || result.responseId !== bound.response.id || result.decisionOccurrenceId !== bound.response.occurrenceId || result.attemptId !== bound.continuation?.attemptId) return 'The receipt does not match this exact inquiry, response, decision occurrence, and attempt.';
       if ((result.evidenceContextId ?? undefined) !== value.inquiry.evidenceContextId) return 'The receipt and separately offered evidence do not match.';
     } else {
       const lineage = result.continuedFrom;
@@ -170,12 +175,13 @@ export function compileAttentionRequest(value: unknown, investigations: Investig
   throw new Error('Unsupported attention intent. No action was performed.');
 }
 
-/** A remembered source must still be cited by this exact artifact/context/block. */
+/** A remembered source must still be cited by its exact artifact/context and,
+ * when a passage selector is present, that exact block. */
 export function resolveAttention(investigations: Investigation[], focus: Attention | null, blockCitations: number[] = []) {
   const resolved = resolveTarget(investigations, focus);
   const boundArtifact = resolved.artifact ?? null;
   const record = resolved.context?.records.find((item) => item.seq === focus?.seq && item.threadId === focus?.threadId &&
-    (!focus?.artifactId || (boundArtifact?.citations.includes(item.seq) && blockCitations.includes(item.seq))));
+    (!focus?.artifactId || (boundArtifact?.citations.includes(item.seq) && (!focus.blockId || blockCitations.includes(item.seq)))));
   return { ...resolved, artifact: boundArtifact, record };
 }
 
