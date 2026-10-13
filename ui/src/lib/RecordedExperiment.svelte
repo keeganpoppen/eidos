@@ -1,10 +1,11 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import LineDiff from './LineDiff.svelte';
+  import ExperimentEvaluation from './ExperimentEvaluation.svelte';
   import { artifacts, contextText } from './comparison';
   import type { Investigation, WorkbenchExperiment } from './types';
 
-  let { investigation }: { investigation: Investigation } = $props();
+  let { investigation, onCompare }: { investigation: Investigation; onCompare: (experimentId: string) => void } = $props();
   let experiments = $state<WorkbenchExperiment[]>([]);
   let baselineArtifactId = $state('');
   let alternativeContextId = $state('');
@@ -91,21 +92,10 @@
     <article class="recorded-experiment" data-experiment-id={experiment.id} data-experiment-status={experiment.status}>
       <h4>{experiment.rationale}</h4><p class="experiment-state">{experiment.status} · {experiment.mode} · {experiment.evidenceClass} evidence</p>
       <details><summary>Inspect experiment bindings</summary><p class="object-ref">Experiment {experiment.id}<br />Proposal {experiment.proposalId}<br />Baseline {experiment.baseline.artifactId}<br />Alternative {experiment.alternative.contextId}</p></details>
-      <p>Observed selection measurement: {experiment.evaluation.baseline.recordCount} → {experiment.evaluation.alternative.recordCount} records; {experiment.evaluation.baseline.promptBytes} → {experiment.evaluation.alternative.promptBytes} input bytes.</p>
-      <p>Added records: {experiment.evaluation.addedRecordIds.join(', ') || 'none'}. Removed records: {experiment.evaluation.removedRecordIds.join(', ') || 'none'}.</p>
-      {#if experiment.evaluation.method === 'context-selection-comparison/v2'}
-        <p>Exact result inputs: {experiment.evaluation.baseline.artifactCount ?? 0} → {experiment.evaluation.alternative.artifactCount ?? 0}.</p>
-        <p class="artifact-measurement">Added results: {experiment.evaluation.addedArtifactIds?.join(', ') || 'none'}. Removed results: {experiment.evaluation.removedArtifactIds?.join(', ') || 'none'}.</p>
-        <p class="artifact-measurement">Changed frozen result inputs: {experiment.evaluation.changedArtifactIds?.join(', ') || 'none'}.</p>
-      {/if}
-      <ul><li>Question retained: {experiment.evaluation.checks.sameQuestion ? 'yes' : 'no'}</li><li>Baseline evidence retained: {experiment.evaluation.checks.baselineEvidenceRetained ? 'yes' : 'no'}</li>{#if experiment.evaluation.checks.baselineArtifactsRetained !== undefined}<li>Frozen result inputs retained: {experiment.evaluation.checks.baselineArtifactsRetained ? 'yes' : 'no'}</li>{/if}<li>Within context bound: {experiment.evaluation.checks.withinContextBound ? 'yes' : 'no'}</li></ul>
-      <p class="work-notice">{experiment.evaluation.passes ? 'Structural checks passed.' : 'Structural checks did not all pass.'} Model calls: 0. Better reasoning or user benefit is unmeasured.</p>
-      <details><summary>Evaluation identity and limits</summary><p class="object-ref">{experiment.evaluation.id} · {experiment.evaluation.method}</p><ul>{#each experiment.evaluation.limitations as limit}<li>{limit}</li>{/each}</ul></details>
+      <button class="compare-recorded-experiment" onclick={() => onCompare(experiment.id)}>Compare these saved inputs</button>
+      <ExperimentEvaluation {experiment} />
       {#if experiment.review}
-        <p>{experiment.review.kind === 'human' ? 'Owner decision' : 'Synthetic review decision'}: {experiment.review.decision} · {experiment.review.rationale}</p>
-        <p class="work-muted">Durable {experiment.review.kind} review {experiment.review.id}. Configuration activation: not performed.</p>
         {#if experiment.adoption && !experiment.rollback}<label for={`rollback-${experiment.id}`}>Rollback rationale</label><textarea id={`rollback-${experiment.id}`} bind:value={reviewNotes[experiment.id]} rows="2"></textarea><button disabled={busy || !!pending || !reviewNotes[experiment.id]?.trim()} onclick={() => send({ path: `${basePath}/${encodeURIComponent(experiment.id)}/rollback`, body: { requestId: crypto.randomUUID(), rationale: reviewNotes[experiment.id] ?? '' } })}>Record rollback</button>{/if}
-        {#if experiment.rollback}<p>Rollback retained: {experiment.rollback.rationale}</p>{/if}
       {:else}
         <label for={`review-${experiment.id}`}>Owner review rationale</label><textarea id={`review-${experiment.id}`} bind:value={reviewNotes[experiment.id]} rows="2" placeholder="What does this measurement justify carrying forward?"></textarea>
         <button disabled={busy || !!pending || !reviewNotes[experiment.id]?.trim() || !experiment.evaluation.passes} onclick={() => review(experiment, 'adopt')}>Adopt recorded proposal</button><button disabled={busy || !!pending || !reviewNotes[experiment.id]?.trim()} onclick={() => review(experiment, 'reject')}>Reject recorded proposal</button>

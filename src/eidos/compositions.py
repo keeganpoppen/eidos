@@ -140,6 +140,10 @@ class Compositions:
             artifact = next((a for a in _artifacts(work) if a["id"] == target["artifactId"] and a["contextId"] == context["id"]), None)
             if artifact is None:
                 raise InvestigationError(409, "saved artifact does not belong to this exact context")
+            attempt = next((a for a in (work.get("attempt"), *work.get("attemptHistory", []))
+                            if a and a["id"] == artifact.get("attemptId")), None)
+            if attempt is None or attempt["contextId"] != context["id"]:
+                raise InvestigationError(409, "saved artifact/context/attempt provenance mismatch")
         if "seq" in target:
             if not any(r["seq"] == target["seq"] and r["threadId"] == target["threadId"] for r in context["records"]):
                 raise InvestigationError(409, "focused record does not belong to this exact context and thread")
@@ -241,6 +245,8 @@ class Compositions:
                 self._inquiry(arrangement, left, right)
             if "experimentId" in arrangement:
                 experiment = self.experiments.get(left[0]["id"], arrangement["experimentId"])
+                if left[2] is None or left[2].get("attemptId") != experiment["baseline"]["attemptId"]:
+                    raise InvestigationError(409, "saved baseline no longer matches the named experiment's exact attempt")
                 for side, target in (("left", "baseline"), ("right", "alternative")):
                     expected = {k: experiment[target][k] for k in ("investigationId", "contextId", "artifactId") if k in experiment[target]}
                     if arrangement[side] != expected:

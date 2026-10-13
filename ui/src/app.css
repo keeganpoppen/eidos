@@ -1217,7 +1217,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, summary:focus-v
 .focus-binding { display: flex; flex-wrap: wrap; gap: 12px; align-items: baseline; justify-content: space-between; margin-bottom: 14px; color: #656258; font-size: 12px; }
 .evidence-body { display: grid; grid-template-columns: minmax(180px, .27fr) minmax(0, 1fr); gap: 24px; }
 .evidence-nav { min-width: 0; font-size: 13px; line-height: 1.5; }
-.evidence-nav button { display: block; width: 100%; text-align: left; margin-bottom: 6px; }
+.evidence-nav button { display: block; width: 100%; max-width: 100%; min-width: 0; overflow-wrap: anywhere; white-space: normal; text-align: left; margin-bottom: 6px; }
 .evidence-nav button[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
 .evidence-nav details { margin-top: 14px; }
 .evidence-record { min-width: 0; padding-left: 22px; border-left: 1px solid var(--accent); }

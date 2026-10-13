@@ -29,7 +29,8 @@
   let comparisonOpen = $state(false);
   let comparisonSeed = $state('');
   let comparisonRequest = $state(0);
-  let comparisonIntent = $state<'comparison' | 'evidence-chain'>('comparison');
+  let comparisonIntent = $state<'comparison' | 'evidence-chain' | 'alternative-review'>('comparison');
+  let comparisonExperimentId = $state('');
   let historyAnchorSeq = $state<number | null>(null);
   let recordQuery = $state('');
   let historyNotice = $state('');
@@ -392,9 +393,10 @@
     document.querySelector('.history-navigation')?.scrollIntoView({ block: 'start' });
   }
 
-  function compareInvestigation(id: string, intent: 'comparison' | 'evidence-chain' = 'comparison') {
+  function compareInvestigation(id: string, intent: 'comparison' | 'evidence-chain' | 'alternative-review' = 'comparison', experimentId = '') {
     comparisonSeed = id;
     comparisonIntent = intent;
+    comparisonExperimentId = intent === 'alternative-review' ? experimentId : '';
     comparisonRequest += 1;
     comparisonOpen = true;
   }
@@ -487,7 +489,7 @@
     </div>
   </aside>
 
-  <ComparisonSurface bind:open={comparisonOpen} initialId={comparisonSeed} requestId={comparisonRequest} requestIntent={comparisonIntent} {selections} />
+  <ComparisonSurface bind:open={comparisonOpen} initialId={comparisonSeed} requestId={comparisonRequest} requestIntent={comparisonIntent} requestExperimentId={comparisonExperimentId} {selections} />
 
   <div class:hidden-aperture={!workMode || comparisonOpen} class="work-aperture">
     <InvestigationPane bind:selections onSource={returnToSource} onCompare={compareInvestigation} />

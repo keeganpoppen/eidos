@@ -1,4 +1,4 @@
-import type { Investigation, InvestigationArtifact, InvestigationAttempt, InvestigationContext } from './types';
+import type { Investigation, InvestigationArtifact, InvestigationAttempt, InvestigationContext, WorkbenchExperiment } from './types';
 import type { ArtifactSourceTarget } from './artifact-inputs';
 
 export type WorkSummary = Pick<Investigation, 'id' | 'title' | 'status' | 'createdAtMs' | 'currentContextId'> & {
@@ -107,6 +107,17 @@ export class SavedWorkClient {
         throw new Error('This exact result, source context, or attempt is unavailable. No newer result has been substituted.');
       }
       return source;
+    });
+  }
+
+  /** Review state can change independently of an owner's version. Deduplicate
+   * concurrent reads, but re-read only on explicit navigation/refresh. */
+  experiment(ownerId: string, experimentId: string): Promise<WorkbenchExperiment> {
+    const path = `/api/investigations/${encodeURIComponent(ownerId)}/experiments/${encodeURIComponent(experimentId)}`;
+    return this.once(path, async () => {
+      const value: WorkbenchExperiment = await this.read(path);
+      if (value.id !== experimentId || value.investigationId !== ownerId) throw new Error('The saved experiment does not match this owner and experiment reference.');
+      return value;
     });
   }
 }

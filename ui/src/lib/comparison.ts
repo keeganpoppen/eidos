@@ -1,4 +1,4 @@
-import type { Investigation, InvestigationContext, InvestigationArtifact, InvestigationAttempt } from './types';
+import type { Investigation, InvestigationContext, InvestigationArtifact, InvestigationAttempt, WorkbenchExperiment } from './types';
 import type { InquiryBinding } from './reflection';
 import { resolveInquiryBinding } from './reflection';
 
@@ -31,6 +31,21 @@ export type Composition = {
 };
 export const compositionKey = 'nema.composition.v1';
 export const emptyComposition = (): Composition => ({ version: 1, open: false, arrangement: null, undo: [], focus: null });
+
+/** Async target reads belong to one draft operation, even when an owner cache
+ * mutation creates a newer request for the same owner before an old read ends. */
+export function createTargetRequests() {
+  let epoch = 0;
+  const requests = { left: 0, right: 0 };
+  return {
+    begin(side: 'left' | 'right') {
+      const started = epoch;
+      const request = ++requests[side];
+      return () => started === epoch && request === requests[side];
+    },
+    cancel() { epoch++; }
+  };
+}
 
 function object(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === 'object' && !Array.isArray(value);
@@ -159,7 +174,32 @@ export function matchesExperiment(value: Arrangement, experiment: { id: string; 
   const same = (a: ApertureTarget, b: ApertureTarget) => a.investigationId === b.investigationId && a.contextId === b.contextId && a.artifactId === b.artifactId;
   return value.experimentId === experiment.id && same(value.left, experiment.baseline) && same(value.right, experiment.alternative);
 }
-export function compileAttentionRequest(value: unknown, investigations: Investigation[], experiments: Array<{ id: string; baseline: ApertureTarget; alternative: ApertureTarget }>): Arrangement {
+export function validateRecordedExperiment(investigations: Investigation[], experiment: WorkbenchExperiment): string | null {
+  const owner = investigations.find((item) => item.id === experiment.investigationId);
+  if (!owner || experiment.mode !== 'reinterpretation' || experiment.baseline.investigationId !== owner.id || experiment.alternative.investigationId !== owner.id) return 'This recorded experiment or its owning investigation is unavailable.';
+  const baseline = resolveTarget([owner], experiment.baseline);
+  const attempt = attempts(owner).find((item) => item.id === experiment.baseline.attemptId && item.contextId === experiment.baseline.contextId);
+  if (!baseline.context || !baseline.artifact || !attempt || baseline.artifact.attemptId !== attempt.id) return 'The experiment’s exact baseline context, result, or attempt is unavailable.';
+  if ('artifactId' in experiment.alternative || !resolveTarget([owner], experiment.alternative).context) return 'The experiment requires its exact context-only alternative.';
+  return null;
+}
+
+/** Lens changes retain evaluated targets, including an intentionally result-free
+ * alternative. Only a free comparison may choose a result for an unpinned side. */
+export function changeComparisonLens(value: Arrangement, lens: Arrangement['lens'], investigations: Investigation[]): Arrangement {
+  const next = { ...value, lens };
+  if (lens === 'result' && !value.experimentId) for (const side of ['left', 'right'] as const) {
+    if (!next[side].artifactId) {
+      const owner = investigations.find((item) => item.id === next[side].investigationId);
+      const artifact = artifacts(owner).find((item) => item.contextId === next[side].contextId);
+      if (artifact) next[side] = { ...next[side], artifactId: artifact.id };
+    }
+  }
+  return next;
+}
+
+type ComparisonExperiment = { id: string; baseline: ApertureTarget; alternative: ApertureTarget } | WorkbenchExperiment;
+export function compileAttentionRequest(value: unknown, investigations: Investigation[], experiments: ComparisonExperiment[]): Arrangement {
   if (!object(value) || value.version !== 1) throw new Error('Attention requests require version 1.');
   if (value.intent === 'evidence-chain') {
     const investigation = investigations.find((item) => item.id === value.investigationId);
@@ -169,6 +209,12 @@ export function compileAttentionRequest(value: unknown, investigations: Investig
   }
   if (value.intent === 'alternative-review') {
     const experiment = experiments.find((item) => item.id === value.experimentId);
+    if (experiment && 'investigationId' in experiment) {
+      if (value.investigationId !== experiment.investigationId) throw new Error('A recorded alternative requires its exact owning investigation.');
+      const failure = validateRecordedExperiment(investigations, experiment);
+      if (failure) throw new Error(failure);
+      return { left: copyTarget(experiment.baseline), right: copyTarget(experiment.alternative), lens: 'context', layout: 'beside', intent: 'alternative-review', experimentId: experiment.id };
+    }
     if (!experiment || !resolveTarget(investigations, experiment.baseline).artifact || !resolveTarget(investigations, experiment.alternative).artifact) throw new Error('The named experiment or its exact results are unavailable.');
     return { left: copyTarget(experiment.baseline), right: copyTarget(experiment.alternative), lens: 'result', layout: 'beside', intent: 'alternative-review', experimentId: experiment.id };
   }

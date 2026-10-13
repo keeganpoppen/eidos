@@ -1,118 +1,97 @@
-# Current handoff — saved comparisons and native tool controls
+# Current handoff — recorded experiments and model-specific native tools
 
-**NEMA-SEED-1 · 2026-10-13 · latest integration base `579af9d` on main.**
-The commit containing this handoff identifies the completed integration. The continuing mission
-remains active; [PROGRAM](PROGRAM.md) owns conjectures and opportunity ordering.
-The [previous scale integration](history/SAVED_WORK_SCALE_INTEGRATED.md) is pushed;
-its [public CI](https://github.com/keeganpoppen/eidos/actions/runs/38455597139) passed.
-Neither a green suite nor this milestone completes the mission or V1.
+**NEMA-SEED-1 · 2026-10-13 · integration base `2c447e4` on main.**
+The containing commit identifies this integration. The continuing mission remains
+active; [PROGRAM](PROGRAM.md) owns conjectures and opportunity ordering. Previous
+[comparison/tool-control handoff](history/SAVED_COMPARISONS_AND_TOOL_CONTROLS.md)
+is archived; [its CI](https://github.com/keeganpoppen/eidos/actions/runs/38459702904)
+passed. No milestone or green suite completes the mission or V1.
 
-## Active successor checkpoint
+## Delivered loop and reviewed contributions
 
-`579af9d475045936ccfc24d53104990e6064e56b` was committed and pushed with a clean
-tree; public CI passed [run 38458842177](https://github.com/keeganpoppen/eidos/actions/runs/38458842177).
-The next [recorded-experiment contract](RECORDED_EXPERIMENT_COMPOSITION_TASK.md) is
-active from that revision. UI owns `/tmp/nema-recorded-experiment-ui`; independent
-acceptance owns `/tmp/nema-recorded-experiment-acceptance`. Root's read-only backend
-review found existing exact experiment GET/immutable targets adequate; no new route
-or mutation is planned. Acceptance will label later attempt/result state as authored
-trusted-host fixtures because public draft revision freezes after dispatch.
+A recorded context experiment now opens a reviewable comparison of its exact
+baseline context/result/attempt and context-only alternative. Apply, inspect the
+frozen source-input difference and original support, save a named snapshot, and
+reopen it in a fresh browser. Later results/current contexts do not rebind either
+side; an explicit result-lens change does not invent an alternative result.
+Current experiment review refreshes separately from immutable targets and snapshot
+content. Existing exact experiment GET is reused; no new backend route or dispatch.
+[Contract](RECORDED_EXPERIMENT_COMPOSITION_TASK.md),
+[acceptance and reproduction](../evidence/RECORDED_EXPERIMENT_COMPOSITION_INTEGRATION.md).
 
-Native tool-control contributions `22009db` + `7afd982` are inspected and integrated
-in this successor integration. Independent default review passed **64 passed / 7 skipped**; parent
-combined native opt-in passed **71**, including earlier text-only probes. The final
-metadata fix distinguishes two accepted provider requests from the 24 total HTTP
-request bound. Combined default suite: **849 passed, 38 skipped**.
-[Native evidence](../evidence/NATIVE_TOOL_BOUNDARY_EXPERIMENT.md). No production admission changes.
-Native lane is now a read-only scout ranking the next discriminator: known model
-metadata, resource bounds, and the explicit trusted-client/caller-auth boundary.
-The delivered status below belongs to `579af9d`.
+Accepted UI `aa0d847` + `fcf333f`; independent fixture/acceptance `b623ff8` + `6e8ae53`.
+Root added artifact/context/attempt consistency to new snapshot admission and a
+named experiment's exact baseline-attempt check. Malformed imports with unchanged
+artifact IDs now fail new saves; existing snapshot reads/exact retries stay intact.
+Review caught an old cache-generation owner load replacing a newer historical
+preview; operation-scoped invalidation fixes it. Rendered acceptance caught and
+fixed mobile overflow from long artifact-input citation controls.
 
-## Implemented loop and contract
+Native catalog research `f848ae1` is independently reviewed and integrated.
+The exact public 0.154.0 catalog makes Astra register code/async/collaboration tools
+despite the prior feature flags, and a safe authored clock call succeeds without a
+separate native tool-action item. The gpt-5.5 control offers no tools and rejects
+the two challenged calls. Both reject disabled MCP resource access. This falsifies
+a model-independent tools-disabled claim and the inference that absent action
+items prove inactivity. No real model/upstream/credentials or production gate change.
+[Exact source, wire evidence and limits](../evidence/NATIVE_MODEL_CATALOG_EXPERIMENT.md).
 
-Save an applied comparison and exact focus under a name, find/preview/open it in a
-fresh browser on the same database, then save an altered copy with ancestry.
-[V1-01/10, C5; frozen contract](DURABLE_ARRANGEMENTS_TASK.md). The snapshot stores
-compiled historical references, never an intent to re-resolve against newer work.
-Create-only ordinary ContextManifest Values and a thin local catalog/idempotency
-index preserve content. No mutation, dispatch or shared mutable workspace head.
+## Verification
 
-GET/POST `/api/compositions` provides bounded metadata discovery and immutable
-creation; GET `/:id` returns exact content. New saves validate owner/context/
-artifact/record and inquiry/experiment relationships. Exact successful retries
-return the original receipt even after source loss; changed-body retries conflict.
-Existing source loss remains unresolved references, never a latest substitute.
-Browser drafts and their pending save identities remain local. Passage selectors
-carry the installed parser version; unknown versions retain artifact/record IDs
-without interpreting a passage under a different parser. [D29](../roadmap/DECISIONS.md).
+- Parent integrated `uv run pytest`: **891 passed, 41 explicit native checks skipped**.
+- Parent UI: **73 tests / 385 assertions**, Svelte **0 errors / 0 warnings**, build passed.
+- Independent backend acceptance: **14 passed**; actual HTTP, exact pins, source
+  bytes/unknown fields, wrong-owner/missing references, frozen review changes and
+  malformed attempt relationships. Browser setup uses labelled trusted-host
+  synthetic historical results; it is not historical-context dispatch support.
+- Parent independently generated/reopened a fresh fixture; reports
+  `/tmp/nema-recorded-experiment-root-20261013.json` and its `-reopened-` counterpart
+  are byte-identical. Original context packets and source bytes survive.
+- Parent reran actual Chromium against integrated main and inspected all four
+  desktop/mobile screenshots. Delayed E1 after E2, late owner lookup, failed-read
+  retry, fresh-browser saved recovery, exact raw support, context-only lens changes,
+  manual review refresh and dirty/pending draft identities pass. Width390 overflow
+  zero; no JavaScript exceptions; three intended browser POSTs, no dispatch.
+  Two fresh experiments and one review are separately labelled fixture setup.
+- Parent native catalog opt-in: **29 passed**, two contained native turns, six local
+  provider requests, zero real model/upstream calls. Independent default review:
+  **95 passed / 10 skipped**. No shared native helper or production profile changes.
+- Owned fixture API, Vite and Chromium services were stopped after reproduction.
+  Parent browser report/screenshots: `/tmp/recorded_experiment_main_reproduction*`;
+  reusable marked DB: `/tmp/nema-recorded-experiment-final-20261013.db`.
 
-## Snapshot integration verification
+## Active successor and next runnable step
 
-- Integrated `uv run pytest`: **821 passed, 34 skipped**, explicit native opt-ins.
-- Integrated final Bun: **67 tests / 344 assertions**;
-  Svelte **0 errors / 0 warnings**, build passed.
-- Independent UI source review found a pending-save upgrade failure: exact old
-  renderer receipts with no passage were compared to the newly installed renderer.
-  Fix `c4fa791` separates receipt identity from display compatibility. Further
-  review fixed mobile long-title wrapping (`06893af`) and legal whole-artifact
-  cited-record focus without a passage selector (`849729b`). Parent full UI
-  tests/check/build above include all fixes.
-- Independent API acceptance **33 tests**, plus parent **20 focused backend tests**
-  pass. Actual HTTP, two-connection concurrency, reopen/retry, malformed reference
-  rejection, missing source, exact inquiry/experiment pins, metadata pages covered.
-- Parent generated/reopened a fresh synthetic snapshot database; JSON reports
-  `/tmp/nema-composition-integrator-20261013.json` and its reopened counterpart are
-  byte-identical. Fixture source state remains intact.
-- Parent guarded native synthetic-provider opt-in: **39 passed**. Two native
-  turn RPCs, **zero real model/upstream calls**, no credentials or gate changes.
-  [Exact scope](../evidence/NATIVE_SYNTHETIC_TURN_EXPERIMENT.md).
-- Parent independently reran the complete actual Chromium check against main:
-  fresh-browser preview/open, committed-lost-reply retry, exact raw-source bytes,
-  changed copies, historical inquiry pins, missing-source repair and renderer
-  fallback all pass. Desktop/390px screenshots inspected; long-title and focus
-  overflow zero, no JavaScript exceptions, six intended POSTs, no native dispatch.
-  [Full evidence and reproduction](../evidence/COMPOSITION_SNAPSHOT_INTEGRATION.md).
-- Final integrated Python was repeated after the fixture addition: **821 passed,
-  34 skipped**. Seed-context tests and diff check passed.
+[Bounded transport contract](BOUNDED_NATIVE_TRANSPORT_TASK.md) is active from
+`2c447e4`; current integration does not change its source files. The observed gap:
+unbounded native lines/events precede downstream limits, and malformed UTF-8/JSON
+or deep JSON can fail before preserving any evidence. `wait_for` retains skipped
+events outside its queue. Close that gap with finite configurable limits and an
+explicit internal capture diagnostic, preserving accepted terminal evidence and
+unknown outcomes without retry.
 
-## Active ownership and next runnable action
+- `history_ui`: `/tmp/nema-bounded-native-transport`, branch
+  `codex/bounded-native-transport`; owns client transport and focused tests.
+- Independent acceptance: `/tmp/nema-native-capture-acceptance`, branch
+  `codex/native-capture-acceptance`; owns new capture/recovery tests and fixtures.
+- Root owns shared worker/recovery changes if necessary, contract, integration/docs.
+- `native_frontier`: `/tmp/nema-native-model-catalog` now performs a read-only scout
+  of supported exact-model controls versus a transparently derived startup catalog
+  or narrower model profile. No new native/model calls or production edits in scout.
 
-Accepted independent acceptance `0abeed7` + `17d7be6`; UI `4234a9f`, `c4fa791`,
-`06893af`, `849729b`; synthetic native transport `b1896ae`. Parent owns backend,
-shared docs and the final main commit. Worktrees remain recoverable at
-`/tmp/nema-durable-arrangements-ui` and `/tmp/nema-durable-arrangements-acceptance`.
-All owned snapshot fixture services have been stopped after parent reproduction.
-Local parent artifacts: `/tmp/composition_snapshot_main_reproduction.json` and
-matching PNGs; final fixture DB `/tmp/nema-composition-snapshot-final-20261013.db`.
+**Next runnable step:** review the transport limits/capture schema with the
+independent recovery counterexamples, integrate only a coherent bounded recorder,
+and verify a truncated terminal cannot become completion after reopen. Continue
+native architecture research independently; do not require arbitrary-compromise
+security from a stated trusted executable/configuration. No human decision blocks
+ordinary repository progress.
 
-**Next runnable action:** after committing/pushing this wave, dispatch the
-[recorded-experiment composition contract](RECORDED_EXPERIMENT_COMPOSITION_TASK.md)
-from the new main revision into separate UI and acceptance worktrees. Root reviews
-existing experiment HTTP/frozen-reference invariants while those lanes implement.
-No human decision blocks ordinary repository work.
+## Limits
 
-Native lane `/root/native_frontier` in `/tmp/nema-native-account-admission` completed
-the tool-boundary probe above and now owns a read-only discriminator scout. New script/tests/evidence plus approved extraction of
-bounded HTTP parsing from its prior synthetic probe. Fresh disconnected namespace,
-noauth local fake provider, no private state, upstream, real models or production
-profile changes. Default checks launch no native. This work need not delay the
-snapshot integration. Observing an action after execution is not admission.
-
-## Frontier decision and limits
-
-The next product loop connects **real recorded context experiments** to comparison
-and snapshots. The existing comparison surface only resolves authored fixture
-experiments; real alternatives are context-only. Independent UI scout recommends
-exact experiment GET, reviewable context-lens composition, source-level frozen
-input differences and separately labelled current review. Challenge later C2/A2
-and a new result for C1: old experiment must stay C0/A1 versus C1 with no invented
-alternative result. Preserve dirty drafts and saved snapshots. No recipe activation
-until observed selection friction and an evaluation justify one. The [next task contract](RECORDED_EXPERIMENT_COMPOSITION_TASK.md) records the
-reviewed sketch; implementation has not begun.
-
-Same-database recovery only; no authentication/collaboration synchronization or
-human-speed claim. First preview loads complete referenced owners via the existing
-cache; metadata discovery does not cap all internal SQL/memory. Legacy browser
-focus without renderer metadata retains prior local behavior. Native text-only
-transport leaves tool execution/caller binding unproven; production gate is closed.
-Generic TM remains a trusted-host API, not arbitrary-caller security.
+Same-database synthetic recovery is verified, not human speed, answer quality or
+shared-user synchronization. Selected-owner views can still load full histories.
+Snapshot/source provenance validation is not authenticity of arbitrary imports.
+Native catalog presence is not account availability or subscription entitlement;
+no general rejection of all unoffered tools is proved. Native startup gate remains
+closed. Caller/transport authority and aggregate process resources remain separate
+obligations. Generic TM remains a trusted-host interface.

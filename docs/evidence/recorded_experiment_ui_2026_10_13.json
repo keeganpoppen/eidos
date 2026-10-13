@@ -1,0 +1,531 @@
+{
+  "schemaVersion": "nema-recorded-experiment-rendered/1",
+  "classification": "SYNTHETIC_HISTORY_REAL_RECORDED_EXPERIMENT_API",
+  "nativeOrModelCalls": 0,
+  "experiments": {
+    "E1": {
+      "alternative": {
+        "contextId": "context_83f42b42147292c13dfdd6afab3c8652d4e8b120ed90e85ece344e6721b5b8ad",
+        "investigationId": "investigation_f520405aaa844baf8a5059118a18ccb9"
+      },
+      "baseline": {
+        "artifactId": "artifact_a9baaf7eb4996779fd8669972944d7263264f60d10a417bb4cbe00e3e67eebb2",
+        "attemptId": "attempt_d6d9f375111e4b47a68942ed670323e4",
+        "contextId": "context_0e11273eb0ce98d42d57c36aa23943c2fa587524c107f222b72111244c5dc917",
+        "investigationId": "investigation_f520405aaa844baf8a5059118a18ccb9"
+      },
+      "evaluation": {
+        "addedArtifactIds": [],
+        "addedRecordIds": [
+          3
+        ],
+        "additionalPromptBytes": 814,
+        "alternative": {
+          "artifactCount": 1,
+          "artifactIds": [
+            "artifact_3dc4f8f02fc58c3b22ecd0396bb7f160131b325d1011db258241b83675fe9475"
+          ],
+          "promptBytes": 5000,
+          "recordCount": 2,
+          "recordIds": [
+            1,
+            3
+          ]
+        },
+        "baseline": {
+          "artifactCount": 1,
+          "artifactIds": [
+            "artifact_3dc4f8f02fc58c3b22ecd0396bb7f160131b325d1011db258241b83675fe9475"
+          ],
+          "promptBytes": 4186,
+          "recordCount": 1,
+          "recordIds": [
+            1
+          ]
+        },
+        "changedArtifactIds": [
+          "artifact_3dc4f8f02fc58c3b22ecd0396bb7f160131b325d1011db258241b83675fe9475"
+        ],
+        "checks": {
+          "baselineArtifactsRetained": false,
+          "baselineEvidenceRetained": true,
+          "sameQuestion": true,
+          "withinContextBound": true
+        },
+        "id": "comparison_be2d249660ebcac5b4a0d99bd1d1896e3a90632475b27aafcb78a0de91221be5/evaluation",
+        "limitations": [
+          "Measures selected evidence and prompt bytes only; answer quality and entailment are ungraded.",
+          "Follow-up packets may also change instructions, prior-output quotations and response notes; this is not an isolated causal test.",
+          "No held-out generalization, token cost, provider context or native continuation is established.",
+          "Review records a bounded context-selection decision; it does not activate a global policy or send work."
+        ],
+        "measuredModelReasoningImprovement": false,
+        "method": "context-selection-comparison/v2",
+        "modelCalls": 0,
+        "passes": false,
+        "removedArtifactIds": [],
+        "removedRecordIds": []
+      },
+      "evidenceClass": "synthetic",
+      "id": "comparison_be2d249660ebcac5b4a0d99bd1d1896e3a90632475b27aafcb78a0de91221be5",
+      "investigationId": "investigation_f520405aaa844baf8a5059118a18ccb9",
+      "mode": "reinterpretation",
+      "proposalId": "comparison_be2d249660ebcac5b4a0d99bd1d1896e3a90632475b27aafcb78a0de91221be5/proposal",
+      "rationale": "Recorded browser E1 6edc39d5: exact historical inputs; synthetic sources and no native execution.",
+      "review": null,
+      "adoption": null,
+      "rollback": null,
+      "status": "evaluated"
+    },
+    "E2": {
+      "alternative": {
+        "contextId": "context_98158bc2bfe2fcc3fe85f1395f8a257bb328f2218fd0e082300db95fab05f7c2",
+        "investigationId": "investigation_f520405aaa844baf8a5059118a18ccb9"
+      },
+      "baseline": {
+        "artifactId": "artifact_a9baaf7eb4996779fd8669972944d7263264f60d10a417bb4cbe00e3e67eebb2",
+        "attemptId": "attempt_d6d9f375111e4b47a68942ed670323e4",
+        "contextId": "context_0e11273eb0ce98d42d57c36aa23943c2fa587524c107f222b72111244c5dc917",
+        "investigationId": "investigation_f520405aaa844baf8a5059118a18ccb9"
+      },
+      "evaluation": {
+        "addedArtifactIds": [],
+        "addedRecordIds": [
+          2,
+          3
+        ],
+        "additionalPromptBytes": 1409,
+        "alternative": {
+          "artifactCount": 1,
+          "artifactIds": [
+            "artifact_3dc4f8f02fc58c3b22ecd0396bb7f160131b325d1011db258241b83675fe9475"
+          ],
+          "promptBytes": 5595,
+          "recordCount": 3,
+          "recordIds": [
+            1,
+            2,
+            3
+          ]
+        },
+        "baseline": {
+          "artifactCount": 1,
+          "artifactIds": [
+            "artifact_3dc4f8f02fc58c3b22ecd0396bb7f160131b325d1011db258241b83675fe9475"
+          ],
+          "promptBytes": 4186,
+          "recordCount": 1,
+          "recordIds": [
+            1
+          ]
+        },
+        "changedArtifactIds": [
+          "artifact_3dc4f8f02fc58c3b22ecd0396bb7f160131b325d1011db258241b83675fe9475"
+        ],
+        "checks": {
+          "baselineArtifactsRetained": false,
+          "baselineEvidenceRetained": true,
+          "sameQuestion": true,
+          "withinContextBound": true
+        },
+        "id": "comparison_8e6480560d9b9ad894c76caeebc0c03f4b2bcf41f005ed50f947f6d8b586bff2/evaluation",
+        "limitations": [
+          "Measures selected evidence and prompt bytes only; answer quality and entailment are ungraded.",
+          "Follow-up packets may also change instructions, prior-output quotations and response notes; this is not an isolated causal test.",
+          "No held-out generalization, token cost, provider context or native continuation is established.",
+          "Review records a bounded context-selection decision; it does not activate a global policy or send work."
+        ],
+        "measuredModelReasoningImprovement": false,
+        "method": "context-selection-comparison/v2",
+        "modelCalls": 0,
+        "passes": false,
+        "removedArtifactIds": [],
+        "removedRecordIds": []
+      },
+      "evidenceClass": "synthetic",
+      "id": "comparison_8e6480560d9b9ad894c76caeebc0c03f4b2bcf41f005ed50f947f6d8b586bff2",
+      "investigationId": "investigation_f520405aaa844baf8a5059118a18ccb9",
+      "mode": "reinterpretation",
+      "proposalId": "comparison_8e6480560d9b9ad894c76caeebc0c03f4b2bcf41f005ed50f947f6d8b586bff2/proposal",
+      "rationale": "Recorded browser E2 6edc39d5: exact historical inputs; synthetic sources and no native execution.",
+      "review": null,
+      "adoption": null,
+      "rollback": null,
+      "status": "evaluated"
+    }
+  },
+  "saved": {
+    "arrangement": {
+      "experimentId": "comparison_be2d249660ebcac5b4a0d99bd1d1896e3a90632475b27aafcb78a0de91221be5",
+      "intent": "alternative-review",
+      "layout": "beside",
+      "left": {
+        "artifactId": "artifact_a9baaf7eb4996779fd8669972944d7263264f60d10a417bb4cbe00e3e67eebb2",
+        "contextId": "context_0e11273eb0ce98d42d57c36aa23943c2fa587524c107f222b72111244c5dc917",
+        "investigationId": "investigation_f520405aaa844baf8a5059118a18ccb9"
+      },
+      "lens": "context",
+      "right": {
+        "contextId": "context_83f42b42147292c13dfdd6afab3c8652d4e8b120ed90e85ece344e6721b5b8ad",
+        "investigationId": "investigation_f520405aaa844baf8a5059118a18ccb9"
+      }
+    },
+    "copiedFrom": null,
+    "createdAtMs": 1791922365898,
+    "focus": {
+      "artifactId": "artifact_a9baaf7eb4996779fd8669972944d7263264f60d10a417bb4cbe00e3e67eebb2",
+      "blockId": "block-0",
+      "contextId": "context_0e11273eb0ce98d42d57c36aa23943c2fa587524c107f222b72111244c5dc917",
+      "investigationId": "investigation_f520405aaa844baf8a5059118a18ccb9",
+      "seq": 1,
+      "threadId": "recorded-experiment-origin"
+    },
+    "id": "composition_9774a7aa99674a55a00ad8b224ba49a0",
+    "rendererVersion": "nema-content-blocks/v1;marked@18.1.0",
+    "schemaVersion": 1,
+    "title": "Recorded E1 recovery 6edc39d5",
+    "contentId": "cm1_8e08026df1ab4e193a805aa0269e1b9318ad333f42fda7da5c9ef68fddbec741"
+  },
+  "review": {
+    "alternative": {
+      "contextId": "context_83f42b42147292c13dfdd6afab3c8652d4e8b120ed90e85ece344e6721b5b8ad",
+      "investigationId": "investigation_f520405aaa844baf8a5059118a18ccb9"
+    },
+    "baseline": {
+      "artifactId": "artifact_a9baaf7eb4996779fd8669972944d7263264f60d10a417bb4cbe00e3e67eebb2",
+      "attemptId": "attempt_d6d9f375111e4b47a68942ed670323e4",
+      "contextId": "context_0e11273eb0ce98d42d57c36aa23943c2fa587524c107f222b72111244c5dc917",
+      "investigationId": "investigation_f520405aaa844baf8a5059118a18ccb9"
+    },
+    "evaluation": {
+      "addedArtifactIds": [],
+      "addedRecordIds": [
+        3
+      ],
+      "additionalPromptBytes": 814,
+      "alternative": {
+        "artifactCount": 1,
+        "artifactIds": [
+          "artifact_3dc4f8f02fc58c3b22ecd0396bb7f160131b325d1011db258241b83675fe9475"
+        ],
+        "promptBytes": 5000,
+        "recordCount": 2,
+        "recordIds": [
+          1,
+          3
+        ]
+      },
+      "baseline": {
+        "artifactCount": 1,
+        "artifactIds": [
+          "artifact_3dc4f8f02fc58c3b22ecd0396bb7f160131b325d1011db258241b83675fe9475"
+        ],
+        "promptBytes": 4186,
+        "recordCount": 1,
+        "recordIds": [
+          1
+        ]
+      },
+      "changedArtifactIds": [
+        "artifact_3dc4f8f02fc58c3b22ecd0396bb7f160131b325d1011db258241b83675fe9475"
+      ],
+      "checks": {
+        "baselineArtifactsRetained": false,
+        "baselineEvidenceRetained": true,
+        "sameQuestion": true,
+        "withinContextBound": true
+      },
+      "id": "comparison_be2d249660ebcac5b4a0d99bd1d1896e3a90632475b27aafcb78a0de91221be5/evaluation",
+      "limitations": [
+        "Measures selected evidence and prompt bytes only; answer quality and entailment are ungraded.",
+        "Follow-up packets may also change instructions, prior-output quotations and response notes; this is not an isolated causal test.",
+        "No held-out generalization, token cost, provider context or native continuation is established.",
+        "Review records a bounded context-selection decision; it does not activate a global policy or send work."
+      ],
+      "measuredModelReasoningImprovement": false,
+      "method": "context-selection-comparison/v2",
+      "modelCalls": 0,
+      "passes": false,
+      "removedArtifactIds": [],
+      "removedRecordIds": []
+    },
+    "evidenceClass": "synthetic",
+    "id": "comparison_be2d249660ebcac5b4a0d99bd1d1896e3a90632475b27aafcb78a0de91221be5",
+    "investigationId": "investigation_f520405aaa844baf8a5059118a18ccb9",
+    "mode": "reinterpretation",
+    "proposalId": "comparison_be2d249660ebcac5b4a0d99bd1d1896e3a90632475b27aafcb78a0de91221be5/proposal",
+    "rationale": "Recorded browser E1 6edc39d5: exact historical inputs; synthetic sources and no native execution.",
+    "review": {
+      "id": "comparison_9ca7991d6c2831737043c1e2428ca88ef4617ca77561c3cac67a586c97f2e452/review",
+      "decision": "reject",
+      "rationale": "Synthetic owner review changed; original comparison targets and snapshot remain fixed.",
+      "actor": "local-owner",
+      "kind": "human"
+    },
+    "adoption": null,
+    "rollback": null,
+    "status": "rejected"
+  },
+  "originalRawRecovered": true,
+  "frozenSourceReviewNotReplacedByCurrentRejection": true,
+  "sameArtifactChangedFrozenReviewVisible": true,
+  "laterAlternativeResultNotBound": true,
+  "laterCurrentBaselineNotBound": true,
+  "lensChangePreservedContextOnlyTarget": true,
+  "currentReviewSeparateFromPins": true,
+  "staleE1AfterE2Ignored": true,
+  "lateFreeOwnerBindDidNotOverwriteNewExperiment": true,
+  "failedReadRetryRetainedAppliedComparison": true,
+  "wrongOwnerAndMissingExperimentDidNotRebind": true,
+  "freshBrowserRecoveredExactSavedExperiment": true,
+  "legacyAuthoredFixtureWorks": true,
+  "draftChecks": {
+    "dirtyOwnerFieldsUnchanged": true,
+    "authorPendingRequestId": "bc3a0715-4033-4cd5-b242-add6a1aa2640",
+    "freshPendingRequestId": "d670c988-99cf-4360-80bc-8341d15dbfe0"
+  },
+  "mobile": {
+    "width": 390,
+    "document": 0,
+    "comparison": 0,
+    "diff": 0
+  },
+  "javascriptExceptions": [],
+  "fixtureSetupMutations": [
+    {
+      "path": "/api/investigations/investigation_f520405aaa844baf8a5059118a18ccb9/experiments",
+      "requestId": "browser/6edc39d5/E1",
+      "status": 201
+    },
+    {
+      "path": "/api/investigations/investigation_f520405aaa844baf8a5059118a18ccb9/experiments",
+      "requestId": "browser/6edc39d5/E2",
+      "status": 201
+    },
+    {
+      "path": "/api/investigations/investigation_f520405aaa844baf8a5059118a18ccb9/experiments/comparison_be2d249660ebcac5b4a0d99bd1d1896e3a90632475b27aafcb78a0de91221be5/review",
+      "requestId": "browser/6edc39d5/review",
+      "status": 200
+    }
+  ],
+  "browserMutationRequests": [
+    {
+      "context": "author",
+      "phase": "pending-draft",
+      "path": "/api/investigations",
+      "requestId": "bc3a0715-4033-4cd5-b242-add6a1aa2640"
+    },
+    {
+      "context": "author",
+      "phase": "comparison",
+      "path": "/api/compositions",
+      "requestId": "d6e382b8-bc9c-4682-acb5-dbc3eb60a019"
+    },
+    {
+      "context": "fresh-browser",
+      "phase": "pending-draft",
+      "path": "/api/investigations",
+      "requestId": "d670c988-99cf-4360-80bc-8341d15dbfe0"
+    }
+  ],
+  "ownerExperimentLists": [
+    {
+      "context": "author",
+      "phase": "investigation",
+      "path": "/api/investigations/investigation_f520405aaa844baf8a5059118a18ccb9/experiments"
+    }
+  ],
+  "experimentReads": [
+    {
+      "context": "author",
+      "phase": "comparison",
+      "path": "/api/investigations/investigation_f520405aaa844baf8a5059118a18ccb9/experiments/comparison_be2d249660ebcac5b4a0d99bd1d1896e3a90632475b27aafcb78a0de91221be5",
+      "status": 200,
+      "bodyBytes": 2328
+    },
+    {
+      "context": "author",
+      "phase": "comparison",
+      "path": "/api/investigations/investigation_f520405aaa844baf8a5059118a18ccb9/experiments/comparison_be2d249660ebcac5b4a0d99bd1d1896e3a90632475b27aafcb78a0de91221be5",
+      "status": 200,
+      "bodyBytes": 2328
+    },
+    {
+      "context": "author",
+      "phase": "pending-draft",
+      "path": "/api/investigations/investigation_f520405aaa844baf8a5059118a18ccb9/experiments/comparison_be2d249660ebcac5b4a0d99bd1d1896e3a90632475b27aafcb78a0de91221be5",
+      "status": 200,
+      "bodyBytes": 2328
+    },
+    {
+      "context": "author",
+      "phase": "comparison",
+      "path": "/api/investigations/investigation_f520405aaa844baf8a5059118a18ccb9/experiments/comparison_be2d249660ebcac5b4a0d99bd1d1896e3a90632475b27aafcb78a0de91221be5",
+      "status": 200,
+      "bodyBytes": 2572
+    },
+    {
+      "context": "author",
+      "phase": "stale-free-bind",
+      "path": "/api/investigations/investigation_f520405aaa844baf8a5059118a18ccb9/experiments/comparison_8e6480560d9b9ad894c76caeebc0c03f4b2bcf41f005ed50f947f6d8b586bff2",
+      "status": 200,
+      "bodyBytes": 2333
+    },
+    {
+      "context": "author",
+      "phase": "stale-free-bind",
+      "path": "/api/investigations/investigation_f520405aaa844baf8a5059118a18ccb9/experiments/comparison_8e6480560d9b9ad894c76caeebc0c03f4b2bcf41f005ed50f947f6d8b586bff2",
+      "status": 200,
+      "bodyBytes": 2333
+    },
+    {
+      "context": "author",
+      "phase": "stale-free-bind",
+      "path": "/api/investigations/investigation_f520405aaa844baf8a5059118a18ccb9/experiments/comparison_be2d249660ebcac5b4a0d99bd1d1896e3a90632475b27aafcb78a0de91221be5",
+      "status": 200,
+      "bodyBytes": 2572
+    },
+    {
+      "context": "author",
+      "phase": "stale-free-bind",
+      "path": "/api/investigations/investigation_f520405aaa844baf8a5059118a18ccb9/experiments/comparison_be2d249660ebcac5b4a0d99bd1d1896e3a90632475b27aafcb78a0de91221be5",
+      "status": 200,
+      "bodyBytes": 2572
+    },
+    {
+      "context": "author",
+      "phase": "stale-response",
+      "path": "/api/investigations/investigation_f520405aaa844baf8a5059118a18ccb9/experiments/comparison_be2d249660ebcac5b4a0d99bd1d1896e3a90632475b27aafcb78a0de91221be5",
+      "status": 200,
+      "bodyBytes": 2572
+    },
+    {
+      "context": "author",
+      "phase": "stale-response",
+      "path": "/api/investigations/investigation_f520405aaa844baf8a5059118a18ccb9/experiments/comparison_8e6480560d9b9ad894c76caeebc0c03f4b2bcf41f005ed50f947f6d8b586bff2",
+      "status": 200,
+      "bodyBytes": 2333
+    },
+    {
+      "context": "author",
+      "phase": "stale-response",
+      "path": "/api/investigations/investigation_f520405aaa844baf8a5059118a18ccb9/experiments/comparison_8e6480560d9b9ad894c76caeebc0c03f4b2bcf41f005ed50f947f6d8b586bff2",
+      "status": 200,
+      "bodyBytes": 2333
+    },
+    {
+      "context": "author",
+      "phase": "failed-read",
+      "path": "/api/investigations/investigation_f520405aaa844baf8a5059118a18ccb9/experiments/comparison_be2d249660ebcac5b4a0d99bd1d1896e3a90632475b27aafcb78a0de91221be5",
+      "status": 503,
+      "bodyBytes": 43
+    },
+    {
+      "context": "author",
+      "phase": "failed-read",
+      "path": "/api/investigations/investigation_f520405aaa844baf8a5059118a18ccb9/experiments/comparison_be2d249660ebcac5b4a0d99bd1d1896e3a90632475b27aafcb78a0de91221be5",
+      "status": 200,
+      "bodyBytes": 2572
+    },
+    {
+      "context": "author",
+      "phase": "failed-read",
+      "path": "/api/investigations/investigation_f520405aaa844baf8a5059118a18ccb9/experiments/comparison_be2d249660ebcac5b4a0d99bd1d1896e3a90632475b27aafcb78a0de91221be5",
+      "status": 200,
+      "bodyBytes": 2572
+    },
+    {
+      "context": "author",
+      "phase": "failed-read",
+      "path": "/api/investigations/investigation_0770a72ee4c44757a648695cda908646/experiments/comparison_be2d249660ebcac5b4a0d99bd1d1896e3a90632475b27aafcb78a0de91221be5",
+      "status": 404,
+      "bodyBytes": 62
+    },
+    {
+      "context": "author",
+      "phase": "failed-read",
+      "path": "/api/investigations/investigation_f520405aaa844baf8a5059118a18ccb9/experiments/comparison_missing",
+      "status": 404,
+      "bodyBytes": 40
+    },
+    {
+      "context": "author",
+      "phase": "failed-read",
+      "path": "/api/investigations/investigation_f520405aaa844baf8a5059118a18ccb9/experiments/comparison_be2d249660ebcac5b4a0d99bd1d1896e3a90632475b27aafcb78a0de91221be5",
+      "status": 200,
+      "bodyBytes": 2572
+    },
+    {
+      "context": "author",
+      "phase": "failed-read",
+      "path": "/api/investigations/investigation_f520405aaa844baf8a5059118a18ccb9/experiments/comparison_be2d249660ebcac5b4a0d99bd1d1896e3a90632475b27aafcb78a0de91221be5",
+      "status": 200,
+      "bodyBytes": 2572
+    },
+    {
+      "context": "fresh-browser",
+      "phase": "snapshot-recovery",
+      "path": "/api/investigations/investigation_f520405aaa844baf8a5059118a18ccb9/experiments/comparison_be2d249660ebcac5b4a0d99bd1d1896e3a90632475b27aafcb78a0de91221be5",
+      "status": 200,
+      "bodyBytes": 2572
+    },
+    {
+      "context": "fresh-browser",
+      "phase": "snapshot-recovery",
+      "path": "/api/investigations/investigation_f520405aaa844baf8a5059118a18ccb9/experiments/comparison_be2d249660ebcac5b4a0d99bd1d1896e3a90632475b27aafcb78a0de91221be5",
+      "status": 200,
+      "bodyBytes": 2572
+    }
+  ],
+  "sourceReads": [
+    {
+      "context": "author",
+      "phase": "comparison",
+      "path": "/api/investigations/investigation_f520405aaa844baf8a5059118a18ccb9/artifacts/artifact_a9baaf7eb4996779fd8669972944d7263264f60d10a417bb4cbe00e3e67eebb2/source",
+      "status": 200,
+      "bodyBytes": 8525
+    },
+    {
+      "context": "author",
+      "phase": "comparison",
+      "path": "/api/investigations/investigation_0770a72ee4c44757a648695cda908646/artifacts/artifact_3dc4f8f02fc58c3b22ecd0396bb7f160131b325d1011db258241b83675fe9475/source",
+      "status": 200,
+      "bodyBytes": 6534
+    },
+    {
+      "context": "author",
+      "phase": "comparison",
+      "path": "/api/investigations/investigation_f520405aaa844baf8a5059118a18ccb9/artifacts/artifact_a9baaf7eb4996779fd8669972944d7263264f60d10a417bb4cbe00e3e67eebb2/source",
+      "status": 200,
+      "bodyBytes": 8525
+    },
+    {
+      "context": "fresh-browser",
+      "phase": "snapshot-recovery",
+      "path": "/api/investigations/investigation_f520405aaa844baf8a5059118a18ccb9/artifacts/artifact_a9baaf7eb4996779fd8669972944d7263264f60d10a417bb4cbe00e3e67eebb2/source",
+      "status": 200,
+      "bodyBytes": 8525
+    },
+    {
+      "context": "fresh-browser",
+      "phase": "snapshot-recovery",
+      "path": "/api/investigations/investigation_0770a72ee4c44757a648695cda908646/artifacts/artifact_3dc4f8f02fc58c3b22ecd0396bb7f160131b325d1011db258241b83675fe9475/source",
+      "status": 200,
+      "bodyBytes": 6534
+    },
+    {
+      "context": "fresh-browser",
+      "phase": "snapshot-recovery",
+      "path": "/api/investigations/investigation_f520405aaa844baf8a5059118a18ccb9/artifacts/artifact_a9baaf7eb4996779fd8669972944d7263264f60d10a417bb4cbe00e3e67eebb2/source",
+      "status": 200,
+      "bodyBytes": 8525
+    }
+  ],
+  "screenshots": [
+    "docs/evidence/recorded_experiment_ui_2026_10_13_desktop_experiment.png",
+    "docs/evidence/recorded_experiment_ui_2026_10_13_desktop_exact_source.png",
+    "docs/evidence/recorded_experiment_ui_2026_10_13_mobile_review.png",
+    "docs/evidence/recorded_experiment_ui_2026_10_13_mobile_context_diff.png"
+  ],
+  "limits": "Synthetic trusted-host history; actual experiment API and browser UI. Held-response and one-shot503 are labelled transport fixtures. No native, reasoning-quality, model-catalog or human-speed claim."
+}

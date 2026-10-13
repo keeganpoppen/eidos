@@ -135,6 +135,26 @@ def test_http_boundary_rejects_oversized_raw_body_before_parsing_and_nonfinite_c
     assert trace.db.execute("SELECT COUNT(*) FROM workbench_compositions").fetchone()[0] == 0
 
 
+@pytest.mark.parametrize("mismatch", ["missing-attempt", "wrong-attempt-context"])
+def test_new_save_requires_artifact_attempt_consistency_without_rewriting_prior_receipt(setup, mismatch):
+    _, trace, api, a, b, body = setup
+    original = call(api, body=body)
+    assert original[0] == 201
+    # A malformed trusted import is evidence to inspect, never permission to
+    # create another apparently resolved snapshot over inconsistent provenance.
+    changed = copy.deepcopy(a)
+    if mismatch == "missing-attempt":
+        changed["attempt"] = None
+    else:
+        changed["attempt"]["contextId"] = b["currentContextId"]
+    with trace.db:
+        api.investigations._save(changed)
+    assert call(api, body=body) == original
+    assert call(api, "GET", "/" + original[1]["composition"]["id"]) == (200, original[1])
+    assert call(api, body={**body, "requestId": "inconsistent-new-save"})[0] == 409
+    assert trace.db.execute("SELECT COUNT(*) FROM workbench_compositions").fetchone()[0] == 1
+
+
 def test_search_pages_metadata_and_query_scope_without_source_reads(setup, monkeypatch):
     _, _, api, _, _, body = setup
     for index in range(5):

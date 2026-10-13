@@ -1,7 +1,9 @@
 # Recorded experiments in durable comparison — next integration contract
 
-**2026-10-13 · active from `579af9d` · V1-08/10/11, C1/C5.**
-Parent owns the main integration; snapshot integration is committed and pushed.
+**2026-10-13 · integrated from `579af9d` · V1-08/10/11, C1/C5.**
+Parent integrated the reviewed UI, backend consistency fix and independent acceptance.
+See [current handoff](CURRENT_HANDOFF.md) and
+[acceptance](../evidence/RECORDED_EXPERIMENT_COMPOSITION_INTEGRATION.md) for evidence.
 This is an existing product seam, not a new evaluator or recipe activation.
 
 ## User loop and observed gap
@@ -44,7 +46,7 @@ existing RecordedExperiment. Show current review separately from immutable pins.
 Refresh that view on explicit reopen/manual Refresh; guard stale asynchronous
 responses by owner+experiment+request identity. No automatic adoption or activation.
 
-## Active ownership
+## Integration ownership
 
 - Root: shared backend/API only if needed, independent invariants and final docs/
   integration. Avoid new backend routes unless existing projection cannot support

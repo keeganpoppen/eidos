@@ -6,6 +6,38 @@ The baseline GitHub Actions run `38240774514` completed successfully: pytest and
 
 Refresh this file when implementation claims materially change. Keep historical audit IDs instead of quietly relabelling old evidence as current.
 
+## Recorded experiment composition and exact-model challenge — 2026-10-13
+
+Integration base `2c447e4`; [rendered/API acceptance](../evidence/RECORDED_EXPERIMENT_COMPOSITION_INTEGRATION.md)
+and [current handoff](../agents/CURRENT_HANDOFF.md) identify the combined delivery.
+Recorded context experiments now open reviewable comparisons with their exact
+historical baseline result/attempt and context-only alternative, retain those pins
+through lens changes, and save/reopen named snapshots. Current review is separately
+refreshed; source-input differences and original raw support remain accessible.
+No new backend route or dispatch is introduced. New snapshot saves now reject
+artifact/attempt inconsistencies; immutable prior receipts remain readable.
+
+Parent integrated verification: **891 Python tests passed, 41 explicit native
+checks skipped; 73 Bun tests / 385 assertions; Svelte 0 errors / 0 warnings; build
+passed**. Independent acceptance and parent Chromium reproduction preserve dirty
+and pending drafts, exact source bytes, old pins despite new results, and delayed
+request ordering at desktop/390px widths. Long citation controls now wrap. This is
+scripted same-database recovery over labelled synthetic historical results, not
+historical-context execution, human speed or model-reasoning evidence.
+
+The independently reviewed [model-catalog experiment](../evidence/NATIVE_MODEL_CATALOG_EXPERIMENT.md)
+uses exact public 0.154.0 metadata. Astra exposes code/async/collaboration tools
+through Responses Lite despite the previous feature flags, and a safe clock call
+executes without a native tool-action item. The ordinary-Responses control has
+empty tools and rejects the two challenged calls. Both reject disabled MCP resource
+access. Parent reproduced **29 opt-in checks**, two local native turns/six authored
+provider requests, zero real model/upstream/credentials. No production profile or
+admission changes. Model-specific registry behavior and provider-wire declarations
+cannot be inferred from flags or an empty top-level tools field alone.
+
+The [active next contract](../agents/BOUNDED_NATIVE_TRANSPORT_TASK.md) addresses
+unbounded line/event capture and honest loss diagnostics; it is not yet integrated.
+
 ## Pre-turn tool control challenge — 2026-10-13
 
 Integration base `579af9d`; [raw evidence and source review](../evidence/NATIVE_TOOL_BOUNDARY_EXPERIMENT.md)

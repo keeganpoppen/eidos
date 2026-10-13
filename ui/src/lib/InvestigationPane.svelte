@@ -16,7 +16,7 @@
   let { selections = $bindable([]), onSource, onCompare }: {
     selections: EvidenceSelection[];
     onSource: (selection: EvidenceSelection) => void;
-    onCompare: (investigationId: string, intent?: 'comparison' | 'evidence-chain') => void;
+    onCompare: (investigationId: string, intent?: 'comparison' | 'evidence-chain' | 'alternative-review', experimentId?: string) => void;
   } = $props();
 
   const storageKey = 'nema.investigation-draft.v1';
@@ -455,7 +455,7 @@
       </section>
     {/if}
     {#if current.inquiryAdmissionError}<p class="work-error" role="alert">Inquiry admission: {current.inquiryAdmissionError}</p>{/if}
-    {#key current.id}<EvidenceReview investigation={current} {selections} onUpdate={(value) => { if (selectedId === value.id) useInvestigation(value, false, true); }} /><RecordedExperiment investigation={current} />{/key}
+    {#key current.id}<EvidenceReview investigation={current} {selections} onUpdate={(value) => { if (selectedId === value.id) useInvestigation(value, false, true); }} /><RecordedExperiment investigation={current} onCompare={(experimentId) => onCompare(current!.id, 'alternative-review', experimentId)} />{/key}
   {/if}
 
   {#if error}<p class="work-error" role="alert">{error}</p>{/if}
