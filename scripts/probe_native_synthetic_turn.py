@@ -460,6 +460,7 @@ def run_case(helper: Path, *, http_mcp: bool) -> dict[str, Any]:
             "httpMcpEnabled": http_mcp, "command": command, "failure": failure,
             "policy": policy,
             "nativeReplies": replies, "nativeEvents": events, "nativeStderr": client.stderr_tail,
+            "nativeCapture": client.capture_status,
             "nativeMethodsObserved": client.methods, "nativeTurnRPCs": client.turn_count,
             "selectedContext": context, "promptSha256": hashlib.sha256(prompt.encode()).hexdigest(),
             "brokerEvents": broker.events, "brokerRequests": broker.requests,
@@ -494,7 +495,8 @@ def run_probe() -> dict[str, Any]:
         "subscriptionExecution": False, "callerAuthenticationEstablished": False, "liveAdmission": False,
         "limits": {"headerBytes": MAX_HEADER, "bodyBytes": MAX_BODY, "responseBytes": MAX_RESPONSE,
                    "requestsPerCase": MAX_REQUESTS, "requestSeconds": REQUEST_SECONDS,
-                   "caseSeconds": CASE_SECONDS, "nativeEventsPerCase": 100, "aggregateResourceQuota": False},
+                   "caseSeconds": CASE_SECONDS, "nativeEventsPerCase": 100,
+                   "traceDatabaseByteQuota": False, "aggregateResourceQuota": False},
     }
 
 

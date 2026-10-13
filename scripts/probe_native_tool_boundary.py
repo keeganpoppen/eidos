@@ -294,6 +294,7 @@ def run_case(helper: Path, case: str) -> dict[str, Any]:
         accepted = [e for e in broker.events if e.get("target") == transport.RESPONSE_PATH and e["status"] == 200]
         report = {"case": case, "command": command, "requestedConfigToml": config,
                   "nativeReplies": replies, "nativeEvents": events, "nativeStderr": client.stderr_tail,
+                  "nativeCapture": client.capture_status,
                   "policy": policy, "failure": failure, "selectedContext": context,
                   "nativeTurnRPCs": client.turn_count, "nativeMethodsObserved": client.methods,
                   "brokerEvents": broker.events, "httpRequests": broker.requests,
@@ -325,7 +326,7 @@ def run_probe() -> dict[str, Any]:
                        "headerBytes": transport.MAX_HEADER, "bodyBytes": transport.MAX_BODY,
                        "responseBytes": transport.MAX_RESPONSE, "requestSeconds": transport.REQUEST_SECONDS,
                        "nativeWatchdogSeconds": transport.CASE_SECONDS, "completionEventsConsumed": 100,
-                       "nativeStdoutOrTraceByteLimit": False, "aggregateResourceQuota": False}}
+                       "traceDatabaseByteQuota": False, "aggregateResourceQuota": False}}
 
 
 def main() -> None:

@@ -214,6 +214,14 @@ def test_contained_catalog_case_preserves_actual_outcome_and_auth_boundary(obser
     assert case["fixtureResourceReads"] == 0
     assert not any(e.get("target") == "/mcp" for e in case["brokerEvents"])
     assert case["failure"] is None, case["failure"]
+    capture = case["nativeCapture"]
+    assert capture["failure"] is None and capture["diagnosticError"] is None
+    assert 0 < sum(capture["receivedBytes"].values()) <= capture["limits"]["max_received_bytes"]
+    recorded_limits = [json.loads(record["rawText"])["params"] for record in case["traceRecords"]
+                       if record["direction"] == "internal"
+                       and json.loads(record["rawText"]).get("method") == "$transport/limits"]
+    assert len(recorded_limits) == 1
+    assert recorded_limits[0]["limits"] == capture["limits"]
     assert case["acceptedProviderRequests"] == 3
     assert case["savedArtifact"]["executionEvidence"] == "synthetic"
     assert case["savedArtifact"]["text"] == probe.transport.OUTPUT_TEXT

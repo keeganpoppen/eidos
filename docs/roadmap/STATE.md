@@ -6,6 +6,30 @@ The baseline GitHub Actions run `38240774514` completed successfully: pytest and
 
 Refresh this file when implementation claims materially change. Keep historical audit IDs instead of quietly relabelling old evidence as current.
 
+## Bounded native recording and capture-aware recovery — 2026-10-13
+
+Integration base `eab1653`; [acceptance and counterexamples](../evidence/NATIVE_CAPTURE_ACCEPTANCE.md)
+and [handoff](../agents/CURRENT_HANDOFF.md) identify the containing integration.
+AppServerClient reads bounded binary frames before decode, limits combined received
+bytes and retained events across queues/wait_for/backlog, and records exact rejected
+or partial bytes in a valid internal capture-gap envelope. Configured limits are
+recorded per incarnation. Closure wakes waiting consumers independently of queue
+capacity. Accepted raw JSON/unknown fields stay intact; non-JSON constants are
+rejected. Recovery stops at the first source-scoped trusted capture gap, preserving
+completion before it while excluding later imported terminals and contradictions.
+
+Parent final Python suite: **947 passed, 41 explicit native checks skipped**.
+Independent acceptance: **24 passed**, including exact-limit completion, truncated
+terminals, child marker copies, malformed bytes and durable reopen. Independent
+review reproduced equal accepted prefixes across combined and split pipe writes.
+The parent also ran **100 native opt-in checks** across three existing contained
+fake-provider probes: seven turns/fourteen local provider requests, zero real
+model/upstream requests or credentials. Future reports include actual capture
+limits/status; historical reports remain unchanged. No frontend or production
+native admission change. These budgets do not limit process CPU/RSS, outbound RPC
+allocation or total SQLite size; internal direction is a trusted-host convention,
+not authentication of arbitrary imports.
+
 ## Recorded experiment composition and exact-model challenge — 2026-10-13
 
 Integration base `2c447e4`; [rendered/API acceptance](../evidence/RECORDED_EXPERIMENT_COMPOSITION_INTEGRATION.md)
@@ -35,8 +59,8 @@ provider requests, zero real model/upstream/credentials. No production profile o
 admission changes. Model-specific registry behavior and provider-wire declarations
 cannot be inferred from flags or an empty top-level tools field alone.
 
-The [active next contract](../agents/BOUNDED_NATIVE_TRANSPORT_TASK.md) addresses
-unbounded line/event capture and honest loss diagnostics; it is not yet integrated.
+The later [bounded capture integration](../agents/BOUNDED_NATIVE_TRANSPORT_TASK.md)
+addresses the line/event capture and honest-loss obligations identified here.
 
 ## Pre-turn tool control challenge — 2026-10-13
 

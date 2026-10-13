@@ -1,8 +1,9 @@
 # Bounded native recording and honest capture gaps
 
-**2026-10-13 · active implementation from `2c447e4` · V1-02/07/12, C6.**
-The integrator is finishing recorded-experiment composition and the model-catalog
-challenge. Their changes do not modify the transport files owned here.
+**2026-10-13 · integrated from `eab1653` · V1-02/07/12, C6.**
+[Acceptance](../evidence/NATIVE_CAPTURE_ACCEPTANCE.md) and the
+[current handoff](CURRENT_HANDOFF.md) identify verified contributions and scope.
+The failure description below records the pre-change implementation.
 
 ## User loop and observed failure
 

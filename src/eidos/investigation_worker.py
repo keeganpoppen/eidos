@@ -32,10 +32,23 @@ NativeRequestState = Literal[
 ]
 NativeTerminalState = Literal["completed", "failed", "interrupted", "unknown"]
 NativeSpecialistEventKind = Literal[
-    "observed", "profile_observed", "correlation_conflict", "request_pending",
+    "observed", "profile_observed", "capture_gap", "correlation_conflict", "request_pending",
     "request_unsupported", "request_duplicate", "request_conflict", "request_response_recorded",
     "request_resolved", "request_abandoned", "terminal_observed", "transport_closed",
 ]
+
+
+def _is_capture_gap(record: TraceRecord) -> bool:
+    """Recognize this recorder's host marker, never a child-authored claim.
+
+    Internal direction is a trusted-host convention, not authentication against
+    arbitrary database writers. The caller must also scope the source incarnation.
+    """
+    if record.direction != "internal" or record.method != "$transport/captureGap":
+        return False
+    params = record.message.get("params")
+    return (isinstance(params, dict) and type(params.get("version")) is int
+            and params["version"] == 1 and params.get("captureComplete") is False)
 
 
 @dataclass(frozen=True)
@@ -106,6 +119,7 @@ class NativeSpecialistAdapter:
         self._events: list[NativeSpecialistEvent] = []
         self.ambiguous = False
         self._closed = False
+        self._capture_gap_seq: int | None = None
 
     @staticmethod
     def _rpc_key(value: Any) -> str | None:
@@ -156,6 +170,15 @@ class NativeSpecialistAdapter:
             turn_id=record.turn_id, item_id=record.item_id,
             rpc_id=message.get("id") if rpc_key is not None else None, method=method,
         )
+        if self._capture_gap_seq is not None:
+            self._emit(replace(base, detail="Recorded after capture stopped; excluded from native recovery."))
+            return
+        if _is_capture_gap(record):
+            self._capture_gap_seq = record.seq
+            reason = f"Native capture stopped: {params.get('reason', 'unspecified gap')}."
+            self._emit(replace(base, kind="capture_gap", detail=reason))
+            self.close(reason)
+            return
         if record.direction == "internal" and method == "$native/profile":
             self._emit(replace(base, kind="profile_observed", detail=params.get("admission")))
             return
@@ -703,6 +726,12 @@ class NativeInvestigationWorker:
         if not isinstance(source, str):
             return None
         records = [record for record in self.trace.records() if record.source == source]
+        # A stopped incarnation cannot regain contiguous evidence through a later
+        # import. Preserve any accepted terminal before the gap, while excluding
+        # later frames from both completion and contradiction checks.
+        gap = next((record.seq for record in records if _is_capture_gap(record)), None)
+        if gap is not None:
+            records = [record for record in records if record.seq < gap]
         requests = [
             record for record in records
             if record.direction == "client_to_appserver" and record.method == "turn/start"

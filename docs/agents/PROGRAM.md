@@ -1,6 +1,6 @@
 # Continuing development frontier
 
-**Provisional strategic understanding · 2026-10-13 · integration base `2c447e4`.**
+**Provisional strategic understanding · 2026-10-13 · integration base `eab1653`.**
 The [current handoff](CURRENT_HANDOFF.md) owns verified status and runnable steps;
 this document owns revisable conjectures and opportunity ordering. It does not
 replace the [destination](../vision/DESTINATION.md) or [V1](../roadmap/V1.md).
@@ -27,21 +27,24 @@ These are hypotheses, not established invariants or additional release gates.
 
 ## Opportunity ordering and reversible decisions
 
-1. **Active reliability integration: bounded native recording (C6, V1-02/07/12).**
-   Native line allocation and event/backlog retention precede downstream worker
-   limits. Malformed bytes/deep JSON can disappear before a trace record exists.
-   The [active contract](BOUNDED_NATIVE_TRANSPORT_TASK.md) bounds input before
-   decode and retains explicit capture-gap evidence. Accepted completion remains
-   evidence; truncation cannot become a completion on reopen. This closes a real
-   recorder/recovery failure, not a generic hardening checklist.
+1. **Established recorder prerequisite: bounded native capture (C6, V1-02/07/12).**
+   The [integrated contract](BOUNDED_NATIVE_TRANSPORT_TASK.md) bounds native input
+   before decode, retained events across wait_for/backlog, and display tails.
+   Exact rejected bytes and a source-scoped capture cutoff preserve earlier
+   completion without inventing success across a gap. Independent counterexamples
+   caught EOF, parser, byte-boundary and recovery errors. Wire budgets do not imply
+   process CPU/RSS, outbound traffic or total database quotas.
 2. **Next native discriminator: exact model behavior and supported admission (C6).**
    The [public-catalog challenge](../evidence/NATIVE_MODEL_CATALOG_EXPERIMENT.md)
    falsifies a model-independent tools-disabled configuration. Astra metadata
    overrides flags; its Lite payload declares tools outside top-level `tools`,
    and a clock call executes without a native action item. A control model rejects
-   the two chosen calls but is not a proof about every hidden handler. Research
-   supported exact-model controls versus a transparently derived startup catalog
-   or a narrower candidate profile. Separate trust in the reviewed native binary/
+   the two chosen calls but is not a proof about every hidden handler. The next
+   paired probe will combine supported agent/sleep controls with an explicitly
+   derived Astra startup catalog that changes only its tool mode and experimental
+   tool list. Preserve original and derived hashes and the exact semantic patch.
+   A narrower ordinary-Responses model remains the simpler first candidate if the
+   eventual account supports it. Separate trust in the reviewed native binary/
    configuration from authentication against arbitrary native compromise. No real
    model, auth state or production gate changes are implicit in this research.
 3. **Established integration: recorded experiments in durable views (C1/C5).**
@@ -72,9 +75,9 @@ not mature-world axioms.
 
 ## Current integration boundary and next contract
 
-The previous native tool-control integration is `2c447e4` (public CI passed); the
-[handoff](CURRENT_HANDOFF.md) identifies combined recorded-experiment/catalog
-verification, active bounded transport work and ongoing native research. See [D28/D29](../roadmap/DECISIONS.md) and the linked integration evidence. The active
+The previous experiment/catalog integration is `eab1653` (public CI passed); the
+[handoff](CURRENT_HANDOFF.md) identifies bounded recorder verification and ongoing
+product/native scouts. See [D28/D29](../roadmap/DECISIONS.md) and linked evidence. The active
 read index is a derived performance adapter, not a second provenance authority.
 Native process/synthetic transport research is independent of production admission.
 

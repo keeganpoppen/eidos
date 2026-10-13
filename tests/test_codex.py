@@ -145,8 +145,9 @@ def test_fragmented_terminal_event_is_drained_before_eof(tmp_path: Path):
         assert client.recv_event() == event
         with pytest.raises(AppServerClosed):
             client.recv_event()
-    assert trace.records()[0].message == event
-    assert trace.records()[0].raw_text == raw
+    record = next(record for record in trace.records() if record.direction == "appserver_to_client")
+    assert record.message == event
+    assert record.raw_text == raw
 
 
 def test_process_crash_fails_pending_request_as_transport_closure():
@@ -160,7 +161,7 @@ def test_process_crash_fails_pending_request_as_transport_closure():
         assert client._pending == {}
         with pytest.raises(AppServerClosed):
             client.request("turn/start")
-    records = trace.records()
+    records = [record for record in trace.records() if record.direction != "internal"]
     assert len(records) == 1
     assert records[0].method == "turn/start"
     assert records[0].direction == "client_to_appserver"
@@ -178,7 +179,7 @@ def test_failed_write_cleans_pending_request_and_never_resends(monkeypatch):
         assert client._pending == {}
         with pytest.raises(AppServerClosed):
             client.request("turn/start")
-    assert [record.method for record in trace.records()] == ["turn/start"]
+    assert [record.method for record in trace.records() if record.direction != "internal"] == ["turn/start"]
 
 
 def test_late_ack_after_timeout_remains_evidence_without_resend():
@@ -211,7 +212,7 @@ def test_request_deadline_includes_blocked_pipe_write():
         # The stream may contain a partial frame; its incarnation is terminal.
         with pytest.raises(AppServerClosed):
             client.request("turn/start")
-    assert [record.method for record in trace.records()] == ["turn/start"]
+    assert [record.method for record in trace.records() if record.direction != "internal"] == ["turn/start"]
 
 
 def test_request_deadline_includes_waiting_for_another_writer():

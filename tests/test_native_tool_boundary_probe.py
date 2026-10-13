@@ -160,6 +160,14 @@ def observed():
 def test_native_turn_tool_observation_and_provider_followup_stay_correlated(observed, name):
     case = observed["cases"][name]
     assert case["failure"] is None, case["failure"]
+    capture = case["nativeCapture"]
+    assert capture["failure"] is None and capture["diagnosticError"] is None
+    assert 0 < sum(capture["receivedBytes"].values()) <= capture["limits"]["max_received_bytes"]
+    recorded_limits = [json.loads(record["rawText"])["params"] for record in case["traceRecords"]
+                       if record["direction"] == "internal"
+                       and json.loads(record["rawText"]).get("method") == "$transport/limits"]
+    assert len(recorded_limits) == 1
+    assert recorded_limits[0]["limits"] == capture["limits"]
     assert case["nativeTurnRPCs"] == 1 and case["providerRequests"] == 2
     assert case["providerRequests"] == sum(e.get("target") == "/v1/responses" for e in case["brokerEvents"])
     assert case["acceptedProviderRequests"] == 2

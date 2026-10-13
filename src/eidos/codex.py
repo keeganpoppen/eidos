@@ -1,12 +1,15 @@
 from __future__ import annotations
 
 from collections import deque
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
+import base64
+import copy
 import hashlib
 import json
 import os
 from pathlib import Path
 import queue
+import selectors
 import shutil
 import subprocess
 import sys
@@ -27,6 +30,42 @@ class AppServerRPCError(RuntimeError):
 
 class AppServerClosed(RuntimeError):
     pass
+
+
+def _reject_json_constant(value: str) -> None:
+    # Python accepts these JavaScript extensions by default; native JSONL does
+    # not. Leave their exact bytes to the internal capture-gap envelope.
+    raise ValueError(f"non-standard JSON constant: {value}")
+
+
+@dataclass(frozen=True)
+class AppServerLimits:
+    """Received wire-byte limits for one incarnation, not CPU/RSS/disk quotas.
+
+    Frames include their newline. Event bytes include the original wire frame,
+    including whitespace. Moving an event through wait_for does not release it.
+    The aggregate includes stderr, blank lines and rejected bytes. At most one
+    extra byte is read to distinguish reaching a byte limit from exceeding it.
+    """
+
+    max_stdout_frame_bytes: int = 4 * 1024 * 1024
+    max_stderr_frame_bytes: int = 256 * 1024
+    max_received_bytes: int = 64 * 1024 * 1024
+    max_event_count: int = 1024
+    max_event_bytes: int = 8 * 1024 * 1024
+    max_stderr_tail_bytes: int = 256 * 1024
+    max_stderr_tail_lines: int = 200
+
+    def __post_init__(self) -> None:
+        for name, value in asdict(self).items():
+            if type(value) is not int or value <= 0:
+                raise ValueError(f"{name} must be a positive finite integer")
+
+
+@dataclass(frozen=True)
+class _RetainedEvent:
+    message: dict[str, Any]
+    size: int
 
 
 class NativeExecutionProfileError(RuntimeError):
@@ -264,6 +303,7 @@ class AppServerClient:
         source: str = "codex-app-server",
         inherit_env: bool = True,
         launch_guard: Callable[[], None] | None = None,
+        limits: AppServerLimits | None = None,
     ) -> None:
         self.command = tuple(command)
         self.trace = trace
@@ -271,20 +311,29 @@ class AppServerClient:
         self.env = dict(env) if env is not None else None
         self.inherit_env = inherit_env
         self.launch_guard = launch_guard
+        self.limits = limits if limits is not None else AppServerLimits()
         self.source = f"{source}/{uuid.uuid4().hex[:12]}"
-        self.process: subprocess.Popen[str] | None = None
+        self.process: subprocess.Popen[bytes] | None = None
         self._next_id = 1
         self._lock = threading.Lock()
         self._write_lock = threading.Lock()
         self._lifecycle_lock = threading.RLock()
         # None is a transport-closure signal, never a fabricated native reply.
         self._pending: dict[str, queue.Queue[dict[str, Any] | None]] = {}
-        self._events: queue.Queue[dict[str, Any] | None] = queue.Queue()
-        self._backlog: deque[dict[str, Any]] = deque()
-        self._stderr: deque[str] = deque(maxlen=200)
+        self._event_condition = threading.Condition()
+        self._events: deque[_RetainedEvent] = deque()
+        self._backlog: deque[_RetainedEvent] = deque()
+        self._retained_count = self._retained_bytes = 0
+        self._stderr: deque[tuple[str, int]] = deque()
+        self._stderr_bytes = 0
+        self._capture_lock = threading.RLock()
+        self._received = {"stdout": 0, "stderr": 0}
+        self._accepted_frames = 0
+        self._capture_failure: dict[str, Any] | None = None
+        self._diagnostic_error: str | None = None
         self._reader: threading.Thread | None = None
-        self._stderr_reader: threading.Thread | None = None
         self._closed = threading.Event()
+        self._input_stopped = threading.Event()
 
     def start(self) -> "AppServerClient":
         with self._lifecycle_lock:
@@ -300,6 +349,10 @@ class AppServerClient:
             env.update(self.env)
         if self.launch_guard is not None:
             self.launch_guard()
+        if self.trace is not None:
+            self.trace.append(source=self.source, direction="internal", message={
+                "method": "$transport/limits", "params": {"version": 1, "limits": asdict(self.limits)},
+            })
         self.process = subprocess.Popen(
             list(self.command),
             cwd=self.cwd,
@@ -307,9 +360,7 @@ class AppServerClient:
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
-            text=True,
-            encoding="utf-8",
-            bufsize=1,
+            bufsize=0,
         )
         try:
             assert self.process.stdin is not None
@@ -317,13 +368,14 @@ class AppServerClient:
             # child (or an inherited descendant pipe) stops reading. Never use
             # that writer: cancellation must not depend on the reader exiting.
             os.set_blocking(self.process.stdin.fileno(), False)
+            assert self.process.stdout is not None and self.process.stderr is not None
+            os.set_blocking(self.process.stdout.fileno(), False)
+            os.set_blocking(self.process.stderr.fileno(), False)
         except (OSError, ValueError, NotImplementedError) as exc:
             self.close()
             raise RuntimeError("app-server transport requires nonblocking pipe writes") from exc
-        self._reader = threading.Thread(target=self._read_stdout, name="eidos-codex-stdout", daemon=True)
-        self._stderr_reader = threading.Thread(target=self._read_stderr, name="eidos-codex-stderr", daemon=True)
+        self._reader = threading.Thread(target=self._read_streams, name="eidos-codex-input", daemon=True)
         self._reader.start()
-        self._stderr_reader.start()
         return self
 
     def close(self) -> None:
@@ -339,8 +391,11 @@ class AppServerClient:
             return
         # Cancel writers and terminate only our owned child. A descendant may
         # retain its pipes; neither cancellation nor stdin cleanup waits for it.
-        if process.poll() is None:
-            process.terminate()
+        try:
+            if process.poll() is None:
+                process.terminate()
+        except ProcessLookupError:
+            pass
         try:
             process.wait(timeout=2)
         except subprocess.TimeoutExpired:
@@ -352,12 +407,14 @@ class AppServerClient:
                     process.stdin.close()
         except (OSError, ValueError):
             pass
-        for reader in (self._reader, self._stderr_reader):
+        for reader in (self._reader,):
             if reader is not None and reader is not threading.current_thread():
                 reader.join(timeout=1)
         self.process = None
 
-    def _mark_closed(self) -> None:
+    def _mark_closed(self, *, stop_reader: bool = True) -> None:
+        if stop_reader:
+            self._input_stopped.set()
         with self._lock:
             if self._closed.is_set():
                 return
@@ -365,9 +422,9 @@ class AppServerClient:
             for pending in self._pending.values():
                 pending.put_nowait(None)
             self._pending.clear()
-            # Wake event readers already blocked in get(), including callers
-            # without a timeout. Events queued before EOF remain ahead of this.
-            self._events.put(None)
+        # Closure has no queue reservation and cannot block behind a full queue.
+        with self._event_condition:
+            self._event_condition.notify_all()
 
     def __enter__(self) -> "AppServerClient":
         return self.start()
@@ -377,7 +434,20 @@ class AppServerClient:
 
     @property
     def stderr_tail(self) -> list[str]:
-        return list(self._stderr)
+        with self._capture_lock:
+            return [line for line, _ in self._stderr]
+
+    @property
+    def capture_status(self) -> dict[str, Any]:
+        with self._capture_lock, self._event_condition:
+            return {
+                "version": 1, "limits": asdict(self.limits),
+                "receivedBytes": dict(self._received), "acceptedStdoutFrames": self._accepted_frames,
+                "retainedEventCount": self._retained_count, "retainedEventBytes": self._retained_bytes,
+                "stderrTailBytes": self._stderr_bytes,
+                "failure": copy.deepcopy(self._capture_failure),
+                "diagnosticError": self._diagnostic_error,
+            }
 
     def initialize(self, *, experimental_api: bool = True, timeout: float = 10.0) -> dict[str, Any]:
         result = self.request(
@@ -436,17 +506,29 @@ class AppServerClient:
         self._send(message)
 
     def recv_event(self, *, timeout: float | None = None) -> dict[str, Any]:
-        if self._backlog:
-            return self._backlog.popleft()
-        try:
-            event = self._events.get(timeout=timeout)
-        except queue.Empty as exc:
-            raise TimeoutError("timed out waiting for app-server event") from exc
-        if event is None:
-            # Keep closure visible to subsequent and concurrent event readers.
-            self._events.put(None)
-            raise AppServerClosed("app-server closed")
-        return event
+        event = self._take_event(timeout)
+        self._release_event(event)
+        return event.message
+
+    def _take_event(self, timeout: float | None) -> _RetainedEvent:
+        deadline = None if timeout is None else time.monotonic() + timeout
+        with self._event_condition:
+            while True:
+                if self._backlog:
+                    return self._backlog.popleft()
+                if self._events:
+                    return self._events.popleft()
+                if self._closed.is_set():
+                    raise AppServerClosed("app-server closed")
+                remaining = None if deadline is None else deadline - time.monotonic()
+                if remaining is not None and remaining <= 0:
+                    raise TimeoutError("timed out waiting for app-server event")
+                self._event_condition.wait(remaining)
+
+    def _release_event(self, event: _RetainedEvent) -> None:
+        with self._event_condition:
+            self._retained_count -= 1
+            self._retained_bytes -= event.size
 
     def wait_for(
         self,
@@ -456,20 +538,23 @@ class AppServerClient:
         timeout: float = 30.0,
     ) -> dict[str, Any]:
         deadline = time.monotonic() + timeout
-        skipped: list[dict[str, Any]] = []
+        skipped: list[_RetainedEvent] = []
         try:
             while True:
                 remaining = deadline - time.monotonic()
                 if remaining <= 0:
                     raise TimeoutError(f"timed out waiting for {method}")
-                event = self.recv_event(timeout=remaining)
-                params = event.get("params")
+                event = self._take_event(remaining)
+                params = event.message.get("params")
                 event_thread = params.get("threadId") if isinstance(params, dict) else None
-                if event.get("method") == method and (thread_id is None or event_thread == thread_id):
-                    return event
+                if event.message.get("method") == method and (thread_id is None or event_thread == thread_id):
+                    self._release_event(event)
+                    return event.message
                 skipped.append(event)
         finally:
-            self._backlog.extendleft(reversed(skipped))
+            with self._event_condition:
+                self._backlog.extendleft(reversed(skipped))
+                self._event_condition.notify_all()
 
     # Thin typed-ish conveniences. Unknown/new RPCs remain available via request().
     def thread_start(self, **params: Any) -> dict[str, Any]:
@@ -596,41 +681,189 @@ class AppServerClient:
             self._mark_closed()
             raise TimeoutError("app-server write deadline expired; delivery may be unknown")
 
-    def _read_stdout(self) -> None:
-        process = self.process
-        assert process is not None and process.stdout is not None
-        try:
-            for line in process.stdout:
-                raw = line.rstrip("\r\n")
-                if not raw:
-                    continue
-                if self.trace is not None:
-                    self.trace.append_line(source=self.source, direction="appserver_to_client", raw_text=raw)
+    def _capture_gap(
+        self, stream: str, reason: str, data: bytes, *, frame_complete: bool,
+        buffers: Mapping[str, bytearray],
+    ) -> None:
+        # Called only by the one input reader. Base64 keeps invalid Unicode,
+        # JSON and projection failures out of ordinary native trace records.
+        with self._capture_lock:
+            if self._capture_failure is not None:
+                return
+            status = self.capture_status
+            params = {
+                "version": 1, "stream": stream, "reason": reason,
+                "limits": asdict(self.limits),
+                "receivedBytes": dict(self._received),
+                "acceptedStdoutFrames": self._accepted_frames,
+                "retainedEventCount": status["retainedEventCount"],
+                "retainedEventBytes": status["retainedEventBytes"],
+                "capturedBase64": base64.b64encode(data).decode("ascii"),
+                "capturedBytes": len(data), "frameComplete": frame_complete,
+                "captureComplete": False,
+                "bufferedStreams": [
+                    {"stream": name, "capturedBase64": base64.b64encode(value).decode("ascii"),
+                     "capturedBytes": len(value), "frameComplete": False}
+                    for name, value in buffers.items() if value
+                ],
+            }
+            self._capture_failure = params
+            if self.trace is not None:
                 try:
-                    message = json.loads(raw)
-                except json.JSONDecodeError:
-                    self._events.put({"method": "$parseError", "params": {"raw": raw}})
-                    continue
-                if not isinstance(message, dict):
-                    continue
-                if "id" in message and "method" not in message:
-                    key = json.dumps(message["id"])
-                    with self._lock:
-                        pending = self._pending.pop(key, None)
-                        if pending is not None:
-                            pending.put_nowait(message)
-                        else:
-                            self._events.put(message)
-                else:
-                    self._events.put(message)
-        finally:
-            self._mark_closed()
+                    self.trace.append(source=self.source, direction="internal", message={
+                        "method": "$transport/captureGap", "params": params,
+                    })
+                except Exception as exc:
+                    # Storage failure cannot be repaired by claiming a durable
+                    # diagnostic exists. Still wake waiters and stop this child.
+                    self._diagnostic_error = type(exc).__name__
+        self._mark_closed()
 
-    def _read_stderr(self) -> None:
+    def _accept_frame(self, stream: str, frame: bytes) -> str | None:
+        try:
+            text = frame.decode("utf-8").rstrip("\r\n")
+        except UnicodeError:
+            return "invalidUtf8"
+        if stream == "stderr":
+            with self._capture_lock:
+                # Tail eviction is a bounded display policy, not RPC capture.
+                self._stderr.append((text, len(frame)))
+                self._stderr_bytes += len(frame)
+                while (self._stderr_bytes > self.limits.max_stderr_tail_bytes
+                       or len(self._stderr) > self.limits.max_stderr_tail_lines):
+                    _, size = self._stderr.popleft()
+                    self._stderr_bytes -= size
+            return None
+        if not text:
+            return None
+        try:
+            message = json.loads(text, parse_constant=_reject_json_constant)
+            if not isinstance(message, dict):
+                return "nonObjectJson"
+        except (ValueError, RecursionError):
+            return "invalidJson"
+        try:
+            if self.trace is not None:
+                self.trace.append(source=self.source, direction="appserver_to_client",
+                                  message=message, raw_text=text)
+            # Correlation can itself fail on a pathological JSON id. Do not
+            # lose the preceding durable frame or treat a projection as native.
+            key = json.dumps(message["id"]) if "id" in message and "method" not in message else None
+        except Exception:
+            return "traceProjectionError"
+        with self._capture_lock:
+            self._accepted_frames += 1
+        if key is not None:
+            with self._lock:
+                pending = self._pending.pop(key, None)
+                if pending is not None:
+                    pending.put_nowait(message)
+                    return None
+        with self._event_condition:
+            if self._retained_count >= self.limits.max_event_count:
+                return "eventCountLimit"
+            if self._retained_bytes + len(frame) > self.limits.max_event_bytes:
+                return "eventBytesLimit"
+            self._retained_count += 1
+            self._retained_bytes += len(frame)
+            self._events.append(_RetainedEvent(message, len(frame)))
+            self._event_condition.notify_all()
+        return None
+
+    def _read_streams(self) -> None:
         process = self.process
-        assert process is not None and process.stderr is not None
-        for line in process.stderr:
-            self._stderr.append(line.rstrip("\r\n"))
+        assert process is not None and process.stdout is not None and process.stderr is not None
+        buffers = {"stdout": bytearray(), "stderr": bytearray()}
+        streams = {"stdout": process.stdout, "stderr": process.stderr}
+        limits = {"stdout": self.limits.max_stdout_frame_bytes, "stderr": self.limits.max_stderr_frame_bytes}
+        stream = "stdout"
+        try:
+            with selectors.DefaultSelector() as selector:
+                for name, pipe in streams.items():
+                    selector.register(pipe, selectors.EVENT_READ, name)
+                while selector.get_map() and not self._input_stopped.is_set():
+                    for key, _ in selector.select(timeout=0.05):
+                        if self._input_stopped.is_set():
+                            break
+                        stream = key.data
+                        buffer = buffers[stream]
+                        # One byte beyond a limit proves a breach. Never read
+                        # an unbounded line, even if no delimiter ever arrives.
+                        with self._capture_lock:
+                            remaining = self.limits.max_received_bytes - sum(self._received.values())
+                        size = min(65536, remaining + 1, limits[stream] - len(buffer) + 1)
+                        try:
+                            chunk = os.read(key.fd, size)
+                        except BlockingIOError:
+                            continue
+                        if not chunk:
+                            selector.unregister(key.fileobj)
+                            if buffer:
+                                data = bytes(buffer)
+                                buffer.clear()
+                                self._capture_gap(stream, "truncatedFrame", data,
+                                                  frame_complete=False, buffers=buffers)
+                                break
+                            if stream == "stdout":
+                                # RPC EOF wakes callers immediately, while the
+                                # remaining stderr pipe is still bounded and
+                                # observed until EOF or explicit cancellation.
+                                self._mark_closed(stop_reader=False)
+                            continue
+                        with self._capture_lock:
+                            self._received[stream] += len(chunk)
+                            exceeded = sum(self._received.values()) > self.limits.max_received_bytes
+                        buffer.extend(chunk)
+                        while buffer and not self._input_stopped.is_set():
+                            # The last byte is only proof of exceeding the
+                            # aggregate limit. Admit complete frames before
+                            # it, independent of how os.read split the wire.
+                            # Keeping it in the buffer also preserves it if an
+                            # earlier allowed frame fails parsing/admission.
+                            allowed_end = len(buffer) - int(exceeded)
+                            end = buffer.find(b"\n", 0, allowed_end)
+                            if end < 0:
+                                if exceeded or len(buffer) > limits[stream]:
+                                    data = bytes(buffer)
+                                    buffer.clear()
+                                    reason = "receivedBytesLimit" if exceeded else "frameBytesLimit"
+                                    self._capture_gap(stream, reason, data,
+                                                      frame_complete=False, buffers=buffers)
+                                break
+                            frame = bytes(buffer[:end + 1])
+                            del buffer[:end + 1]
+                            if len(frame) > limits[stream]:
+                                reason = "frameBytesLimit"
+                            else:
+                                reason = self._accept_frame(stream, frame)
+                            if reason is not None:
+                                self._capture_gap(stream, reason, frame,
+                                                  frame_complete=True, buffers=buffers)
+                                break
+                        if self._input_stopped.is_set():
+                            break
+        except Exception as exc:
+            self._capture_gap(stream, "readerError:" + type(exc).__name__, b"",
+                              frame_complete=False, buffers=buffers)
+        finally:
+            if self._capture_failure is None and any(buffers.values()):
+                self._capture_gap("transport", "closedWithPartialFrame", b"",
+                                  frame_complete=False, buffers=buffers)
+            self._mark_closed()
+            for pipe in streams.values():
+                pipe.close()
+            if self._capture_failure is not None:
+                # No lifecycle lock: close() may be joining this reader. Never
+                # signal descendants, which are outside this ownership claim.
+                try:
+                    if process.poll() is None:
+                        process.terminate()
+                    process.wait(timeout=0.2)
+                except subprocess.TimeoutExpired:
+                    process.kill()
+                    process.wait(timeout=0.2)
+                except (OSError, ValueError):
+                    pass
 
 
 class CodexPlace:
