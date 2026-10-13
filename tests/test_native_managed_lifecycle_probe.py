@@ -417,3 +417,170 @@ def test_exact_request_ack_and_challenge_order_required(mutation, problem):
     elif mutation == "early-denial": case["connectEvents"].insert(3, case["connectEvents"].pop())
     else: case["endpointEvents"].insert(3, case["endpointEvents"].pop())
     assert problem in probe.assess_case(case)
+
+
+def positive_request(value):
+    payload = {"model": probe.derived.MODEL, "stream": True, "input": [
+        {"type": "message", "role": "user", "content": [{"type": "input_text", "text": value.prompt}]},
+        {"type": "additional_tools", "role": "developer", "tools": []}]}
+    return record(probe.PROVIDER_PATH, payload, side="provider", headers={
+        "authorization": "Bearer " + value.tokens["A"]["access_token"], probe.catalog.LITE_HEADER: "true"})
+
+
+def positive_prefix(value):
+    value.provider_enabled = True
+    auth = {"authorization": "Bearer " + value.tokens["A"]["access_token"]}
+    value.dispatch("provider", record(probe.PROVIDER_PATH, "", side="provider", method="GET",
+                                      headers={**auth, "upgrade": "websocket"}))
+    value.dispatch("provider", record(probe.SETTINGS_PATH, "", side="provider", method="GET", headers=auth))
+
+
+def test_positive_mode_is_explicit_and_defaults_keep_negative_pair(monkeypatch):
+    assert probe.CASES == ("nearExpiry", "closedIssuer401")
+    monkeypatch.setattr(probe, "checked_binary", lambda: pytest.fail("checked native before mode validation"))
+    with pytest.raises(ValueError, match="mode"): probe.run_probe(mode="unknown")
+
+
+def test_positive_response_reuses_exact_bounded_text_sse_once():
+    value = services(probe.POSITIVE_CASE)
+    positive_prefix(value)
+    status, reason, sse = value.dispatch("provider", positive_request(value))
+    assert (status, reason) == (200, "authored-managed-text")
+    assert sse == probe.catalog.authored_stream(probe.derived.MODEL, 2)
+    assert len(sse) == 2769 < 8192
+    assert b"function_call" not in sse and b"futureSyntheticField" in sse
+    with pytest.raises(ValueError, match="one fallback/settings"): value.dispatch("provider", positive_request(value))
+
+
+@pytest.mark.parametrize("prefix", ["none", "no-settings", "no-websocket"])
+def test_positive_response_requires_both_fixed_preceding_protocol_steps(prefix):
+    value = services(probe.POSITIVE_CASE)
+    value.provider_enabled = True
+    value.websocket_served = prefix == "no-settings"
+    value.settings_served = prefix == "no-websocket"
+    with pytest.raises(ValueError, match="prefix"): value.dispatch("provider", positive_request(value))
+    assert not value.response_served
+
+
+def test_positive_duplicate_response_is_recorded_and_latches_stop():
+    value = services(probe.POSITIVE_CASE)
+    positive_prefix(value)
+    request = positive_request(value)
+    body = request["bodyRaw"]
+    headers = {**request["headers"], "content-length": str(len(body))}
+    raw = ("POST " + probe.PROVIDER_PATH + " HTTP/1.1\r\n" +
+           "\r\n".join(k + ": " + v for k, v in headers.items()) + "\r\n\r\n" + body).encode()
+    first = socket_request(value, raw, "provider")
+    assert b" 200 " in first.split(b"\r\n")[0] and b"Content-Type: text/event-stream" in first
+    second = socket_request(value, raw, "provider")
+    assert b" 400 " in second.split(b"\r\n")[0] and value.abort.is_set()
+    assert [event["status"] for event in value.events] == [200, 400]
+
+
+def test_positive_rejects_invented_tool_history_before_sse():
+    value = services(probe.POSITIVE_CASE)
+    positive_prefix(value)
+    req = positive_request(value)
+    payload = json.loads(req["bodyRaw"])
+    payload["input"].append({"type": "function_call_output", "call_id": "not-authored", "output": "forged"})
+    req["bodyRaw"] = json.dumps(payload)
+    with pytest.raises(ValueError, match="tool-call history"): value.dispatch("provider", req)
+    assert not value.response_served
+
+
+@pytest.fixture(scope="module")
+def positive_observed():
+    if os.environ.get("NEMA_NATIVE_MANAGED_TEXT_PROBE") != "1":
+        pytest.skip("explicit contained synthetic managed-text opt-in required")
+    result = probe.run_probe(mode=probe.POSITIVE_CASE)
+    if output := os.environ.get("NEMA_NATIVE_MANAGED_TEXT_OUTPUT"):
+        Path(output).write_text(json.dumps(result, indent=2) + "\n")
+    return result
+
+
+def test_contained_positive_managed_text_recovers_and_reopens(positive_observed):
+    report = positive_observed
+    assert set(report["cases"]) == {probe.POSITIVE_CASE}
+    case = report["cases"][probe.POSITIVE_CASE]
+    assert probe.assess_case(case) == [], json.dumps({"failure": case["failure"], "assessment": case["assessmentProblems"], "stderr": case["nativeStderr"]})
+    assert case["positiveManagedTextAccepted"] and case["nativeTerminalRecovered"]
+    assert case["nativeTurnOutcome"]["status"] == "completed"
+    assert case["savedArtifact"]["executionEvidence"] == case["replayRecoveredArtifact"]["executionEvidence"] == "synthetic"
+    assert case["savedArtifact"] == case["reopenedArtifact"]
+    assert case["recoveredArtifact"] == case["replayRecoveredArtifact"]
+    assert report["realAuthCalls"] == report["realModelCalls"] == report["realUpstreamRequests"] == 0
+    assert report["nativeLoginRPCs"] == report["nativeTurnRPCs"] == 1
+
+
+POSITIVE_RECORDED = Path(__file__).parents[1] / "docs/evidence/NATIVE_MANAGED_TEXT_0_154_0.json"
+
+
+def test_committed_positive_recovers_without_starting_another_process(monkeypatch):
+    monkeypatch.setattr(probe.AppServerClient, "start", lambda *a, **k: pytest.fail("native process during historical recovery"))
+    report = json.loads(POSITIVE_RECORDED.read_bytes())
+    test_contained_positive_managed_text_recovers_and_reopens(report)
+    case = report["cases"][probe.POSITIVE_CASE]
+    assert probe.recover_recorded_positive(case) == case["recoveredArtifact"]
+    assert case["fixtureTokenGenerations"] == ["A"]
+    assert case["connectAttempts"] == case["processedConnects"] == case["mappedEndpointOpens"] == 6
+    assert case["unrecordedConnectRefusals"] == 0
+    for i, row in enumerate(case["selectedContext"]["records"], 1):
+        assert json.loads(row["rawText"])["params"]["item"]["futureFixtureField"] == {"preserve": i}
+    response = next(e for e in case["endpointEvents"] if e["reason"] == "authored-managed-text")
+    assert '"futureSyntheticField":{"authoredFixture":true}' in response["responseRaw"]
+
+
+def edit_raw(case, method, edit, *, direction=None):
+    for row in case["traceRecords"]:
+        message = json.loads(row["rawText"])
+        if message.get("method") == method and (direction is None or row["direction"] == direction):
+            edit(message, row)
+            row["rawText"] = json.dumps(message)
+            return
+    pytest.fail("fixture method absent: " + method)
+
+
+@pytest.mark.parametrize("mutation,problem", [
+    ("missing-terminal", "positive-correlated-artifact-not-recovered"),
+    ("wrong-terminal-thread", "positive-correlated-artifact-not-recovered"),
+    ("wrong-terminal-turn", "positive-correlated-artifact-not-recovered"),
+    ("missing-profile", "positive-correlated-artifact-not-recovered"),
+    ("copied-profile", "positive-correlated-artifact-not-recovered"),
+    ("late-profile", "positive-correlated-artifact-not-recovered"),
+    ("native-profile", "positive-correlated-artifact-not-recovered"),
+    ("changed-packet", "correlated-turn-ack-absent"),
+    ("changed-selected-record", "positive-selected-records-differ"),
+    ("capture-gap", "reported-capture-gap"),
+    ("duplicate-response", "serial-challenge-prefix-differs"),
+    ("missing-ack", "correlated-turn-ack-absent"),
+    ("wrong-ack", "correlated-turn-ack-absent"),
+    ("wrong-reopened-artifact", "positive-durable-artifact-differs"),
+    ("classification-inflation", "positive-correlated-artifact-not-recovered"),
+    ("saved-nonterminal-attempt", "positive-durable-artifact-differs"),
+])
+def test_positive_acceptance_rejects_corrupted_source_recovery_and_classification(mutation, problem):
+    case = json.loads(POSITIVE_RECORDED.read_bytes())["cases"][probe.POSITIVE_CASE]
+    assert probe.assess_case(case) == []
+    if mutation == "missing-terminal":
+        edit_raw(case, "turn/completed", lambda m, r: m.update(method="discarded-terminal"))
+    elif mutation.startswith("wrong-terminal-"):
+        if mutation.endswith("thread"): edit_raw(case, "turn/completed", lambda m, r: m["params"].update(threadId="other"))
+        else: edit_raw(case, "turn/completed", lambda m, r: m["params"]["turn"].update(id="other"))
+    elif mutation == "missing-profile": edit_raw(case, "$native/profile", lambda m, r: m.update(method="$history/note"))
+    elif mutation == "copied-profile": edit_raw(case, "$native/profile", lambda m, r: r.update(source="copied-native-source"))
+    elif mutation == "native-profile": edit_raw(case, "$native/profile", lambda m, r: r.update(direction="appserver_to_client"))
+    elif mutation == "late-profile":
+        original = deepcopy(next(row for row in case["traceRecords"] if json.loads(row["rawText"]).get("method") == "$native/profile"))
+        edit_raw(case, "$native/profile", lambda m, r: m.update(method="$history/note"))
+        original["seq"] = len(case["traceRecords"]) + 1
+        case["traceRecords"].append(original)
+    elif mutation == "changed-packet": case["selectedContext"]["projectedPrompt"] += "Changed frozen input"
+    elif mutation == "changed-selected-record": case["selectedContext"]["records"][0]["rawText"] = '{}'
+    elif mutation == "capture-gap": case["nativeCapture"]["failure"] = {"reason": "authored gap"}
+    elif mutation == "duplicate-response": case["endpointEvents"].append(deepcopy(case["endpointEvents"][-1]))
+    elif mutation == "missing-ack": case["nativeReplies"].pop("turnStart")
+    elif mutation == "wrong-ack": case["nativeReplies"]["turnStart"]["turn"]["id"] = "other"
+    elif mutation == "wrong-reopened-artifact": case["reopenedArtifact"]["text"] = "Altered durable output"
+    elif mutation == "classification-inflation": case["recoveredArtifact"]["executionEvidence"] = "native-observed"
+    else: case["savedAttempt"]["status"] = "running"
+    assert problem in probe.assess_case(case)

@@ -30,8 +30,23 @@ class NativeInquiryEvent(TypedDict):
     sha256: str
 
 
+class PrivateNativeRecord(TypedDict):
+    kind: Literal["private-capsule-record"]
+    capsuleId: str
+    seq: int
+    sha256: str
+
+
+class PrivateNativeInquiryEvent(TypedDict):
+    source: str
+    threadId: str
+    turnId: str
+    method: Literal["item/completed", "turn/completed"]
+    evidence: PrivateNativeRecord
+
+
 class NativeInquiryAdmission(TypedDict):
-    schemaVersion: Literal[1]
+    schemaVersion: Literal[1, 2]
     origin: Literal["native-specialist"]
     mode: Literal["terminal-needs-evidence"]
     investigationId: str
@@ -40,8 +55,9 @@ class NativeInquiryAdmission(TypedDict):
     nativeArtifactId: str
     question: str
     cause: str
-    nativeEvent: NativeInquiryEvent
-    requestSeq: int
+    nativeEvent: NativeInquiryEvent | PrivateNativeInquiryEvent
+    requestSeq: NotRequired[int]
+    request: NotRequired[PrivateNativeRecord]
 
 
 class SpecialistContinueRequest(TypedDict):
@@ -159,16 +175,41 @@ def terminal_inquiry(
     try:
         recovered = worker.recover(attempt, contexts[0])
     except Exception as exc:
+        if artifact.get("outputEvidence") is not None:
+            raise NativeInquiryError("Private inquiry evidence recovery failed.") from None
         raise NativeInquiryError(f"native inquiry evidence recovery failed: {exc}") from exc
     if recovered is None or any(
         recovered.get(field) != artifact.get(field) for field in ("text", "outputSeqs")
     ):
         raise NativeInquiryError("native inquiry does not match the recovered native result")
-    seqs = artifact.get("outputSeqs")
+    evidence_trace = store.trace
+    evidence_artifact = artifact
+    capsule_id = None
+    if artifact.get("outputEvidence") is not None:
+        try:
+            resolver = getattr(worker, "resolve_result_evidence", None)
+            if not callable(resolver):
+                raise ValueError("private resolver unavailable")
+            resolved = resolver(attempt, contexts[0], artifact)
+            envelope = artifact["outputEvidence"]
+            if (resolved["kind"] != "private-capsule"
+                    or resolved["capsuleId"] != envelope["capsuleId"]
+                    or resolved["trace"].role != "private-control"
+                    or any(resolved["attempt"].get(key) != attempt.get(key)
+                           for key in ("id", "contextId", "source", "threadId", "turnId"))
+                    or any(resolved["artifact"].get(key) != artifact.get(key)
+                           for key in ("text", "executionEvidence"))):
+                raise ValueError("private evidence binding differs")
+            capsule_id = resolved["capsuleId"]
+            evidence_trace = resolved["trace"]
+            evidence_artifact = resolved["artifact"]
+        except Exception:
+            raise NativeInquiryError("Private inquiry evidence is unavailable or invalid.") from None
+    seqs = evidence_artifact.get("outputSeqs")
     if not isinstance(seqs, list) or len(seqs) != 1 or type(seqs[0]) is not int or seqs[0] < 1:
         raise NativeInquiryError("native inquiry requires exactly one recorded final output event")
 
-    event = store.trace.get(seqs[0])
+    event = evidence_trace.get(seqs[0])
     message = event.message
     params = message.get("params")
     if not isinstance(params, dict):
@@ -198,7 +239,7 @@ def terminal_inquiry(
     ):
         raise NativeInquiryError("native inquiry must be an explicit final agent message")
     requests = [
-        record for record in store.trace.records()
+        record for record in evidence_trace.records()
         if record.source == attempt["source"] and record.direction == "client_to_appserver"
         and record.message.get("method") == "turn/start"
     ]
@@ -211,7 +252,7 @@ def terminal_inquiry(
         or request_params.get("input") != [{"type": "text", "text": contexts[0]["projectedPrompt"]}]
     ):
         raise NativeInquiryError("native inquiry request contradicts its frozen context")
-    return {
+    result = {
         "schemaVersion": 1, "origin": "native-specialist", "mode": "terminal-needs-evidence",
         "investigationId": investigation["id"], "attemptId": attempt["id"],
         "contextId": attempt["contextId"], "nativeArtifactId": artifact["id"],
@@ -222,3 +263,15 @@ def terminal_inquiry(
             "sha256": hashlib.sha256(event.raw_text.encode("utf-8")).hexdigest(),
         },
     }
+    if capsule_id is not None:
+        def reference(record):
+            return {"kind": "private-capsule-record", "capsuleId": capsule_id,
+                    "seq": record.seq, "sha256": hashlib.sha256(record.raw_text.encode("utf-8")).hexdigest()}
+        result["schemaVersion"] = 2
+        result.pop("requestSeq")
+        result["request"] = reference(request)
+        result["nativeEvent"] = {
+            "source": event.source, "threadId": attempt["threadId"], "turnId": attempt["turnId"],
+            "method": method, "evidence": reference(event),
+        }
+    return result

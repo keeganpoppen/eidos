@@ -17,13 +17,13 @@ from .investigation_inquiries import terminal_inquiry
 from .investigation_experiments import InvestigationExperiments
 from .investigation_reads import InvestigationReads
 from .compositions import Compositions
-from .investigation_worker import NativeInvestigationWorker
 from .history import (
     PAGE_SIZE, SourceRecordNotFound, history_snapshot, history_version,
     history_window, thread_preview, window_records,
 )
 from .semantic_tree import SemanticTreeBuilder
 from .trace import TraceStore
+from .private_investigation import PrivateInvestigationWorker
 from .view import ItemView, project_records
 
 
@@ -93,7 +93,11 @@ def _project_item(item: ItemView) -> dict[str, Any] | None:
         "complete": any(event.method in {"item/completed", "$history/item"} for event in item.events),
         "raw": raw,
     }
-    if kind == "agentMessage":
+    if kind == "privateResultPublication":
+        projected["text"] = raw["text"]
+        projected["complete"] = True
+        projected["provenance"] = raw["provenance"]
+    elif kind == "agentMessage":
         text = raw.get("text")
         if not isinstance(text, str) or not text:
             text = _join_deltas(item, "item/agentMessage/delta")
@@ -133,6 +137,7 @@ def thread_payload(
     anchor_seq: int | None = None, around_seq: int | None = None,
     limit: int = PAGE_SIZE, known_version: str | None = None,
 ) -> dict[str, Any]:
+    store.require_workbench()
     with history_snapshot(store):
         selected, window, summary = history_window(
             store, thread_id, anchor_seq=anchor_seq, around_seq=around_seq, limit=limit,
@@ -299,6 +304,7 @@ class LiveCodex:
 
 class EidosAPI:
     def __init__(self, store: TraceStore, *, codex: str = "codex") -> None:
+        store.require_workbench()
         self.store = store
         self.codex = codex
         self.live = LiveCodex(store, codex=codex)
@@ -310,7 +316,7 @@ class EidosAPI:
         self.compositions = Compositions(self.investigations)
         self.investigation_continuations = InvestigationContinuations(self.investigations)
         self.investigation_runtime = self.investigation_continuations.runtime
-        self.investigation_worker = NativeInvestigationWorker(
+        self.investigation_worker = PrivateInvestigationWorker(
             store, command=[codex, "app-server", "--listen", "stdio://"],
             execution_evidence=("synthetic" if Path(codex).resolve() ==
                 Path(__file__).resolve().parents[2] / "tests/fixtures/investigation_appserver.py" else "unverified"),
@@ -347,6 +353,15 @@ class EidosAPI:
             workers = list(self._investigation_threads.values())
         for worker in workers:
             worker.join()
+        finalize = getattr(self.investigation_worker, "close_evidence", None)
+        if callable(finalize):
+            finalize()
+
+    def _investigation_error(self, exc: Exception) -> str:
+        public_error = getattr(self.investigation_worker, "public_error", None)
+        if callable(public_error):
+            return public_error(exc)
+        return f"{type(exc).__name__}: {exc}"[:4000]
 
     def dispatch(self, handler: Any, method: str, path: str, query: dict[str, list[str]]) -> tuple[int, Any]:
         parts = [unquote(part) for part in path.split("/") if part]
@@ -579,7 +594,7 @@ class EidosAPI:
             except Exception as exc:
                 status = "failed" if getattr(exc, "status", None) == "failed" else "unknown"
                 self.investigations.update_attempt(
-                    identifier, expected_attempt_id=attempt_id, status=status, error=f"{type(exc).__name__}: {exc}"[:4000],
+                    identifier, expected_attempt_id=attempt_id, status=status, error=self._investigation_error(exc),
                 )
             finally:
                 self.investigations.reconcile_context(identifier)
@@ -591,7 +606,7 @@ class EidosAPI:
         except Exception as exc:
             if worker.ident is None:
                 self._investigation_threads.pop(identifier, None)
-            self.investigations.update_attempt(identifier, expected_attempt_id=attempt_id, status="unknown", error=str(exc))
+            self.investigations.update_attempt(identifier, expected_attempt_id=attempt_id, status="unknown", error=self._investigation_error(exc))
             raise
         return investigation
 
@@ -673,7 +688,7 @@ class EidosAPI:
                 return self.investigations.complete(identifier, artifact, expected_attempt_id=attempt["id"])
         except Exception as exc:
             status = "failed" if getattr(exc, "status", None) == "failed" else "unknown"
-            return self.investigations.update_attempt(identifier, expected_attempt_id=attempt["id"], status=status, error=str(exc)[:4000])
+            return self.investigations.update_attempt(identifier, expected_attempt_id=attempt["id"], status=status, error=self._investigation_error(exc))
         with self._investigation_lock:
             worker = self._investigation_threads.get(identifier)
             if worker is not None and worker.is_alive():

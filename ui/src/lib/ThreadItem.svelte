@@ -79,7 +79,7 @@
   tabindex="-1"
 >
   <header>
-    <span>{item.type}</span>
+    <span>{item.type === 'privateResultPublication' ? 'Published result' : item.type}</span>
     <code>{item.id}</code>
     {#if onSelect && item.startSeq > 0}
       <button class="source-select" class:selected aria-pressed={selected} onclick={() => onSelect?.(item)}>
@@ -96,6 +96,19 @@
         {showFullText ? 'COLLAPSE' : 'FULL MESSAGE'}
       </button>
     {/if}
+  {:else if item.type === 'privateResultPublication'}
+    <p class="work-notice">Derived publication; original native evidence was recorded privately.</p>
+    <p class="work-muted">{item.raw.executionEvidence === 'synthetic' ? 'Synthetic output · no model called' : item.raw.executionEvidence === 'native-observed' ? 'Observed native output' : 'Recorded output · execution origin unverified'}</p>
+    <Markdown source={typeof item.raw.text === 'string' ? item.raw.text : ''} />
+    <details bind:open={inspectOpen}>
+      <summary>Published fields and provenance</summary>
+      <pre>{showFullRaw ? rawText : rawPreview}</pre>
+      {#if largeRaw}
+        <button class="inline-control" onclick={() => showFullRaw = !showFullRaw}>
+          {showFullRaw ? 'COLLAPSE FIELDS' : 'FULL FIELDS'}
+        </button>
+      {/if}
+    </details>
   {:else if item.type === 'userMessage'}
     {#each textContent as text}
       <Markdown source={text} />

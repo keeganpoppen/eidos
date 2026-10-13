@@ -1,6 +1,6 @@
 # Continuing development frontier
 
-**Provisional strategic understanding · 2026-10-13 · inspected base `13abac7`.**
+**Provisional strategic understanding · 2026-10-13 · inspected base `6ea405a`.**
 The [current handoff](CURRENT_HANDOFF.md) owns verified status and runnable steps;
 this document owns revisable conjectures and opportunity ordering. It does not
 replace the [destination](../vision/DESTINATION.md) or [V1](../roadmap/V1.md).
@@ -46,11 +46,16 @@ These are hypotheses, not established invariants or additional release gates.
    loading exclude specific background writers, not every possible writer.
    Buffered successful token bytes remain outside tunnel closure's reach.
 
-   Next require one successful managed synthetic turn and durable artifact/reopen
-   recovery under the same controls. Couple that discriminator to one owned capsule
-   per pinned investigation attempt: preserve C0 through login/reload/later edits,
-   cancel only the owned process, never reconstruct authority after restart, and
-   privately preserve raw login/account evidence. Reuse the existing worker/API;
+   The [positive managed-text case](../evidence/NATIVE_MANAGED_TEXT_EXPERIMENT.md)
+   now completes one authored native turn and exact durable artifact recovery under
+   the same controls. The [private recording integration](../evidence/PRIVATE_NATIVE_EVIDENCE_INTEGRATION.md)
+   keeps complete control traffic outside ordinary source selection while published
+   results support inquiry, reuse and inspection. Publication waits for recorder
+   closure and final validation; copied publications never revive private authority.
+
+   Next connect preparation, pending sign-in and cancellation to the existing pinned
+   attempt, preserving C0 through reload and later context edits. Use the existing
+   worker/API, keep ownership in the live host, and recover evidence without resend;
    do not create a second agent loop. Fresh Ephemeral login per attempt is a
    provisional isolation choice with unmeasured usability cost. Production
    admission stays closed; no real account/model calls are part of this contract.
@@ -98,9 +103,10 @@ not mature-world axioms.
 
 ## Current integration boundary and next contract
 
-The preceding opaque HTTPS/inquiry integration is `13abac7` (public CI passed);
-the [handoff](CURRENT_HANDOFF.md) identifies managed-lifecycle verification
-and the next positive-recovery / owned-capsule contract. See [D28/D29](../roadmap/DECISIONS.md) and linked evidence. The active
+The preceding managed-lifecycle integration is `6ea405a` (public CI passed);
+the [handoff](CURRENT_HANDOFF.md) identifies positive native recovery, private
+publication and the next owned-lifecycle contract. See [D28–D30](../roadmap/DECISIONS.md)
+and linked evidence. The active
 read index is a derived performance adapter, not a second provenance authority.
 Native process/synthetic transport research is independent of production admission.
 

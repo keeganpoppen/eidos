@@ -371,9 +371,10 @@
       {#each preview.artifactInputs ?? [] as input (artifactInputKey(input))}
         <section class="frozen-artifact-input" data-frozen-artifact-id={input.artifactId} aria-label="Frozen result input">
           <h4>{artifactKind(input.artifact)}</h4>
+          {#if input.artifact.outputEvidence?.kind === 'private-capsule-publication'}<p class="work-notice">Derived publication; original native evidence was recorded privately.</p>{/if}
           <p>{input.rationale || 'No inclusion rationale recorded.'}</p>
           <p class="object-ref">{input.artifactId}<br />Original input {input.sourceContextId}</p>
-          <button class="source-link" onclick={() => inspectArtifact(input)}>Inspect result provenance</button>
+          <button class="source-link" onclick={() => inspectArtifact(input)}>{input.artifact.outputEvidence?.kind === 'private-capsule-publication' ? 'Inspect published result' : 'Inspect result provenance'}</button>
           <details><summary>Read frozen result · {outputEvidence(input.artifact)}</summary><ArtifactContent artifact={input.artifact} /></details>
           {#if input.sourceAdoption}<p class="source-review">Source review when selected: {input.sourceAdoption.decision === 'adopt' ? 'adopted' : 'rejected'}. {input.sourceAdoption.note} This records a decision, not proof of the result.</p>{:else}<p class="work-muted">No matching source adoption decision was recorded when this input was selected.</p>{/if}
           <details><summary>Source context and attempt pins</summary><p class="object-ref">Context manifest {input.sourceManifestId ?? 'not recorded'}<br />Attempt manifest {input.sourceAttemptManifestId ?? 'not recorded'}</p></details>
@@ -424,10 +425,11 @@
       <section class="investigation-result" aria-label="Specialist result" data-result-artifact-id={displayedArtifact.id}>
         <h3>{displayedArtifact.continuedFrom ? 'Follow-up specialist result' : displayedArtifact.kind === 'native-needs-evidence' ? 'Specialist evidence request' : current.nativeArtifact ? 'Original specialist result' : 'Specialist result'}</h3>
         <ArtifactContent artifact={displayedArtifact} context={artifactContext} onArtifact={inspectArtifact} />
+        {#if displayedArtifact.outputEvidence?.kind === 'private-capsule-publication'}<p class="work-notice">Derived publication; original native evidence was recorded privately.</p>{/if}
         <button class="work-secondary" disabled={busy} onclick={() => useResult(current!, displayedArtifact!)}>New investigation using this result</button>
         <button class="source-link" onclick={() => lineageTarget = { investigationId: current!.id, artifactId: displayedArtifact!.id, contextId: displayedArtifact!.contextId }}>Inspect result provenance</button>
         {#if displayedAttempt?.threadId && displayedArtifact.outputSeqs.length}
-          <button class="source-link" onclick={() => onSource({ threadId: displayedAttempt!.threadId!, startSeq: displayedArtifact!.outputSeqs[0], endSeq: displayedArtifact!.outputSeqs.at(-1)!, rationale: '' })}>Inspect recorded native output</button>
+          <button class="source-link" onclick={() => onSource({ threadId: displayedAttempt!.threadId!, startSeq: displayedArtifact!.outputSeqs[0], endSeq: displayedArtifact!.outputSeqs.at(-1)!, rationale: '' })}>{displayedArtifact.outputEvidence?.kind === 'private-capsule-publication' ? 'Inspect published result' : 'Inspect recorded native output'}</button>
         {/if}
         <h4>Cited source evidence</h4>
         <p class="work-muted">A source link confirms the record was supplied; it does not prove the conclusion.</p>
@@ -441,7 +443,14 @@
         </div>
         {#if !displayedArtifact.citations.length && !displayedArtifact.artifactCitations?.length}<p class="work-notice">No supplied-input citations were returned.</p>{/if}
         {#each artifacts(current).filter((artifact) => artifact.id !== displayedArtifact.id) as historical (historical.id)}
-          <details class="reviewed-artifact" data-result-artifact-id={historical.id}><summary>{artifactKind(historical)} · {outputEvidence(historical)} · retained version</summary><ArtifactContent artifact={historical} context={current.contexts.find((context) => context.id === historical.contextId)} onArtifact={inspectArtifact} /><p class="object-ref">{historical.id}<br />Input {historical.contextId}</p><button class="work-secondary" disabled={busy} onclick={() => useResult(current!, historical)}>New investigation using this result</button><button class="source-link" onclick={() => lineageTarget = { investigationId: current!.id, artifactId: historical.id, contextId: historical.contextId }}>Inspect result provenance</button></details>
+          <details class="reviewed-artifact" data-result-artifact-id={historical.id}>
+            <summary>{artifactKind(historical)} · {outputEvidence(historical)} · retained version</summary>
+            <ArtifactContent artifact={historical} context={current.contexts.find((context) => context.id === historical.contextId)} onArtifact={inspectArtifact} />
+            {#if historical.outputEvidence?.kind === 'private-capsule-publication'}<p class="work-notice">Derived publication; original native evidence was recorded privately.</p>{/if}
+            <p class="object-ref">{historical.id}<br />Input {historical.contextId}</p>
+            <button class="work-secondary" disabled={busy} onclick={() => useResult(current!, historical)}>New investigation using this result</button>
+            <button class="source-link" onclick={() => lineageTarget = { investigationId: current!.id, artifactId: historical.id, contextId: historical.contextId }}>{historical.outputEvidence?.kind === 'private-capsule-publication' ? 'Inspect published result' : 'Inspect result provenance'}</button>
+          </details>
         {/each}
         {#if current.adoption}
           <div class="adoption-receipt"><strong>{current.adoption.decision === 'adopt' ? 'Conclusion adopted' : 'Conclusion rejected'}</strong><p>{current.adoption.note || 'No note added.'}</p><p class="work-muted">Source history and files remain unchanged.</p></div>
@@ -466,6 +475,7 @@
 </aside>
 
 <style>
+  .investigation-result > .source-link { margin-inline-end:8px; }
   .artifact-picker { margin:18px 0; padding:14px 0; border-block:1px solid var(--line); }
   .frozen-artifact-input { margin:18px 0; border-left:2px solid var(--accent); padding:6px 12px; background:var(--selection); }
   .frozen-artifact-input h4 { font-size:16px; margin:6px 0; }

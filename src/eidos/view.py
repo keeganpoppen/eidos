@@ -63,6 +63,22 @@ def project_records(thread_id: str, records: list[TraceRecord]) -> ThreadView:
             continue
         turn = ensure_turn(record.turn_id)
         turn.events.append(record)
+        if (
+            record.method == "$capsule/result"
+            and record.direction == "internal"
+            and isinstance(params, dict)
+            and params.get("version") == 1
+            and isinstance(params.get("text"), str)
+            and isinstance(params.get("provenance"), dict)
+            and params["provenance"].get("kind") == "private-capsule"
+        ):
+            # This is a derived host publication, never a reconstructed native item.
+            item_id = f"publication@{record.seq}"
+            turn.items[item_id] = ItemView(
+                item_id, "privateResultPublication",
+                {**params, "id": item_id, "type": "privateResultPublication"},
+                [record],
+            )
         if record.item_id is not None:
             item = turn.items.setdefault(record.item_id, ItemView(record.item_id, record.item_type))
             item.events.append(record)
@@ -128,7 +144,13 @@ def _render_item(item: ItemView) -> str:
     kind = item.item_type or str(raw.get("type") or "item")
     title = kind
     body = ""
-    if kind == "agentMessage":
+    if kind == "privateResultPublication":
+        title = "Published result"
+        body = (
+            '<p class="muted">Derived publication; original native evidence was recorded privately.</p>'
+            + escape(str(raw.get("text", ""))).replace("\n", "<br>")
+        )
+    elif kind == "agentMessage":
         body = escape(str(raw.get("text", ""))).replace("\n", "<br>")
     elif kind == "reasoning":
         summary, content = _reasoning_sections(item)
@@ -247,6 +269,7 @@ def render_thread_html(
     *,
     revision_id: str | None = None,
 ) -> str:
+    store.require_workbench()
     view = project_thread(store, thread_id)
     nav = "".join(
         f'<a class="thread {"active" if t["thread_id"] == thread_id else ""}" '
@@ -341,6 +364,7 @@ if(revision) revision.addEventListener('change',()=>{{
 
 
 def render_index_html(store: TraceStore) -> str:
+    store.require_workbench()
     links = "".join(
         f'<li><a href="/thread/{escape(t["thread_id"])}">{escape(t["thread_id"])}</a> '
         f'<small>{t["turn_count"]} turns · {t["record_count"]} records</small></li>'

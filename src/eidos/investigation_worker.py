@@ -363,10 +363,12 @@ class NativeInvestigationWorker:
     def __init__(
         self, trace: TraceStore, command: Sequence[str] | None = None, *,
         execution_evidence: Literal["synthetic", "unverified"] = "unverified",
+        client_factory: Callable[..., AppServerClient] | None = None,
     ) -> None:
         if execution_evidence not in {"synthetic", "unverified"}:
             raise ValueError("only synthetic or unverified custom execution evidence may be declared")
         self.trace = trace
+        self._client_factory = client_factory
         # A trusted host may identify a synthetic fixture, but cannot declare
         # native model observation. Recovery uses this incarnation's recorded
         # admission evidence, never the current worker's constructor setting.
@@ -511,7 +513,9 @@ class NativeInvestigationWorker:
             state.update(fields)
 
         with tempfile.TemporaryDirectory(prefix="nema-investigation-") as cwd:
-            client = AppServerClient(self.command, trace=self.trace, cwd=cwd, source="nema-investigation")
+            client = (self._client_factory or AppServerClient)(
+                self.command, trace=self.trace, cwd=cwd, source="nema-investigation",
+            )
             # Persist the incarnation before process launch. A crash before the
             # subsequent native acknowledgement must remain visibly uncertain.
             remember(source=client.source)

@@ -81,6 +81,7 @@ class InvestigationStore:
     """
 
     def __init__(self, trace: TraceStore) -> None:
+        trace.require_workbench()
         self.trace = trace
         self.contexts = InvestigationContexts(trace)
         with trace._lock:
@@ -585,7 +586,7 @@ class InvestigationStore:
             raise InvestigationError(409, "native callback does not identify the current admitted attempt")
 
     def complete(self, investigation_id: str, artifact: Mapping[str, Any], *, expected_attempt_id: str | None = None) -> dict[str, Any]:
-        artifact = _body(artifact, {"text", "outputSeqs", "citations", "unsupportedCitations", "executionEvidence"})
+        artifact = _body(artifact, {"text", "outputSeqs", "citations", "unsupportedCitations", "executionEvidence", "outputEvidence"})
         if "executionEvidence" in artifact and artifact["executionEvidence"] not in {"synthetic", "native-observed", "unverified"}:
             raise InvestigationError(400, "invalid execution evidence classification")
         text = _text(artifact.get("text"), "artifact text", MAX_ARTIFACT_BYTES)
@@ -604,6 +605,9 @@ class InvestigationStore:
             if attempt["status"] == "failed":
                 raise InvestigationError(409, "a failed native attempt cannot become a completed artifact")
             context = next(context for context in investigation["contexts"] if context["id"] == attempt["contextId"])
+            if "outputEvidence" in artifact:
+                from .private_investigation import validate_publication
+                validate_publication(self.trace, attempt, context, artifact)
             for seq in output_seqs:
                 row = self.trace.db.execute("SELECT * FROM trace_records WHERE seq=?", (seq,)).fetchone()
                 if row is None:
@@ -630,6 +634,8 @@ class InvestigationStore:
                 content["unsupportedArtifactCitations"] = sorted(referred - supplied)
             if "executionEvidence" in artifact:
                 content["executionEvidence"] = artifact["executionEvidence"]
+            if "outputEvidence" in artifact:
+                content["outputEvidence"] = dict(artifact["outputEvidence"])
             if attempt.get("continuedFrom"):
                 content.update(kind="native-specialist-result", continuedFrom=attempt["continuedFrom"])
             # Classify the reserved terminal protocol before exposing a completed

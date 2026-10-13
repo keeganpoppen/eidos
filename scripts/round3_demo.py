@@ -48,13 +48,27 @@ def report(api, trace, ids):
     work = api.investigations.get(ids["investigationId"])
     inquiry = work["continuation"]["inquiry"]
     attempts = work.get("attemptHistory", []) + [work["attempt"]]
+    fixture_turns = len([r for r in trace.records() if r.method == "turn/start"])
+    artifacts = [work.get("nativeArtifact"), work.get("artifact"), *work.get("artifactHistory", [])]
+    for attempt in attempts:
+        artifact = next((value for value in artifacts if value
+                         and value["attemptId"] == attempt["id"]
+                         and value.get("kind") != "eidos-evidence-review"
+                         and value.get("outputEvidence") is not None), None)
+        if artifact is not None:
+            context = next(value for value in work["contexts"] if value["id"] == attempt["contextId"])
+            proof = api.investigation_worker.resolve_result_evidence(attempt, context, artifact)
+            # Trusted fixture inspection counts actual private requests without
+            # copying their control bodies into the public demonstration report.
+            fixture_turns += sum(r.method == "turn/start" and r.direction == "client_to_appserver"
+                                 for r in proof["trace"].records())
     experiment = api.investigation_experiments.get(work["id"], ids["experimentId"])
     rejected = api.investigation_experiments.get(work["id"], ids["rejectedExperimentId"])
     return {
         "schemaVersion": 1, "evidenceClass": "synthetic", "nativeModelCalls": 0,
         "investigationId": work["id"], "attemptIds": [a["id"] for a in attempts],
         "requestPins": [a["contextRequestName"] for a in attempts],
-        "fixtureTurns": len([r for r in trace.records() if r.method == "turn/start"]),
+        "fixtureTurns": fixture_turns,
         "inquiryId": inquiry["id"], "responseIds": [r["id"] for r in inquiry["responses"]],
         "sourceDecisionOccurrence": inquiry["responses"][-1]["occurrenceId"],
         "incorporationOutcome": work["continuation"]["outcomeId"],

@@ -18,6 +18,7 @@ from typing import Any
 from urllib.parse import parse_qsl
 
 from eidos.codex import AppServerClient
+from eidos.investigation import InvestigationStore
 from eidos.investigation_worker import NativeInvestigationWorker
 from eidos.trace import TraceStore
 
@@ -34,6 +35,7 @@ PROVIDER_PATH = "/backend-api/codex/responses"
 SETTINGS_PATH = "/backend-api/wham/settings/user"
 CLIENT_ID = "app_EMoamEEZ73f0CkXaXp7hrann"
 CASES = ("nearExpiry", "closedIssuer401")
+POSITIVE_CASE = "managedText"
 MAX_HTTP = 8
 HOLD_SECONDS = 1.5
 MAX_EVENTS = 100
@@ -188,7 +190,7 @@ class ManagedClient(AppServerClient):
 
 class Services:
     def __init__(self, variant: str, prompt: str, timeline: Timeline):
-        if variant not in CASES: raise ValueError("unknown lifecycle case")
+        if variant not in (*CASES, POSITIVE_CASE): raise ValueError("unknown lifecycle case")
         self.variant, self.prompt, self.timeline = variant, prompt, timeline
         now = int(time.time())
         self.tokens = {"A": token_generation("A", "plus", now + (60 if variant == "nearExpiry" else 3600)),
@@ -197,6 +199,7 @@ class Services:
         self.generations = []
         self.provider_enabled = False
         self.settings_served = False
+        self.websocket_served = self.response_served = False
         self.held, self.release = threading.Event(), threading.Event()
         self.abort = threading.Event()
         self.events = []
@@ -255,6 +258,9 @@ class Services:
             return 200, "authored-attribution-disabled", {"commit_attribution_enabled": False}
         if target != PROVIDER_PATH: raise ValueError("unknown provider route")
         if method == "GET" and headers.get("upgrade", "").lower() == "websocket" and raw == "":
+            if self.variant == POSITIVE_CASE and self.websocket_served:
+                raise ValueError("positive fixture permits one WebSocket fallback")
+            self.websocket_served = True
             return 426, "authored-websocket-http-fallback", {"synthetic": True}
         if method != "POST": raise ValueError("unknown provider method")
         payload = strict_json(raw)
@@ -262,6 +268,13 @@ class Services:
             raise ValueError("provider envelope differs")
         tools = [item for item in payload["input"] if item.get("type") == "additional_tools"]
         if tools[0]["tools"]: raise ValueError("unexpected tool declaration")
+        if self.variant == POSITIVE_CASE:
+            if self.response_served or not self.websocket_served or not self.settings_served:
+                raise ValueError("positive response requires one fallback/settings prefix")
+            if any(item.get("type") in ("function_call", "function_call_output") for item in payload["input"]):
+                raise ValueError("positive fixture refuses tool-call history")
+            self.response_served = True
+            return 200, "authored-managed-text", catalog.authored_stream(derived.MODEL, 2)
         return 401, "authored-unauthorized", {"error": {"message": "Authored offline 401 fixture", "type": "authentication_error", "code": "invalid_api_key"}}
 
     def exchange(self, side: str, connection):
@@ -289,12 +302,14 @@ class Services:
             status, reason, response = 400, str(exc), {"synthetic": True}
             self.violations.append(reason)
             self.abort.set()
-        payload = json.dumps(response, separators=(",", ":")).encode()
+        content_type = "text/event-stream" if isinstance(response, bytes) else "application/json"
+        payload = response if isinstance(response, bytes) else json.dumps(response, separators=(",", ":")).encode()
         if len(payload) > 8192: raise ValueError("authored endpoint response limit")
         record.update(status=status, reason=reason, responseRaw=payload.decode())
+        if self.variant == POSITIVE_CASE: record["responseContentType"] = content_type
         self.events.append(record)
         self.timeline.add("fixtureHttpResponse", side=side, status=status, reason=reason)
-        return transport.FixtureBroker._http(status, payload)
+        return transport.FixtureBroker._http(status, payload, content_type)
 
 
 class Endpoint:
@@ -329,7 +344,7 @@ def run_case(helper: Path, paths: dict[str, Path], variant: str) -> dict[str, An
                        f"os.environ['CODEX_REFRESH_TOKEN_URL_OVERRIDE']={(ISSUER+'/oauth/token')!r}\n")
         (root / "fixture/launcher.py").write_text(transport.LAUNCHER.replace(anchor, environment + anchor))
         trace = TraceStore(root / "trace.db")
-        _, work = transport.fixture_work(trace)
+        store, work = transport.fixture_work(trace)
         context = work["contexts"][0]
         (root / "packet/context.json").write_text(json.dumps(context))
         timeline = Timeline()
@@ -343,6 +358,8 @@ def run_case(helper: Path, paths: dict[str, Path], variant: str) -> dict[str, An
         failure = policy = outcome = None
         held_overtaken = False
         candidate_rejected = False
+        recovered = final_work = reopened_artifact = replay = recovery_failure = None
+        durable = False
 
         class Handler(socketserver.BaseRequestHandler):
             def handle(self):
@@ -447,9 +464,16 @@ def run_case(helper: Path, paths: dict[str, Path], variant: str) -> dict[str, An
                     replies["threadStart"] = client.request("thread/start", client.expected_thread)
                     NativeInvestigationWorker._check_thread_policy(replies["threadStart"], "/state/workspace")
                     thread_id = replies["threadStart"]["thread"]["id"]
+                    if variant == POSITIVE_CASE:
+                        store.update_attempt(work["id"], source=client.source, threadId=thread_id, status="running")
+                        trace.append(source=client.source, direction="internal", message={
+                            "method": "$native/profile", "params": {
+                                "admission": "custom-command-trusted-host", "executionEvidence": "synthetic",
+                                "fixture": "offline-managed-text", "liveAdmitted": False}})
                     client.expected_turn = {"threadId": thread_id, "input": [{"type": "text", "text": context["projectedPrompt"]}]}
                     replies["turnStart"] = client.request("turn/start", client.expected_turn)
                     turn_id = replies["turnStart"]["turn"]["id"]
+                    if variant == POSITIVE_CASE: store.update_attempt(work["id"], turnId=turn_id)
                     deadline = time.monotonic() + 8
                     try:
                         while time.monotonic() < deadline:
@@ -479,9 +503,33 @@ def run_case(helper: Path, paths: dict[str, Path], variant: str) -> dict[str, An
                 provider_tls.close()
                 worker.join(3)
                 if worker.is_alive(): raise RuntimeError("fixture server failed to join")
+        if variant == POSITIVE_CASE and failure is None:
+            try:
+                capture = client.capture_status
+                if capture["failure"] is not None or capture["diagnosticError"] is not None:
+                    raise RuntimeError("positive recovery requires intact reported capture")
+                attempt = store.get(work["id"])["attempt"]
+                recovered = NativeInvestigationWorker(trace, command=["/never-start-native"]).recover(attempt, context)
+                if (recovered is None or recovered["text"] != transport.OUTPUT_TEXT
+                        or recovered["executionEvidence"] != "synthetic"):
+                    raise RuntimeError("correlated synthetic artifact was not recovered")
+                final_work = store.complete(work["id"], recovered, expected_attempt_id=attempt["id"])
+            except Exception as exc:
+                failure = {"type": type(exc).__name__, "message": str(exc)}
         records = [{"seq": row.seq, "source": row.source, "direction": row.direction, "rawText": row.raw_text} for row in trace.records()]
         sent_methods = [json.loads(row["rawText"]).get("method") for row in records if row["direction"] == "client_to_appserver"]
         trace.close()
+        if variant == POSITIVE_CASE and final_work is not None:
+            reopened = TraceStore(root / "trace.db")
+            try:
+                saved = InvestigationStore(reopened).get(work["id"])
+                reopened_artifact = saved["artifact"]
+                replay = NativeInvestigationWorker(reopened, command=["/never-start-native"]).recover(saved["attempt"], context)
+                durable = saved == final_work and replay == recovered
+                if not durable: raise RuntimeError("durable synthetic recovery differs")
+            except Exception as exc:
+                recovery_failure = {"type": type(exc).__name__, "message": str(exc)}
+            finally: reopened.close()
         report = {"case": variant, "classification": "NATIVE_MANAGED_AUTH_SYNTHETIC_FIXTURE", "failure": failure,
             "command": command, "requestedConfigToml": fixture_config(), "policy": policy,
             "nativeReplies": replies, "nativeEvents": events, "nativeCapture": client.capture_status,
@@ -502,9 +550,16 @@ def run_case(helper: Path, paths: dict[str, Path], variant: str) -> dict[str, An
             "tlsHandshakeEvents": {"issuer": issuer_tls.tls_events, "provider": provider_tls.tls_events},
             "allWorkersJoined": all(not item.is_alive() for item in [worker, abort_worker, *issuer_tls.workers, *provider_tls.workers]),
             "remainingActiveTunnels": broker.active, "authFileExists": (root / "state/codex/auth.json").exists()}
+        if variant == POSITIVE_CASE:
+            report.update(recoveredArtifact=recovered, savedArtifact=final_work["artifact"] if final_work else None,
+                          savedAttempt=final_work["attempt"] if final_work else None,
+                          reopenedArtifact=reopened_artifact, replayRecoveredArtifact=replay,
+                          durableReopenMatches=durable, durableReopenFailure=recovery_failure,
+                          providerRequestAnalyses=[catalog.analyze_request(event, context["projectedPrompt"])
+                              for event in services.events if event.get("reason") == "authored-managed-text"])
         report = json.loads(json.dumps(report).replace(str(root), "<probe>"))
         report["assessmentProblems"] = assess_case(report)
-        report["boundedNegativeEvidenceAccepted"] = not report["assessmentProblems"]
+        report["positiveManagedTextAccepted" if variant == POSITIVE_CASE else "boundedNegativeEvidenceAccepted"] = not report["assessmentProblems"]
         report["nativeTerminalRecovered"] = bool(outcome and outcome.get("id"))
         return report
 
@@ -594,7 +649,7 @@ def assess_case(case: dict[str, Any]) -> list[str]:
             problems.append("prethread-closure-order-differs")
         endpoints = case["endpointEvents"]
         statuses = [e["status"] for e in endpoints if e["side"] == "provider"]
-        if 426 not in statuses or 401 not in statuses or statuses.index(426) >= statuses.index(401):
+        if case["case"] != POSITIVE_CASE and (426 not in statuses or 401 not in statuses or statuses.index(426) >= statuses.index(401)):
             problems.append("426-then-401-absent")
         settings = [e for e in endpoints if e["target"] == SETTINGS_PATH]
         if (len(settings) != 1 or settings[0]["status"] != 200 or settings[0]["method"] != "GET"
@@ -605,16 +660,18 @@ def assess_case(case: dict[str, Any]) -> list[str]:
                          ("issuer", "POST", "/api/accounts/deviceauth/token", 200),
                          ("issuer", "POST", "/oauth/token", 200),
                          ("provider", "GET", PROVIDER_PATH, 426),
-                         ("provider", "GET", SETTINGS_PATH, 200),
-                         ("provider", "POST", PROVIDER_PATH, 401),
-                         ("provider", "POST", PROVIDER_PATH, 401)]
+                         ("provider", "GET", SETTINGS_PATH, 200)]
+        expected_http += ([("provider", "POST", PROVIDER_PATH, 200)] if case["case"] == POSITIVE_CASE else
+                          [("provider", "POST", PROVIDER_PATH, 401)] * 2)
+        expected_connects = ([(ISSUER_AUTHORITY, 200)] * 3 + [(tls.AUTHORITY, 200)] * 3
+                             if case["case"] == POSITIVE_CASE else
+                             [(ISSUER_AUTHORITY, 200)] * 3 + [(tls.AUTHORITY, 200)] * 4 + [(ISSUER_AUTHORITY, 403)])
         if ([(e["side"], e["method"], e["target"], e["status"]) for e in endpoints] != expected_http
-                or [(e.get("authority"), e["status"]) for e in connects] !=
-                   [(ISSUER_AUTHORITY, 200)] * 3 + [(tls.AUTHORITY, 200)] * 4 + [(ISSUER_AUTHORITY, 403)]):
+                or [(e.get("authority"), e["status"]) for e in connects] != expected_connects):
             problems.append("serial-challenge-prefix-differs")
         if closure >= 0:
             after = connects[timeline[closure]["connectCount"]:]
-            if not any(e.get("authority") == ISSUER_AUTHORITY and e.get("status") == 403
+            if case["case"] != POSITIVE_CASE and not any(e.get("authority") == ISSUER_AUTHORITY and e.get("status") == 403
                        and e.get("reason") == "destination-closed" for e in after):
                 problems.append("closed-issuer-denial-absent")
             if any(e.get("authority") == ISSUER_AUTHORITY and e.get("status") == 200 for e in after):
@@ -623,18 +680,80 @@ def assess_case(case: dict[str, Any]) -> list[str]:
                 problems.append("issuer-http-after-closure")
         if case["fixtureTokenGenerations"] != ["A"]: problems.append("replacement-token-authored")
         if case["nativeThreadRPCs"] != 1 or case["nativeTurnRPCs"] != 1: problems.append("bounded-turn-absent")
+        if case["case"] == POSITIVE_CASE:
+            if (case["connectAttempts"] != 6 or case["mappedEndpointOpens"] != 6
+                    or case["issuerHttpRequests"] != 3 or case["providerHttpRequests"] != 3):
+                problems.append("positive-request-budget-differs")
+            problems.extend(assess_positive_artifact(case))
     return problems
 
 
-def run_probe():
+def recover_recorded_positive(case: dict[str, Any]) -> dict[str, Any] | None:
+    """Re-evaluate captured native evidence in memory, never launch a process."""
+    trace = TraceStore(":memory:")
+    try:
+        for row in case["traceRecords"]:
+            record = trace.append_line(source=row["source"], direction=row["direction"], raw_text=row["rawText"])
+            if record.seq != row["seq"]: raise ValueError("record sequence differs")
+        return NativeInvestigationWorker(trace, command=["/never-start-native"]).recover(
+            case["savedAttempt"], case["selectedContext"])
+    finally: trace.close()
+
+
+def assess_positive_artifact(case: dict[str, Any]) -> list[str]:
+    problems = []
+    originals = {row["seq"]: row for row in case["traceRecords"]}
+    selected = case["selectedContext"]["records"]
+    if (len(selected) != 2 or {row["seq"] for row in selected} != {1, 2}
+            or any(row["rawText"] != originals.get(row["seq"], {}).get("rawText")
+                   or row["source"] != originals[row["seq"]]["source"]
+                   or row["direction"] != originals[row["seq"]]["direction"]
+                   or row["sha256"] != hashlib.sha256(row["rawText"].encode()).hexdigest() for row in selected)):
+        problems.append("positive-selected-records-differ")
+    try: recovered = recover_recorded_positive(case)
+    except Exception: recovered = None
+    if (recovered is None or recovered.get("text") != transport.OUTPUT_TEXT
+            or recovered.get("executionEvidence") != "synthetic"
+            or recovered.get("citations") != [1, 2] or recovered.get("unsupportedCitations") != []
+            or recovered != case.get("recoveredArtifact") or recovered != case.get("replayRecoveredArtifact")):
+        problems.append("positive-correlated-artifact-not-recovered")
+    saved = case.get("savedArtifact")
+    if (not isinstance(saved, dict) or saved != case.get("reopenedArtifact")
+            or recovered is None or any(saved.get(key) != value for key, value in recovered.items())
+            or saved.get("contextId") != case["selectedContext"]["id"]
+            or saved.get("attemptId") != (case.get("savedAttempt") or {}).get("id")
+            or (case.get("savedAttempt") or {}).get("status") != "completed"
+            or not case.get("durableReopenMatches") or case.get("durableReopenFailure") is not None):
+        problems.append("positive-durable-artifact-differs")
+    outcome = case.get("nativeTurnOutcome") or {}
+    if (outcome.get("status") != "completed" or outcome.get("error") is not None
+            or outcome.get("id") != case["nativeReplies"].get("turnStart", {}).get("turn", {}).get("id")):
+        problems.append("positive-terminal-not-completed")
+    responses = [e for e in case["endpointEvents"] if e.get("reason") == "authored-managed-text"]
+    if (len(responses) != 1 or responses[0]["responseRaw"] != catalog.authored_stream(derived.MODEL, 2).decode()
+            or responses[0].get("responseContentType") != "text/event-stream"):
+        problems.append("positive-fixed-sse-differs")
+    else:
+        event = responses[0]
+        try:
+            payload = strict_json(event["bodyRaw"])
+            valid = catalog.provider_shape(payload, event["headers"], derived.MODEL, case["selectedContext"]["projectedPrompt"])
+            additional = [item for item in payload["input"] if item.get("type") == "additional_tools"]
+            if not valid or additional[0]["tools"]: raise ValueError("unexpected tools")
+        except (KeyError, TypeError, ValueError, RecursionError): problems.append("positive-wire-input-differs")
+    return problems
+
+
+def run_probe(*, mode: str | None = None):
+    if mode not in (None, POSITIVE_CASE): raise ValueError("unknown explicit managed probe mode")
     binary_hash = checked_binary()
     with tempfile.TemporaryDirectory(prefix="nema-managed-host-") as temporary:
         directory = Path(temporary)
         paths = tls.make_certificates(directory, extra_fixed_hostnames={"issuer": "issuer.fixture.invalid"})
         helper = boundary.compile_helper(directory)
-        cases = {variant: run_case(helper, paths, variant) for variant in CASES}
+        cases = {variant: run_case(helper, paths, variant) for variant in ((POSITIVE_CASE,) if mode else CASES)}
         ca_hash = hashlib.sha256(paths["ca"].read_bytes()).hexdigest()
-    return {"schemaVersion": "nema-native-managed-lifecycle/1", "implementationBase": "13abac7", "cases": cases,
+    return {"schemaVersion": "nema-native-managed-lifecycle/1", "implementationBase": "6ea405a" if mode else "13abac7", "cases": cases,
             "classification": "NATIVE_MANAGED_AUTH_SYNTHETIC_FIXTURE", "realAuthCalls": 0, "realModelCalls": 0,
             "realUpstreamRequests": 0, "subscriptionExecution": False, "liveAdmission": False,
             "nativeLoginRPCs": sum(case["nativeLoginRPCs"] for case in cases.values()),
@@ -655,8 +774,9 @@ def run_probe():
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path)
+    parser.add_argument("--mode", choices=[POSITIVE_CASE], help="explicit single positive managed-text case; default retains the negative pair")
     args = parser.parse_args()
-    data = json.dumps(run_probe(), indent=2) + "\n"
+    data = json.dumps(run_probe(mode=args.mode), indent=2) + "\n"
     if args.output: args.output.write_text(data)
     else: print(data, end="")
 

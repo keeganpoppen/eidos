@@ -207,6 +207,38 @@ a browser upgrade, an exact previously committed receipt still confirms the old
 captured request. Save-copy uses a new request. See the
 [contract](../agents/DURABLE_ARRANGEMENTS_TASK.md) and current handoff for verification.
 
+### D30 — Preserve private native evidence; publish attributable results
+
+**Accepted, 2026-10-13**, integration base `6ea405a`. An annotation on a main-store
+source cannot prevent raw control fields entering ordinary source selection or
+export. New investigation incarnations therefore record wholly in a separate
+private SQLite store. A trusted host resolver validates the original request and
+terminal evidence before a transactional, uniquely bound derived result publication
+enters the main workbench. Unknown fields, late control traffic, stderr and exact
+capture-gap bytes remain private under the existing bounded recorder semantics.
+
+Artifact outputSeqs name main publication records; optional outputEvidence names
+that provenance explicitly. Private inquiry causes use version 2 capsule-scoped
+request/event references, never bare main-store sequence numbers. Existing public
+recordings retain version 1 behavior. A copied capsule name is a locator, not an
+inspection grant, authenticated identity or reconstructed execution authority.
+
+A real authored subprocess counterexample rejected publishing while recorder
+cleanup could still accept a contradictory terminal. Publication now requires
+reader termination and revalidation while holding per-capsule writer exclusion;
+concurrent recovery cannot publish an actively changing capture. Host crash
+releases the advisory exclusion and permits evidence-only recovery without resend.
+These Unix locks and file permissions guard trusted host operations, not arbitrary
+owner code. Logical budgets do not establish a physical database quota.
+
+A derived publication is inspectable, reusable and retained if its private proof
+later disappears; missing proof cannot admit a new inquiry. Existing admitted
+continuations preserve their host ledger. Public context lineage describes local
+publication, never manufactures raw native acknowledgements or provider context.
+No native admission exemption or real login flow follows from this change. See
+[contract](../agents/PRIVATE_NATIVE_EVIDENCE_TASK.md) and
+[integration evidence](../evidence/PRIVATE_NATIVE_EVIDENCE_INTEGRATION.md).
+
 ## Deferred explorations, kept for their potential
 
 ### D22 — Names, routing, locality, and leases

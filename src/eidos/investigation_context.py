@@ -111,6 +111,43 @@ class InvestigationContexts:
                 or pin.data["identity"]["process_name"] != investigation["id"]):
             raise ValueError("request pin does not belong to this investigation attempt")
         context = next(c for c in investigation["contexts"] if c["id"] == attempt["contextId"])
+        artifacts = [investigation.get("nativeArtifact"), investigation.get("artifact"),
+                     *investigation.get("artifactHistory", [])]
+        publication = next((value for value in artifacts if isinstance(value, dict)
+                            and value.get("attemptId") == attempt["id"]
+                            and value.get("kind") != "eidos-evidence-review"
+                            and value.get("outputEvidence") is not None), None)
+        if publication is not None:
+            # This is an observation of a host publication. The original RPCs
+            # remain private; copying them here would defeat that boundary.
+            from .private_investigation import validate_publication
+            validate_publication(self.trace, attempt, context, publication)
+            seq = publication["outputSeqs"][0]
+            identity = RuntimeIdentity(
+                process_name=investigation["id"], incarnation_id=attempt["source"],
+                thread_id=attempt.get("threadId"), turn_id=attempt.get("turnId"),
+                attempt_id=attempt["id"],
+            )
+            evidence = self.store.freeze_trace(seq)
+            receipt = {"version": 1, "attemptId": attempt["id"], "contextId": context["id"],
+                       "publicationSeq": seq, "outputEvidence": publication["outputEvidence"],
+                       "coverage": "Derived result publication. Original native traffic is retained privately; provider input remains unknown."}
+            content = self.store.put_content("investigation.private-result-publication.v1", receipt)
+            claim = self.store.claim(
+                content, state=KnowledgeState.OBSERVED, boundary=Boundary.LOCAL,
+                facet="derived-result-publication", evidence=(evidence,), scope=identity,
+                rationale="Observed host publication after private native evidence validation; not a public raw RPC or provider-input observation.",
+            )
+            supplemental = self.store.replace(attempt["manifestId"], "native/result-publication", self.store.slot(claim))
+            self.store.record_event(
+                attempt["contextRequestName"] + f"/publication/{seq}", kind="correlation",
+                manifest=attempt["manifestId"], request_name=attempt["contextRequestName"],
+                identity=identity, boundary=Boundary.LOCAL, evidence=(evidence,),
+                supplemental_manifest=supplemental,
+                details={"observation": "derived-result-publication", "seq": seq,
+                         "outputEvidence": publication["outputEvidence"], "providerContext": "unknown"},
+            )
+            return
         rows = self.trace.db.execute(
             "SELECT seq,direction,raw_text FROM trace_records WHERE source=? ORDER BY seq",
             (attempt["source"],),

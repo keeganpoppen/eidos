@@ -10,6 +10,16 @@ from typing import Any, Iterable, Iterator, Literal, Mapping
 
 Direction = Literal["client_to_appserver", "appserver_to_client", "provider_request", "provider_response", "internal"]
 
+# A persistent SQLite header marker prevents accidental use of a private
+# recording through ordinary workbench/CLI entry points. It is not protection
+# against the trusted OS owner or a caller deliberately editing the database.
+PRIVATE_CONTROL_APPLICATION_ID = 0x4E505256
+
+
+class PrivateTraceAccessError(ValueError):
+    def __init__(self) -> None:
+        super().__init__("Private control evidence requires its dedicated owner resolver.")
+
 
 def _json_id(value: Any) -> str | None:
     if value is None:
@@ -99,12 +109,43 @@ class TraceStore:
     survive because the original record is never normalized away.
     """
 
-    def __init__(self, path: str | Path = ":memory:") -> None:
-        if str(path) != ":memory:":
-            Path(path).expanduser().parent.mkdir(parents=True, exist_ok=True)
-        self.db = sqlite3.connect(str(path), isolation_level=None, check_same_thread=False)
+    def __init__(
+        self, path: str | Path = ":memory:", *,
+        role: Literal["workbench", "private-control"] = "workbench",
+    ) -> None:
+        if role not in {"workbench", "private-control"}:
+            raise ValueError("Unknown trace store role.")
+        self.role = role
+        self.path = ":memory:" if str(path) == ":memory:" else str(Path(path).expanduser().resolve())
+        if self.path != ":memory:":
+            candidate = Path(self.path)
+            if candidate.exists():
+                # The marker is committed before enabling WAL on creation, so
+                # a normal open can reject it without opening SQLite at all.
+                with candidate.open("rb") as stream:
+                    header = stream.read(100)
+                if (role == "workbench" and header[:16] == b"SQLite format 3\x00"
+                        and int.from_bytes(header[68:72], "big") == PRIVATE_CONTROL_APPLICATION_ID):
+                    raise PrivateTraceAccessError()
+            candidate.parent.mkdir(parents=True, exist_ok=True)
+        self.db = sqlite3.connect(self.path, isolation_level=None, check_same_thread=False)
         self.db.row_factory = sqlite3.Row
         self._lock = threading.RLock()
+        try:
+            application_id = self.db.execute("PRAGMA application_id").fetchone()[0]
+            if role == "workbench" and application_id == PRIVATE_CONTROL_APPLICATION_ID:
+                raise PrivateTraceAccessError()
+            if role == "private-control" and application_id != PRIVATE_CONTROL_APPLICATION_ID:
+                populated = self.db.execute(
+                    "SELECT 1 FROM sqlite_master WHERE name NOT LIKE 'sqlite_%' LIMIT 1"
+                ).fetchone()
+                if application_id != 0 or populated is not None:
+                    raise ValueError("An existing ordinary database cannot become private control evidence.")
+                self.db.execute("PRAGMA journal_mode=DELETE")
+                self.db.execute(f"PRAGMA application_id={PRIVATE_CONTROL_APPLICATION_ID}")
+        except Exception:
+            self.db.close()
+            raise
         self.db.execute("PRAGMA foreign_keys=ON")
         self.db.execute("PRAGMA journal_mode=WAL")
         self.db.execute("PRAGMA synchronous=FULL")
@@ -186,6 +227,11 @@ class TraceStore:
     def close(self) -> None:
         with self._lock:
             self.db.close()
+
+    def require_workbench(self) -> None:
+        """Reject accidental exposure even when a host passes an open store."""
+        if self.role != "workbench":
+            raise PrivateTraceAccessError()
 
     def append_line(
         self,

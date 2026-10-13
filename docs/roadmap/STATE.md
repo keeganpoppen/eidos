@@ -6,6 +6,34 @@ The baseline GitHub Actions run `38240774514` completed successfully: pytest and
 
 Refresh this file when implementation claims materially change. Keep historical audit IDs instead of quietly relabelling old evidence as current.
 
+## Private publication and positive managed text — 2026-10-13
+
+Integration base `6ea405a`; [private integration evidence](../evidence/PRIVATE_NATIVE_EVIDENCE_INTEGRATION.md)
+and [positive native experiment](../evidence/NATIVE_MANAGED_TEXT_EXPERIMENT.md).
+New investigations record their entire incarnation in a marked private store.
+Validated derived publications support source inspection, inquiry, reuse and
+comparison without copying raw control traffic into ordinary context/export.
+Private inquiry causes carry capsule-scoped refs. Reader closure, final evidence
+revalidation and advisory writer exclusion reject premature publication, including
+concurrent recovery; recorder-host crash permits evidence recovery without resend.
+Legacy public recordings remain supported. See [D30](DECISIONS.md#d30--preserve-private-native-evidence-publish-attributable-results).
+
+Separately, one local native 0.154.0 managed-login turn completed authored text SSE
+and exact artifact/reopen recovery under the existing fixed TLS/issuer controls.
+Parent positive checks: **103 passed / 2 negative native skips**, six local HTTP
+exchanges, zero real auth/model/upstream requests. This is transport/recovery
+evidence; production admission remains closed and no sign-in UI is introduced.
+
+Parent integration checks: **1,244 Python passed / 53 explicit native skips**,
+**78 Bun tests / 416 assertions**, clean Svelte check/build. Actual browser
+acceptance covers exact public result/source/reload/inquiry/comparison at desktop
+and 390px; all 56 captured GET bodies exclude private canaries. Whole-incarnation
+private recording is verified with authored subprocesses, not a live account.
+Role/permissions and advisory locks are trusted-host guards, not owner-code
+security. Logical capture budgets do not imply a whole-disk quota. Next: owned
+preparation/sign-in/cancel lifecycle with preserved context pins and no restart
+resurrection of live authority.
+
 ## Offline native-managed lifecycle — 2026-10-13
 
 Integration base `13abac7`; [contract](../agents/NATIVE_MANAGED_LIFECYCLE_TASK.md),

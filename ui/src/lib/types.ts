@@ -226,6 +226,7 @@ export type InvestigationArtifact = {
   unsupportedArtifactCitations?: string[];
   kind?: string;
   executionEvidence?: 'synthetic' | 'native-observed' | 'unverified';
+  outputEvidence?: { kind: 'private-capsule-publication'; version: 1; capsuleId: string };
   nativeArtifactId?: string;
   continuationId?: string;
   inquiryId?: string;
@@ -233,6 +234,13 @@ export type InvestigationArtifact = {
   decisionOccurrenceId?: string | null;
   evidenceContextId?: string | null;
   continuedFrom?: InquiryLineage;
+};
+
+export type PrivateCapsuleRecord = {
+  kind: 'private-capsule-record';
+  capsuleId: string;
+  seq: number;
+  sha256: string;
 };
 
 export type InquiryResponse = {
@@ -254,7 +262,19 @@ export type InvestigationContinuation = {
   status: 'preparing' | 'pending' | 'resuming' | 'completed' | 'cancelled';
   realizationStatus?: 'ready' | 'failed' | 'completed' | 'cancelled';
   nativeNext?: { status: 'awaiting-admission' | 'dispatched'; contextId: string | null; attemptId: string | null; error?: string };
-  cause?: { mode: 'terminal-needs-evidence'; nativeArtifactId: string; nativeEvent: { seq: number; source: string; sha256: string } };
+  cause?: {
+    mode: 'terminal-needs-evidence';
+    nativeArtifactId: string;
+    nativeEvent: { seq: number; source: string; sha256: string } | {
+      source: string;
+      threadId: string;
+      turnId: string;
+      method: 'item/completed' | 'turn/completed';
+      evidence: PrivateCapsuleRecord;
+    };
+    requestSeq?: number;
+    request?: PrivateCapsuleRecord;
+  };
   error: string | null;
   processId: string | null;
   checkpointId: string | null;

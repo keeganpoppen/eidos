@@ -161,7 +161,8 @@ class InvestigationContinuations:
         """
         observation = deepcopy(observation)
         if (
-            observation.get("schemaVersion") != 1
+            type(observation.get("schemaVersion")) is not int
+            or observation["schemaVersion"] not in {1, 2}
             or observation.get("origin") != "native-specialist"
             or observation.get("mode") != "terminal-needs-evidence"
             or observation.get("investigationId") != identifier
@@ -170,6 +171,21 @@ class InvestigationContinuations:
         attempt_id = _text(observation.get("attemptId"), "attemptId", 200)
         artifact_id = _text(observation.get("nativeArtifactId"), "nativeArtifactId", 200)
         question = _text(observation.get("question"), "question", 16000)
+        if observation["schemaVersion"] == 2:
+            event = observation.get("nativeEvent")
+            refs = [observation.get("request"), event.get("evidence") if isinstance(event, dict) else None]
+            if ("requestSeq" in observation or not isinstance(event, dict) or "seq" in event
+                    or any(not isinstance(ref, dict)
+                           or set(ref) != {"kind", "capsuleId", "seq", "sha256"}
+                           or ref["kind"] != "private-capsule-record"
+                           or not isinstance(ref["capsuleId"], str) or not ref["capsuleId"]
+                           or type(ref["seq"]) is not int or ref["seq"] < 1
+                           or not isinstance(ref["sha256"], str) or len(ref["sha256"]) != 64
+                           or any(c not in "0123456789abcdef" for c in ref["sha256"])
+                           for ref in refs)
+                    or refs[0]["capsuleId"] != refs[1]["capsuleId"]
+                    or refs[0]["seq"] >= refs[1]["seq"]):
+                raise InvestigationError(409, "private specialist observation requires scoped native evidence")
         body = {
             "requestId": "specialist-inquiry:" + _digest(_json([attempt_id, artifact_id])),
             "observation": observation,
@@ -188,6 +204,16 @@ class InvestigationContinuations:
                     or investigation["adoption"] is not None or investigation.get("continuation") is not None
                 ):
                     raise InvestigationError(409, "specialist inquiry requires its completed, unadopted native result")
+                publication = native.get("outputEvidence")
+                if (observation["schemaVersion"] == 2) != (publication is not None):
+                    raise InvestigationError(409, "specialist observation evidence scope differs from its artifact")
+                if publication is not None:
+                    if (publication.get("kind") != "private-capsule-publication"
+                            or publication.get("version") != 1
+                            or publication.get("capsuleId") != observation["request"]["capsuleId"]
+                            or any(observation["nativeEvent"].get(key) != attempt.get(key)
+                                   for key in ("source", "threadId", "turnId"))):
+                        raise InvestigationError(409, "private specialist observation belongs to another incarnation")
                 continuation_id = "continuation_" + uuid.uuid4().hex
                 investigation["continuation"] = {
                     "schemaVersion": 1, "id": continuation_id, "attemptId": attempt_id,
