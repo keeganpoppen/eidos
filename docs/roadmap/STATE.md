@@ -6,6 +6,22 @@ The baseline GitHub Actions run `38240774514` completed successfully: pytest and
 
 Refresh this file when implementation claims materially change. Keep historical audit IDs instead of quietly relabelling old evidence as current.
 
+## Authorized native preflight follow-up — 2026-10-13
+
+After explicit owner authorization, both no-model probes were rerun against integrated
+implementation `ebcead9a3d05b5ea2da7a066300d057ea304ac8b`: **13 passed, zero skips,
+zero model turns**, Codex **0.154.0** on Linux/aarch64. The binary fingerprint and
+native observations match the earlier branch artifact; MCP discovery ordering is the
+only report difference. See [fresh evidence](../evidence/NATIVE_VERIFICATION_INTEGRATED.md)
+and its complete sanitized observation artifact.
+
+This closes the formerly pending no-model preflight action. The worker's policy
+acknowledgement and empty-inventory gate work on this host's disposable configuration.
+The probes also reconfirm that MCP startup effects precede inventory admission and
+read-only permits outside-file reads. No worker gate was weakened. Account-backed
+model execution, provider-context capture and complete containment remain unverified;
+the owner's authorization covered only these no-model probes.
+
 ## Integrated Cycle B — 2026-10-13
 
 The integration commit containing this update starts at `ac2c093b675c5765abccaeff33a721f48f4318ce`

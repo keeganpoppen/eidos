@@ -1,7 +1,8 @@
 # Current handoff — four-lane investigation integration
 
-**NEMA-SEED-1 · 2026-10-13 · base `ac2c093b675c5765abccaeff33a721f48f4318ce`, clean main at start.**
-This describes the integration commit containing it. The previous
+**NEMA-SEED-1 · 2026-10-13 · integrated implementation `ebcead9a3d05b5ea2da7a066300d057ea304ac8b`.**
+The integration started at clean `ac2c093`; the authorized no-model verification
+follow-up started at clean `ebcead9`. This update contains evidence/documentation only. The previous
 [Cycle A handoff](history/INVESTIGATION_CYCLE_A.md) and
 [founding checkpoint](history/NEMA-SEED-1.md) remain preserved.
 
@@ -58,6 +59,10 @@ Full detail, screenshots and exact branch judgments:
 [INTEGRATION_CYCLE_B](../evidence/INTEGRATION_CYCLE_B.md).
 
 - `uv sync`; `uv run pytest`: **361 passed, 2 skipped** (explicit native probes).
+- Authorized follow-up: `NEMA_NATIVE_PROBE=1 uv run pytest tests/test_native_boundary_probe.py tests/test_native_mcp_probe.py`
+  — **13 passed, zero skips, zero model turns** against the integrated implementation.
+  Codex **0.154.0**, same binary fingerprint/native observations as earlier evidence;
+  only MCP discovery ordering differs. [Fresh report and full artifact](../evidence/NATIVE_VERIFICATION_INTEGRATED.md).
 - `uv run eidos --help`; `git diff --check`: passed.
 - `cd ui && bun install && bun run check && bun test tests && bun run build`:
   **0 errors / 0 warnings**, **17 tests / 61 assertions**, production build passed.
@@ -74,10 +79,11 @@ Full detail, screenshots and exact branch judgments:
   An unsolicited pre-request reply was initially miscorrelated; repaired and tested,
   along with multi-request ambiguity and Boolean/integer RPC-ID confusion.
 
-No fresh native probe/model call occurred. The explicit authorization question for
-isolated no-model probes remains unanswered as of this checkpoint. Imported Codex
-0.154.0 probe artifacts are historical branch evidence. No personal history, credentials,
-account data, or auth directory entered this repository.
+The owner explicitly authorized and both isolated **no-model** probes now ran. They
+reconfirmed the worker preflight and the existing MCP startup/read-visibility limits.
+No subscription-backed model turn was authorized or attempted. The earlier Codex
+0.154.0 artifact remains historical; a separate fresh artifact names `ebcead9`. No
+personal history, credentials, account data, or auth directory entered this repository.
 
 ## Accepted, rejected, still open
 
@@ -104,16 +110,18 @@ files were imported. Independent reviews finished. Source branch worktrees under
 `/home/elkeegano.guest/eidos-codex/` were not modified. Acceptance services are stopped
 before session end; no scheduled/background work is implied.
 
-**Strongest next action:** verify this same packet against native Codex under explicit
-scope, beginning with the audited no-model gate. Once explicitly authorized, run:
+**Strongest next action:** stage the same synthetic two-thread packet for a separately
+authorized subscription-backed native smoke test. This preparation creates only local
+synthetic evidence; it launches no native process or model turn. Choose a fresh path:
 
 ```bash
-NEMA_NATIVE_PROBE=1 uv run pytest tests/test_native_boundary_probe.py tests/test_native_mcp_probe.py
+uv run python scripts/investigation_demo.py --db /tmp/nema-native-candidate-20261013.db
 ```
 
-Acceptance: record the installed version and actual admission result, preserve any
-refusal, and do not weaken policy to make it pass. A subscription-backed model turn
-then needs its own explicit account/resource authorization; no paid API substitution
-or user configuration edits. This native evidence gap is more consequential than
-adding another context or continuation abstraction. The delivered synthetic workflow
-is fully reproducible without that authorization using the integration report.
+Acceptance: retain the three proposed ranges and exact question for one reviewed
+native attempt in an audited configuration. The no-model preflight is now complete;
+an account-backed turn still needs its own explicit resource authorization. Preserve
+admission refusals; no policy weakening, paid API substitution, credential copying or
+user configuration edits. Native model evidence is more consequential than another
+context/continuation abstraction. The delivered synthetic workflow remains reproducible
+without model authorization using the integration report.

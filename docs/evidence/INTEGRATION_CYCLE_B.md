@@ -113,6 +113,10 @@ comparison/request tests. Abrupt-exit scratch databases were synthetic and staye
 
 ## Honest limits and next gate
 
+**Later authorized follow-up:** both no-model probes have now passed against `ebcead9`;
+see [the fresh report](NATIVE_VERIFICATION_INTEGRATED.md). The paragraph below preserves
+the integration session's original authorization boundary. No model turn was authorized.
+
 No fresh native probe or model turn was performed in this integration session. The
 explicit question authorizing disposable **no-model** probes was unanswered when
 this report was written. The imported [native report](NATIVE_BOUNDARY.md) and
