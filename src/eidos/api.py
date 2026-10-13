@@ -11,6 +11,8 @@ from typing import Any, Mapping, Sequence
 from urllib.parse import unquote
 
 from .codex import AppServerClient, CodexPlace
+from .investigation import InvestigationError, InvestigationStore
+from .investigation_worker import NativeInvestigationWorker
 from .semantic_tree import SemanticTreeBuilder
 from .trace import TraceStore
 from .view import ItemView, project_thread
@@ -18,6 +20,8 @@ from .view import ItemView, project_thread
 
 def _json_body(handler: Any) -> dict[str, Any]:
     length = int(handler.headers.get("Content-Length", "0") or 0)
+    if length < 0 or length > 256 * 1024:
+        raise ValueError("request body must be at most 256 KiB")
     if not length:
         return {}
     raw = handler.rfile.read(length)
@@ -288,12 +292,38 @@ class EidosAPI:
         self.live = LiveCodex(store, codex=codex)
         self._jobs: dict[str, dict[str, Any]] = {}
         self._jobs_lock = threading.RLock()
+        self.investigations = InvestigationStore(store)
+        self.investigation_worker = NativeInvestigationWorker(
+            store, command=[codex, "app-server", "--listen", "stdio://"],
+        )
+        self._investigation_lock = threading.RLock()
+        self._investigation_threads: dict[str, threading.Thread] = {}
+        self._closing = False
+        # A controller restart can recover recorded completion, but cannot
+        # infer delivery or silently relaunch an old external operation.
+        for investigation in self.investigations.list():
+            if investigation["status"] in {"dispatching", "running", "unknown"}:
+                self.recover_investigation(investigation["id"])
 
     def close(self) -> None:
+        self._closing = True
         self.live.close()
+        self.investigation_worker.close()
+        # Keep the trace connection alive until cancellation callbacks stop.
+        with self._investigation_lock:
+            workers = list(self._investigation_threads.values())
+        for worker in workers:
+            worker.join()
 
     def dispatch(self, handler: Any, method: str, path: str, query: dict[str, list[str]]) -> tuple[int, Any]:
         parts = [unquote(part) for part in path.split("/") if part]
+        if parts[:2] == ["api", "investigations"]:
+            try:
+                return self._dispatch_investigation(handler, method, parts)
+            except InvestigationError as exc:
+                return exc.status, {"error": exc.message}
+            except (ValueError, TypeError) as exc:
+                return 400, {"error": str(exc)}
         if parts == ["api", "health"] and method == "GET":
             return 200, {"ok": True}
 
@@ -343,6 +373,102 @@ class EidosAPI:
             return 200, job
 
         return 404, {"error": "not found"}
+
+    def _dispatch_investigation(self, handler: Any, method: str, parts: list[str]) -> tuple[int, Any]:
+        if len(parts) == 2:
+            if method == "GET":
+                return 200, {"investigations": self.investigations.list()}
+            if method == "POST":
+                return 201, self.investigations.create(_json_body(handler))
+        if len(parts) == 3 and method == "GET":
+            return 200, self.investigations.get(parts[2])
+        if len(parts) == 4 and method == "POST":
+            body = _json_body(handler)
+            identifier, action = parts[2:]
+            if action == "contexts":
+                return 201, self.investigations.revise(identifier, body)
+            if action == "dispatch":
+                if set(body) != {"contextId"} or not isinstance(body["contextId"], str):
+                    raise ValueError("dispatch requires only the reviewed contextId")
+                return 202, self.start_investigation(identifier, body["contextId"])
+            if action == "recover":
+                if body:
+                    raise ValueError("recovery takes no execution parameters")
+                return 200, self.recover_investigation(identifier)
+            if action == "adoption":
+                return 200, self.investigations.adopt(identifier, body)
+        return 404, {"error": "not found"}
+
+    def start_investigation(self, identifier: str, context_id: str) -> dict[str, Any]:
+        with self._investigation_lock:
+            if self._closing:
+                raise InvestigationError(409, "controller is shutting down")
+            investigation = self.investigations.get(identifier)
+            # Bound process-local admission. The durable claim additionally
+            # serializes attempts for this investigation across connections.
+            if investigation["attempt"] is None and any(
+                thread.is_alive() for thread in self._investigation_threads.values()
+            ):
+                raise InvestigationError(409, "another investigation worker is running")
+            investigation, claimed = self.investigations.claim(identifier, context_id)
+            if not claimed:
+                return investigation
+            context = next(value for value in investigation["contexts"] if value["id"] == context_id)
+
+            def run() -> None:
+                try:
+                    artifact = self.investigation_worker.run(
+                        investigation["attempt"], context,
+                        lambda **fields: self.investigations.update_attempt(identifier, **fields),
+                    )
+                    self.investigations.complete(identifier, artifact)
+                except Exception as exc:
+                    status = "failed" if getattr(exc, "status", None) == "failed" else "unknown"
+                    self.investigations.update_attempt(
+                        identifier, status=status, error=f"{type(exc).__name__}: {exc}"[:4000],
+                    )
+
+            worker = threading.Thread(target=run, daemon=True, name=f"nema-investigation-{identifier[-8:]}")
+            self._investigation_threads[identifier] = worker
+            try:
+                worker.start()
+            except Exception as exc:
+                self.investigations.update_attempt(identifier, status="unknown", error=str(exc))
+                raise
+            return investigation
+
+    def recover_investigation(self, identifier: str) -> dict[str, Any]:
+        investigation = self.investigations.get(identifier)
+        attempt = investigation["attempt"]
+        if attempt is None or investigation["status"] in {"completed", "failed"}:
+            return investigation
+        context = next(value for value in investigation["contexts"] if value["id"] == attempt["contextId"])
+        try:
+            artifact = self.investigation_worker.recover(attempt, context)
+            if artifact is not None:
+                # The native acknowledgement may have been recorded before a
+                # mapping callback committed. Restore navigation from the
+                # already-verified output, without consulting native state.
+                output = [self.store.get(seq) for seq in artifact["outputSeqs"]]
+                mappings: dict[str, str] = {}
+                for field, attribute in (("threadId", "thread_id"), ("turnId", "turn_id")):
+                    values = {getattr(record, attribute) for record in output}
+                    if attempt[field] is None and len(values) == 1 and None not in values:
+                        mappings[field] = values.pop()
+                if mappings:
+                    self.investigations.update_attempt(identifier, **mappings)
+                return self.investigations.complete(identifier, artifact)
+        except Exception as exc:
+            status = "failed" if getattr(exc, "status", None) == "failed" else "unknown"
+            return self.investigations.update_attempt(identifier, status=status, error=str(exc)[:4000])
+        with self._investigation_lock:
+            worker = self._investigation_threads.get(identifier)
+            if worker is not None and worker.is_alive():
+                return self.investigations.get(identifier)
+        return self.investigations.update_attempt(
+            identifier, status="unknown",
+            error="No recorded terminal outcome. This attempt will not be sent again.",
+        )
 
     def job(self, job_id: str) -> dict[str, Any] | None:
         with self._jobs_lock:

@@ -1,8 +1,9 @@
 import json
 from pathlib import Path
 import sys
+import pytest
 
-from eidos.codex import AppServerClient, CodexPlace
+from eidos.codex import AppServerClient, AppServerClosed, CodexPlace
 from eidos.trace import TraceStore
 from eidos.view import render_thread_html
 
@@ -79,3 +80,22 @@ def test_history_sync_materializes_old_items_into_eidos_projection(tmp_path: Pat
     assert "historical prompt" in html
     assert "historical answer" in html
     assert any(r.method == "$history/item" for r in trace.records(thread_id="thr_fake"))
+
+
+def test_closed_incarnation_never_restarts_on_request(tmp_path: Path):
+    fake = tmp_path / "fake_server.py"
+    fake.write_text(FAKE_SERVER)
+    trace = TraceStore()
+    client = AppServerClient([sys.executable, str(fake)], trace=trace)
+    client.initialize()
+    client.close()
+    before = len(trace.records())
+    with pytest.raises(AppServerClosed):
+        client.initialize()
+    assert client.process is None
+    assert len(trace.records()) == before
+
+    unstarted = AppServerClient([sys.executable, str(fake)], trace=trace)
+    unstarted.close()
+    with pytest.raises(AppServerClosed):
+        unstarted.start()

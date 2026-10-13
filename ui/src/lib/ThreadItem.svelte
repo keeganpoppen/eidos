@@ -7,13 +7,17 @@
     dimmed = false,
     highlighted = false,
     compact = false,
-    semanticFocus = false
+    semanticFocus = false,
+    selected = false,
+    onSelect
   }: {
     item: ThreadItem;
     dimmed?: boolean;
     highlighted?: boolean;
     compact?: boolean;
     semanticFocus?: boolean;
+    selected?: boolean;
+    onSelect?: (item: ThreadItem) => void;
   } = $props();
 
   let showFullOutput = $state(false);
@@ -72,10 +76,16 @@
   data-start={item.startSeq}
   data-end={item.endSeq}
   data-item-id={item.id}
+  tabindex="-1"
 >
   <header>
     <span>{item.type}</span>
     <code>{item.id}</code>
+    {#if onSelect && item.startSeq > 0}
+      <button class="source-select" class:selected aria-pressed={selected} onclick={() => onSelect?.(item)}>
+        {selected ? "Selected for context" : "Add to context"}
+      </button>
+    {/if}
     {#if !item.complete}<b>LIVE</b>{/if}
   </header>
 

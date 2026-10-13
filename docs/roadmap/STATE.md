@@ -6,6 +6,14 @@ The baseline GitHub Actions run `38240774514` completed successfully: pytest and
 
 Refresh this file when implementation claims materially change. Keep historical audit IDs instead of quietly relabelling old evidence as current.
 
+## Post-seed delivery — 2026-10-13
+
+Starting at `b40d9ac4758ac1129fbfe0ab26c00b28f777b3ae`, the commit containing this update adds a durable two-thread investigation through the existing trace/API/UI: frozen source records, immutable context revisions and exact prompt preview, one transactional dispatch claim, a bounded native worker adapter, evidence-only recovery, attributable artifact, and conclusion adoption. See the [contract](../agents/INVESTIGATION_CONTRACT.md) and [acceptance report](../evidence/INVESTIGATION_CYCLE_A.md).
+
+Verification: 176 Python tests passed; UI check has no errors/warnings and build passed; a scripted Chromium workflow exercised selection, revisions, synthetic dispatch, reload, source return and adoption. Codex 0.154.0 schemas were inspected without a model call. Actual native specialist behavior is **unverified**. This partially closes the product integration gap below, not all V1 gates or the separate P4 Elaborate/Model continuation gap.
+
+The generic ProcessRuntime and trusted authority machinery are unchanged. Native sends need their own durable pre-send attempt; the existing inner prepared-step protocol cannot establish delivery. The new service remains a trusted loopback owner interface, with browser-origin admission and fixed executor settings. The snapshot below remains the original seed audit.
+
 ## What is present
 
 | Area | Starting points | Evidence level and caveat |

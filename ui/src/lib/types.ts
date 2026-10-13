@@ -108,3 +108,67 @@ export type ObserverJob = {
   events: ObserverJobEvent[];
   error: string | null;
 };
+
+export type EvidenceSelection = {
+  threadId: string;
+  startSeq: number;
+  endSeq: number;
+  rationale: string;
+};
+
+export type ContextRecord = {
+  seq: number;
+  threadId: string;
+  source: string;
+  direction: string;
+  method: string | null;
+  rawText: string;
+  sha256: string;
+};
+
+export type InvestigationContext = {
+  id: string;
+  parentContextId: string | null;
+  question: string;
+  selections: EvidenceSelection[];
+  records: ContextRecord[];
+  projectedPrompt: string;
+  coverage: unknown;
+  createdAtMs: number;
+};
+
+export type Investigation = {
+  schemaVersion: number;
+  id: string;
+  title: string;
+  createdAtMs: number;
+  contexts: InvestigationContext[];
+  currentContextId: string;
+  status: 'draft' | 'dispatching' | 'running' | 'completed' | 'failed' | 'unknown';
+  attempt: null | {
+    id: string;
+    contextId: string;
+    status: string;
+    source: string | null;
+    threadId: string | null;
+    turnId: string | null;
+    startedAtMs: number;
+    timeoutSeconds: number;
+    error: string | null;
+  };
+  artifact: null | {
+    id: string;
+    text: string;
+    outputSeqs: number[];
+    contextId: string;
+    attemptId: string;
+    citations: number[];
+    unsupportedCitations: number[];
+  };
+  adoption: null | {
+    artifactId: string;
+    decision: 'adopt' | 'reject';
+    note: string;
+    createdAtMs: number;
+  };
+};

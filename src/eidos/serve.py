@@ -11,6 +11,38 @@ from .trace import TraceStore
 from .view import render_index_html, render_thread_html
 
 
+def local_request_error(method: str, headers: object) -> str | None:
+    """Browser-origin admission for the trusted loopback workbench.
+
+    This blocks cross-site form posts and DNS rebinding; it is not user
+    authentication or protection from other processes owned by the user.
+    """
+    host = headers.get("Host", "")  # type: ignore[attr-defined]
+    try:
+        authority = urlparse(f"http://{host}")
+        authority.port
+    except ValueError:
+        return "invalid loopback Host"
+    if authority.hostname not in {"localhost", "127.0.0.1", "::1"} or authority.username or authority.path:
+        return "the workbench requires a loopback Host"
+    origin = headers.get("Origin")  # type: ignore[attr-defined]
+    if origin:
+        try:
+            parsed = urlparse(origin)
+            port = parsed.port
+        except ValueError:
+            return "invalid request origin"
+        if parsed.scheme not in {"http", "https"} or parsed.hostname not in {"localhost", "127.0.0.1", "::1"}:
+            return "cross-origin workbench access is not allowed"
+        if parsed.netloc != host and port != 5173:
+            return "origin must match the workbench or its local development UI"
+    if method == "POST":
+        content_type = headers.get("Content-Type", "").split(";", 1)[0].strip().lower()  # type: ignore[attr-defined]
+        if content_type != "application/json":
+            return "workbench mutations require application/json"
+    return None
+
+
 def serve(
     db: str | Path,
     *,
@@ -18,6 +50,8 @@ def serve(
     port: int = 8765,
     codex: str = "codex",
 ) -> None:
+    if host not in {"127.0.0.1", "localhost"}:
+        raise ValueError("the unauthenticated workbench must bind to loopback")
     store = TraceStore(db)
     api = EidosAPI(store, codex=codex)
 
@@ -44,6 +78,10 @@ def serve(
             path = parsed.path  # type: ignore[attr-defined]
             if not path.startswith("/api/"):
                 return False
+            rejection = local_request_error(method, self.headers)
+            if rejection:
+                self._send_json(403, {"error": rejection})
+                return True
             try:
                 status, payload = api.dispatch(
                     self,
@@ -53,6 +91,8 @@ def serve(
                 )
             except json.JSONDecodeError as exc:
                 self._send_json(400, {"error": f"invalid JSON: {exc}"})
+            except ValueError as exc:
+                self._send_json(400, {"error": str(exc)})
             except Exception as exc:
                 self._send_json(
                     500,
@@ -63,6 +103,10 @@ def serve(
             return True
 
         def do_GET(self) -> None:  # noqa: N802
+            rejection = local_request_error("GET", self.headers)
+            if rejection:
+                self._send_json(403, {"error": rejection})
+                return
             parsed = urlparse(self.path)
             if self._dispatch_api("GET", parsed):
                 return

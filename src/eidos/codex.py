@@ -49,6 +49,7 @@ class AppServerClient:
         self._next_id = 1
         self._lock = threading.Lock()
         self._write_lock = threading.Lock()
+        self._lifecycle_lock = threading.RLock()
         self._pending: dict[str, queue.Queue[dict[str, Any]]] = {}
         self._events: queue.Queue[dict[str, Any]] = queue.Queue()
         self._backlog: deque[dict[str, Any]] = deque()
@@ -58,6 +59,12 @@ class AppServerClient:
         self._closed = threading.Event()
 
     def start(self) -> "AppServerClient":
+        with self._lifecycle_lock:
+            if self._closed.is_set():
+                raise AppServerClosed("app-server incarnation has been closed")
+            return self._start()
+
+    def _start(self) -> "AppServerClient":
         if self.process is not None:
             return self
         env = os.environ.copy()
@@ -81,22 +88,34 @@ class AppServerClient:
         return self
 
     def close(self) -> None:
+        with self._lifecycle_lock:
+            # An incarnation is terminal even if closed before launch. A later
+            # request must not restart a process with this source/RPC sequence.
+            self._closed.set()
+            self._close()
+
+    def _close(self) -> None:
         process = self.process
         if process is None:
             return
-        try:
-            if process.stdin:
-                process.stdin.close()
-        except OSError:
-            pass
+        # A child that stopped reading can hold a writer inside stdin.flush().
+        # Closing that buffered stream first waits for its lock indefinitely.
+        # Terminate only our owned child before touching the stream instead.
+        if process.poll() is None:
+            process.terminate()
         try:
             process.wait(timeout=2)
         except subprocess.TimeoutExpired:
-            process.terminate()
-            try:
-                process.wait(timeout=2)
-            except subprocess.TimeoutExpired:
-                process.kill()
+            process.kill()
+            process.wait(timeout=2)
+        try:
+            if process.stdin:
+                process.stdin.close()
+        except (OSError, ValueError):
+            pass
+        for reader in (self._reader, self._stderr_reader):
+            if reader is not None and reader is not threading.current_thread():
+                reader.join(timeout=1)
         self._closed.set()
         self.process = None
 

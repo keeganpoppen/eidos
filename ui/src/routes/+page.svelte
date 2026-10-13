@@ -1,10 +1,12 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, tick } from 'svelte';
+  import InvestigationPane from '#lib/InvestigationPane.svelte';
   import FocusPane from '#lib/FocusPane.svelte';
   import Markdown from '#lib/Markdown.svelte';
   import SemanticRail from '#lib/SemanticRail.svelte';
   import ThreadItemCard from '#lib/ThreadItem.svelte';
   import type {
+    EvidenceSelection,
     ObserverJob,
     ObserverJobEvent,
     SemanticNode,
@@ -15,6 +17,11 @@
   } from '#lib/types.ts';
 
   let threads = $state<ThreadSummary[]>([]);
+  let selections = $state<EvidenceSelection[]>([]);
+  let workMode = $state(true);
+  let workspaceReady = $state(false);
+  let threadRequest = 0;
+  let threadLoads = 0;
   let selectedThread = $state('');
   let thread = $state<ThreadPayload | null>(null);
   let composer = $state('');
@@ -85,21 +92,29 @@
       thread = null;
       return;
     }
+    const id = selectedThread;
+    const revision = selectedRevision;
+    const request = ++threadRequest;
+    threadLoads += 1;
     try {
-      const query = selectedRevision
-        ? `?revision=${encodeURIComponent(selectedRevision)}`
-        : '';
-      thread = await api<ThreadPayload>(
-        `/api/threads/${encodeURIComponent(selectedThread)}${query}`
+      const query = revision ? `?revision=${encodeURIComponent(revision)}` : '';
+      const result = await api<ThreadPayload>(
+        `/api/threads/${encodeURIComponent(id)}${query}`
       );
-      error = '';
+      if (id === selectedThread && revision === selectedRevision && request === threadRequest) {
+        thread = result;
+        error = '';
+      }
     } catch (cause) {
-      error = cause instanceof Error ? cause.message : String(cause);
+      if (request === threadRequest) error = cause instanceof Error ? cause.message : String(cause);
+    } finally {
+      threadLoads -= 1;
     }
   }
 
   async function chooseThread(id: string) {
     selectedThread = id;
+    thread = null;
     selectedRevision = '';
     selectedSemanticNode = null;
     focusSpans = [];
@@ -261,20 +276,79 @@
     }
   }
 
+  function selectionKey(selection: EvidenceSelection): string {
+    return `${selection.threadId}:${selection.startSeq}:${selection.endSeq}`;
+  }
+
+  function addItem(item: ThreadItem) {
+    if (!thread) return;
+    const source = { threadId: thread.id, startSeq: item.startSeq, endSeq: item.endSeq, rationale: '' };
+    const exists = selections.some((selection) => selectionKey(selection) === selectionKey(source));
+    selections = exists
+      ? selections.filter((selection) => selectionKey(selection) !== selectionKey(source))
+      : [...selections, source];
+    workMode = true;
+  }
+
+  function itemSelected(item: ThreadItem): boolean {
+    return selections.some((selection) => selection.threadId === thread?.id && selection.startSeq === item.startSeq && selection.endSeq === item.endSeq);
+  }
+
+  function addSemanticEvidence() {
+    if (!thread || !selectedSemanticNode) return;
+    const added = focusSpans.map((span) => ({
+      threadId: thread!.id, startSeq: span.start, endSeq: span.end,
+      rationale: selectedSemanticNode!.title
+    }));
+    selections = [...selections, ...added.filter((source) => !selections.some((selection) => selectionKey(selection) === selectionKey(source)))];
+    workMode = true;
+  }
+
+  async function returnToSource(selection: EvidenceSelection) {
+    await chooseThread(selection.threadId);
+    if (selectedThread !== selection.threadId) return;
+    focusSpans = [{ start: selection.startSeq, end: selection.endSeq, weight: 1 }];
+    await tick();
+    requestAnimationFrame(() => {
+      const regions = [...document.querySelectorAll<HTMLElement>('.workspace .item-card[data-start][data-end], .workspace .turn[data-start][data-end]')];
+      const matches = regions.filter((element) => overlaps(Number(element.dataset.start), Number(element.dataset.end), focusSpans[0]));
+      const target = matches.find((element) => element.classList.contains('item-card')) ?? matches[0];
+      target?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      target?.focus({ preventScroll: true });
+    });
+  }
+
   function inputText(input: Record<string, unknown>): string {
     if (input.type === 'text') return String(input.text ?? '');
     return JSON.stringify(input, null, 2);
   }
 
   onMount(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem('nema.source-focus.v1') ?? 'null');
+      if (saved && typeof saved.threadId === 'string') {
+        selectedThread = saved.threadId;
+        selectedRevision = typeof saved.revision === 'string' ? saved.revision : '';
+        focusSpans = Array.isArray(saved.spans) ? saved.spans.filter((span: SupportSpan) => Number.isInteger(span.start) && Number.isInteger(span.end)) : [];
+        workMode = saved.workMode !== false;
+      }
+    } catch { /* The trace remains available when browser storage is disabled. */ }
+    workspaceReady = true;
     void loadThreads();
-    threadPoll = setInterval(() => void loadThread(), 700);
+    if (selectedThread) void loadThread();
+    threadPoll = setInterval(() => { if (!threadLoads) void loadThread(); }, 700);
     listPoll = setInterval(() => void loadThreads(), 4000);
 
     return () => {
       if (threadPoll) clearInterval(threadPoll);
       if (listPoll) clearInterval(listPoll);
     };
+  });
+
+  $effect(() => {
+    if (!workspaceReady) return;
+    const state = JSON.stringify({ threadId: selectedThread, revision: selectedRevision, spans: focusSpans, workMode });
+    try { localStorage.setItem('nema.source-focus.v1', state); } catch { /* Optional browser focus memory. */ }
   });
 </script>
 
@@ -286,12 +360,17 @@
   />
 </svelte:head>
 
-<div class:focus-mode={selectedSemanticNode !== null} class="shell">
+<div class:focus-mode={selectedSemanticNode !== null && !workMode} class:work-mode={workMode} class="shell">
   <aside class="thread-rail">
     <div class="brand-block">
       <h1>eidos</h1>
       <p>threads · outline · trace</p>
     </div>
+
+    <nav class="aperture-switch" aria-label="Workbench view">
+      <button class:active={workMode} aria-pressed={workMode} onclick={() => workMode = true}>Investigation</button>
+      <button class:active={!workMode} aria-pressed={!workMode} onclick={() => workMode = false}>Evidence map</button>
+    </nav>
 
     <div class="new-thread">
       <input bind:value={cwd} placeholder="cwd (optional)" aria-label="working directory" />
@@ -315,6 +394,11 @@
     </div>
   </aside>
 
+  <div class:hidden-aperture={!workMode} class="work-aperture">
+    <InvestigationPane bind:selections onSource={returnToSource} />
+  </div>
+
+  {#if !workMode}
   <SemanticRail
     outline={thread?.outline ?? null}
     revisions={thread?.revisions ?? []}
@@ -338,13 +422,22 @@
     />
   {/if}
 
-  <main class="workspace">
+  {/if}
+
+  <main class="workspace" aria-label="Source evidence">
     {#if thread}
       <header class="thread-header">
         <h2>{thread.preview || thread.id}</h2>
         <div class="meta">
           {thread.recordCount} persisted records · seq {thread.lastSeq} · {thread.id}
         </div>
+        {#if focusSpans.length}
+          <div class="source-focus-notice">
+            <span>Source focus: {focusSpans.map((span) => `${span.start}–${span.end}`).join(', ')}</span>
+            <button class="inline-control" onclick={() => { focusSpans = []; selectedSemanticNode = null; }}>Clear focus</button>
+            {#if selectedSemanticNode}<button class="inline-control" onclick={addSemanticEvidence}>Add selected evidence to context</button>{/if}
+          </div>
+        {/if}
       </header>
 
       {#each thread.turns as turn}
@@ -376,6 +469,8 @@
               dimmed={isDimmed(item.startSeq, item.endSeq)}
               highlighted={isHighlighted(item.startSeq, item.endSeq)}
               semanticFocus={selectedSemanticNode !== null}
+              selected={itemSelected(item)}
+              onSelect={addItem}
             />
           {/each}
         </section>

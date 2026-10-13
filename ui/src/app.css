@@ -1064,3 +1064,91 @@ details > summary {
     left: 0;
   }
 }
+
+/* The work aperture shares the same evidence identities as the transcript. */
+.shell.work-mode { grid-template-columns: 185px 410px minmax(400px, 1fr); }
+.work-aperture { min-width: 0; }
+.investigation-pane .work-muted { overflow-wrap: anywhere; }
+.hidden-aperture { display: none; }
+.investigation-pane {
+  position: sticky; top: 0; height: 100vh; overflow-y: auto;
+  padding: 24px 22px 140px; background: var(--paper-2);
+  border-right: 1px solid var(--line-dark); font-size: 14px; line-height: 1.45;
+  scrollbar-gutter: stable;
+}
+.work-heading h2 { font-size: 27px; margin: 4px 0 10px; letter-spacing: -.04em; }
+.work-heading p { margin: 0 0 20px; color: #67665e; }
+.eyebrow { color: var(--accent); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; }
+.aperture-switch { display: grid; gap: 5px; margin-bottom: 20px; }
+.aperture-switch button { background: transparent; border: 1px solid var(--line-dark); padding: 9px; font-size: 13px; text-align: left; }
+.aperture-switch button.active { background: var(--ink); color: var(--paper); }
+.investigation-pane section, .work-picker { border-top: 1px solid var(--line-dark); margin-top: 22px; padding-top: 18px; }
+.investigation-pane h3 { font-size: 18px; line-height: 1.2; margin: 0 0 12px; }
+.investigation-pane h4 { margin-bottom: 7px; }
+.investigation-pane label { display: block; font-weight: 500; margin: 14px 0 6px; }
+.investigation-pane input, .investigation-pane textarea, .investigation-pane select {
+  display: block; width: 100%; min-width: 0; border: 1px solid var(--line-dark);
+  border-radius: 2px; padding: 9px; background: var(--paper); font-size: 14px; line-height: 1.4;
+}
+.investigation-pane textarea { resize: vertical; }
+.investigation-pane button:focus-visible, .aperture-switch button:focus-visible, .source-select:focus-visible,
+.investigation-pane input:focus-visible, .investigation-pane select:focus-visible, .investigation-pane textarea:focus-visible {
+  outline: 2px solid var(--accent); outline-offset: 3px;
+}
+.work-primary, .work-secondary {
+  border: 1px solid var(--line-dark); border-radius: 2px; padding: 10px 12px; margin-top: 10px;
+  background: transparent; font-size: 13px; line-height: 1.3;
+}
+.work-primary { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+button:disabled { cursor: default; opacity: .45; }
+.context-count { margin: 18px 0 8px; font-weight: 500; }
+.work-empty, .work-muted { color: #706e65; font-size: 12px; line-height: 1.5; }
+.work-notice, .coverage-note { padding: 10px; background: var(--selection); font-size: 12px; line-height: 1.5; }
+.work-error { color: #982c22; background: #f9eae6; padding: 10px; overflow-wrap: anywhere; }
+.source-list { list-style: none; margin: 0; padding: 0; }
+.source-list li { padding: 10px 0; border-bottom: 1px solid var(--line); }
+.source-row { display: flex; align-items: start; gap: 10px; margin-bottom: 7px; }
+.source-link { color: #883d2a; text-align: left; overflow-wrap: anywhere; border: 0; background: transparent; padding: 2px 0; font-size: 12px; line-height: 1.5; text-decoration: underline; text-underline-offset: 3px; }
+.source-remove { margin-left: auto; padding: 2px 0; border: 0; background: transparent; font-size: 11px; }
+.source-list input { font-size: 12px; }
+.source-select { margin-left: auto; border: 1px solid var(--line-dark); background: transparent; padding: 5px 7px; font-size: 11px; text-transform: none; }
+.source-select.selected { color: var(--accent); border-color: var(--accent); background: var(--accent-soft); }
+.source-focus-notice { margin-top: 14px; display: flex; gap: 9px; flex-wrap: wrap; align-items: center; font-size: 12px; color: var(--accent); }
+.object-ref { font: 10px/1.5 "SFMono-Regular", monospace; color: #77746b; overflow-wrap: anywhere; }
+.saved-question { border-left: 2px solid var(--accent); padding-left: 12px; margin-top: 16px; }
+.investigation-pane details { border-top: 1px solid var(--line); padding: 10px 0; }
+.investigation-pane summary { cursor: pointer; font-size: 12px; font-weight: 500; }
+.investigation-pane pre { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 440px; overflow-y: auto; background: var(--code); padding: 12px; font-size: 11px; line-height: 1.5; }
+.context-diff p { font-size: 12px; }
+.diff-added { color: #336246; }
+.diff-removed { color: #883d2a; }
+.dispatch-scope { margin-top: 14px; padding: 12px; border: 1px solid var(--line-dark); }
+.dispatch-scope p { font-size: 12px; }
+.work-status { display: flex; align-items: start; justify-content: space-between; gap: 10px; }
+.work-status span { border: 1px solid var(--line-dark); padding: 3px 7px; font-size: 11px; }
+.work-status span.uncertain { background: var(--selection); color: var(--accent); }
+.investigation-result .markdown { overflow-wrap: anywhere; font-size: 14px; }
+.citation-links { display: grid; gap: 7px; }
+.decision-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.adoption-receipt { margin-top: 20px; border-left: 3px solid var(--accent); padding-left: 12px; }
+.shell.work-mode + .composer { left: 595px; }
+@media (max-width: 1180px) {
+  .shell.work-mode { grid-template-columns: 165px 365px minmax(350px, 1fr); }
+  .shell.work-mode + .composer { left: 530px; }
+  .work-mode .workspace { padding-left: 22px; padding-right: 22px; }
+  .investigation-pane { padding-left: 18px; padding-right: 18px; }
+}
+@media (max-width: 920px) {
+  .shell.work-mode { grid-template-columns: 155px minmax(0, 1fr); }
+  .work-mode .thread-rail { grid-column: 1; grid-row: 1 / span 2; }
+  .work-mode .work-aperture, .work-mode .workspace { grid-column: 2; }
+  .work-mode .investigation-pane { position: relative; height: auto; max-height: 65vh; padding-bottom: 24px; border-bottom: 1px solid var(--line-dark); }
+  .shell.work-mode + .composer { left: 155px; }
+}
+@media (max-width: 620px) {
+  .shell.work-mode { display: block; }
+  .work-mode .thread-rail { max-height: 260px; }
+  .work-mode .investigation-pane { max-height: 60vh; }
+  .shell.work-mode + .composer { left: 0; }
+  .item-card > header { flex-wrap: wrap; }
+}

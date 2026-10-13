@@ -90,6 +90,8 @@ A generic lens may discover references within code. A scoped process cannot infe
 
 The newer implementation has one named-protocol ProcessRuntime. Pending, terminal, and continuing operations are locally described and checked; semantic handlers remain situated. Do not recreate duplicated engines for every participant type. Open: robust outer orchestration, resources, actual distributed placement, and handler composition driven by use cases.
 
+**Provisional realization, 2026-10-13 (D01/D15/D21):** the first integrated investigation persists a pre-send native attempt beside TraceStore. Reusing `ModelProcessRunner.Consult` alone would still leave the external-completion-before-prepare window open, so this slice does not force a kernel adapter around the same unsafe seam. Repeated dispatch returns the existing attempt, recorded terminal evidence can recover its result, and missing evidence remains unknown. The calculus remains the intended continuation substrate; connecting visible offer/refuse/defer inquiry state to this durable outer identity is still an open delivery obligation. See the [contract](../agents/INVESTIGATION_CONTRACT.md) and [tested limits](../evidence/INVESTIGATION_CYCLE_A.md).
+
 ## Deferred explorations, kept for their potential
 
 ### D22 — Names, routing, locality, and leases
