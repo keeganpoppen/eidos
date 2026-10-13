@@ -7,6 +7,7 @@ from pathlib import Path
 import queue
 import subprocess
 import threading
+import time
 import uuid
 from typing import Any, Mapping, Sequence
 
@@ -50,8 +51,9 @@ class AppServerClient:
         self._lock = threading.Lock()
         self._write_lock = threading.Lock()
         self._lifecycle_lock = threading.RLock()
-        self._pending: dict[str, queue.Queue[dict[str, Any]]] = {}
-        self._events: queue.Queue[dict[str, Any]] = queue.Queue()
+        # None is a transport-closure signal, never a fabricated native reply.
+        self._pending: dict[str, queue.Queue[dict[str, Any] | None]] = {}
+        self._events: queue.Queue[dict[str, Any] | None] = queue.Queue()
         self._backlog: deque[dict[str, Any]] = deque()
         self._stderr: deque[str] = deque(maxlen=200)
         self._reader: threading.Thread | None = None
@@ -81,6 +83,15 @@ class AppServerClient:
             encoding="utf-8",
             bufsize=1,
         )
+        try:
+            assert self.process.stdin is not None
+            # Buffered writes can hold their stream lock indefinitely when a
+            # child (or an inherited descendant pipe) stops reading. Never use
+            # that writer: cancellation must not depend on the reader exiting.
+            os.set_blocking(self.process.stdin.fileno(), False)
+        except (OSError, ValueError, NotImplementedError) as exc:
+            self.close()
+            raise RuntimeError("app-server transport requires nonblocking pipe writes") from exc
         self._reader = threading.Thread(target=self._read_stdout, name="eidos-codex-stdout", daemon=True)
         self._stderr_reader = threading.Thread(target=self._read_stderr, name="eidos-codex-stderr", daemon=True)
         self._reader.start()
@@ -91,16 +102,15 @@ class AppServerClient:
         with self._lifecycle_lock:
             # An incarnation is terminal even if closed before launch. A later
             # request must not restart a process with this source/RPC sequence.
-            self._closed.set()
+            self._mark_closed()
             self._close()
 
     def _close(self) -> None:
         process = self.process
         if process is None:
             return
-        # A child that stopped reading can hold a writer inside stdin.flush().
-        # Closing that buffered stream first waits for its lock indefinitely.
-        # Terminate only our owned child before touching the stream instead.
+        # Cancel writers and terminate only our owned child. A descendant may
+        # retain its pipes; neither cancellation nor stdin cleanup waits for it.
         if process.poll() is None:
             process.terminate()
         try:
@@ -109,15 +119,27 @@ class AppServerClient:
             process.kill()
             process.wait(timeout=2)
         try:
-            if process.stdin:
-                process.stdin.close()
+            with self._write_lock:
+                if process.stdin:
+                    process.stdin.close()
         except (OSError, ValueError):
             pass
         for reader in (self._reader, self._stderr_reader):
             if reader is not None and reader is not threading.current_thread():
                 reader.join(timeout=1)
-        self._closed.set()
         self.process = None
+
+    def _mark_closed(self) -> None:
+        with self._lock:
+            if self._closed.is_set():
+                return
+            self._closed.set()
+            for pending in self._pending.values():
+                pending.put_nowait(None)
+            self._pending.clear()
+            # Wake event readers already blocked in get(), including callers
+            # without a timeout. Events queued before EOF remain ahead of this.
+            self._events.put(None)
 
     def __enter__(self) -> "AppServerClient":
         return self.start()
@@ -142,22 +164,29 @@ class AppServerClient:
         return result
 
     def request(self, method: str, params: Any = None, *, timeout: float = 30.0) -> dict[str, Any]:
+        deadline = time.monotonic() + timeout
         self.start()
         with self._lock:
+            if self._closed.is_set():
+                raise AppServerClosed("app-server closed")
             request_id = self._next_id
             self._next_id += 1
-        key = json.dumps(request_id)
-        response_queue: queue.Queue[dict[str, Any]] = queue.Queue(maxsize=1)
-        self._pending[key] = response_queue
+            key = json.dumps(request_id)
+            response_queue: queue.Queue[dict[str, Any] | None] = queue.Queue(maxsize=1)
+            self._pending[key] = response_queue
         message: dict[str, Any] = {"jsonrpc": "2.0", "id": request_id, "method": method}
         if params is not None:
             message["params"] = params
-        self._send(message)
         try:
-            response = response_queue.get(timeout=timeout)
+            self._send(message, deadline=deadline)
+            response = response_queue.get(timeout=max(0.0, deadline - time.monotonic()))
         except queue.Empty as exc:
-            self._pending.pop(key, None)
             raise TimeoutError(f"timed out waiting for {method}") from exc
+        finally:
+            with self._lock:
+                self._pending.pop(key, None)
+        if response is None:
+            raise AppServerClosed("app-server closed while waiting for a response")
         if "error" in response:
             raise AppServerRPCError(response["error"])
         result = response.get("result")
@@ -181,12 +210,15 @@ class AppServerClient:
     def recv_event(self, *, timeout: float | None = None) -> dict[str, Any]:
         if self._backlog:
             return self._backlog.popleft()
-        if self._closed.is_set() and self._events.empty():
-            raise AppServerClosed("app-server closed")
         try:
-            return self._events.get(timeout=timeout)
+            event = self._events.get(timeout=timeout)
         except queue.Empty as exc:
             raise TimeoutError("timed out waiting for app-server event") from exc
+        if event is None:
+            # Keep closure visible to subsequent and concurrent event readers.
+            self._events.put(None)
+            raise AppServerClosed("app-server closed")
+        return event
 
     def wait_for(
         self,
@@ -195,8 +227,6 @@ class AppServerClient:
         thread_id: str | None = None,
         timeout: float = 30.0,
     ) -> dict[str, Any]:
-        import time
-
         deadline = time.monotonic() + timeout
         skipped: list[dict[str, Any]] = []
         try:
@@ -303,16 +333,40 @@ class AppServerClient:
             params["turnId"] = turn_id
         return self.request("thread/items/list", params)
 
-    def _send(self, message: Mapping[str, Any]) -> None:
+    def _send(self, message: Mapping[str, Any], *, deadline: float | None = None) -> None:
         process = self.process
-        if process is None or process.stdin is None:
+        if self._closed.is_set() or process is None or process.stdin is None:
             raise AppServerClosed("app-server is not running")
         raw = json.dumps(message, ensure_ascii=False, separators=(",", ":"))
         if self.trace is not None:
             self.trace.append(source=self.source, direction="client_to_appserver", message=message, raw_text=raw)
-        with self._write_lock:
-            process.stdin.write(raw + "\n")
-            process.stdin.flush()
+        data = memoryview((raw + "\n").encode("utf-8"))
+        # Acquiring the write lock is part of the same deadline as writing and
+        # awaiting the acknowledgement. A timeout never triggers a resend.
+        while not self._write_lock.acquire(timeout=0.05):
+            self._check_send_deadline(deadline)
+        try:
+            while data:
+                self._check_send_deadline(deadline)
+                try:
+                    written = os.write(process.stdin.fileno(), data)
+                except BlockingIOError:
+                    self._closed.wait(0.01)
+                    continue
+                except (OSError, ValueError) as exc:
+                    self._mark_closed()
+                    raise AppServerClosed("app-server pipe write failed; delivery may be unknown") from exc
+                data = data[written:]
+        finally:
+            self._write_lock.release()
+
+    def _check_send_deadline(self, deadline: float | None) -> None:
+        if self._closed.is_set():
+            raise AppServerClosed("app-server closed during write; delivery may be unknown")
+        if deadline is not None and time.monotonic() >= deadline:
+            # A partial JSONL frame cannot safely be followed by another RPC.
+            self._mark_closed()
+            raise TimeoutError("app-server write deadline expired; delivery may be unknown")
 
     def _read_stdout(self) -> None:
         process = self.process
@@ -333,20 +387,16 @@ class AppServerClient:
                     continue
                 if "id" in message and "method" not in message:
                     key = json.dumps(message["id"])
-                    pending = self._pending.pop(key, None)
-                    if pending is not None:
-                        pending.put(message)
-                    else:
-                        self._events.put(message)
+                    with self._lock:
+                        pending = self._pending.pop(key, None)
+                        if pending is not None:
+                            pending.put_nowait(message)
+                        else:
+                            self._events.put(message)
                 else:
                     self._events.put(message)
         finally:
-            self._closed.set()
-            for pending in list(self._pending.values()):
-                try:
-                    pending.put_nowait({"error": {"message": "app-server closed"}})
-                except queue.Full:
-                    pass
+            self._mark_closed()
 
     def _read_stderr(self) -> None:
         process = self.process

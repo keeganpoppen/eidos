@@ -1,6 +1,12 @@
 # Two-thread investigation — Cycle A contract
 
+For the integrated additive context/review/comparison contract, follow
+[Cycle B integration](INVESTIGATION_INTEGRATION_CONTRACT.md). This document retains
+the original Cycle A seam and its historical limits.
+
 **Provisional realization, 2026-10-12; base `b40d9ac`.** Serves V1-02/03/04/05/07/08. This is a bounded delivery contract, not a new kernel ontology or a claim that all V1 gates pass.
+
+The additive [Cycle B API/runtime contract](INVESTIGATION_CYCLE_B_CONTRACT.md) defines the optional Eidos inquiry/review continuation, native-artifact compatibility, and exact UI integration fields. The original native-dispatch contract below remains in force.
 
 Input: exact disjoint evidence ranges from two recorded native threads and one bounded question. Visible result: a saved immutable context preview, one native specialist attempt, an attributable artifact, source return, and explicit adopt/reject decision. Reopening retains identity; uncertain dispatch never automatically runs again.
 

@@ -92,6 +92,19 @@ The newer implementation has one named-protocol ProcessRuntime. Pending, termina
 
 **Provisional realization, 2026-10-13 (D01/D15/D21):** the first integrated investigation persists a pre-send native attempt beside TraceStore. Reusing `ModelProcessRunner.Consult` alone would still leave the external-completion-before-prepare window open, so this slice does not force a kernel adapter around the same unsafe seam. Repeated dispatch returns the existing attempt, recorded terminal evidence can recover its result, and missing evidence remains unknown. The calculus remains the intended continuation substrate; connecting visible offer/refuse/defer inquiry state to this durable outer identity is still an open delivery obligation. See the [contract](../agents/INVESTIGATION_CONTRACT.md) and [tested limits](../evidence/INVESTIGATION_CYCLE_A.md).
 
+**Integrated realization, 2026-10-13 (D03/D13/D15/D21):** the four-lane integration
+keeps Investigation/context/attempt identities canonical; manifests are immutable
+ingredient projections, with a request pin committed before native launch. The visible
+offer/refuse/defer step is a fixed, owner-started local evidence review using the existing
+ProcessRuntime, not a native specialist question or new analysis. Its separate receipt
+exposed a concrete identity defect: context-only result apertures silently followed a
+replaced artifact. Comparison now pins the artifact version and retains the original
+native answer through review. Reject competing current-context state, automatic resend
+from historical pins/checkpoints, generic authority endpoints, and declaring V1 complete
+from branch test counts. Defer specialist-originated interaction and broader capture
+until a bounded real-native loop is verified. The [integration contract](../agents/INVESTIGATION_INTEGRATION_CONTRACT.md)
+records compatibility; [evidence](../evidence/INTEGRATION_CYCLE_B.md) states the limits.
+
 ## Deferred explorations, kept for their potential
 
 ### D22 — Names, routing, locality, and leases

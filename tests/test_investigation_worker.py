@@ -42,7 +42,34 @@ for line in sys.stdin:
         send({"id": ident, "result": {"userAgent": "synthetic-investigation-worker"}})
     elif method == "thread/start":
         assert msg["params"]["cwd"] == os.getcwd()
-        send({"id": ident, "result": {"thread": {"id": "worker-thread"}}})
+        result = {
+            "thread": {"id": "worker-thread", "environments": []},
+            "sandbox": {"type": "readOnly", "networkAccess": False},
+            "approvalPolicy": "never", "cwd": os.getcwd(),
+        }
+        if mode == "policy-missing":
+            del result["sandbox"]
+        elif mode == "policy-writable":
+            result["sandbox"] = {"type": "workspaceWrite", "networkAccess": False}
+        elif mode == "policy-network":
+            result["sandbox"]["networkAccess"] = True
+        elif mode == "policy-null-network":
+            result["sandbox"]["networkAccess"] = None
+        elif mode == "policy-zero-network":
+            result["sandbox"]["networkAccess"] = 0
+        elif mode == "policy-unknown-field":
+            result["sandbox"]["futureWriteScope"] = ["/synthetic"]
+        elif mode == "policy-default-network":
+            del result["sandbox"]["networkAccess"]
+        elif mode == "policy-approval":
+            result["approvalPolicy"] = "on-request"
+        elif mode == "policy-cwd":
+            result["cwd"] = "/different-synthetic-workspace"
+        elif mode == "policy-environments-missing":
+            del result["thread"]["environments"]
+        elif mode == "policy-environments-active":
+            result["thread"]["environments"] = [{"environmentId": "local", "cwd": os.getcwd()}]
+        send({"id": ident, "result": result})
     elif method == "mcpServerStatus/list":
         if mode == "mcp-tools":
             if msg["params"].get("cursor") is None:
@@ -51,6 +78,11 @@ for line in sys.stdin:
                 send({"id": ident, "result": {"data": [{"tools": {"send_email": {}}, "runtimeStatus": "connected"}], "nextCursor": None}})
         elif mode == "mcp-pending":
             send({"id": ident, "result": {"data": [{"tools": {}, "runtimeStatus": "starting"}], "nextCursor": None}})
+        elif mode == "mcp-empty-error":
+            send({"id": ident, "result": {"data": [{"tools": {}, "runtimeStatus": "disabled", "toolsError": ""}], "nextCursor": None}})
+        elif mode in {"mcp-connected-empty", "mcp-disabled-empty"}:
+            status = "connected" if mode == "mcp-connected-empty" else "disabled"
+            send({"id": ident, "result": {"data": [{"tools": {}, "runtimeStatus": status, "toolsError": None}], "nextCursor": None}})
         else:
             send({"id": ident, "result": {"data": [], "nextCursor": None}})
             if mode == "stalled-reader":
@@ -234,7 +266,7 @@ def test_prepared_attempt_and_outbound_only_trace_remain_pending(context):
     assert worker.recover(state, context) is None
 
 
-@pytest.mark.parametrize("mode", ["mcp-tools", "mcp-pending"])
+@pytest.mark.parametrize("mode", ["mcp-tools", "mcp-pending", "mcp-empty-error", "mcp-connected-empty"])
 def test_configured_or_unresolved_mcp_tools_block_native_turn(tmp_path, context, mode):
     store = TraceStore()
     worker = worker_at(tmp_path, store, mode)
@@ -244,6 +276,35 @@ def test_configured_or_unresolved_mcp_tools_block_native_turn(tmp_path, context,
     assert failure.value.status == "failed"
     assert not any(record.method == "turn/start" for record in store.records())
     assert worker.recover(state, context) is None
+
+
+def test_disabled_mcp_server_without_tools_or_discovery_error_is_admissible(tmp_path, context):
+    store = TraceStore()
+    artifact, _ = run_worker(worker_at(tmp_path, store, "mcp-disabled-empty"), attempt(), context)
+    assert artifact["text"].startswith("Conclusion")
+
+
+@pytest.mark.parametrize("mode", [
+    "policy-missing", "policy-writable", "policy-network", "policy-null-network",
+    "policy-zero-network", "policy-unknown-field", "policy-approval", "policy-cwd",
+    "policy-environments-missing", "policy-environments-active",
+])
+def test_unacknowledged_or_weaker_native_policy_blocks_dispatch(tmp_path, context, mode):
+    store = TraceStore()
+    worker = worker_at(tmp_path, store, mode)
+    state = attempt()
+    with pytest.raises(NativeInvestigationError, match="did not acknowledge") as failure:
+        worker.run(state, context, lambda **fields: state.update(fields))
+    assert failure.value.status == "failed"
+    assert state["threadId"] == "worker-thread"
+    assert not any(record.method in {"turn/start", "mcpServerStatus/list"} for record in store.records())
+    assert worker.recover(state, context) is None
+
+
+def test_native_read_only_policy_accepts_schema_default_network_false(tmp_path, context):
+    store = TraceStore()
+    artifact, _ = run_worker(worker_at(tmp_path, store, "policy-default-network"), attempt(), context)
+    assert artifact["text"].startswith("Conclusion")
 
 
 def test_closed_worker_cannot_launch_new_owned_process(tmp_path, context):
@@ -332,3 +393,141 @@ def test_deadline_interrupts_large_prompt_when_native_stops_reading(tmp_path, co
         worker.run(attempt(0.3), context, lambda **fields: None)
     assert time.monotonic() - started < 3
     assert len([r for r in store.records() if r.method == "turn/start"]) == 1
+
+
+def recorded_recovery_case(context, statuses, *, phase="final_answer", ack_error=False, terminal_error=None):
+    store = TraceStore()
+    state = {**attempt(), "source": "synthetic-recovery"}
+    store.append(source=state["source"], direction="client_to_appserver", message={
+        "id": 1, "method": "turn/start", "params": {
+            "threadId": "thread", "input": [{"type": "text", "text": context["projectedPrompt"]}],
+        },
+    })
+    if ack_error:
+        store.append(source=state["source"], direction="appserver_to_client", message={
+            "id": 1, "error": {"code": -32603, "message": "synthetic start error"},
+        })
+    for status in statuses:
+        store.append(source=state["source"], direction="appserver_to_client", message={
+            "method": "turn/completed", "params": {
+                "threadId": "thread", "turn": {
+                    "id": "turn", "status": status, "error": terminal_error,
+                    "items": [{"id": "answer", "type": "agentMessage", "phase": phase, "text": "Synthetic answer."}],
+                },
+            },
+        })
+    return store, state
+
+
+def test_completed_commentary_alone_does_not_become_a_final_artifact(context):
+    store, state = recorded_recovery_case(context, ["completed"], phase="commentary")
+    assert NativeInvestigationWorker(store).recover(state, context) is None
+
+
+def test_completed_legacy_message_without_known_phase_remains_recoverable(context):
+    store, state = recorded_recovery_case(context, ["completed"], phase=None)
+    assert NativeInvestigationWorker(store).recover(state, context)["text"] == "Synthetic answer."
+
+
+@pytest.mark.parametrize("phase", ["future_phase", "", False, [], {}])
+def test_unrecognized_completed_message_phase_remains_unknown(context, phase):
+    store, state = recorded_recovery_case(context, ["completed"], phase=phase)
+    records_before = store.records()
+    with pytest.raises(NativeInvestigationError, match="phase is unsupported") as failure:
+        NativeInvestigationWorker(store, ["/must/not/launch"]).recover(state, context)
+    assert failure.value.status == "unknown"
+    assert store.records() == records_before
+
+
+@pytest.mark.parametrize("statuses", [["completed", "failed"], ["failed", "completed"], ["interrupted", "completed"]])
+def test_contradictory_terminal_statuses_remain_unknown_in_either_order(context, statuses):
+    store, state = recorded_recovery_case(context, statuses)
+    with pytest.raises(NativeInvestigationError, match="contradictory") as failure:
+        NativeInvestigationWorker(store).recover(state, context)
+    assert failure.value.status == "unknown"
+
+
+def test_completed_terminal_cannot_override_explicit_start_error_ack(context):
+    store, state = recorded_recovery_case(context, ["completed"], ack_error=True)
+    with pytest.raises(NativeInvestigationError, match="contradictory") as failure:
+        NativeInvestigationWorker(store).recover(state, context)
+    assert failure.value.status == "unknown"
+
+
+def test_completed_status_with_terminal_error_is_not_admitted(context):
+    store, state = recorded_recovery_case(context, ["completed"], terminal_error={"message": "synthetic failure"})
+    with pytest.raises(NativeInvestigationError, match="contradictory"):
+        NativeInvestigationWorker(store).recover(state, context)
+
+
+@pytest.mark.parametrize("status", ["failed", "interrupted"])
+def test_known_unsuccessful_native_terminals_are_failed(context, status):
+    store, state = recorded_recovery_case(context, [status])
+    with pytest.raises(NativeInvestigationError) as failure:
+        NativeInvestigationWorker(store).recover(state, context)
+    assert failure.value.status == "failed"
+
+
+@pytest.mark.parametrize("status", ["inProgress", "futureStatus", None])
+def test_unrecognized_or_nonterminal_status_is_unknown(context, status):
+    store, state = recorded_recovery_case(context, [status])
+    with pytest.raises(NativeInvestigationError, match="unsupported") as failure:
+        NativeInvestigationWorker(store).recover(state, context)
+    assert failure.value.status == "unknown"
+
+
+@pytest.mark.parametrize("will_retry", [False, True])
+def test_error_notification_alone_does_not_establish_a_terminal_result(context, will_retry):
+    store, state = recorded_recovery_case(context, [])
+    store.append(source=state["source"], direction="appserver_to_client", message={
+        "method": "error", "params": {
+            "threadId": "thread", "turnId": "turn", "willRetry": will_retry,
+            "error": {"message": "synthetic transport problem"},
+        },
+    })
+    assert NativeInvestigationWorker(store).recover(state, context) is None
+    assert len([record for record in store.records() if record.method == "turn/start"]) == 1
+
+
+def test_duplicate_matching_terminal_notifications_remain_recoverable(context):
+    store, state = recorded_recovery_case(context, ["completed", "completed"])
+    worker = NativeInvestigationWorker(store, ["/not/a/native/executable"])
+    count = len(store.records())
+    assert worker.recover(state, context)["text"] == "Synthetic answer."
+    assert worker.recover(state, context)["text"] == "Synthetic answer."
+    assert len(store.records()) == count
+
+
+@pytest.mark.parametrize("location", ["terminal", "item", "mixed"])
+@pytest.mark.parametrize("changed", [
+    {"text": "Conflicting answer."}, {"phase": "commentary"},
+    {"text": ""}, {"text": "   "}, {"text": None}, {"type": "futureItem"},
+])
+@pytest.mark.parametrize("reverse", [False, True])
+def test_conflicting_completed_content_never_replaces_prior_evidence(context, location, changed, reverse):
+    store, state = recorded_recovery_case(context, [])
+    first = {"id": "answer", "type": "agentMessage", "phase": "final_answer", "text": "Original answer."}
+    items = [first, {**first, **changed}]
+    if reverse:
+        items.reverse()
+    for index, item in enumerate(items):
+        terminal = location == "terminal" or (location == "mixed" and index == 1)
+        if terminal:
+            message = {"method": "turn/completed", "params": {"threadId": "thread", "turn": {
+                "id": "turn", "status": "completed", "items": [item], "error": None,
+            }}}
+        else:
+            message = {"method": "item/completed", "params": {
+                "threadId": "thread", "turnId": "turn", "item": item,
+            }}
+        store.append(source=state["source"], direction="appserver_to_client", message=message)
+    if location == "item":
+        store.append(source=state["source"], direction="appserver_to_client", message={
+            "method": "turn/completed", "params": {"threadId": "thread", "turn": {
+                "id": "turn", "status": "completed", "items": [], "error": None,
+            }},
+        })
+    with pytest.raises(NativeInvestigationError, match="contradictory") as failure:
+        NativeInvestigationWorker(store, ["/must/not/launch"]).recover(state, context)
+    assert failure.value.status == "unknown"
+    assert len([record for record in store.records() if record.method == "turn/start"]) == 1

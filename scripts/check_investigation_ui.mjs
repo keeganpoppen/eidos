@@ -1,15 +1,36 @@
-// Synthetic rendered acceptance. Requires demo API :8765, Vite :5173, and
+// Rendered acceptance against the synthetic demo API, never a native account.
+// Requires scripts/investigation_demo.py --serve on :8765, Vite :5173, and
 // isolated Chromium --remote-debugging-port=9222. No npm dependencies/model calls.
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
+import { extendSyntheticHistory } from './fixtures/reflective_history.mjs';
+import { competingInterpretation } from './fixtures/reflective_interpretation.mjs';
+
+const evidencePrefix = process.env.NEMA_UI_EVIDENCE_PREFIX ?? 'docs/evidence/reflective';
 
 const target = await (await fetch('http://127.0.0.1:9222/json/new?http://127.0.0.1:5173', { method: 'PUT' })).json();
 const socket = new WebSocket(target.webSocketDebuggerUrl);
 await new Promise((resolve) => socket.addEventListener('open', resolve, { once: true }));
 let sequence = 0;
+let documentLoads = 0;
 const pending = new Map();
+let requestFixture = null;
 socket.addEventListener('message', (event) => {
   const message = JSON.parse(event.data);
+  if (message.method === 'Page.loadEventFired') documentLoads++;
+  if (message.method === 'Fetch.requestPaused') {
+    void (async () => {
+      const body = requestFixture?.(message.params.request.url);
+      if (body) {
+        await rpc('Fetch.fulfillRequest', {
+          requestId: message.params.requestId, responseCode: 200,
+          responseHeaders: [{ name: 'Content-Type', value: 'application/json' }],
+          body: Buffer.from(JSON.stringify(body)).toString('base64')
+        });
+      } else await rpc('Fetch.continueRequest', { requestId: message.params.requestId });
+    })().catch((error) => console.error('Fixture interception failed:', error));
+    return;
+  }
   if (!message.id) return;
   const request = pending.get(message.id);
   pending.delete(message.id);
@@ -32,21 +53,60 @@ const wait = async (expression) => {
   }
   throw Error(`UI condition did not arrive: ${expression}`);
 };
-const clickText = async (text, selector = 'button') => evaluate(`(() => {
-  const element = [...document.querySelectorAll(${JSON.stringify(selector)})].find(e => e.textContent.trim() === ${JSON.stringify(text)});
-  if (!element || element.disabled) throw Error('Action unavailable: ' + ${JSON.stringify(text)});
-  element.click();
-})()`);
+const clickText = async (text, selector = 'button') => {
+  await wait(`[...document.querySelectorAll(${JSON.stringify(selector)})].some(e => e.textContent.trim() === ${JSON.stringify(text)} && !e.disabled)`);
+  return evaluate(`(() => {
+    const element = [...document.querySelectorAll(${JSON.stringify(selector)})].find(e => e.textContent.trim() === ${JSON.stringify(text)} && !e.disabled);
+    element.click();
+  })()`);
+};
 const fill = async (selector, value) => evaluate(`(() => {
   const e = document.querySelector(${JSON.stringify(selector)});
+  if (!e) throw Error('Missing input: ' + ${JSON.stringify(selector)});
   e.value = ${JSON.stringify(value)}; e.dispatchEvent(new Event('input', {bubbles:true}));
 })()`);
+const select = async (selector, value) => {
+  await wait(`[...document.querySelector(${JSON.stringify(selector)})?.options ?? []].some(o => o.value === ${JSON.stringify(value)})`);
+  return evaluate(`(() => {
+    const e = document.querySelector(${JSON.stringify(selector)});
+    e.value = ${JSON.stringify(value)}; e.dispatchEvent(new Event('change', {bubbles:true}));
+  })()`);
+};
+const getWork = async (id) => (await fetch(`http://127.0.0.1:8765/api/investigations/${id}`)).json();
+const post = async (path, body) => {
+  const response = await fetch(`http://127.0.0.1:8765/api/investigations${path}`, {
+    method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body)
+  });
+  const value = await response.json();
+  assert(response.ok, JSON.stringify(value));
+  return value;
+};
+const keypress = async (key, code = key, virtualKey = 0) => {
+  await rpc('Input.dispatchKeyEvent', { type: 'keyDown', key, code, windowsVirtualKeyCode: virtualKey, ...(key === 'Enter' ? { text: '\r', unmodifiedText: '\r' } : {}) });
+  await rpc('Input.dispatchKeyEvent', { type: 'keyUp', key, code, windowsVirtualKeyCode: virtualKey });
+};
+const screenshot = async (path) => {
+  await evaluate(`new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))`);
+  await fs.writeFile(path, Buffer.from((await rpc('Page.captureScreenshot', { format: 'png' })).data, 'base64'));
+};
+const compositionIdentity = () => evaluate(`JSON.stringify([...document.querySelectorAll('[data-aperture]')].map(e => ({ aperture: e.dataset.aperture, investigation: e.dataset.investigationId, context: e.dataset.contextId, artifact: e.dataset.artifactId })))`);
+const reload = async () => {
+  const previous = documentLoads;
+  await rpc('Page.reload');
+  for (let attempt = 0; attempt < 100; attempt++) {
+    if (documentLoads > previous) return;
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+  throw Error('Browser reload did not finish');
+};
 
 try {
+  await rpc('Page.bringToFront');
+  await rpc('Page.enable');
   await rpc('Emulation.setDeviceMetricsOverride', { width: 1600, height: 1000, deviceScaleFactor: 1, mobile: false });
   await wait(`document.querySelector('#investigation-title') !== null`);
   await evaluate(`localStorage.clear()`);
-  await rpc('Page.reload');
+  await reload();
   await new Promise((resolve) => setTimeout(resolve, 1000));
   await wait(`document.querySelector('.thread-button') !== null && document.querySelector('#investigation-title') !== null`);
   await clickText('Investigation', '.aperture-switch button');
@@ -79,10 +139,14 @@ try {
   await clickText('Save context revision');
   await wait(`document.querySelectorAll('#context-revision option').length === 2`);
   await wait(`document.querySelector('.context-diff')?.textContent.includes('Previous question:')`);
+  // Let a server refresh deserialize the saved selections. Object key order
+  // changes across POST/GET must not invent an unsaved context revision.
+  await new Promise((resolve) => setTimeout(resolve, 1700));
+  assert(!await evaluate(`[...document.querySelectorAll('.work-notice')].some(e => e.textContent.includes('Selection or question changed'))`), 'polling must not mark an unchanged saved packet dirty');
   await clickText('Start specialist with this context');
   await wait(`document.querySelector('.work-status')?.textContent.includes('completed')`);
   await wait(`document.querySelector('.investigation-result')?.textContent.includes('Synthetic specialist result')`);
-  await rpc('Page.reload');
+  await reload();
   await new Promise((resolve) => setTimeout(resolve, 1000));
   await wait(`document.querySelector('.investigation-result') !== null`);
   assert.equal(await evaluate(`document.querySelector('#saved-investigation').value`), identifier);
@@ -96,7 +160,7 @@ try {
   await fill('#adoption-note', 'Keep a stable attempt and preserve uncertain delivery.');
   await clickText('Adopt conclusion');
   await wait(`document.querySelector('.adoption-receipt')?.textContent.includes('Conclusion adopted')`);
-  await rpc('Page.reload');
+  await reload();
   await new Promise((resolve) => setTimeout(resolve, 1000));
   await wait(`document.querySelector('.adoption-receipt') !== null`);
   await evaluate(`document.querySelector('.investigation-result').scrollIntoView({block:'start'}); document.querySelector('[data-item-id="fixture-design-turn-5-answer"]').scrollIntoView({block:'center'});`);
@@ -109,9 +173,293 @@ try {
   assert.equal(final.artifact.citations.length, 3);
   assert.equal(final.artifact.unsupportedCitations.length, 0);
   assert(await evaluate(`document.querySelector('.investigation-pane').scrollWidth <= document.querySelector('.investigation-pane').clientWidth + 1`), 'work pane must not overflow horizontally');
+  // A second server-derived saved work supplies a competing question and packet.
+  // The fixture worker returns identical prose for every task; the UI must not
+  // manufacture a disagreement between those returned artifacts.
+  const alternative = await post('', {
+    requestId: crypto.randomUUID(), title: 'Competing interpretation · inner checkpoint sufficiency',
+    question: 'Could the inner prepared checkpoint alone be sufficient? Test this interpretation against the crash experiment and state what remains unknown.',
+    selections: final.contexts[1].selections.filter((selection) => selection.startSeq !== 38)
+  });
+  await post(`/${alternative.id}/dispatch`, { contextId: alternative.currentContextId });
+  let completedAlternative;
+  for (let attempt = 0; attempt < 100; attempt++) {
+    completedAlternative = await getWork(alternative.id);
+    if (completedAlternative.status === 'completed') break;
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+  assert.equal(completedAlternative.status, 'completed');
+  const unchangedWorks = JSON.stringify([final, completedAlternative]);
+  await reload();
+  await wait(`document.querySelector('#saved-investigation')?.value === ${JSON.stringify(identifier)}`);
+  await clickText('Compare', '.aperture-switch button');
+  await wait(`document.querySelector('.arrangement-editor') !== null`);
+  await select('#compare-left', identifier);
+  await select('#compare-right', alternative.id);
+  await select('#compare-left-context', final.currentContextId);
+  await select('#compare-right-context', alternative.currentContextId);
+  await select('#compare-lens', 'context');
+  await select('#compare-layout', 'beside');
+  await clickText('Review arrangement');
+  await wait(`document.querySelector('.arrangement-review') !== null`);
+  assert.equal(await evaluate(`document.querySelector('.comparison-surface').dataset.layout`), 'beside');
+  await clickText('Apply arrangement');
+  await wait(`document.querySelector('[data-aperture="right"]')?.dataset.investigationId === ${JSON.stringify(alternative.id)}`);
+  await wait(`document.querySelector('.comparison-diff')?.textContent.includes('38')`);
+  await evaluate(`document.querySelector('.comparison-diff').open = true; document.querySelector('.comparison-diff').scrollIntoView({block:'center'})`);
+  assert(await evaluate(`[...document.querySelectorAll('.comparison-diff .diff-row.removed')].some(e => e.textContent.includes('38'))`));
+  assert(await evaluate(`[...document.querySelectorAll('.comparison-diff .diff-row.added')].some(e => e.textContent.includes('Could the inner prepared checkpoint'))`));
+  const contextArrangement = await compositionIdentity();
   await fs.mkdir('docs/evidence', { recursive: true });
-  await fs.writeFile('docs/evidence/investigation-workbench.png', Buffer.from((await rpc('Page.captureScreenshot', { format: 'png' })).data, 'base64'));
-  console.log(JSON.stringify({ passed: true, investigationId: identifier, records: 3, sourceThreads: 2, revisions: 2, status: final.status, adoption: final.adoption.decision, screenshot: 'docs/evidence/investigation-workbench.png' }, null, 2));
+  await screenshot(`${evidencePrefix}-context-diff.png`);
+
+  // Proposed changes remain reviewable and cancel without altering the surface.
+  await clickText('Edit arrangement');
+  await select('#compare-layout', 'stacked');
+  await clickText('Review arrangement');
+  assert.equal(await evaluate(`document.querySelector('.comparison-surface').dataset.layout`), 'beside', 'review must not apply the draft placement');
+  assert.equal(await compositionIdentity(), contextArrangement, 'review must not retarget either aperture');
+  assert.equal(await evaluate(`JSON.parse(localStorage.getItem('nema.composition.v1')).arrangement.layout`), 'beside', 'draft placement must not be persisted as applied');
+  await clickText('Cancel changes');
+  assert.equal(await evaluate(`document.querySelector('.comparison-surface').dataset.layout`), 'beside');
+  assert.equal(await compositionIdentity(), contextArrangement);
+  await clickText('Edit arrangement');
+  await select('#compare-layout', 'stacked');
+  await clickText('Review arrangement');
+  await clickText('Apply arrangement');
+  await wait(`document.querySelector('.comparison-surface').dataset.layout === 'stacked'`);
+  await clickText('Undo arrangement');
+  await wait(`document.querySelector('.comparison-surface').dataset.layout === 'beside'`);
+  assert.equal(await compositionIdentity(), contextArrangement);
+
+  // Compare two immutable revisions of the same investigation, not just IDs.
+  await clickText('Edit arrangement');
+  await select('#compare-right', identifier);
+  await select('#compare-left-context', final.contexts[0].id);
+  await select('#compare-right-context', final.contexts[1].id);
+  await clickText('Review arrangement');
+  await clickText('Apply arrangement');
+  await wait(`document.querySelector('[data-aperture="left"]')?.dataset.contextId === ${JSON.stringify(final.contexts[0].id)}`);
+  assert.equal(await evaluate(`document.querySelector('[data-aperture="right"]').dataset.contextId`), final.contexts[1].id);
+  assert(await evaluate(`document.querySelector('.comparison-diff').textContent.includes('lost reply')`));
+  await clickText('Undo arrangement');
+  await wait(`document.querySelector('[data-aperture="right"]')?.dataset.investigationId === ${JSON.stringify(alternative.id)}`);
+
+  // Show both actual model artifacts and open their support with keyboard input.
+  await clickText('Edit arrangement');
+  await select('#compare-lens', 'result');
+  await clickText('Review arrangement');
+  await clickText('Apply arrangement');
+  await wait(`[...document.querySelectorAll('[data-aperture="left"] button')].some(e => e.textContent.trim() === 'Inspect support')`);
+  await evaluate(`[...document.querySelectorAll('[data-aperture="right"] button')].filter(e => e.textContent.trim() === 'Inspect support').at(-1).click()`);
+  await wait(`document.querySelector('.focus-evidence')?.dataset.investigationId === ${JSON.stringify(alternative.id)}`);
+  assert.equal(await evaluate(`document.querySelector('.focus-evidence').dataset.contextId`), completedAlternative.artifact.contextId);
+  assert.equal(await evaluate(`document.querySelector('.focus-evidence button[data-evidence-seq="38"]')`), null, 'the competing artifact must use its own citations');
+  assert(await evaluate(`!!document.querySelector('.focus-evidence button[data-evidence-seq="72"]')`));
+  await evaluate(`[...document.querySelectorAll('[data-aperture="left"] button')].filter(e => e.textContent.trim() === 'Inspect support').at(-1).focus()`);
+  assert.equal(await evaluate(`document.activeElement.textContent.trim()`), 'Inspect support');
+  await keypress('Enter', 'Enter', 13);
+  await wait(`document.querySelector('.focus-evidence')?.dataset.investigationId === ${JSON.stringify(identifier)}`);
+  await wait(`document.querySelector('.focus-evidence button[data-evidence-seq="12"]') !== null`);
+  const resultArrangement = await compositionIdentity();
+  await evaluate(`document.querySelector('.focus-evidence button[data-evidence-seq="72"]').click()`);
+  await wait(`document.querySelector('.focus-evidence .frozen-record')?.dataset.evidenceSeq === '72'`);
+  await evaluate(`document.querySelector('.focus-evidence button[data-evidence-seq="12"]').focus()`);
+  await keypress('Enter', 'Enter', 13);
+  await wait(`document.querySelector('.focus-evidence .frozen-record')?.dataset.evidenceSeq === '12'`);
+  assert(await evaluate(`document.querySelector('.focus-evidence .frozen-record').textContent.includes('Decision: persist a dispatch attempt')`));
+  assert.equal(await compositionIdentity(), resultArrangement, 'following evidence must preserve the comparison');
+  assert.equal(await evaluate(`document.querySelector('.focus-evidence').dataset.contextId`), final.artifact.contextId);
+  await reload();
+  await wait(`document.querySelector('.focus-evidence .frozen-record')?.dataset.evidenceSeq === '12'`);
+  assert.equal(await compositionIdentity(), resultArrangement, 'reload must restore both immutable references');
+  assert.equal(await evaluate(`document.querySelector('.comparison-surface').dataset.layout`), 'beside');
+  assert.equal(await evaluate(`document.querySelector('.focus-evidence').dataset.investigationId`), identifier);
+  const remembered = await evaluate(`localStorage.getItem('nema.composition.v1')`);
+  assert(remembered, 'the browser must retain its presentation references');
+  const rememberedObject = JSON.parse(remembered);
+  const rememberedStrings = [];
+  const inspectStored = (value) => {
+    if (typeof value === 'string') rememberedStrings.push(value);
+    else if (value && typeof value === 'object') {
+      for (const [key, child] of Object.entries(value)) {
+        assert(!['rawText', 'text', 'projectedPrompt', 'records', 'contexts', 'artifact'].includes(key), `authoritative field leaked into composition: ${key}`);
+        inspectStored(child);
+      }
+    }
+  };
+  inspectStored(rememberedObject);
+  assert(!rememberedStrings.includes(final.artifact.text), 'composition storage must not cache authoritative artifact prose');
+  assert(!rememberedStrings.includes(final.contexts[1].projectedPrompt), 'composition storage must not cache authoritative context');
+  assert(await evaluate(`document.querySelector('.comparison-surface').scrollWidth <= document.querySelector('.comparison-surface').clientWidth + 1`), 'comparison must not overflow horizontally');
+  await screenshot(`${evidencePrefix}-server-comparison.png`);
+
+  // Stress only rendering through an explicitly labelled browser-only fixture.
+  // The saved source records still come from the unchanged synthetic API.
+  const originalHistory = await (await fetch('http://127.0.0.1:8765/api/threads/fixture-design')).json();
+  const longHistory = extendSyntheticHistory(originalHistory);
+  await clickText('Investigation', '.aperture-switch button');
+  requestFixture = (url) => new URL(url).pathname === '/api/threads/fixture-design' ? longHistory : null;
+  await rpc('Fetch.enable', { patterns: [{ urlPattern: '*/api/threads/fixture-design*', requestStage: 'Request' }] });
+  await wait(`document.querySelector('.thread-header')?.textContent.includes('1,200 turns')`);
+  assert(await evaluate(`document.querySelectorAll('.workspace .turn').length <= 40`), 'large history must bound rendered turns');
+  const lastRecord = longHistory.turns.at(-1).endSeq;
+  await fill('input[aria-label="Find source record"]', String(lastRecord));
+  await clickText('Go to record');
+  await wait(`document.querySelector('[data-item-id="browser-fixture-turn-1199-answer"]') !== null`);
+  assert(await evaluate(`document.querySelectorAll('.workspace .turn').length <= 40`));
+  await clickText('Earlier turns');
+  await wait(`document.querySelector('[data-item-id="browser-fixture-turn-1159-answer"]') !== null`);
+  await clickText('Later turns');
+  await wait(`document.querySelector('[data-item-id="browser-fixture-turn-1199-answer"]') !== null`);
+  await evaluate(`document.querySelector('.citation-links button').click()`);
+  await wait(`document.querySelector('[data-item-id="fixture-design-turn-5-answer"]')?.classList.contains('highlighted')`);
+  assert.equal(await compositionIdentity(), resultArrangement, 'off-page source navigation must preserve apertures');
+  assert(await evaluate(`document.querySelectorAll('.workspace .turn').length <= 40`));
+  await rpc('Fetch.disable');
+  requestFixture = null;
+  assert.equal(JSON.stringify([await getWork(identifier), await getWork(alternative.id)]), unchangedWorks, 'presentation changes must not mutate saved investigations');
+
+  // Supplementary semantic rendering example. The real synthetic worker returns
+  // the same conclusion each time; this separately labelled projection exercises
+  // a competing passage, a returned patch and an unsupported citation. Its native
+  // output mapping and adoption are cleared, and the API objects remain untouched.
+  const projectedAlternative = competingInterpretation(completedAlternative);
+  const listed = await (await fetch('http://127.0.0.1:8765/api/investigations')).json();
+  requestFixture = (url) => {
+    const path = new URL(url).pathname;
+    if (path === '/api/investigations') return { ...listed, investigations: listed.investigations.map((item) => item.id === alternative.id ? projectedAlternative : item) };
+    if (path === `/api/investigations/${alternative.id}`) return projectedAlternative;
+    return null;
+  };
+  await rpc('Fetch.enable', { patterns: [{ urlPattern: '*/api/investigations*', requestStage: 'Request' }] });
+  await clickText('Compare', '.aperture-switch button');
+  await wait(`document.querySelector('[data-aperture="right"]')?.textContent.includes('This exact artifact version is unavailable')`);
+  await clickText('Edit arrangement');
+  await select('#compare-right-artifact', projectedAlternative.artifact.id);
+  await clickText('Review arrangement');
+  await clickText('Apply arrangement');
+  await wait(`document.querySelector('[data-aperture="right"]')?.textContent.includes('Synthetic presentation fixture')`);
+  await wait(`document.querySelector('[data-aperture="right"] .native-patch .added') !== null`);
+  assert(await evaluate(`document.querySelector('[data-aperture="right"] .native-patch .removed').textContent.includes('launch another specialist')`));
+  await evaluate(`[...document.querySelectorAll('[data-aperture="right"] .work-block')].find(e => e.textContent.includes('[evidence:9999]')).querySelector('button.support-action').click()`);
+  await wait(`document.querySelector('.focus-evidence button[data-evidence-seq="9999"]')?.disabled === true`);
+  assert.equal(await evaluate(`document.querySelector('.focus-evidence .frozen-record')`), null, 'unsupported citation must never resolve to a record');
+  assert(await evaluate(`document.querySelector('.focus-evidence').textContent.includes('outside packet')`));
+  await evaluate(`[...document.querySelectorAll('[data-aperture="right"] .work-block')].find(e => e.textContent.includes('[evidence:72]')).querySelector('button.support-action').click()`);
+  await wait(`document.querySelector('.focus-evidence .frozen-record')?.dataset.evidenceSeq === '72'`);
+  assert(await evaluate(`document.querySelector('.focus-evidence .frozen-record').textContent.includes('worker returned before ModelPreparedStep was saved')`));
+  for (const width of [900, 390]) {
+    await rpc('Emulation.setDeviceMetricsOverride', { width, height: 1000, deviceScaleFactor: 1, mobile: false });
+    assert(await evaluate(`document.documentElement.scrollWidth <= ${width} + 1`), `page must not overflow horizontally at ${width}px`);
+    assert(await evaluate(`document.querySelector('.comparison-surface').scrollWidth <= document.querySelector('.comparison-surface').clientWidth + 1`), `comparison must wrap at ${width}px`);
+  }
+  await rpc('Emulation.setDeviceMetricsOverride', { width: 1600, height: 1000, deviceScaleFactor: 1, mobile: false });
+  await evaluate(`document.querySelector('.comparison-diff').open = false; window.scrollTo(0, 0); document.querySelector('.thread-rail').scrollTop = 0`);
+  await screenshot(`${evidencePrefix}-workbench.png`);
+  // A real unknown status has a question and an explicit uncertainty statement,
+  // not fabricated live activity or a successful answer.
+  projectedAlternative.status = 'unknown';
+  projectedAlternative.artifact = null;
+  projectedAlternative.attempt.status = 'unknown';
+  projectedAlternative.attempt.error = 'Synthetic browser fixture: completion was not recorded; delivery remains unknown.';
+  await wait(`document.querySelector('[data-aperture="right"] .state-label')?.textContent === 'unknown'`);
+  assert(await evaluate(`document.querySelector('[data-aperture="right"] .pending-question').textContent.includes('Could the inner prepared checkpoint')`));
+  assert(await evaluate(`document.querySelector('[data-aperture="right"]').textContent.includes('Missing output does not establish that nothing ran.')`));
+  assert.equal(await evaluate(`document.querySelector('[data-aperture="right"] .work-content')`), null, 'unknown outcome must not render a completed artifact');
+  await rpc('Fetch.disable');
+  requestFixture = null;
+  assert.equal(JSON.stringify([await getWork(identifier), await getWork(alternative.id)]), unchangedWorks, 'presentation fixture must not mutate authoritative objects');
+
+  // Integrated local review: retain an exact native baseline while the outer
+  // work waits, disclose evidence, then compare its separately named receipt.
+  await clickText('Edit arrangement');
+  await select('#compare-left', alternative.id);
+  await select('#compare-right', alternative.id);
+  await select('#compare-left-artifact', completedAlternative.artifact.id);
+  await select('#compare-right-artifact', completedAlternative.artifact.id);
+  await clickText('Review arrangement');
+  await clickText('Apply arrangement');
+  const nativeBaseline = await compositionIdentity();
+  await clickText('Investigation', '.aperture-switch button');
+  await select('#saved-investigation', alternative.id);
+  await wait(`document.querySelector('#investigation-title')?.value === ${JSON.stringify(alternative.title)}`);
+  await evaluate(`document.querySelector('.context-provenance').open = true`);
+  await wait(`document.querySelector('.request-pin')?.textContent.includes(${JSON.stringify(completedAlternative.attempt.manifestId)})`);
+  assert(await evaluate(`document.querySelector('.context-provenance').textContent.includes('PROJECTED / app_server')`));
+  assert(await evaluate(`document.querySelector('.context-provenance').textContent.includes('Unknown at provider')`));
+  await evaluate(`[...document.querySelectorAll('.manifest-slot')].find(e => e.querySelector('summary').textContent.includes('native/unknown')).open = true; document.querySelector('.context-provenance').scrollIntoView({block:'start'})`);
+  await screenshot(`${evidencePrefix}-context-provenance.png`);
+  const pinBefore = await (await fetch(`http://127.0.0.1:8765/api/investigations/${alternative.id}/context-lineage`)).json();
+  await evaluate(`document.querySelector('.start-review').open = true`);
+  await fill('#review-question', 'Which evidence should we retain before adopting this recovery conclusion?');
+  await clickText('Start local evidence review');
+  await wait(`document.querySelector('.review-status')?.textContent.includes('Review pending')`);
+  const waiting = await getWork(alternative.id);
+  assert.equal(waiting.nativeArtifact.id, completedAlternative.artifact.id);
+  assert.equal(waiting.artifact, null);
+  assert(await evaluate(`document.querySelector('.investigation-result').textContent.includes('Original native result')`));
+  assert.equal(await evaluate(`document.querySelector('#adoption-note')`), null);
+  await fill('#review-note', 'Keep the inquiry pending while I inspect the earlier experiment.');
+  await clickText('Defer review');
+  await clickText('Confirm defer');
+  await wait(`document.querySelector('.response-history')?.textContent.includes('Deferred')`);
+  await reload();
+  await wait(`document.querySelector('.response-history')?.textContent.includes('Deferred')`);
+  const deferred = await getWork(alternative.id);
+  assert.equal(deferred.continuation.id, waiting.continuation.id);
+  assert.equal(deferred.continuation.checkpointId, waiting.continuation.checkpointId);
+  await evaluate(`document.querySelector('.evidence-review').scrollIntoView({block:'center'})`);
+  await screenshot(`${evidencePrefix}-local-review.png`);
+  await clickText('Compare', '.aperture-switch button');
+  await wait(`document.querySelector('[data-aperture="left"]')?.textContent.includes('Owner-started local evidence review')`);
+  assert.equal(await compositionIdentity(), nativeBaseline, 'pending review must not replace pinned native baseline');
+  assert(await evaluate(`document.querySelector('[data-aperture="left"] .work-content').textContent.includes('Synthetic specialist result')`));
+  await clickText('Investigation', '.aperture-switch button');
+  await fill('#review-note', 'Retain the reviewed two-thread evidence; native input remains unchanged.');
+  await clickText('Review offer from current tray');
+  await wait(`document.querySelector('.disclosure-preview')?.textContent.includes('Offer these exact ranges')`);
+  await clickText('Confirm offer');
+  await wait(`document.querySelector('.review-status')?.textContent.includes('Review completed')`);
+  const reviewed = await getWork(alternative.id);
+  const offered = reviewed.continuation.inquiry.responses.find((r) => r.decision === 'offer').evidenceContext;
+  assert(offered.manifestId);
+  assert.equal(reviewed.nativeArtifact.id, completedAlternative.artifact.id);
+  assert.notEqual(reviewed.artifact.id, reviewed.nativeArtifact.id);
+  const pinAfter = await (await fetch(`http://127.0.0.1:8765/api/investigations/${alternative.id}/context-lineage`)).json();
+  assert.deepEqual(pinAfter.attempt, pinBefore.attempt, 'local disclosure must not repin or synthesize native observations');
+  await clickText('Compare', '.aperture-switch button');
+  await wait(`document.querySelector('[data-aperture="left"]')?.textContent.includes('Owner-started local evidence review · completed')`);
+  assert.equal(await compositionIdentity(), nativeBaseline, 'reintegration must preserve baseline artifact version');
+  await clickText('Edit arrangement');
+  await select('#compare-right-artifact', reviewed.artifact.id);
+  await clickText('Review arrangement');
+  await clickText('Apply arrangement');
+  await wait(`document.querySelector('[data-aperture="right"] .work-content')?.textContent.includes('not a new native analysis')`);
+  assert.equal(await evaluate(`document.querySelector('[data-aperture="left"]').dataset.artifactId`), reviewed.nativeArtifact.id);
+  assert(await evaluate(`[...document.querySelectorAll('.comparison-aperture')].every(e => e.scrollWidth <= e.clientWidth + 1)`), 'receipt comparison must not overflow either aperture');
+  await evaluate(`document.querySelector('.comparison-diff').open = true; window.scrollTo(0,0)`);
+  await screenshot(`${evidencePrefix}-review-comparison.png`);
+  await clickText('Investigation', '.aperture-switch button');
+  await fill('#adoption-note', 'Adopt the reviewed conclusion; retain the original answer and disclosure provenance.');
+  await clickText('Adopt conclusion');
+  await wait(`document.querySelector('.adoption-receipt')?.textContent.includes('Conclusion adopted')`);
+  assert.equal((await getWork(alternative.id)).adoption.artifactId, reviewed.artifact.id);
+  console.log(JSON.stringify({
+    passed: true, investigationId: identifier, alternativeId: alternative.id,
+    records: 3, sourceThreads: 2, revisions: 2, status: final.status,
+    adoption: final.adoption.decision, compared: ['saved investigations', 'context revisions', 'returned artifacts'],
+    verified: ['review/cancel/apply/undo', 'keyboard support navigation', 'cross-aperture focus', 'reload', 'presentation does not mutate server work', 'context manifest and immutable request pin', 'defer/reload/offer/adopt', 'native artifact version survives local review'],
+    history: { source: 'browser-only synthetic projection', turns: longHistory.turns.length, renderedTurnLimit: 40 },
+    supplementary: 'Browser-only competing artifact with outputSeqs cleared; native diff, unavailable citation, unknown question and 900/390px overflow verified; no API mutation',
+    screenshots: ['workbench', 'server-comparison', 'context-diff', 'context-provenance', 'local-review', 'review-comparison'].map((name) => `${evidencePrefix}-${name}.png`)
+  }, null, 2));
+} catch (error) {
+  await screenshot('/tmp/nema-reflective-acceptance-failure.png').catch(() => {});
+  console.error('Failure screenshot: /tmp/nema-reflective-acceptance-failure.png');
+  console.error(await evaluate(`document.body.innerText.slice(-10000)`).catch(() => 'DOM unavailable'));
+  throw error;
 } finally {
+  await fetch(`http://127.0.0.1:9222/json/close/${target.id}`).catch(() => {});
   socket.close();
 }

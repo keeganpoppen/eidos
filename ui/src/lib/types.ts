@@ -134,6 +134,7 @@ export type InvestigationContext = {
   records: ContextRecord[];
   projectedPrompt: string;
   coverage: unknown;
+  manifestId?: string | null;
   createdAtMs: number;
 };
 
@@ -144,7 +145,9 @@ export type Investigation = {
   createdAtMs: number;
   contexts: InvestigationContext[];
   currentContextId: string;
-  status: 'draft' | 'dispatching' | 'running' | 'completed' | 'failed' | 'unknown';
+  status: 'draft' | 'dispatching' | 'running' | 'completed' | 'failed' | 'unknown' | 'pending' | 'resuming';
+  continuation?: InvestigationContinuation | null;
+  nativeArtifact?: InvestigationArtifact | null;
   attempt: null | {
     id: string;
     contextId: string;
@@ -154,21 +157,77 @@ export type Investigation = {
     turnId: string | null;
     startedAtMs: number;
     timeoutSeconds: number;
+    manifestId?: string | null;
+    contextRequestName?: string | null;
     error: string | null;
   };
-  artifact: null | {
-    id: string;
-    text: string;
-    outputSeqs: number[];
-    contextId: string;
-    attemptId: string;
-    citations: number[];
-    unsupportedCitations: number[];
-  };
+  artifact: InvestigationArtifact | null;
   adoption: null | {
     artifactId: string;
     decision: 'adopt' | 'reject';
     note: string;
     createdAtMs: number;
   };
+};
+
+export type InvestigationArtifact = {
+  id: string;
+  text: string;
+  outputSeqs: number[];
+  contextId: string;
+  attemptId: string;
+  citations: number[];
+  unsupportedCitations: number[];
+  kind?: string;
+  nativeArtifactId?: string;
+  continuationId?: string;
+  evidenceContextId?: string | null;
+};
+
+export type InquiryResponse = {
+  id: string;
+  requestId: string;
+  decision: 'offer' | 'refuse' | 'defer';
+  note: string;
+  status: 'admitted' | 'committed';
+  evidenceContext: InvestigationContext | null;
+  occurrenceId: string | null;
+};
+
+export type InvestigationContinuation = {
+  schemaVersion: number;
+  id: string;
+  attemptId: string;
+  origin: 'synthetic-eidos';
+  question: string;
+  status: 'preparing' | 'pending' | 'resuming' | 'completed';
+  error: string | null;
+  processId: string | null;
+  checkpointId: string | null;
+  outcomeId: string | null;
+  inquiry: null | {
+    id: string;
+    question: string;
+    status: 'pending' | 'deferred' | 'offer' | 'refuse';
+    responses: InquiryResponse[];
+  };
+};
+
+export type ManifestObject = { id: string; kind: string; data: unknown; refs: unknown };
+export type ContextManifestView = {
+  contextId: string;
+  manifestId: string | null;
+  slots: Array<{
+    path: string;
+    claims: Array<{ id: string; state: string; boundary: string; facet: string; rationale: string; scope: unknown; content: ManifestObject; evidence: string[] }>;
+    gaps: Array<{ id: string; boundary: string; reason: string }>;
+    conflicts: unknown[];
+  }>;
+  changes: Array<{ path: string; before: unknown; after: unknown; operation: string }>;
+};
+export type ContextLineage = {
+  schemaVersion: number;
+  error?: string | null;
+  contexts: Array<{ contextId: string; manifestId: string | null }>;
+  attempt: null | { id: string; manifestId: string | null; requestName: string | null; pin: ManifestObject | null; events: ManifestObject[] };
 };

@@ -1,49 +1,119 @@
-# Current handoff — integrated investigation Cycle A
+# Current handoff — four-lane investigation integration
 
-**Snapshot:** 2026-10-13, continuation of NEMA-SEED-1. Started from clean `main` at `b40d9ac4758ac1129fbfe0ab26c00b28f777b3ae`. This file describes the implementation commit containing it, without predicting that commit's hash. The [founding handoff](history/NEMA-SEED-1.md) is preserved.
+**NEMA-SEED-1 · 2026-10-13 · base `ac2c093b675c5765abccaeff33a721f48f4318ce`, clean main at start.**
+This describes the integration commit containing it. The previous
+[Cycle A handoff](history/INVESTIGATION_CYCLE_A.md) and
+[founding checkpoint](history/NEMA-SEED-1.md) remain preserved.
 
-## Chosen slice and judgment
+## Judgment and delivered loop
 
-The strongest immediate advance was a saved two-thread investigation through the existing recorder/workbench: semantic/item evidence selection → exact immutable context preview/revisions → one native attempt → recovery/result/source return → adopt/reject conclusion. This advances V1-02/03/04/05/07/08/12 in one integrated path. It avoids another disconnected protocol demo.
+Nema remains an authority-local personal reflective workbench around native Codex;
+Eidos makes its local continuations inspectable. This cycle integrates the four
+actual branches into one work loop: two-thread packet → immutable ingredient
+projection → atomic native attempt/pin → recorded outcome → local disclosure
+question/defer/reload/offer or refusal → compare original answer and decision
+receipt → adopt. The calculus now contributes to a visible recovery step.
 
-Nema remains an authority-local reflective world around native Codex. This slice makes selected context and work addressable; it does not complete the transformative whole. The calculus and generic ProcessRuntime are unchanged. The native-send failure boundary needs a durable pre-send attempt even if a later adapter uses ProcessRuntime; the separate outer Elaborate/inner Model pending correlation remains open.
+The review is owner-started and uses a fixed Eidos Closure. It is **not** a question
+emitted by Codex or a new model synthesis. This advances V1-03/04/07/08/09/10/12 and
+a local disclosure subset of V1-06, not the complete V1 destination.
 
-## Exact implementation changes
+## Exact integration and migration
 
-- `src/eidos/investigation.py`: additive SQLite investigation/request tables in TraceStore's database; immutable parent-linked contexts with frozen exact records/hash, thread-scoped inclusive ranges, prompt preview and explicit coverage; request fingerprinting, transactional dispatch claim, attributable artifact and conclusion adoption. One attempt per investigation; an alternative is a separate investigation. No existing trace rows are rewritten.
-- `src/eidos/investigation_worker.py`: fixed native adapter, fresh temporary cwd, recorded incarnation before launch, one turn, fixed native policy, MCP tool-inventory refusal, deadline/output handling, owned-process cancellation, evidence-only recovery with exact source/turn/input matching. No caller-selected executor/cwd/model/provider over HTTP.
-- `api.py` / `serve.py`: durable investigation endpoints, one local worker at a time, restart reconciliation without resend, recovered native mappings, bounded JSON body, trusted loopback browser admission. Generic TM authority remains unexposed.
-- `codex.py`: closure is terminal for one app-server incarnation; serialized start/close; terminate owned child before closing buffered stdin to unblock stalled writes. Independent deadline watchdog covers the send-before-RPC-timeout gap.
-- `ui/src/`: investigation pane; item and disjoint semantic selection; saved context/revision comparison; explicit dispatch; pending/unknown/result views; exact source/native-output return; adopt/reject receipt; browser draft/focus/save-retry persistence; guarded navigation and long-ID wrapping.
-- Tests: new context, worker and API integration suites; native lifecycle regression. `scripts/investigation_demo.py`, synthetic app-server fixture, and dependency-free Chromium workflow script provide reproduction.
-- [Contract](INVESTIGATION_CONTRACT.md), [acceptance report](../evidence/INVESTIGATION_CYCLE_A.md), [screenshot](../evidence/investigation-workbench.png), README, STATE and D01/D15/D21 realization note document the boundaries. No vision destination or seed identity changed.
+Reviewed source revisions: native-boundary `e18322e`, investigation-continuations
+`70e7c73`, context-manifests `26a606b`, reflective-workbench `0cca35c`. All four were
+clean, independently reviewed and selectively joined with new seam work. Source
+branches remain unchanged; main contains one tested integration commit.
 
-## Verification actually performed
+- `codex.py` and `investigation_worker.py`: cancellable native writes/deadlines/EOF,
+  returned policy and enabled/unresolved MCP checks, conservative recovery. Additional
+  review repairs unknown output phases and conflicting empty/type-changed completions.
+- `context_manifest.py` plus new `investigation_context.py`: immutable projection of
+  the existing frozen packet; shared worker policy; request pin in the claim transaction;
+  evidence-only correlation. Reconciliation enforces source, exact input, request order,
+  ID type/value and known native coordinates. An error cannot invalidate a native result.
+- `investigation.py`/`api.py`: canonical investigation/context/attempt IDs, scoped
+  read-only manifest/lineage endpoints, separately repairable observation errors.
+  No second mutable current-context representation or generic manifest mutation API.
+- `investigation_continuations.py`/`investigation_runtime.py`: admitted local review,
+  existing ProcessRuntime/Discovery, durable decisions and reintegration. Native status
+  and terminal guards remain on the native attempt. Offered packets have their own
+  manifests and never repin the native request. Copied descriptions lack admission.
+- `ui/src/`: context provenance, pending review with offer/refuse/defer/retry/resume,
+  original native answer retained, exact artifact-version comparison, source focus,
+  native patch/diff rendering, browser arrangement review/apply/undo and bounded DOM.
+- `scripts/investigation_continuation_demo.py`, expanded Chromium harness and regression
+  suites exercise the joined path. Raw history and unknown fields remain untouched.
 
-- Baseline: 129 Python tests; UI check/build passed.
-- Final implementation: `uv run pytest` — **176 passed**. `uv sync` and `uv run eidos --help` passed. `bun install`; `bun run check` — **0 errors / 0 warnings**; `bun run build` passed.
-- `node scripts/check_investigation_ui.mjs` — passed in headless Chromium at 1600×1000, against a synthetic 48-turn / 96-record database. Selected semantic records 12/38 plus native item 72 from the second thread; exact preview excluded distractors; saved two revisions; dispatched one fake worker; reloaded; followed a citation to highlighted source; adopted and reloaded receipt. Final screenshot inspected. No human speed claim.
-- Failure/counterexamples: interleaved threads, unknown fields and exact bytes, index enrichment/reimport after preview, altered request identity, stale revision, concurrent dispatch/revision/adoption, absent native acknowledgements/mappings, failed terminal with text, completion-before-outer-commit, no implicit replay, unsupported citation, unsafe/unresolved MCP inventory, shutdown between RPCs, blocked large stdin write and deadline, browser cross-origin/rebinding admission.
-- Codex **0.154.0** local version/schema inspection only. All worker executions were synthetic. No provider API or subscription-backed model turn was run; no personal native history was imported.
+Persistence is additive in the existing trace SQLite database: `cm_*`, investigation
+runtime linkage, and existing TM tables beside trace/investigation tables. Back up the
+whole database. Existing packets/artifacts keep their IDs. Missing legacy manifests/pins
+remain unknown; old attempted work never gains an invented pre-send pin. Unattempted
+legacy packets may receive a derived projection at claim. Old browser result arrangements
+without artifact IDs require an explicit reviewed binding, never silent substitution.
 
-## Review and boundaries
+## Evidence and independent review
 
-Three actual read-only scouts preceded disjoint implementation worktrees. Independent authority/recovery review found and reproduced the native incarnation restart race and transport backpressure gap; both were repaired and tested. It also led to recovering missing navigation mappings. Independent product review accepted the bounded slice after fixing dropdown reset, durable retry IDs, stale source navigation, and synthetic demo restart. One integrator owns shared interfaces and the final commit.
+Full detail, screenshots and exact branch judgments:
+[INTEGRATION_CYCLE_B](../evidence/INTEGRATION_CYCLE_B.md).
 
-This is a trusted single-owner service, not authenticated remote capability transfer. Native config enforcement, full tool isolation, true provider context, complete native continuation recovery, OS resource quotas, token/cost bounds, and exactly-once external effects are unproved. Known MCP tools block the new specialist before a turn; unknown native outcomes stay visible and cannot silently launch again. Adoption records a conclusion, not a file patch or instruction update.
+- `uv sync`; `uv run pytest`: **361 passed, 2 skipped** (explicit native probes).
+- `uv run eidos --help`; `git diff --check`: passed.
+- `cd ui && bun install && bun run check && bun test tests && bun run build`:
+  **0 errors / 0 warnings**, **17 tests / 61 assertions**, production build passed.
+- Synthetic end-to-end demo at `/tmp/nema-integration-20261013-01.db`, then `--resume`:
+  one native fixture turn, same attempt/checkpoint/outcome/artifact/pin; two recorded
+  correlations; separate offered manifest; provider context unknown.
+- Chromium harness passed twice, with final inspected evidence under
+  `docs/evidence/integrated-*.png`: two-thread selection, revisions, delegation fixture,
+  support navigation, context gaps, comparison, defer/reload/offer/adoption and exact
+  native baseline retention. Labelled 1,200-turn/patch browser fixtures test rendering,
+  not backend scalability or another model's reasoning.
+- Independent reviewers attacked two-controller dispatch, actual abrupt process death,
+  transaction rollback, copied authority, late callbacks and context misattribution.
+  An unsolicited pre-request reply was initially miscorrelated; repaired and tested,
+  along with multi-request ambiguity and Boolean/integer RPC-ID confusion.
 
-Still missing: visible resumable offer/refuse/defer inquiry wired through ProcessRuntime; native history reconciliation when local completion evidence is absent; linked comparison between alternative investigations; complete context manifests; reflective arrangement/adoption and a measured improvement loop. Existing ordinary chat/semantic observer APIs retain their previous narrower behavior; this patch does not retrofit all of them with investigation idempotency. Context snapshots/listing are bounded per packet but not optimized for thousands of investigations.
+No fresh native probe/model call occurred. The explicit authorization question for
+isolated no-model probes remains unanswered as of this checkpoint. Imported Codex
+0.154.0 probe artifacts are historical branch evidence. No personal history, credentials,
+account data, or auth directory entered this repository.
 
-## Ownership and next action
+## Accepted, rejected, still open
 
-All three worker tasks finished; no scheduled or background development is implied. Source worktrees were `/tmp/nema-context-b40d9ac`, `/tmp/nema-worker-b40d9ac`, `/tmp/nema-ui-b40d9ac`; their owned patches were imported and reviewed. Temporary demo/browser services used for acceptance are stopped before the session ends. Synthetic databases under `/tmp` are not repository artifacts.
+Accepted: existing workflow identities; immutable attributable context projections;
+transactional pre-send pin; original-versus-receipt artifact versions; honest local
+review; reference-only UI arrangements. Rejected: competing context controllers,
+latest-result rebinding, automatic external replay from checkpoint/pin, and interpreting
+local review or branch test counts as completed native/V1 proof. See
+[shared contract](INVESTIGATION_INTEGRATION_CONTRACT.md) and D03/D13/D15/D21 in
+[DECISIONS](../roadmap/DECISIONS.md).
 
-**One runnable next action:** choose a fresh path and run:
+Still unverified: subscription-backed model acceptance, specialist-originated inquiries,
+complete instruction/skill/provider capture, full native isolation, cost/resource caps,
+exactly-once external effects, durable cross-device arrangements, linked alternative
+lineage, bounded server retrieval and a measured improvement cycle. Ambient MCP startup
+may act **before** inventory refusal; read-only policy/temporary cwd do not contain it.
+The generic outer Elaborate correlation problem is not universally solved by this review.
+
+## Ownership and one next action
+
+One integrator owns main. Read-only scouts became disjoint native-recovery and UI lanes
+in `/tmp/nema-native-recovery-integration` and `/tmp/nema-integration-ui`; their reviewed
+files were imported. Independent reviews finished. Source branch worktrees under
+`/home/elkeegano.guest/eidos-codex/` were not modified. Acceptance services are stopped
+before session end; no scheduled/background work is implied.
+
+**Strongest next action:** verify this same packet against native Codex under explicit
+scope, beginning with the audited no-model gate. Once explicitly authorized, run:
 
 ```bash
-uv run python scripts/investigation_demo.py --db /tmp/nema-next-investigation.db --serve
+NEMA_NATIVE_PROBE=1 uv run pytest tests/test_native_boundary_probe.py tests/test_native_mcp_probe.py
 ```
 
-Then open the UI with `cd ui && bun run dev -- --host 127.0.0.1` and follow the [acceptance workflow](../evidence/INVESTIGATION_CYCLE_A.md). It must retain the same artifact/adoption after restarting with `--resume --serve`.
-
-The next development recommendation is a narrowly scoped **real-native verification of this same synthetic packet** under authorized account resources, beginning with the worker's policy/tool preflight. Record native acceptance/rejection and actual outcome without weakening the gate or modifying user Codex configuration. Only then extend the durable outer identity into a useful resumable evidence inquiry. No human decision blocks reproducing the delivered synthetic loop.
+Acceptance: record the installed version and actual admission result, preserve any
+refusal, and do not weaken policy to make it pass. A subscription-backed model turn
+then needs its own explicit account/resource authorization; no paid API substitution
+or user configuration edits. This native evidence gap is more consequential than
+adding another context or continuation abstraction. The delivered synthetic workflow
+is fully reproducible without that authorization using the integration report.

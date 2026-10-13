@@ -9,6 +9,7 @@ from typing import Any, Iterator, Mapping
 import uuid
 
 from .trace import TraceStore
+from .investigation_context import InvestigationContexts
 
 
 MAX_SELECTIONS = 32
@@ -75,6 +76,7 @@ class InvestigationStore:
 
     def __init__(self, trace: TraceStore) -> None:
         self.trace = trace
+        self.contexts = InvestigationContexts(trace)
         with trace._lock:
             trace.db.executescript(
                 """
@@ -216,7 +218,9 @@ class InvestigationStore:
             "projectedPrompt": prompt,
             "coverage": COVERAGE,
         }
-        return {**content, "id": "context_" + _digest(_json(content)), "createdAtMs": int(time.time() * 1000)}
+        context = {**content, "id": "context_" + _digest(_json(content)), "createdAtMs": int(time.time() * 1000)}
+        self.contexts.attach(context)
+        return context
 
     def create(self, body: Mapping[str, Any]) -> dict[str, Any]:
         body = _body(body, {"requestId", "title", "question", "selections"})
@@ -226,6 +230,7 @@ class InvestigationStore:
                 return prior
             title = _text(body.get("title"), "title", 200)
             context = self._context(body, None)
+            self.contexts.revision(context, None)
             investigation = {
                 "schemaVersion": 1,
                 "id": "investigation_" + uuid.uuid4().hex,
@@ -258,6 +263,7 @@ class InvestigationStore:
             if parent != investigation["currentContextId"]:
                 raise InvestigationError(409, "context revision is stale")
             context = self._context(body, parent)
+            self.contexts.revision(context, next(c for c in investigation["contexts"] if c["id"] == parent))
             investigation["contexts"].append(context)
             investigation["currentContextId"] = context["id"]
             self._save(investigation)
@@ -284,8 +290,42 @@ class InvestigationStore:
                 "error": None,
             }
             investigation["status"] = "dispatching"
+            context = next(c for c in investigation["contexts"] if c["id"] == context_id)
+            self.contexts.pin(investigation_id, investigation["attempt"], context)
             self._save(investigation)
             return investigation, True
+
+    def reconcile_context(self, investigation_id: str) -> None:
+        # This derived projection can fail independently of native completion.
+        # Keep the raw evidence and error available for a later explicit repair.
+        try:
+            with self._transaction():
+                investigation = self._load(investigation_id)
+                self.contexts.correlate(investigation)
+                investigation.pop("contextLineageError", None)
+                self._save(investigation)
+        except Exception as exc:
+            with self._transaction():
+                investigation = self._load(investigation_id)
+                investigation["contextLineageError"] = f"{type(exc).__name__}: {exc}"[:4000]
+                self._save(investigation)
+
+    def context_lineage(self, investigation_id: str) -> dict[str, Any]:
+        with self.trace._lock:
+            return self.contexts.lineage(self._load(investigation_id))
+
+    def context_manifest(self, investigation_id: str, context_id: str) -> dict[str, Any]:
+        with self.trace._lock:
+            investigation = self._load(investigation_id)
+            contexts = list(investigation["contexts"])
+            continuation = investigation.get("continuation")
+            if continuation and continuation.get("inquiry"):
+                contexts.extend(r["evidenceContext"] for r in continuation["inquiry"]["responses"] if r.get("evidenceContext"))
+            context = next((c for c in contexts if c["id"] == context_id), None)
+            if context is None:
+                raise InvestigationError(404, "context not found in this investigation")
+            parent = next((c for c in contexts if c["id"] == context["parentContextId"]), None)
+            return self.contexts.view(context, parent)
 
     def update_attempt(self, investigation_id: str, **fields: Any) -> dict[str, Any]:
         _body(fields, {"source", "threadId", "turnId", "status", "error"})
@@ -296,7 +336,7 @@ class InvestigationStore:
                 raise InvestigationError(409, "investigation has no attempt")
             # A late timeout/failure callback must never erase an admitted
             # artifact. Recovery can race the original worker completion.
-            if investigation["status"] == "completed":
+            if attempt["status"] in {"completed", "failed"}:
                 return investigation
             for field in ("source", "threadId", "turnId"):
                 if field in fields:
@@ -330,6 +370,8 @@ class InvestigationStore:
             attempt = investigation["attempt"]
             if attempt is None:
                 raise InvestigationError(409, "investigation has no attempt")
+            if attempt["status"] == "failed":
+                raise InvestigationError(409, "a failed native attempt cannot become a completed artifact")
             context = next(context for context in investigation["contexts"] if context["id"] == attempt["contextId"])
             for seq in output_seqs:
                 row = self.trace.db.execute("SELECT * FROM trace_records WHERE seq=?", (seq,)).fetchone()
@@ -349,8 +391,9 @@ class InvestigationStore:
                 "unsupportedCitations": sorted(cited - selected),
             }
             result = {**content, "id": "artifact_" + _digest(_json(content))}
-            if investigation["artifact"] is not None:
-                if investigation["artifact"] != result:
+            existing = investigation.get("nativeArtifact") or investigation["artifact"]
+            if existing is not None:
+                if existing != result:
                     raise InvestigationError(409, "attempt already has a different artifact")
                 return investigation
             investigation["artifact"] = result

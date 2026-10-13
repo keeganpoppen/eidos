@@ -1,0 +1,945 @@
+{
+  "baseRevision": "ac2c093b675c5765abccaeff33a721f48f4318ce",
+  "binarySha256": "9b7c1c7abdc26fc3c4f47c77656a8e9121def5483dbae830ef1ee561758448a9",
+  "date": "2026-10-13",
+  "mcp": {
+    "fixtureEvents": {
+      "disabled": [],
+      "failed": [
+        {
+          "event": "started",
+          "mode": "failed"
+        },
+        {
+          "event": "started",
+          "mode": "failed"
+        },
+        {
+          "event": "started",
+          "mode": "failed"
+        }
+      ],
+      "resources": [
+        {
+          "event": "started",
+          "mode": "resources"
+        },
+        {
+          "event": "request",
+          "method": "initialize"
+        },
+        {
+          "event": "request",
+          "method": "notifications/initialized"
+        },
+        {
+          "event": "request",
+          "method": "tools/list"
+        },
+        {
+          "event": "started",
+          "mode": "resources"
+        },
+        {
+          "event": "request",
+          "method": "initialize"
+        },
+        {
+          "event": "request",
+          "method": "notifications/initialized"
+        },
+        {
+          "event": "request",
+          "method": "tools/list"
+        },
+        {
+          "event": "started",
+          "mode": "resources"
+        },
+        {
+          "event": "request",
+          "method": "initialize"
+        },
+        {
+          "event": "request",
+          "method": "notifications/initialized"
+        },
+        {
+          "event": "request",
+          "method": "tools/list"
+        },
+        {
+          "event": "request",
+          "method": "resources/templates/list"
+        },
+        {
+          "event": "request",
+          "method": "resources/list"
+        }
+      ],
+      "tools": [
+        {
+          "event": "started",
+          "mode": "tools"
+        },
+        {
+          "event": "request",
+          "method": "initialize"
+        },
+        {
+          "event": "request",
+          "method": "notifications/initialized"
+        },
+        {
+          "event": "request",
+          "method": "tools/list"
+        },
+        {
+          "event": "started",
+          "mode": "tools"
+        },
+        {
+          "event": "request",
+          "method": "initialize"
+        },
+        {
+          "event": "request",
+          "method": "notifications/initialized"
+        },
+        {
+          "event": "request",
+          "method": "tools/list"
+        },
+        {
+          "event": "started",
+          "mode": "tools"
+        },
+        {
+          "event": "request",
+          "method": "initialize"
+        },
+        {
+          "event": "request",
+          "method": "notifications/initialized"
+        },
+        {
+          "event": "request",
+          "method": "tools/list"
+        },
+        {
+          "event": "request",
+          "method": "resources/templates/list"
+        },
+        {
+          "event": "request",
+          "method": "resources/list"
+        }
+      ]
+    },
+    "fixtureEventsAfterInventory": {
+      "full": {
+        "disabled": [],
+        "failed": [
+          {
+            "event": "started",
+            "mode": "failed"
+          },
+          {
+            "event": "started",
+            "mode": "failed"
+          },
+          {
+            "event": "started",
+            "mode": "failed"
+          }
+        ],
+        "resources": [
+          {
+            "event": "started",
+            "mode": "resources"
+          },
+          {
+            "event": "request",
+            "method": "initialize"
+          },
+          {
+            "event": "request",
+            "method": "notifications/initialized"
+          },
+          {
+            "event": "request",
+            "method": "tools/list"
+          },
+          {
+            "event": "started",
+            "mode": "resources"
+          },
+          {
+            "event": "request",
+            "method": "initialize"
+          },
+          {
+            "event": "request",
+            "method": "notifications/initialized"
+          },
+          {
+            "event": "request",
+            "method": "tools/list"
+          },
+          {
+            "event": "started",
+            "mode": "resources"
+          },
+          {
+            "event": "request",
+            "method": "initialize"
+          },
+          {
+            "event": "request",
+            "method": "notifications/initialized"
+          },
+          {
+            "event": "request",
+            "method": "tools/list"
+          },
+          {
+            "event": "request",
+            "method": "resources/templates/list"
+          },
+          {
+            "event": "request",
+            "method": "resources/list"
+          }
+        ],
+        "tools": [
+          {
+            "event": "started",
+            "mode": "tools"
+          },
+          {
+            "event": "request",
+            "method": "initialize"
+          },
+          {
+            "event": "request",
+            "method": "notifications/initialized"
+          },
+          {
+            "event": "request",
+            "method": "tools/list"
+          },
+          {
+            "event": "started",
+            "mode": "tools"
+          },
+          {
+            "event": "request",
+            "method": "initialize"
+          },
+          {
+            "event": "request",
+            "method": "notifications/initialized"
+          },
+          {
+            "event": "request",
+            "method": "tools/list"
+          },
+          {
+            "event": "started",
+            "mode": "tools"
+          },
+          {
+            "event": "request",
+            "method": "initialize"
+          },
+          {
+            "event": "request",
+            "method": "notifications/initialized"
+          },
+          {
+            "event": "request",
+            "method": "tools/list"
+          },
+          {
+            "event": "request",
+            "method": "resources/templates/list"
+          },
+          {
+            "event": "request",
+            "method": "resources/list"
+          }
+        ]
+      },
+      "toolsAndAuthOnly": {
+        "disabled": [],
+        "failed": [
+          {
+            "event": "started",
+            "mode": "failed"
+          },
+          {
+            "event": "started",
+            "mode": "failed"
+          }
+        ],
+        "resources": [
+          {
+            "event": "started",
+            "mode": "resources"
+          },
+          {
+            "event": "request",
+            "method": "initialize"
+          },
+          {
+            "event": "request",
+            "method": "notifications/initialized"
+          },
+          {
+            "event": "request",
+            "method": "tools/list"
+          },
+          {
+            "event": "started",
+            "mode": "resources"
+          },
+          {
+            "event": "request",
+            "method": "initialize"
+          },
+          {
+            "event": "request",
+            "method": "notifications/initialized"
+          },
+          {
+            "event": "request",
+            "method": "tools/list"
+          }
+        ],
+        "tools": [
+          {
+            "event": "started",
+            "mode": "tools"
+          },
+          {
+            "event": "request",
+            "method": "initialize"
+          },
+          {
+            "event": "request",
+            "method": "notifications/initialized"
+          },
+          {
+            "event": "request",
+            "method": "tools/list"
+          },
+          {
+            "event": "started",
+            "mode": "tools"
+          },
+          {
+            "event": "request",
+            "method": "initialize"
+          },
+          {
+            "event": "request",
+            "method": "notifications/initialized"
+          },
+          {
+            "event": "request",
+            "method": "tools/list"
+          }
+        ]
+      }
+    },
+    "fixtureEventsBeforeInventory": {
+      "disabled": [],
+      "failed": [
+        {
+          "event": "started",
+          "mode": "failed"
+        }
+      ],
+      "resources": [
+        {
+          "event": "started",
+          "mode": "resources"
+        },
+        {
+          "event": "request",
+          "method": "initialize"
+        },
+        {
+          "event": "request",
+          "method": "notifications/initialized"
+        },
+        {
+          "event": "request",
+          "method": "tools/list"
+        }
+      ],
+      "tools": [
+        {
+          "event": "started",
+          "mode": "tools"
+        },
+        {
+          "event": "request",
+          "method": "initialize"
+        },
+        {
+          "event": "request",
+          "method": "notifications/initialized"
+        },
+        {
+          "event": "request",
+          "method": "tools/list"
+        }
+      ]
+    },
+    "initialize": {
+      "codexHome": "<mcp-probe>/codex",
+      "platformFamily": "unix",
+      "platformOs": "linux",
+      "userAgent": "nema-native-mcp-probe/0.154.0 (Arch Linux Unknown; aarch64) unknown (nema-native-mcp-probe; 1)"
+    },
+    "inventories": {
+      "full": {
+        "data": [
+          {
+            "authStatus": "unsupported",
+            "name": "probe_disabled",
+            "pluginId": null,
+            "resourceTemplates": [],
+            "resources": [],
+            "runtimeStatus": "disabled",
+            "serverInfo": null,
+            "tools": {},
+            "toolsError": null
+          },
+          {
+            "authStatus": "unsupported",
+            "name": "probe_failed",
+            "pluginId": null,
+            "resourceTemplates": [],
+            "resources": [],
+            "runtimeStatus": "failed",
+            "serverInfo": null,
+            "tools": {},
+            "toolsError": "MCP startup failed: handshaking with MCP server failed: connection closed: initialize response: connection closed: initialize response"
+          },
+          {
+            "authStatus": "unsupported",
+            "name": "probe_resources",
+            "pluginId": null,
+            "resourceTemplates": [
+              {
+                "name": "Synthetic template",
+                "uriTemplate": "nema-probe://{id}"
+              }
+            ],
+            "resources": [
+              {
+                "name": "Synthetic resource",
+                "uri": "nema-probe://synthetic"
+              }
+            ],
+            "runtimeStatus": "connected",
+            "serverInfo": {
+              "description": null,
+              "icons": null,
+              "name": "nema-synthetic-resources",
+              "title": null,
+              "version": "1",
+              "websiteUrl": null
+            },
+            "tools": {},
+            "toolsError": null
+          },
+          {
+            "authStatus": "unsupported",
+            "name": "probe_tools",
+            "pluginId": null,
+            "resourceTemplates": [
+              {
+                "name": "Synthetic template",
+                "uriTemplate": "nema-probe://{id}"
+              }
+            ],
+            "resources": [
+              {
+                "name": "Synthetic resource",
+                "uri": "nema-probe://synthetic"
+              }
+            ],
+            "runtimeStatus": "connected",
+            "serverInfo": {
+              "description": null,
+              "icons": null,
+              "name": "nema-synthetic-tools",
+              "title": null,
+              "version": "1",
+              "websiteUrl": null
+            },
+            "tools": {
+              "synthetic_effect": {
+                "description": "Never call",
+                "inputSchema": {
+                  "properties": {},
+                  "type": "object"
+                },
+                "name": "synthetic_effect"
+              }
+            },
+            "toolsError": null
+          }
+        ],
+        "nextCursor": null
+      },
+      "toolsAndAuthOnly": {
+        "data": [
+          {
+            "authStatus": "unsupported",
+            "name": "probe_disabled",
+            "pluginId": null,
+            "resourceTemplates": [],
+            "resources": [],
+            "runtimeStatus": "disabled",
+            "serverInfo": null,
+            "tools": {},
+            "toolsError": null
+          },
+          {
+            "authStatus": "unsupported",
+            "name": "probe_failed",
+            "pluginId": null,
+            "resourceTemplates": [],
+            "resources": [],
+            "runtimeStatus": "failed",
+            "serverInfo": null,
+            "tools": {},
+            "toolsError": "MCP startup failed: handshaking with MCP server failed: connection closed: initialize response: connection closed: initialize response"
+          },
+          {
+            "authStatus": "unsupported",
+            "name": "probe_resources",
+            "pluginId": null,
+            "resourceTemplates": [],
+            "resources": [],
+            "runtimeStatus": "connected",
+            "serverInfo": {
+              "description": null,
+              "icons": null,
+              "name": "nema-synthetic-resources",
+              "title": null,
+              "version": "1",
+              "websiteUrl": null
+            },
+            "tools": {},
+            "toolsError": null
+          },
+          {
+            "authStatus": "unsupported",
+            "name": "probe_tools",
+            "pluginId": null,
+            "resourceTemplates": [],
+            "resources": [],
+            "runtimeStatus": "connected",
+            "serverInfo": {
+              "description": null,
+              "icons": null,
+              "name": "nema-synthetic-tools",
+              "title": null,
+              "version": "1",
+              "websiteUrl": null
+            },
+            "tools": {
+              "synthetic_effect": {
+                "description": "Never call",
+                "inputSchema": {
+                  "properties": {},
+                  "type": "object"
+                },
+                "name": "synthetic_effect"
+              }
+            },
+            "toolsError": null
+          }
+        ],
+        "nextCursor": null
+      }
+    },
+    "modelTurns": 0,
+    "rpcMethods": [
+      "initialize",
+      "thread/start",
+      "mcpServerStatus/list",
+      "mcpServerStatus/list"
+    ],
+    "status": "OBSERVED"
+  },
+  "native": {
+    "cliFeatureFlags": [
+      "apps                                     stable             false",
+      "hooks                                    stable             false",
+      "memories                                 stable             false",
+      "multi_agent                              stable             false",
+      "shell_tool                               stable             false"
+    ],
+    "configurationValidation": {
+      "conflictingSandboxAndPermissions": {
+        "error": {
+          "code": -32600,
+          "message": "`permissions` cannot be combined with `sandbox`"
+        }
+      },
+      "invalidFeatureType": {
+        "error": {
+          "code": -32600,
+          "message": "failed to load configuration: invalid type: string \"not-a-boolean\", expected a boolean\nin `features`\n"
+        }
+      },
+      "unknownFeature": {
+        "accepted": true
+      }
+    },
+    "globalConfigAfterThread": {
+      "features": {
+        "auth_elicitation": true,
+        "background_paginated_rollout_migration": false,
+        "mcp_2026_07_28": false,
+        "memories": false,
+        "mentions_v2": true,
+        "remote_control": false,
+        "remote_plugin": true,
+        "tool_suggest": true,
+        "windows_sandbox_service": false
+      },
+      "sandbox_mode": null,
+      "web_search": null
+    },
+    "globalConfigBeforeThread": {
+      "features": {
+        "auth_elicitation": true,
+        "background_paginated_rollout_migration": false,
+        "mcp_2026_07_28": false,
+        "memories": false,
+        "mentions_v2": true,
+        "remote_control": false,
+        "remote_plugin": true,
+        "tool_suggest": true,
+        "windows_sandbox_service": false
+      },
+      "sandbox_mode": null,
+      "web_search": null
+    },
+    "initialize": {
+      "codexHome": "<probe>/codex",
+      "platformFamily": "unix",
+      "platformOs": "linux",
+      "userAgent": "eidos/0.154.0 (Arch Linux Unknown; aarch64) unknown (eidos; 0.1.0)"
+    },
+    "lifecycle": {
+      "fork": {
+        "success": true
+      },
+      "historyRead": {
+        "error": {
+          "code": -32601,
+          "message": "list_turns is not supported yet"
+        }
+      },
+      "itemsList": {
+        "error": {
+          "code": -32601,
+          "message": "thread/items/list is not supported yet"
+        }
+      },
+      "metadataRead": {
+        "success": true
+      },
+      "resumeAfterRestart": {
+        "environments": [
+          {
+            "cwd": "<probe>/work",
+            "environmentId": "local",
+            "runtimeWorkspaceRoots": [
+              "<probe>/work"
+            ]
+          }
+        ],
+        "runtimeWorkspaceRoots": [
+          "<probe>/work"
+        ],
+        "sameThreadId": true,
+        "sandbox": {
+          "networkAccess": false,
+          "type": "readOnly"
+        },
+        "success": true
+      },
+      "resumeSameProcess": {
+        "error": {
+          "code": -32601,
+          "message": "list_turns is not supported yet"
+        }
+      },
+      "turnsList": {
+        "error": {
+          "code": -32601,
+          "message": "list_turns is not supported yet"
+        }
+      }
+    },
+    "mcpInventory": {
+      "result": {
+        "data": [],
+        "nextCursor": null
+      }
+    },
+    "platform": {
+      "machine": "aarch64",
+      "system": "Linux"
+    },
+    "schema": {
+      "CommandExecParams": {
+        "fields": [
+          "command",
+          "cwd",
+          "disableOutputCap",
+          "disableTimeout",
+          "env",
+          "outputBytesCap",
+          "permissionProfile",
+          "processId",
+          "sandboxPolicy",
+          "size",
+          "streamStdin",
+          "streamStdoutStderr",
+          "timeoutMs",
+          "tty"
+        ],
+        "required": [
+          "command"
+        ],
+        "sha256": "fd034b4c85d7b6f466e30a3cbb73db86be1263aca3f81b89b547f14817dfb62e"
+      },
+      "ErrorNotification": {
+        "fields": [
+          "error",
+          "threadId",
+          "turnId",
+          "willRetry"
+        ],
+        "required": [
+          "error",
+          "threadId",
+          "turnId",
+          "willRetry"
+        ],
+        "sha256": "d77732536ef8864799e4fbb5bf6965a9f1970a6195e523f144252a82287c08e7"
+      },
+      "ListMcpServerStatusParams": {
+        "fields": [
+          "cursor",
+          "detail",
+          "limit",
+          "threadId"
+        ],
+        "required": [],
+        "sha256": "33b1933595d844c61f76bdcfbc874c8456b65079877fed6e86e2710ea3d49f1b"
+      },
+      "ListMcpServerStatusResponse": {
+        "fields": [
+          "data",
+          "nextCursor"
+        ],
+        "required": [
+          "data"
+        ],
+        "sha256": "b70fe28f68e82f9716bfdf534c8339c00318e875e15bb30e7f153c5adbbcf962"
+      },
+      "ThreadResumeParams": {
+        "fields": [
+          "approvalPolicy",
+          "approvalsReviewer",
+          "baseInstructions",
+          "config",
+          "cwd",
+          "developerInstructions",
+          "excludeTurns",
+          "history",
+          "initialTurnsPage",
+          "model",
+          "modelProvider",
+          "path",
+          "permissions",
+          "personality",
+          "runtimeWorkspaceRoots",
+          "sandbox",
+          "serviceTier",
+          "threadId"
+        ],
+        "required": [
+          "threadId"
+        ],
+        "sha256": "5ebc2fe61b33d85dd6dfa81acf88f632fe2bafe4aa83ff57ee58e866f14d49ac"
+      },
+      "ThreadStartParams": {
+        "fields": [
+          "allowProviderModelFallback",
+          "approvalPolicy",
+          "approvalsReviewer",
+          "baseInstructions",
+          "config",
+          "cwd",
+          "developerInstructions",
+          "dynamicTools",
+          "environments",
+          "ephemeral",
+          "experimentalRawEvents",
+          "historyMode",
+          "mockExperimentalField",
+          "model",
+          "modelProvider",
+          "multiAgentMode",
+          "permissions",
+          "personality",
+          "projectId",
+          "runtimeWorkspaceRoots",
+          "sandbox",
+          "selectedCapabilityRoots",
+          "serviceName",
+          "serviceTier",
+          "sessionStartSource",
+          "threadSource"
+        ],
+        "required": [],
+        "sha256": "25f490368ec6df52a2a3b82a5469d2413307eb93439121b309f415b5648eee7a"
+      },
+      "ThreadStartResponse": {
+        "fields": [
+          "activePermissionProfile",
+          "approvalPolicy",
+          "approvalsReviewer",
+          "cwd",
+          "instructionSources",
+          "model",
+          "modelProvider",
+          "multiAgentMode",
+          "reasoningEffort",
+          "runtimeWorkspaceRoots",
+          "sandbox",
+          "serviceTier",
+          "thread"
+        ],
+        "required": [
+          "approvalPolicy",
+          "approvalsReviewer",
+          "cwd",
+          "model",
+          "modelProvider",
+          "sandbox",
+          "thread"
+        ],
+        "sha256": "b43f4e53d2262e0501d21bcf2a5a45b0316b8fab757a7ff19a6f1e042d4b09da"
+      },
+      "TurnCompletedNotification": {
+        "fields": [
+          "threadId",
+          "turn"
+        ],
+        "required": [
+          "threadId",
+          "turn"
+        ],
+        "sha256": "78af2a37391e8e669a4020cb58593e4d3e378756ced79d5fec72374fa69fb94b"
+      },
+      "TurnStartParams": {
+        "fields": [
+          "additionalContext",
+          "approvalPolicy",
+          "approvalsReviewer",
+          "clientUserMessageId",
+          "collaborationMode",
+          "cwd",
+          "cyberAccessProgram",
+          "effort",
+          "environments",
+          "input",
+          "model",
+          "multiAgentMode",
+          "outputSchema",
+          "permissions",
+          "personality",
+          "responsesapiClientMetadata",
+          "runtimeWorkspaceRoots",
+          "sandboxPolicy",
+          "serviceTier",
+          "serviceTierForTurn",
+          "summary",
+          "threadId",
+          "toolOutput",
+          "turnTrigger"
+        ],
+        "required": [
+          "input",
+          "threadId"
+        ],
+        "sha256": "b36fb37326b1cf69f75c8b306f1f886d53a57c4b1b985e08e298e2407ea2ad02"
+      },
+      "turnStatuses": [
+        "completed",
+        "interrupted",
+        "failed",
+        "inProgress"
+      ]
+    },
+    "scope": "synthetic configuration; no model turns or credentials",
+    "standaloneSandbox": {
+      "exitCode": 0,
+      "hostVerifiedUnchanged": true,
+      "observations": {
+        "cwdWrite": {
+          "blockedErrno": 30
+        },
+        "loopbackConnect": {
+          "blockedErrno": 1,
+          "errorType": "PermissionError"
+        },
+        "outsideRead": true,
+        "outsideWrite": {
+          "blockedErrno": 30
+        },
+        "symlinkWrite": {
+          "blockedErrno": 30
+        }
+      },
+      "stderr": "",
+      "stdout": "{\"outsideRead\": true, \"cwdWrite\": {\"blockedErrno\": 30}, \"outsideWrite\": {\"blockedErrno\": 30}, \"symlinkWrite\": {\"blockedErrno\": 30}, \"loopbackConnect\": {\"blockedErrno\": 1, \"errorType\": \"PermissionError\"}}\n"
+    },
+    "stderr": [
+      "WARNING: proceeding, even though we could not create PATH aliases: Refusing to create helper binaries under temporary dir \"/tmp\" (codex_home: AbsolutePathBuf(\"<probe>/codex\"))"
+    ],
+    "threadStart": {
+      "activePermissionProfile": null,
+      "approvalPolicy": "never",
+      "cwd": "<probe>/work",
+      "environments": [],
+      "historyMode": "paginated",
+      "instructionSources": [],
+      "multiAgentMode": "explicitRequestOnly",
+      "runtimeWorkspaceRoots": [],
+      "sandbox": {
+        "networkAccess": false,
+        "type": "readOnly"
+      }
+    },
+    "version": "codex-cli 0.154.0",
+    "workerPreflight": {
+      "reachedGuardBeforeTurn": true,
+      "threadAcknowledged": true,
+      "turnRequestsRecorded": 0
+    }
+  }
+}

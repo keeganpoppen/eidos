@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount, tick } from 'svelte';
   import InvestigationPane from '#lib/InvestigationPane.svelte';
+  import ComparisonSurface from '#lib/ComparisonSurface.svelte';
   import FocusPane from '#lib/FocusPane.svelte';
   import Markdown from '#lib/Markdown.svelte';
   import SemanticRail from '#lib/SemanticRail.svelte';
@@ -19,6 +20,13 @@
   let threads = $state<ThreadSummary[]>([]);
   let selections = $state<EvidenceSelection[]>([]);
   let workMode = $state(true);
+  let comparisonOpen = $state(false);
+  let comparisonSeed = $state('');
+  let comparisonRequest = $state(0);
+  let historyStart = $state(0);
+  const historyWindow = 40;
+  let recordQuery = $state('');
+  let historyNotice = $state('');
   let workspaceReady = $state(false);
   let threadRequest = 0;
   let threadLoads = 0;
@@ -39,6 +47,7 @@
 
   let threadPoll: ReturnType<typeof setInterval> | undefined;
   let listPoll: ReturnType<typeof setInterval> | undefined;
+  const visibleTurns = $derived(thread?.turns.slice(historyStart, historyStart + historyWindow) ?? []);
 
   function hasSemanticChildren(node: SemanticNode | null): boolean {
     if (!node || !thread?.outline?.nodes) return false;
@@ -103,6 +112,7 @@
       );
       if (id === selectedThread && revision === selectedRevision && request === threadRequest) {
         thread = result;
+        if (historyStart >= result.turns.length) historyStart = Math.max(0, Math.floor((result.turns.length - 1) / historyWindow) * historyWindow);
         error = '';
       }
     } catch (cause) {
@@ -118,6 +128,8 @@
     selectedRevision = '';
     selectedSemanticNode = null;
     focusSpans = [];
+    historyStart = 0;
+    historyNotice = '';
     await loadThread();
   }
 
@@ -193,6 +205,7 @@
     // Only leaves project their tight support back onto transcript items.
     focusSpans = node && !hasSemanticChildren(node) ? node.support : [];
     if (!focusSpans.length) return;
+    revealSpan(focusSpans[0].start, focusSpans[0].end);
 
     requestAnimationFrame(() => {
       const regions = [
@@ -214,7 +227,9 @@
     await loadThread();
   }
 
-  function jumpToItem(item: ThreadItem) {
+  async function jumpToItem(item: ThreadItem) {
+    revealSpan(item.startSeq, item.endSeq);
+    await tick();
     const selector = `.workspace [data-item-id="${CSS.escape(item.id)}"]`;
     document.querySelector<HTMLElement>(selector)?.scrollIntoView({
       behavior: 'smooth',
@@ -308,6 +323,7 @@
     await chooseThread(selection.threadId);
     if (selectedThread !== selection.threadId) return;
     focusSpans = [{ start: selection.startSeq, end: selection.endSeq, weight: 1 }];
+    revealSpan(selection.startSeq, selection.endSeq);
     await tick();
     requestAnimationFrame(() => {
       const regions = [...document.querySelectorAll<HTMLElement>('.workspace .item-card[data-start][data-end], .workspace .turn[data-start][data-end]')];
@@ -316,6 +332,38 @@
       target?.scrollIntoView({ behavior: 'smooth', block: 'center' });
       target?.focus({ preventScroll: true });
     });
+  }
+
+  function revealSpan(start: number, end: number): boolean {
+    const index = thread?.turns.findIndex((turn) => overlaps(turn.startSeq, turn.endSeq, { start, end, weight: 1 })) ?? -1;
+    if (index < 0) return false;
+    historyStart = Math.floor(index / historyWindow) * historyWindow;
+    return true;
+  }
+
+  async function goToRecord() {
+    const seq = Number(recordQuery);
+    if (!Number.isSafeInteger(seq) || seq < 1 || !revealSpan(seq, seq)) {
+      historyNotice = 'That record is not in the loaded thread.';
+      return;
+    }
+    focusSpans = [{ start: seq, end: seq, weight: 1 }];
+    selectedSemanticNode = null;
+    historyNotice = `Showing the turn range containing sequence ${seq}. Interleaved records may belong to another thread.`;
+    await tick();
+    document.querySelector<HTMLElement>('.workspace .item-card.highlighted')?.scrollIntoView({ block: 'center' });
+  }
+
+  async function moveHistory(delta: number) {
+    historyStart = Math.max(0, Math.min(historyStart + delta * historyWindow, Math.floor(Math.max(0, (thread?.turns.length ?? 1) - 1) / historyWindow) * historyWindow));
+    await tick();
+    document.querySelector('.history-navigation')?.scrollIntoView({ block: 'start' });
+  }
+
+  function compareInvestigation(id: string) {
+    comparisonSeed = id;
+    comparisonRequest += 1;
+    comparisonOpen = true;
   }
 
   function inputText(input: Record<string, unknown>): string {
@@ -331,12 +379,13 @@
         selectedRevision = typeof saved.revision === 'string' ? saved.revision : '';
         focusSpans = Array.isArray(saved.spans) ? saved.spans.filter((span: SupportSpan) => Number.isInteger(span.start) && Number.isInteger(span.end)) : [];
         workMode = saved.workMode !== false;
+        historyStart = Number.isSafeInteger(saved.historyStart) && saved.historyStart >= 0 ? saved.historyStart : 0;
       }
     } catch { /* The trace remains available when browser storage is disabled. */ }
     workspaceReady = true;
     void loadThreads();
     if (selectedThread) void loadThread();
-    threadPoll = setInterval(() => { if (!threadLoads) void loadThread(); }, 700);
+    threadPoll = setInterval(() => { if (!threadLoads && !comparisonOpen) void loadThread(); }, 1500);
     listPoll = setInterval(() => void loadThreads(), 4000);
 
     return () => {
@@ -347,7 +396,7 @@
 
   $effect(() => {
     if (!workspaceReady) return;
-    const state = JSON.stringify({ threadId: selectedThread, revision: selectedRevision, spans: focusSpans, workMode });
+    const state = JSON.stringify({ threadId: selectedThread, revision: selectedRevision, spans: focusSpans, workMode, historyStart });
     try { localStorage.setItem('nema.source-focus.v1', state); } catch { /* Optional browser focus memory. */ }
   });
 </script>
@@ -360,7 +409,7 @@
   />
 </svelte:head>
 
-<div class:focus-mode={selectedSemanticNode !== null && !workMode} class:work-mode={workMode} class="shell">
+<div class:comparison-mode={comparisonOpen} class:focus-mode={selectedSemanticNode !== null && !workMode} class:work-mode={workMode} class="shell">
   <aside class="thread-rail">
     <div class="brand-block">
       <h1>eidos</h1>
@@ -368,8 +417,9 @@
     </div>
 
     <nav class="aperture-switch" aria-label="Workbench view">
-      <button class:active={workMode} aria-pressed={workMode} onclick={() => workMode = true}>Investigation</button>
-      <button class:active={!workMode} aria-pressed={!workMode} onclick={() => workMode = false}>Evidence map</button>
+      <button class:active={workMode && !comparisonOpen} aria-pressed={workMode && !comparisonOpen} onclick={() => { workMode = true; comparisonOpen = false; }}>Investigation</button>
+      <button class:active={!workMode && !comparisonOpen} aria-pressed={!workMode && !comparisonOpen} onclick={() => { workMode = false; comparisonOpen = false; }}>Evidence map</button>
+      <button class:active={comparisonOpen} aria-pressed={comparisonOpen} onclick={() => comparisonOpen = true}>Compare</button>
     </nav>
 
     <div class="new-thread">
@@ -394,11 +444,13 @@
     </div>
   </aside>
 
-  <div class:hidden-aperture={!workMode} class="work-aperture">
-    <InvestigationPane bind:selections onSource={returnToSource} />
+  <ComparisonSurface bind:open={comparisonOpen} initialId={comparisonSeed} requestId={comparisonRequest} />
+
+  <div class:hidden-aperture={!workMode || comparisonOpen} class="work-aperture">
+    <InvestigationPane bind:selections onSource={returnToSource} onCompare={compareInvestigation} />
   </div>
 
-  {#if !workMode}
+  {#if !workMode && !comparisonOpen}
   <SemanticRail
     outline={thread?.outline ?? null}
     revisions={thread?.revisions ?? []}
@@ -424,7 +476,7 @@
 
   {/if}
 
-  <main class="workspace" aria-label="Source evidence">
+  <main class:hidden-aperture={comparisonOpen} class="workspace" aria-label="Source evidence">
     {#if thread}
       <header class="thread-header">
         <h2>{thread.preview || thread.id}</h2>
@@ -440,7 +492,14 @@
         {/if}
       </header>
 
-      {#each thread.turns as turn}
+      <nav class="history-navigation" aria-label="History navigation">
+        <div><button disabled={historyStart === 0} onclick={() => moveHistory(-1)}>Earlier turns</button><span>Turns {thread.turns.length ? historyStart + 1 : 0}–{Math.min(historyStart + historyWindow, thread.turns.length)} of {thread.turns.length}</span><button disabled={historyStart + historyWindow >= thread.turns.length} onclick={() => moveHistory(1)}>Later turns</button></div>
+        <form onsubmit={(event) => { event.preventDefault(); void goToRecord(); }}><input aria-label="Find source record" type="number" min="1" bind:value={recordQuery} placeholder="Record sequence" /><button type="submit">Go to record</button></form>
+        {#if historyNotice}<p role="status">{historyNotice}</p>{/if}
+      </nav>
+
+      <div data-testid="history-window">
+      {#each visibleTurns as turn (turn.id)}
         <section
           class:dimmed={isDimmed(turn.startSeq, turn.endSeq)}
           class:highlighted={isHighlighted(turn.startSeq, turn.endSeq)}
@@ -475,6 +534,7 @@
           {/each}
         </section>
       {/each}
+      </div>
 
       {#if !thread.turns.length}
         <div class="empty-map">
@@ -491,7 +551,7 @@
   </main>
 </div>
 
-<div class="composer">
+<div class:hidden-aperture={comparisonOpen} class="composer">
   <div class="composer-inner">
     <textarea
       bind:value={composer}

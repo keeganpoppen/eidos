@@ -12,6 +12,7 @@ from urllib.parse import unquote
 
 from .codex import AppServerClient, CodexPlace
 from .investigation import InvestigationError, InvestigationStore
+from .investigation_continuations import InvestigationContinuations
 from .investigation_worker import NativeInvestigationWorker
 from .semantic_tree import SemanticTreeBuilder
 from .trace import TraceStore
@@ -293,6 +294,8 @@ class EidosAPI:
         self._jobs: dict[str, dict[str, Any]] = {}
         self._jobs_lock = threading.RLock()
         self.investigations = InvestigationStore(store)
+        self.investigation_continuations = InvestigationContinuations(self.investigations)
+        self.investigation_runtime = self.investigation_continuations.runtime
         self.investigation_worker = NativeInvestigationWorker(
             store, command=[codex, "app-server", "--listen", "stdio://"],
         )
@@ -302,8 +305,22 @@ class EidosAPI:
         # A controller restart can recover recorded completion, but cannot
         # infer delivery or silently relaunch an old external operation.
         for investigation in self.investigations.list():
-            if investigation["status"] in {"dispatching", "running", "unknown"}:
-                self.recover_investigation(investigation["id"])
+            attempt = investigation["attempt"]
+            if attempt and attempt.get("contextRequestName"):
+                self.investigations.reconcile_context(investigation["id"])
+            if (attempt is not None and attempt["status"] in {"dispatching", "running", "unknown"}) or investigation.get("continuation") is not None:
+                try:
+                    self.recover_investigation(investigation["id"])
+                except InvestigationError as exc:
+                    if exc.status != 409 or investigation.get("continuation") is None:
+                        raise
+                    # A descriptive/historical row without its admitted link is
+                    # inspectable, but cannot block recovery of other work or
+                    # acquire authority by being present during startup.
+                    with self.investigations._transaction():
+                        current = self.investigations._load(investigation["id"])
+                        current["continuation"]["error"] = exc.message
+                        self.investigations._save(current)
 
     def close(self) -> None:
         self._closing = True
@@ -382,6 +399,14 @@ class EidosAPI:
                 return 201, self.investigations.create(_json_body(handler))
         if len(parts) == 3 and method == "GET":
             return 200, self.investigations.get(parts[2])
+        if len(parts) == 4 and parts[3] == "context-lineage" and method == "GET":
+            return 200, self.investigations.context_lineage(parts[2])
+        if len(parts) == 6 and parts[3] == "contexts" and parts[5] == "manifest" and method == "GET":
+            return 200, self.investigations.context_manifest(parts[2], parts[4])
+        if len(parts) == 5 and parts[3] == "inquiries" and method == "GET":
+            return 200, self.investigation_continuations.inquiry(parts[2], parts[4])
+        if len(parts) == 6 and parts[3] == "inquiries" and parts[5] == "responses" and method == "POST":
+            return 200, self.investigation_continuations.respond(parts[2], parts[4], _json_body(handler))
         if len(parts) == 4 and method == "POST":
             body = _json_body(handler)
             identifier, action = parts[2:]
@@ -397,6 +422,12 @@ class EidosAPI:
                 return 200, self.recover_investigation(identifier)
             if action == "adoption":
                 return 200, self.investigations.adopt(identifier, body)
+            if action == "continuation":
+                return 202, self.investigation_continuations.open(identifier, body)
+            if action == "resume":
+                if body:
+                    raise ValueError("resume takes no execution parameters")
+                return 200, self.resume_investigation(identifier)
         return 404, {"error": "not found"}
 
     def start_investigation(self, identifier: str, context_id: str) -> dict[str, Any]:
@@ -427,20 +458,34 @@ class EidosAPI:
                     self.investigations.update_attempt(
                         identifier, status=status, error=f"{type(exc).__name__}: {exc}"[:4000],
                     )
+                finally:
+                    self.investigations.reconcile_context(identifier)
 
             worker = threading.Thread(target=run, daemon=True, name=f"nema-investigation-{identifier[-8:]}")
             self._investigation_threads[identifier] = worker
             try:
                 worker.start()
             except Exception as exc:
+                if worker.ident is None:
+                    self._investigation_threads.pop(identifier, None)
                 self.investigations.update_attempt(identifier, status="unknown", error=str(exc))
                 raise
             return investigation
 
     def recover_investigation(self, identifier: str) -> dict[str, Any]:
+        investigation = self._recover_native_investigation(identifier)
+        self.investigations.reconcile_context(identifier)
+        if investigation.get("continuation") is not None:
+            return self.resume_investigation(identifier)
+        return self.investigations.get(identifier)
+
+    def resume_investigation(self, identifier: str) -> dict[str, Any]:
+        return self.investigation_continuations.resume(identifier)
+
+    def _recover_native_investigation(self, identifier: str) -> dict[str, Any]:
         investigation = self.investigations.get(identifier)
         attempt = investigation["attempt"]
-        if attempt is None or investigation["status"] in {"completed", "failed"}:
+        if attempt is None or attempt["status"] in {"completed", "failed"}:
             return investigation
         context = next(value for value in investigation["contexts"] if value["id"] == attempt["contextId"])
         try:

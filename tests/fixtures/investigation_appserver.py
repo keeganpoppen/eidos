@@ -18,7 +18,11 @@ for line in sys.stdin:
     if method == "initialize":
         result = {"userAgent": "nema-synthetic-app-server"}
     elif method == "thread/start":
-        result = {"thread": {"id": thread_id, "turns": [], "status": {"type": "idle"}}}
+        result = {
+            "thread": {"id": thread_id, "turns": [], "status": {"type": "idle"}, "environments": []},
+            "sandbox": {"type": "readOnly", "networkAccess": False},
+            "approvalPolicy": "never", "cwd": params["cwd"],
+        }
     elif method == "mcpServerStatus/list":
         result = {"data": [], "nextCursor": None}
     elif method == "turn/start":

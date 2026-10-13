@@ -6,6 +6,40 @@ The baseline GitHub Actions run `38240774514` completed successfully: pytest and
 
 Refresh this file when implementation claims materially change. Keep historical audit IDs instead of quietly relabelling old evidence as current.
 
+## Integrated Cycle B — 2026-10-13
+
+The integration commit containing this update starts at `ac2c093b675c5765abccaeff33a721f48f4318ce`
+and incorporates reviewed content from native-boundary `e18322e`, investigation-continuations
+`70e7c73`, context-manifests `26a606b`, and reflective-workbench `0cca35c`. See the
+[integration contract](../agents/INVESTIGATION_INTEGRATION_CONTRACT.md) and
+[acceptance evidence](../evidence/INTEGRATION_CYCLE_B.md).
+
+Observed combined behavior: immutable manifests derived from existing frozen packets;
+atomic native attempt/request pin; evidence-backed later correlations; an owner-started
+local Eidos evidence review with offer/refuse/defer and restart; original native answer
+preserved beside a separately named receipt; comparison/focus bound to exact artifact
+versions. The UI exposes context gaps and pending decisions instead of inventing native
+loading or a specialist question. No competing current-context controller was added.
+
+Combined verification: **361 Python tests passed, 2 native probes skipped**; frontend
+check **0 errors / 0 warnings**, **17 tests passed**, build passed. Synthetic end-to-end
+demo and reopen retained one native turn/pin and the same inquiry/checkpoint/outcome.
+Rendered Chromium acceptance and inspected screenshots cover provenance, comparison,
+deferral/reload/offer/adoption and preservation of the native baseline. Independent
+reviews attacked concurrency, abrupt crashes, copied authority and miscorrelation.
+
+This advances V1-03/04/07/08/09/10/12, with a local realization of the disclosure part
+of V1-06. It does **not** establish a specialist-originated native inquiry, a new model
+analysis after disclosure, or all V1 acceptance gates. The generic outer Elaborate
+correlation obligation is not universally solved by this fixed review program.
+
+No fresh native call ran during integration: explicit no-model probe authorization was
+requested but had not arrived. Imported Codex 0.154.0 evidence is no-model branch evidence,
+not a live model verification of this combined tree. In particular, ambient MCP startup
+can act before inventory admission; read-only/temporary cwd does not provide universal
+containment. Provider context, token/cost bounds, real native delegation and a measured
+self-improvement cycle remain unverified. Older audits below retain their original scope.
+
 ## Post-seed delivery — 2026-10-13
 
 Starting at `b40d9ac4758ac1129fbfe0ab26c00b28f777b3ae`, the commit containing this update adds a durable two-thread investigation through the existing trace/API/UI: frozen source records, immutable context revisions and exact prompt preview, one transactional dispatch claim, a bounded native worker adapter, evidence-only recovery, attributable artifact, and conclusion adoption. See the [contract](../agents/INVESTIGATION_CONTRACT.md) and [acceptance report](../evidence/INVESTIGATION_CYCLE_A.md).

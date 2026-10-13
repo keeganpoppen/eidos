@@ -7,6 +7,7 @@ Recorded dispatch is not proof of delivery, and recovery never resends it.
 """
 
 import queue
+from pathlib import Path
 import re
 import tempfile
 import threading
@@ -14,6 +15,7 @@ import time
 from typing import Any, Callable, Mapping, Sequence
 
 from .codex import AppServerClient
+from .investigation_context import THREAD_CONFIG, TURN_SANDBOX
 from .trace import TraceRecord, TraceStore
 
 
@@ -50,6 +52,40 @@ class NativeInvestigationWorker:
         for client in clients:
             client.close()
 
+    @staticmethod
+    def _check_thread_policy(result: Mapping[str, Any], cwd: str) -> None:
+        """Check the native acknowledgement, not merely our requested policy.
+
+        This verifies the server's reported configuration. It does not prove
+        OS enforcement or that inherited instructions and tools are absent.
+        """
+        sandbox = result.get("sandbox")
+        if (
+            not isinstance(sandbox, dict)
+            or sandbox.get("type") != "readOnly"
+            # Preserve unknown policy fields in raw evidence, but require
+            # review before accepting a changed native permission contract.
+            or not sandbox.keys() <= {"type", "networkAccess"}
+            # Native SandboxPolicy defaults an omitted networkAccess to false.
+            or sandbox.get("networkAccess", False) is not False
+            or result.get("approvalPolicy") != "never"
+        ):
+            raise NativeInvestigationError(
+                "native thread did not acknowledge the required read-only policy",
+                status="failed",
+            )
+        admitted_cwd = result.get("cwd")
+        if not isinstance(admitted_cwd, str) or Path(admitted_cwd).resolve() != Path(cwd).resolve():
+            raise NativeInvestigationError(
+                "native thread did not acknowledge the isolated working directory",
+                status="failed",
+            )
+        thread = result.get("thread")
+        if not isinstance(thread, dict) or thread.get("environments") != []:
+            raise NativeInvestigationError(
+                "native thread did not acknowledge disabled environment access", status="failed",
+            )
+
     def _check_tool_inventory(self, client: AppServerClient, thread_id: str, deadline: float) -> None:
         cursor = None
         seen: set[str] = set()
@@ -69,9 +105,12 @@ class NativeInvestigationWorker:
                         "native MCP tools are configured; this specialist cannot admit their external actions",
                         status="failed",
                     )
-                if server.get("toolsError") or server.get("runtimeStatus") not in {"connected", "disabled"}:
+                # toolsAndAuthOnly does not reveal resource capabilities. A
+                # connected server with no tools can still expose resources,
+                # so only an explicitly disabled server is admissible.
+                if server.get("toolsError") is not None or server.get("runtimeStatus") != "disabled":
                     raise NativeInvestigationError(
-                        "native MCP tool discovery is unresolved; specialist dispatch was refused",
+                        "native MCP server is enabled or unresolved; specialist dispatch was refused",
                         status="failed",
                     )
             cursor = page.get("nextCursor")
@@ -175,19 +214,13 @@ class NativeInvestigationWorker:
                     "environments": [],
                     "ephemeral": False,
                     "threadSource": "nema-investigation",
-                    "config": {
-                        "features.apps": False,
-                        "features.shell_tool": False,
-                        "features.multi_agent": False,
-                        "features.hooks": False,
-                        "features.memories": False,
-                        "web_search": "disabled",
-                    },
+                    "config": dict(THREAD_CONFIG),
                 }, timeout=min(30.0, self._remaining(deadline)))
                 thread = result.get("thread")
                 if not isinstance(thread, dict) or not isinstance(thread.get("id"), str):
                     raise NativeInvestigationError("thread/start did not acknowledge a native thread")
                 remember(threadId=thread["id"])
+                self._check_thread_policy(result, cwd)
                 self.trace.annotate_thread(
                     thread["id"], kind="investigation-worker",
                     metadata={"attemptId": attempt.get("id"), "contextId": context["id"]},
@@ -196,7 +229,7 @@ class NativeInvestigationWorker:
                 result = client.request("turn/start", {
                     "threadId": thread["id"],
                     "input": [{"type": "text", "text": prompt}],
-                    "sandboxPolicy": {"type": "readOnly", "networkAccess": False},
+                    "sandboxPolicy": dict(TURN_SANDBOX),
                     "environments": [],
                 }, timeout=min(30.0, self._remaining(deadline)))
                 turn = result.get("turn")
@@ -271,11 +304,14 @@ class NativeInvestigationWorker:
         if isinstance(attempt.get("turnId"), str):
             turn_ids.add(attempt["turnId"])
         terminal: list[TraceRecord] = []
+        response_errors: list[TraceRecord] = []
         for record in records:
             if record.direction != "appserver_to_client" or record.seq <= request.seq:
                 continue
             message = record.message
             result = message.get("result")
+            if record.rpc_id == request.rpc_id and "method" not in message and "error" in message:
+                response_errors.append(record)
             if record.rpc_id == request.rpc_id and isinstance(result, dict):
                 turn = result.get("turn")
                 if isinstance(turn, dict) and isinstance(turn.get("id"), str):
@@ -293,25 +329,49 @@ class NativeInvestigationWorker:
             raise NativeInvestigationError("worker incarnation contains conflicting native turn identities")
         if not terminal or not turn_ids:
             return None
+        if response_errors:
+            raise NativeInvestigationError("native turn acknowledgement and terminal evidence are contradictory")
         completed = terminal[-1]
         turn = completed.message["params"]["turn"]
-        if turn.get("status") != "completed":
+        statuses = [record.message["params"]["turn"].get("status") for record in terminal]
+        if any(status != statuses[0] for status in statuses[1:]):
+            raise NativeInvestigationError("native terminal evidence is contradictory")
+        if turn.get("status") in ("failed", "interrupted"):
             raise NativeInvestigationError(
                 f"native turn ended with status {turn.get('status')!r}: {turn.get('error')!r}",
                 status="failed",
             )
-        if any(record.message["params"]["turn"].get("status") != "completed" for record in terminal):
+        if turn.get("status") != "completed":
+            raise NativeInvestigationError(f"native terminal status is unsupported: {turn.get('status')!r}")
+        if any(record.message["params"]["turn"].get("error") is not None for record in terminal):
             raise NativeInvestigationError("native terminal evidence is contradictory")
         turn_id = next(iter(turn_ids))
         output: dict[str, tuple[str, str | None, int]] = {}
+        completed_items: dict[str, tuple[Any, Any, Any]] = {}
 
         def add(item: Any, seq: int) -> None:
+            if not isinstance(item, dict) or not isinstance(item.get("id"), str):
+                return
+            identity = item["id"]
+            signature = (item.get("type"), item.get("text"), item.get("phase"))
+            existing = completed_items.get(identity)
+            # Compare completed descriptions before filtering usable text. An
+            # empty/malformed later description cannot erase a contradiction,
+            # nor can an item silently change into or out of an agent message.
+            if existing is not None and existing != signature and (
+                existing[0] == "agentMessage" or signature[0] == "agentMessage"
+            ):
+                raise NativeInvestigationError("native completed item evidence is contradictory")
+            completed_items[identity] = signature
+            if item.get("type") == "agentMessage" and item.get("phase") not in (
+                None, "commentary", "final", "final_answer",
+            ):
+                raise NativeInvestigationError("native completed message phase is unsupported")
             if (
-                isinstance(item, dict) and item.get("type") == "agentMessage"
-                and isinstance(item.get("id"), str) and isinstance(item.get("text"), str)
+                item.get("type") == "agentMessage" and isinstance(item.get("text"), str)
                 and item["text"].strip()
             ):
-                output[item["id"]] = (item["text"], item.get("phase"), seq)
+                output.setdefault(identity, (item["text"], item.get("phase"), seq))
 
         for record in records:
             if record.seq <= request.seq or record.seq > completed.seq:
@@ -321,12 +381,15 @@ class NativeInvestigationWorker:
             item_params = record.message.get("params", {})
             if item_params.get("threadId") == thread_id and item_params.get("turnId") == turn_id:
                 add(item_params.get("item"), record.seq)
-        for item in turn.get("items", []):
-            # Prefer the dedicated completed-item evidence when available.
-            if isinstance(item, dict) and item.get("id") not in output:
-                add(item, completed.seq)
-        selected = list(output.values())
-        final_phases = {"final", "final_answer"}
+        for record in terminal:
+            for item in record.message["params"]["turn"].get("items", []):
+                # Equivalent replay retains the first dedicated item source;
+                # conflicting completed content never silently replaces it.
+                add(item, record.seq)
+        # Explicit commentary is interim output, even if the turn later ends
+        # without a final answer. Missing/null phases remain legacy-compatible.
+        selected = [entry for entry in output.values() if entry[1] != "commentary"]
+        final_phases = ("final", "final_answer")
         if any(phase in final_phases for _, phase, _ in selected):
             selected = [entry for entry in selected if entry[1] in final_phases]
         selected.sort(key=lambda entry: entry[2])

@@ -29,7 +29,7 @@ There are two substantial bodies of implementation to connect deliberately:
 
 The [implementation overview](IMPLEMENTATION.md) and existing [runtime checkpoint](docs/PROCESS_RUNTIME.md) describe these in more detail. The [state audit](docs/roadmap/STATE.md) distinguishes local demonstrations from production guarantees. In particular, host registration and holder strings are not a secure remote capability system; generic commit is a privileged interface, not permission for arbitrary clients to mint successors.
 
-The first integrated investigation slice now connects two-thread evidence selection, immutable context preview/revisions, one native worker attempt, recovery from recorded completion, and source-linked conclusion adoption. Try the [synthetic workflow and acceptance report](docs/evidence/INVESTIGATION_CYCLE_A.md); its fake worker consumes no account resources. Real-native verification and the resumable disclosure-question loop remain open.
+The integrated investigation connects two-thread evidence selection, immutable context manifests and request pins, one native attempt, evidence-only recovery, and comparison of exact artifact versions. An owner-started local evidence review can defer, reload, offer or refuse evidence, then retain its receipt beside the original answer. Try the [synthetic workflow and integration evidence](docs/evidence/INTEGRATION_CYCLE_B.md); its fake worker consumes no account resources. A subscription-backed native model run and specialist-originated questions remain unverified.
 
 ## Develop
 
