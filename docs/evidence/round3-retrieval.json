@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "turns": 1200,
+  "renderedTurnLimit": 40,
+  "source": "CDP-intercepted synthetic responses; decoded JSON, not compressed wire bytes",
+  "fullPayloadBytes": 453592,
+  "fortyTurnProjectionBytes": 27310,
+  "observedFullDeliveries": 3,
+  "totalDecodedBytes": 1360776,
+  "browserHeapBefore": {
+    "usedSize": 26625260,
+    "totalSize": 37257216,
+    "embedderHeapUsedSize": 16333392,
+    "backingStorageSize": 4860294
+  },
+  "browserHeapAfter": {
+    "usedSize": 24611596,
+    "totalSize": 46432256,
+    "embedderHeapUsedSize": 11459576,
+    "backingStorageSize": 5155342
+  },
+  "limitation": "Whole-history retrieval and retention remain unbounded. Heap snapshots include browser application activity; this is not a memory bound or leak test."
+}

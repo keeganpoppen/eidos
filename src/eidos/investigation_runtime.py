@@ -117,10 +117,12 @@ class InvestigationRuntime:
     def start(
         self, *, key: str, investigation_id: str, attempt_id: str,
         native_artifact: dict[str, Any], context: dict[str, Any], question: str,
+        origin_metadata: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Admit a fixed process with exact immutable outer provenance."""
         with self.trace._lock:
             prefix = f"investigation-continuation:{key}"
+            native_question = origin_metadata is not None
             origin = self._persist(
                 prefix + ":origin", "investigation-origin",
                 **{
@@ -131,7 +133,8 @@ class InvestigationRuntime:
                     "native_artifact": deepcopy(native_artifact),
                     "context": deepcopy(context),
                     "question": question,
-                    "origin": "synthetic-eidos",
+                    "origin": "native-specialist" if native_question else "synthetic-eidos",
+                    **({"native_observation": deepcopy(origin_metadata)} if native_question else {}),
                 },
             )
             observer = f"investigation-owner:{investigation_id}"
@@ -170,7 +173,7 @@ class InvestigationRuntime:
             provider = self.machine.persist(
                 kind="discovery-provider", request_id=prefix + ":provider",
                 value=discovery_provider_value(
-                    label="Investigation owner evidence review",
+                    label="Specialist evidence inquiry" if native_question else "Investigation owner evidence review",
                     source_domain=source["domain"], observer=observer,
                 ),
             )
@@ -178,7 +181,8 @@ class InvestigationRuntime:
             model = self.machine.persist(
                 kind="model", request_id=prefix + ":model",
                 value=model_value(
-                    "Synthetic investigation evidence review", implementation=program,
+                    "Specialist evidence inquiry continuation" if native_question else "Synthetic investigation evidence review",
+                    implementation=program,
                     process=True, sources=(origin,),
                 ),
             )
@@ -203,6 +207,7 @@ class InvestigationRuntime:
                 "key": key,
                 "investigationId": investigation_id,
                 "attemptId": attempt_id,
+                **({"originMetadata": deepcopy(origin_metadata)} if native_question else {}),
                 "originValueId": origin,
                 "processId": progress.run,
                 "protocolId": descriptor.get("protocol").value,

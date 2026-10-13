@@ -38,6 +38,18 @@ for line in sys.stdin:
             "uncertainty and require a separate deliberate investigation. An inner prepared "
             "checkpoint alone cannot prevent a second external call. " + citations
         )
+        if "[synthetic-needs-evidence]" in prompt and "Explicit new native attempt in the same outer investigation." not in prompt:
+            text = json.dumps({
+                "schemaVersion": 1, "kind": "nema-needs-evidence",
+                "question": "Which recorded acknowledgement or completion supports recovery after the missing reply?",
+                "cause": "The selected design and crash records leave the observed recovery outcome unspecified.",
+            })
+        elif "[synthetic-needs-evidence]" in prompt and "Synthetic recovery observation:" in prompt:
+            text = ("Synthetic specialist follow-up — no model was called.\n\n"
+                    "The newly supplied fixture observation records a matching acknowledgement and completed turn. "
+                    "That supports reconstructing the retained artifact from recorded evidence in this case. "
+                    "It does not justify resending an uncertain attempt or establish exactly-once external execution. "
+                    + citations)
         emit({"method": "item/completed", "params": {
             "threadId": thread_id, "turnId": turn_id,
             "item": {"id": "fixture-answer", "type": "agentMessage", "phase": "final_answer", "text": text},

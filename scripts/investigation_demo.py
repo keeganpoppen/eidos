@@ -33,6 +33,11 @@ def seed(store: TraceStore) -> dict:
             if thread_id == "fixture-design" and index == 5:
                 text = "Decision: persist a dispatch attempt before sending. A repeated browser request must return the same attempt, not launch another worker."
                 important = True
+            elif thread_id == "fixture-design" and index == 6:
+                text = ("Synthetic recovery observation: the saved turn/start acknowledgement names fixture-turn-recovered; "
+                        "a matching final item and completed turn were recorded before the crash. Reopening reconstructed "
+                        "the same artifact from those records with zero new sends. This fixture demonstrates the "
+                        "recorded-completion recovery case, not exactly-once external execution.")
             elif thread_id == "fixture-design" and index == 18:
                 text = "Rejected alternative: automatically retry when turn/start times out. The native turn may already exist; missing acknowledgement is not evidence of non-execution."
                 important = True

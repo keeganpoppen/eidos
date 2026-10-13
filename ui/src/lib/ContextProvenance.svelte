@@ -8,6 +8,7 @@
   let error = $state('');
   let loading = $state(false);
   let retry = $state(0);
+  const pinnedAttempt = $derived([lineage?.attempt, ...(lineage?.attemptHistory ?? [])].find((item) => item?.id === attemptId));
 
   $effect(() => {
     if (!opened) return;
@@ -57,15 +58,15 @@
       {#if manifest.changes.length}<details><summary>Manifest changes from parent context</summary>{#each manifest.changes as change}<p>{change.operation} · {change.path}</p>{/each}</details>{/if}
     {:else}<p class="work-notice">This historical context has no recorded manifest. No request pin has been inferred.</p>{/if}
   {/if}
-  {#if lineage?.attempt}
+  {#if pinnedAttempt}
     <div class="request-pin">
       <h4>Native request pin</h4>
-      <p class="object-ref">Attempt {lineage.attempt.id}<br />Pinned manifest {lineage.attempt.manifestId ?? 'not recorded'}<br />Request {lineage.attempt.requestName ?? 'not recorded'}</p>
-      <p>{lineage.attempt.pin ? 'The attempt retains this recorded manifest; later observations do not rewrite its pin.' : 'No durable pin is available for this attempt.'}</p>
-      {#each lineage.attempt.events as event (event.id)}<details><summary>{event.kind} · recorded event</summary><pre>{JSON.stringify(event.data, null, 2)}</pre><p class="object-ref">{event.id}</p></details>{/each}
-      {#if !lineage.attempt.events.length}<p>No later request observations have been captured.</p>{/if}
+      <p class="object-ref">Attempt {pinnedAttempt.id}<br />Pinned manifest {pinnedAttempt.manifestId ?? 'not recorded'}<br />Request {pinnedAttempt.requestName ?? 'not recorded'}</p>
+      <p>{pinnedAttempt.pin ? 'The attempt retains this recorded manifest; later observations do not rewrite its pin.' : 'No durable pin is available for this attempt.'}</p>
+      {#each pinnedAttempt.events as event (event.id)}<details><summary>{event.kind} · recorded event</summary><pre>{JSON.stringify(event.data, null, 2)}</pre><p class="object-ref">{event.id}</p></details>{/each}
+      {#if !pinnedAttempt.events.length}<p>No later request observations have been captured.</p>{/if}
     </div>
-  {:else if lineage}<p>No native attempt has been pinned.</p>{/if}
+  {:else if lineage}<p>No native attempt is pinned to this selected context.</p>{/if}
 </details>
 
 <style>

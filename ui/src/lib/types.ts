@@ -145,10 +145,23 @@ export type Investigation = {
   createdAtMs: number;
   contexts: InvestigationContext[];
   currentContextId: string;
-  status: 'draft' | 'dispatching' | 'running' | 'completed' | 'failed' | 'unknown' | 'pending' | 'resuming';
+  status: 'draft' | 'dispatching' | 'running' | 'completed' | 'failed' | 'unknown' | 'pending' | 'resuming' | 'needs-evidence' | 'cancelled';
   continuation?: InvestigationContinuation | null;
   nativeArtifact?: InvestigationArtifact | null;
-  attempt: null | {
+  attemptHistory?: InvestigationAttempt[];
+  artifactHistory?: InvestigationArtifact[];
+  inquiryAdmissionError?: string;
+  attempt: InvestigationAttempt | null;
+  artifact: InvestigationArtifact | null;
+  adoption: null | {
+    artifactId: string;
+    decision: 'adopt' | 'reject';
+    note: string;
+    createdAtMs: number;
+  };
+};
+
+export type InvestigationAttempt = {
     id: string;
     contextId: string;
     status: string;
@@ -160,14 +173,7 @@ export type Investigation = {
     manifestId?: string | null;
     contextRequestName?: string | null;
     error: string | null;
-  };
-  artifact: InvestigationArtifact | null;
-  adoption: null | {
-    artifactId: string;
-    decision: 'adopt' | 'reject';
-    note: string;
-    createdAtMs: number;
-  };
+  continuedFrom?: InquiryLineage;
 };
 
 export type InvestigationArtifact = {
@@ -179,9 +185,11 @@ export type InvestigationArtifact = {
   citations: number[];
   unsupportedCitations: number[];
   kind?: string;
+  executionEvidence?: 'synthetic' | 'native-observed' | 'unverified';
   nativeArtifactId?: string;
   continuationId?: string;
   evidenceContextId?: string | null;
+  continuedFrom?: InquiryLineage;
 };
 
 export type InquiryResponse = {
@@ -198,9 +206,12 @@ export type InvestigationContinuation = {
   schemaVersion: number;
   id: string;
   attemptId: string;
-  origin: 'synthetic-eidos';
+  origin: 'synthetic-eidos' | 'native-specialist';
   question: string;
-  status: 'preparing' | 'pending' | 'resuming' | 'completed';
+  status: 'preparing' | 'pending' | 'resuming' | 'completed' | 'cancelled';
+  realizationStatus?: 'ready' | 'failed' | 'completed' | 'cancelled';
+  nativeNext?: { status: 'awaiting-admission' | 'dispatched'; contextId: string | null; attemptId: string | null; error?: string };
+  cause?: { mode: 'terminal-needs-evidence'; nativeArtifactId: string; nativeEvent: { seq: number; source: string; sha256: string } };
   error: string | null;
   processId: string | null;
   checkpointId: string | null;
@@ -208,7 +219,7 @@ export type InvestigationContinuation = {
   inquiry: null | {
     id: string;
     question: string;
-    status: 'pending' | 'deferred' | 'offer' | 'refuse';
+    status: 'pending' | 'deferred' | 'offer' | 'refuse' | 'answered' | 'refused' | 'cancelled';
     responses: InquiryResponse[];
   };
 };
@@ -229,5 +240,20 @@ export type ContextLineage = {
   schemaVersion: number;
   error?: string | null;
   contexts: Array<{ contextId: string; manifestId: string | null }>;
-  attempt: null | { id: string; manifestId: string | null; requestName: string | null; pin: ManifestObject | null; events: ManifestObject[] };
+  attemptHistory?: Array<ContextLineageAttempt | null>;
+  attempt: ContextLineageAttempt | null;
+};
+export type ContextLineageAttempt = { id: string; manifestId: string | null; requestName: string | null; pin: ManifestObject | null; events: ManifestObject[] };
+
+export type InquiryLineage = { investigationId: string; attemptId: string; continuationId: string; inquiryId: string; responseId: string; decision: 'offer' | 'refuse'; nativeArtifactId: string; evidenceContextId: string | null };
+export type InvestigationCapabilities = { nativeExecution: { available: boolean; reason: string; mode: string }; legacyLiveActions?: { available: boolean; reason: string }; specialistInquiry?: { mode: string; interactive: boolean } };
+
+export type WorkbenchExperiment = {
+  id: string; investigationId: string; proposalId: string; mode: 'reinterpretation'; evidenceClass: 'recorded' | 'synthetic' | 'unverified';
+  baseline: { investigationId: string; contextId: string; artifactId: string; attemptId: string };
+  alternative: { investigationId: string; contextId: string }; rationale: string;
+  evaluation: { id: string; method: 'context-selection-comparison/v1'; baseline: { recordIds: number[]; recordCount: number; promptBytes: number }; alternative: { recordIds: number[]; recordCount: number; promptBytes: number }; addedRecordIds: number[]; removedRecordIds: number[]; additionalPromptBytes: number; checks: { sameQuestion: boolean; baselineEvidenceRetained: boolean; withinContextBound: boolean }; passes: boolean; modelCalls: 0; measuredModelReasoningImprovement: false; limitations: string[] };
+  review: null | { id: string; decision: 'adopt' | 'reject'; rationale: string; actor: string; kind: 'human' | 'synthetic' };
+  adoption: null | { id: string; activation: 'not-performed' }; rollback: null | { id: string; rationale: string };
+  status: 'evaluated' | 'adopted' | 'rejected' | 'rolled-back';
 };

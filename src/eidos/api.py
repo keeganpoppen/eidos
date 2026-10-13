@@ -13,6 +13,8 @@ from urllib.parse import unquote
 from .codex import AppServerClient, CodexPlace
 from .investigation import InvestigationError, InvestigationStore
 from .investigation_continuations import InvestigationContinuations
+from .investigation_inquiries import terminal_inquiry
+from .investigation_experiments import InvestigationExperiments
 from .investigation_worker import NativeInvestigationWorker
 from .semantic_tree import SemanticTreeBuilder
 from .trace import TraceStore
@@ -294,10 +296,13 @@ class EidosAPI:
         self._jobs: dict[str, dict[str, Any]] = {}
         self._jobs_lock = threading.RLock()
         self.investigations = InvestigationStore(store)
+        self.investigation_experiments = InvestigationExperiments(self.investigations)
         self.investigation_continuations = InvestigationContinuations(self.investigations)
         self.investigation_runtime = self.investigation_continuations.runtime
         self.investigation_worker = NativeInvestigationWorker(
             store, command=[codex, "app-server", "--listen", "stdio://"],
+            execution_evidence=("synthetic" if Path(codex).resolve() ==
+                Path(__file__).resolve().parents[2] / "tests/fixtures/investigation_appserver.py" else "unverified"),
         )
         self._investigation_lock = threading.RLock()
         self._investigation_threads: dict[str, threading.Thread] = {}
@@ -308,7 +313,7 @@ class EidosAPI:
             attempt = investigation["attempt"]
             if attempt and attempt.get("contextRequestName"):
                 self.investigations.reconcile_context(investigation["id"])
-            if (attempt is not None and attempt["status"] in {"dispatching", "running", "unknown"}) or investigation.get("continuation") is not None:
+            if (attempt is not None and attempt["status"] in {"dispatching", "running", "unknown", "completed"}) or investigation.get("continuation") is not None:
                 try:
                     self.recover_investigation(investigation["id"])
                 except InvestigationError as exc:
@@ -343,6 +348,13 @@ class EidosAPI:
                 return 400, {"error": str(exc)}
         if parts == ["api", "health"] and method == "GET":
             return 200, {"ok": True}
+
+        # Legacy chat/index controls use a different adapter from the bounded
+        # investigation worker. A synthetic investigation capability must not
+        # accidentally authorize that adapter to spend live model resources.
+        if method == "POST" and (parts == ["api", "threads"] or
+                len(parts) == 4 and parts[:2] == ["api", "threads"] and parts[3] in {"messages", "observe"}):
+            return 409, {"error": self.investigation_capabilities()["legacyLiveActions"]["reason"]}
 
         if parts == ["api", "threads"]:
             if method == "GET":
@@ -392,6 +404,8 @@ class EidosAPI:
         return 404, {"error": "not found"}
 
     def _dispatch_investigation(self, handler: Any, method: str, parts: list[str]) -> tuple[int, Any]:
+        if parts == ["api", "investigations", "capabilities"] and method == "GET":
+            return 200, self.investigation_capabilities()
         if len(parts) == 2:
             if method == "GET":
                 return 200, {"investigations": self.investigations.list()}
@@ -399,6 +413,16 @@ class EidosAPI:
                 return 201, self.investigations.create(_json_body(handler))
         if len(parts) == 3 and method == "GET":
             return 200, self.investigations.get(parts[2])
+        if len(parts) == 4 and parts[3] == "experiments":
+            if method == "GET":
+                return 200, self.investigation_experiments.list(parts[2])
+            if method == "POST":
+                return 201, self.investigation_experiments.create(parts[2], _json_body(handler))
+        if len(parts) == 5 and parts[3] == "experiments" and method == "GET":
+            return 200, self.investigation_experiments.get(parts[2], parts[4])
+        if (len(parts) == 6 and parts[3] == "experiments" and method == "POST"
+                and parts[5] in {"review", "rollback"}):
+            return 200, self.investigation_experiments.decide(parts[2], parts[4], parts[5], _json_body(handler))
         if len(parts) == 4 and parts[3] == "context-lineage" and method == "GET":
             return 200, self.investigations.context_lineage(parts[2])
         if len(parts) == 6 and parts[3] == "contexts" and parts[5] == "manifest" and method == "GET":
@@ -406,7 +430,10 @@ class EidosAPI:
         if len(parts) == 5 and parts[3] == "inquiries" and method == "GET":
             return 200, self.investigation_continuations.inquiry(parts[2], parts[4])
         if len(parts) == 6 and parts[3] == "inquiries" and parts[5] == "responses" and method == "POST":
-            return 200, self.investigation_continuations.respond(parts[2], parts[4], _json_body(handler))
+            value = self.investigation_continuations.respond(parts[2], parts[4], _json_body(handler))
+            return 200, self._prepare_inquiry_followup(value)
+        if len(parts) == 6 and parts[3] == "inquiries" and parts[5] == "cancel" and method == "POST":
+            return 200, self.investigation_continuations.cancel(parts[2], parts[4], _json_body(handler))
         if len(parts) == 4 and method == "POST":
             body = _json_body(handler)
             identifier, action = parts[2:]
@@ -424,17 +451,35 @@ class EidosAPI:
                 return 200, self.investigations.adopt(identifier, body)
             if action == "continuation":
                 return 202, self.investigation_continuations.open(identifier, body)
+            if action == "continue":
+                return 202, self.continue_investigation(identifier, body)
             if action == "resume":
                 if body:
                     raise ValueError("resume takes no execution parameters")
                 return 200, self.resume_investigation(identifier)
         return 404, {"error": "not found"}
 
+    def investigation_capabilities(self) -> dict[str, Any]:
+        worker = self.investigation_worker
+        native = worker.execution_profile is not None
+        return {"schemaVersion": 1, "nativeExecution": {
+            "available": not native,
+            "mode": "native" if native else ("synthetic" if worker.execution_evidence == "synthetic" else "unverified"),
+            "reason": (
+                "Live model execution is unavailable: account-backed cloud configuration may refresh during startup; "
+                "containment is unverified. A separate resource authorization and admitted profile are required."
+                if native else "Explicit trusted-host test adapter; no native execution authority is implied."),
+        }, "specialistInquiry": {"mode": "terminal-needs-evidence", "interactive": False},
+            "legacyLiveActions": {"available": False, "reason":
+                "Live chat and model-backed indexing require separate resource authorization and an admitted native profile."}}
+
     def start_investigation(self, identifier: str, context_id: str) -> dict[str, Any]:
         with self._investigation_lock:
             if self._closing:
                 raise InvestigationError(409, "controller is shutting down")
             investigation = self.investigations.get(identifier)
+            if investigation["attempt"] is None and self.investigation_worker.execution_profile is not None:
+                raise InvestigationError(409, self.investigation_capabilities()["nativeExecution"]["reason"])
             # Bound process-local admission. The durable claim additionally
             # serializes attempts for this investigation across connections.
             if investigation["attempt"] is None and any(
@@ -444,43 +489,111 @@ class EidosAPI:
             investigation, claimed = self.investigations.claim(identifier, context_id)
             if not claimed:
                 return investigation
-            context = next(value for value in investigation["contexts"] if value["id"] == context_id)
+            return self._launch_investigation(investigation)
 
-            def run() -> None:
-                try:
-                    artifact = self.investigation_worker.run(
-                        investigation["attempt"], context,
-                        lambda **fields: self.investigations.update_attempt(identifier, **fields),
-                    )
-                    self.investigations.complete(identifier, artifact)
-                except Exception as exc:
-                    status = "failed" if getattr(exc, "status", None) == "failed" else "unknown"
-                    self.investigations.update_attempt(
-                        identifier, status=status, error=f"{type(exc).__name__}: {exc}"[:4000],
-                    )
-                finally:
-                    self.investigations.reconcile_context(identifier)
+    def continue_investigation(self, identifier: str, body: Mapping[str, Any]) -> dict[str, Any]:
+        with self._investigation_lock:
+            if self._closing:
+                raise InvestigationError(409, "controller is shutting down")
+            current = self.investigations.get(identifier)
+            # Exact retries of admitted work are pure recovery reads, even if
+            # the original worker is still running.
+            next_attempt = (current.get("continuation") or {}).get("nativeNext", {}).get("attemptId")
+            if next_attempt is None and self.investigation_worker.execution_profile is not None:
+                raise InvestigationError(409, self.investigation_capabilities()["nativeExecution"]["reason"])
+            if next_attempt is None and any(t.is_alive() for t in self._investigation_threads.values()):
+                raise InvestigationError(409, "another investigation worker is running")
+            investigation, claimed = self.investigations.claim_followup(identifier, body)
+            if not claimed:
+                return investigation
+            return self._launch_investigation(investigation)
 
-            worker = threading.Thread(target=run, daemon=True, name=f"nema-investigation-{identifier[-8:]}")
-            self._investigation_threads[identifier] = worker
+    def _launch_investigation(self, investigation: dict[str, Any]) -> dict[str, Any]:
+        identifier = investigation["id"]
+        attempt_id = investigation["attempt"]["id"]
+        context = next(value for value in investigation["contexts"] if value["id"] == investigation["attempt"]["contextId"])
+
+        def run() -> None:
             try:
-                worker.start()
+                artifact = self.investigation_worker.run(
+                    investigation["attempt"], context,
+                    lambda **fields: self.investigations.update_attempt(identifier, expected_attempt_id=attempt_id, **fields),
+                )
+                self.investigations.complete(identifier, artifact, expected_attempt_id=attempt_id)
+                self._admit_native_inquiry(identifier)
             except Exception as exc:
-                if worker.ident is None:
-                    self._investigation_threads.pop(identifier, None)
-                self.investigations.update_attempt(identifier, status="unknown", error=str(exc))
-                raise
-            return investigation
+                status = "failed" if getattr(exc, "status", None) == "failed" else "unknown"
+                self.investigations.update_attempt(
+                    identifier, expected_attempt_id=attempt_id, status=status, error=f"{type(exc).__name__}: {exc}"[:4000],
+                )
+            finally:
+                self.investigations.reconcile_context(identifier)
+
+        worker = threading.Thread(target=run, daemon=True, name=f"nema-investigation-{identifier[-8:]}")
+        self._investigation_threads[identifier] = worker
+        try:
+            worker.start()
+        except Exception as exc:
+            if worker.ident is None:
+                self._investigation_threads.pop(identifier, None)
+            self.investigations.update_attempt(identifier, expected_attempt_id=attempt_id, status="unknown", error=str(exc))
+            raise
+        return investigation
 
     def recover_investigation(self, identifier: str) -> dict[str, Any]:
         investigation = self._recover_native_investigation(identifier)
         self.investigations.reconcile_context(identifier)
-        if investigation.get("continuation") is not None:
+        investigation = self._admit_native_inquiry(identifier)
+        if (investigation.get("continuation") is not None
+                and investigation["continuation"]["status"] != "cancelled"):
             return self.resume_investigation(identifier)
         return self.investigations.get(identifier)
 
     def resume_investigation(self, identifier: str) -> dict[str, Any]:
-        return self.investigation_continuations.resume(identifier)
+        value = self.investigation_continuations.resume(identifier)
+        return self._prepare_inquiry_followup(value)
+
+    def _prepare_inquiry_followup(self, investigation: dict[str, Any]) -> dict[str, Any]:
+        continuation = investigation.get("continuation")
+        if (not continuation or continuation["origin"] != "native-specialist"
+                or continuation["status"] != "completed"):
+            return investigation
+        try:
+            return self.investigations.prepare_followup(investigation["id"])
+        except InvestigationError as exc:
+            with self.investigations._transaction():
+                current = self.investigations._load(investigation["id"])
+                current["continuation"]["nativeNext"]["error"] = exc.message
+                self.investigations._save(current)
+                return current
+
+    def _admit_native_inquiry(self, identifier: str) -> dict[str, Any]:
+        """Interpret recorded output only; recovery never sends a native turn."""
+        investigation = self.investigations.get(identifier)
+        if investigation.get("continuation") is not None:
+            if investigation.get("attemptHistory") and (investigation.get("artifact") or {}).get("kind") in {
+                "native-needs-evidence", "native-inquiry-invalid",
+            }:
+                with self.investigations._transaction():
+                    current = self.investigations._load(identifier)
+                    current["inquiryAdmissionError"] = (
+                        "This investigation supports one specialist inquiry and one explicit follow-up attempt. "
+                        "The follow-up still needs evidence; no further native attempt was admitted."
+                    )
+                    self.investigations._save(current)
+                    return current
+            return investigation
+        try:
+            observation = terminal_inquiry(self.investigations, identifier, self.investigation_worker)
+            if observation is not None:
+                investigation = self.investigation_continuations.open_specialist(identifier, observation)
+            return investigation
+        except (ValueError, InvestigationError) as exc:
+            with self.investigations._transaction():
+                current = self.investigations._load(identifier)
+                current["inquiryAdmissionError"] = str(exc)[:4000]
+                self.investigations._save(current)
+                return current
 
     def _recover_native_investigation(self, identifier: str) -> dict[str, Any]:
         investigation = self.investigations.get(identifier)
@@ -501,17 +614,17 @@ class EidosAPI:
                     if attempt[field] is None and len(values) == 1 and None not in values:
                         mappings[field] = values.pop()
                 if mappings:
-                    self.investigations.update_attempt(identifier, **mappings)
-                return self.investigations.complete(identifier, artifact)
+                    self.investigations.update_attempt(identifier, expected_attempt_id=attempt["id"], **mappings)
+                return self.investigations.complete(identifier, artifact, expected_attempt_id=attempt["id"])
         except Exception as exc:
             status = "failed" if getattr(exc, "status", None) == "failed" else "unknown"
-            return self.investigations.update_attempt(identifier, status=status, error=str(exc)[:4000])
+            return self.investigations.update_attempt(identifier, expected_attempt_id=attempt["id"], status=status, error=str(exc)[:4000])
         with self._investigation_lock:
             worker = self._investigation_threads.get(identifier)
             if worker is not None and worker.is_alive():
                 return self.investigations.get(identifier)
         return self.investigations.update_attempt(
-            identifier, status="unknown",
+            identifier, expected_attempt_id=attempt["id"], status="unknown",
             error="No recorded terminal outcome. This attempt will not be sent again.",
         )
 

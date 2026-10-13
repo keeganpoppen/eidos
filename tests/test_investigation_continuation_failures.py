@@ -37,6 +37,7 @@ def assert_one_native(trace):
 def test_native_claim_must_commit_before_worker_launch(tmp_path, monkeypatch):
     trace = TraceStore(tmp_path / "investigation.db")
     api = EidosAPI(trace)
+    api.investigation_worker = NativeInvestigationWorker(trace, command=["/synthetic-never-launched"])
     investigation = api.investigations.create(create_body(trace))
     launched = []
     monkeypatch.setattr(api.investigation_worker, "run", lambda *args: launched.append(args))
@@ -53,6 +54,7 @@ def test_native_claim_must_commit_before_worker_launch(tmp_path, monkeypatch):
 def test_claim_committed_then_thread_launch_failure_never_reexecutes(tmp_path, monkeypatch):
     trace = TraceStore(tmp_path / "investigation.db")
     api = EidosAPI(trace)
+    api.investigation_worker = NativeInvestigationWorker(trace, command=["/synthetic-never-launched"])
     investigation = api.investigations.create(create_body(trace))
     launched = []
     monkeypatch.setattr(api.investigation_worker, "run", lambda *args: launched.append(args))

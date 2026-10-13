@@ -6,15 +6,17 @@ The surrounding controller admits one attempt before calling this adapter.
 Recorded dispatch is not proof of delivery, and recovery never resends it.
 """
 
+from dataclasses import dataclass, replace
+import json
 import queue
 from pathlib import Path
 import re
 import tempfile
 import threading
 import time
-from typing import Any, Callable, Mapping, Sequence
+from typing import Any, Callable, Literal, Mapping, Sequence
 
-from .codex import AppServerClient
+from .codex import AppServerClient, NativeExecutionProfile, NativeExecutionProfileError
 from .investigation_context import THREAD_CONFIG, TURN_SANDBOX
 from .trace import TraceRecord, TraceStore
 
@@ -23,6 +25,306 @@ class NativeInvestigationError(RuntimeError):
     def __init__(self, message: str, *, status: str = "unknown") -> None:
         super().__init__(message)
         self.status = status
+
+
+NativeRequestState = Literal[
+    "pending", "unsupported", "response_recorded", "resolved", "conflict", "abandoned",
+]
+NativeTerminalState = Literal["completed", "failed", "interrupted", "unknown"]
+NativeSpecialistEventKind = Literal[
+    "observed", "profile_observed", "correlation_conflict", "request_pending",
+    "request_unsupported", "request_duplicate", "request_conflict", "request_response_recorded",
+    "request_resolved", "request_abandoned", "terminal_observed", "transport_closed",
+]
+
+
+@dataclass(frozen=True)
+class NativeSpecialistEvent:
+    """Versioned evidence projection, never a live response capability.
+
+    ``evidence_seqs`` reference unchanged TraceStore records. In particular, a
+    recorded response does not establish delivery, and an observed completed
+    status does not establish an admissible investigation artifact.
+    """
+
+    event_id: str
+    attempt_id: str
+    context_id: str
+    source: str
+    kind: NativeSpecialistEventKind
+    evidence_seqs: tuple[int, ...]
+    thread_id: str | None = None
+    turn_id: str | None = None
+    item_id: str | None = None
+    request_key: str | None = None
+    rpc_id: int | str | None = None
+    method: str | None = None
+    request_state: NativeRequestState | None = None
+    is_blocking: bool | None = None
+    terminal_state: NativeTerminalState | None = None
+    detail: str | None = None
+    schema_version: int = 1
+
+
+class UnsupportedNativeOperation(NativeInvestigationError):
+    """The adapter has no admitted native operation for this description."""
+
+
+class NativeSpecialistAdapter:
+    """Read-only projection of one owned native incarnation for a controller.
+
+    Reconstructing this object does not reopen the process or revive pending
+    requests. ``pending_requests`` are observed unresolved requests, including
+    nonblocking ones; only ``is_blocking is True`` describes a native wait.
+    This adapter deliberately has no evidence-disclosure execution path yet.
+    """
+
+    def __init__(
+        self, trace: TraceStore, attempt: Mapping[str, Any], context: Mapping[str, Any],
+        source: str, on_event: Callable[[NativeSpecialistEvent], None] | None = None,
+    ) -> None:
+        if attempt.get("contextId") != context.get("id"):
+            raise ValueError("attempt names a different context")
+        if not isinstance(attempt.get("id"), str) or not isinstance(context.get("id"), str):
+            raise ValueError("adapter requires durable attempt and context identities")
+        if attempt.get("source") not in (None, source):
+            raise ValueError("adapter source contradicts the admitted attempt")
+        self.trace, self.source = trace, source
+        self.attempt_id, self.context_id = attempt["id"], context["id"]
+        self.thread_id: str | None = attempt.get("threadId")
+        self.turn_id: str | None = attempt.get("turnId")
+        self.on_event = on_event
+        self._prompt = context.get("projectedPrompt")
+        self._cursor = 0
+        self._lock = threading.RLock()
+        self._outbound: dict[str, TraceRecord] = {}
+        self._turn_requests: list[TraceRecord] = []
+        self._requests: dict[str, NativeSpecialistEvent] = {}
+        self._signatures: dict[str, str] = {}
+        self._refused: set[str] = set()
+        self._terminals: dict[str, tuple[Any, Any]] = {}
+        self._events: list[NativeSpecialistEvent] = []
+        self.ambiguous = False
+        self._closed = False
+
+    @staticmethod
+    def _rpc_key(value: Any) -> str | None:
+        # bool is an int subclass, but never the same native RPC identity.
+        return json.dumps(value, ensure_ascii=False) if type(value) in (int, str) else None
+
+    @property
+    def pending_requests(self) -> tuple[NativeSpecialistEvent, ...]:
+        with self._lock:
+            return tuple(event for event in self._requests.values()
+                         if event.request_state in {"pending", "unsupported", "response_recorded"})
+
+    def _emit(self, event: NativeSpecialistEvent) -> None:
+        self._events.append(event)
+        if self.on_event is not None:
+            self.on_event(event)
+
+    def refresh(self) -> tuple[NativeSpecialistEvent, ...]:
+        """Project newly recorded evidence without sending any native traffic."""
+        with self._lock:
+            before = len(self._events)
+            # Bound the read by sequence and incarnation. Repeated callbacks
+            # must not materialize the owner's complete investigation history.
+            # The watermark also advances across unrelated source traffic.
+            with self.trace._lock:
+                watermark = self.trace.db.execute("SELECT COALESCE(MAX(seq), 0) FROM trace_records").fetchone()[0]
+                rows = self.trace.db.execute(
+                    "SELECT * FROM trace_records WHERE source=? AND seq>? AND seq<=? ORDER BY seq",
+                    (self.source, self._cursor, watermark),
+                ).fetchall()
+            for row in rows:
+                record = TraceRecord(**dict(row))
+                self._cursor = record.seq
+                self._observe(record)
+            self._cursor = watermark
+            return tuple(self._events[before:])
+
+    def _observe(self, record: TraceRecord) -> None:
+        message = record.message
+        params = message.get("params")
+        params = params if isinstance(params, dict) else {}
+        rpc_key = self._rpc_key(message.get("id"))
+        method = message.get("method")
+        base = NativeSpecialistEvent(
+            event_id=f"{self.source}:{record.seq}", attempt_id=self.attempt_id,
+            context_id=self.context_id, source=self.source, kind="observed",
+            evidence_seqs=(record.seq,), thread_id=record.thread_id,
+            turn_id=record.turn_id, item_id=record.item_id,
+            rpc_id=message.get("id") if rpc_key is not None else None, method=method,
+        )
+        if record.direction == "internal" and method == "$native/profile":
+            self._emit(replace(base, kind="profile_observed", detail=params.get("admission")))
+            return
+        if record.direction == "client_to_appserver":
+            if isinstance(method, str) and rpc_key is not None:
+                self._outbound[rpc_key] = record
+                if method == "turn/start":
+                    self._turn_requests.append(record)
+                    if (
+                        len(self._turn_requests) != 1
+                        or params.get("threadId") != self.thread_id
+                        or params.get("input") != [{"type": "text", "text": self._prompt}]
+                    ):
+                        self.ambiguous = True
+                        base = replace(base, kind="correlation_conflict", terminal_state="unknown")
+            elif method is None and rpc_key in self._requests:
+                prior = self._requests[rpc_key]
+                if prior.request_state not in {"conflict", "resolved", "abandoned"}:
+                    event = replace(prior, event_id=base.event_id, kind="request_response_recorded",
+                                    evidence_seqs=(*prior.evidence_seqs, record.seq),
+                                    request_state="response_recorded",
+                                    detail="Local response recorded; native receipt is unverified.")
+                    self._requests[rpc_key] = event
+                    self._emit(event)
+                    return
+            self._emit(base)
+            return
+        if record.direction != "appserver_to_client":
+            return
+        if method is None and rpc_key in self._outbound:
+            outbound = self._outbound[rpc_key]
+            result = message.get("result")
+            if isinstance(result, dict):
+                field = "thread" if outbound.method == "thread/start" else "turn"
+                identity = result.get(field)
+                if outbound.method in {"thread/start", "turn/start"} and isinstance(identity, dict):
+                    native_id = identity.get("id")
+                    if isinstance(native_id, str):
+                        old = self.thread_id if field == "thread" else self.turn_id
+                        if old is not None and old != native_id:
+                            self.ambiguous = True
+                            base = replace(base, kind="correlation_conflict", terminal_state="unknown")
+                        elif field == "thread":
+                            self.thread_id = native_id
+                        else:
+                            self.turn_id = native_id
+                            if any(event.turn_id not in (None, native_id) for event in self._requests.values()):
+                                self.ambiguous = True
+                                base = replace(base, kind="correlation_conflict", terminal_state="unknown")
+            self._emit(base)
+            return
+        if "id" in message and isinstance(method, str):
+            if rpc_key is None:
+                self.ambiguous = True
+                self._emit(replace(base, kind="request_unsupported", request_state="unsupported",
+                                   detail="Native request has an invalid RPC identity."))
+                return
+            signature = json.dumps(message, sort_keys=True, ensure_ascii=False, separators=(",", ":"))
+            prior = self._requests.get(rpc_key)
+            if prior is not None:
+                equivalent = self._signatures[rpc_key] == signature
+                event = replace(prior, event_id=base.event_id,
+                                evidence_seqs=(*prior.evidence_seqs, record.seq),
+                                kind="request_duplicate" if equivalent else "request_conflict",
+                                request_state=prior.request_state if equivalent else "conflict")
+                self._requests[rpc_key] = event
+                self.ambiguous |= not equivalent
+                self._emit(event)
+                return
+            thread_id, turn_id = params.get("threadId"), params.get("turnId")
+            correlated = (
+                isinstance(thread_id, str) and thread_id == self.thread_id
+                and isinstance(turn_id, str)
+                and (self.turn_id is None or turn_id == self.turn_id)
+                and len(self._turn_requests) == 1 and not self.ambiguous
+            )
+            questions = params.get("questions")
+            valid_questions = isinstance(questions, list) and bool(questions) and all(
+                isinstance(q, dict) and all(isinstance(q.get(k), str) for k in ("id", "header", "question"))
+                and bool(q["id"])
+                for q in questions
+            )
+            if valid_questions:
+                valid_questions = len({q["id"] for q in questions}) == len(questions)
+            recognized = (
+                method == "item/tool/requestUserInput" and correlated
+                and type(params.get("isBlocking")) is bool
+                and isinstance(params.get("itemId"), str) and valid_questions
+            )
+            event = replace(base, kind="request_pending" if recognized else "request_unsupported",
+                            request_key=f"{self.source}:{rpc_key}",
+                            request_state="pending" if recognized else "unsupported",
+                            is_blocking=params.get("isBlocking") if recognized else None,
+                            detail="Observed native request; answering is not admitted by this adapter.")
+            if self._closed:
+                event = replace(event, kind="request_abandoned", request_state="abandoned",
+                                detail="Late evidence after local closure; no live interaction is available.")
+            self._requests[rpc_key], self._signatures[rpc_key] = event, signature
+            self._emit(event)
+            return
+        if method == "serverRequest/resolved":
+            key = self._rpc_key(params.get("requestId"))
+            prior = self._requests.get(key) if key is not None else None
+            if prior is not None and params.get("threadId") == prior.thread_id:
+                # A resolution reports closure, not whether an answer was used
+                # or whether native cancellation was the reason for closure.
+                event = replace(prior, event_id=base.event_id, kind="request_resolved",
+                                evidence_seqs=(*prior.evidence_seqs, record.seq),
+                                request_state="resolved" if prior.request_state != "conflict" else "conflict",
+                                detail="Native reports request resolved; outcome/reason is unspecified.")
+                self._requests[key] = event
+                self._emit(event)
+                return
+        if method == "turn/completed" and params.get("threadId") == self.thread_id:
+            turn = params.get("turn")
+            if isinstance(turn, dict) and isinstance(turn.get("id"), str):
+                turn_id = turn["id"]
+                status = turn.get("status")
+                signature = (status, turn.get("error"))
+                previous = self._terminals.get(turn_id)
+                self.ambiguous |= (
+                    (self.turn_id is not None and turn_id != self.turn_id)
+                    or (previous is not None and previous != signature)
+                    or (status == "completed" and turn.get("error") is not None)
+                    or any(event.is_blocking is True and event.request_state in {"pending", "response_recorded"}
+                           for event in self._requests.values())
+                )
+                self._terminals[turn_id] = signature
+                terminal = status if isinstance(status, str) and status in {"completed", "failed", "interrupted"} else "unknown"
+                self._emit(replace(base, kind="terminal_observed", terminal_state=(
+                    "unknown" if self.ambiguous else terminal),
+                    detail="Native terminal observation; artifact admission requires recovery validation."))
+                return
+        self._emit(base)
+
+    def refuse_once(self, message: Mapping[str, Any]) -> bool:
+        """Claim one default refusal, including unsupported future requests."""
+        with self._lock:
+            key = self._rpc_key(message.get("id"))
+            if key is None or key in self._refused:
+                return False
+            self._refused.add(key)
+            prior = self._requests.get(key)
+            return prior is not None and prior.request_state in {"pending", "unsupported"}
+
+    def close(self, reason: str) -> None:
+        """End local waiting; do not assert a native cancellation succeeded."""
+        with self._lock:
+            if self._closed:
+                return
+            self._closed = True
+            for key, prior in tuple(self._requests.items()):
+                if prior.request_state in {"pending", "unsupported", "response_recorded"}:
+                    event = replace(prior, event_id=f"{prior.event_id}:closed", kind="request_abandoned",
+                                    request_state="abandoned", detail=reason)
+                    self._requests[key] = event
+                    self._emit(event)
+            self._emit(NativeSpecialistEvent(
+                event_id=f"{self.source}:closed", attempt_id=self.attempt_id, context_id=self.context_id,
+                source=self.source, kind="transport_closed", evidence_seqs=(),
+                thread_id=self.thread_id, turn_id=self.turn_id,
+                terminal_state="unknown" if self.ambiguous or not self._terminals else None, detail=reason,
+            ))
+
+    def respond(self, request_key: str, answers: Mapping[str, Any]) -> None:
+        raise UnsupportedNativeOperation(
+            "native evidence responses require a separately admitted live interaction; "
+            "replayed request descriptions cannot authorize responses",
+        )
 
 
 class NativeInvestigationWorker:
@@ -35,11 +337,38 @@ class NativeInvestigationWorker:
 
     MAX_OUTPUT_CHARS = 131_072
 
-    def __init__(self, trace: TraceStore, command: Sequence[str] | None = None) -> None:
+    def __init__(
+        self, trace: TraceStore, command: Sequence[str] | None = None, *,
+        execution_evidence: Literal["synthetic", "unverified"] = "unverified",
+    ) -> None:
+        if execution_evidence not in {"synthetic", "unverified"}:
+            raise ValueError("only synthetic or unverified custom execution evidence may be declared")
         self.trace = trace
+        # A trusted host may identify a synthetic fixture, but cannot declare
+        # native model observation. Recovery uses this incarnation's recorded
+        # admission evidence, never the current worker's constructor setting.
+        self.execution_evidence = execution_evidence
         self.command = tuple(command) if command is not None else (
             "codex", "app-server", "--listen", "stdio://",
         )
+        # The existing API supplies its native command explicitly. Treat that
+        # spelling exactly like the default; an explicit argv is not itself an
+        # exemption from pre-launch configuration admission. Other commands
+        # remain a trusted-host fixture/probe seam, not an untrusted executor.
+        native_command = command is None or (
+            bool(self.command) and (
+                Path(self.command[0]).name in {"codex", "codex.exe"}
+                or (
+                    "app-server" in self.command[1:]
+                    and Path(self.command[0]).suffix != ".py"
+                    and Path(self.command[0]).name != "env"
+                )
+            )
+        )
+        # The repository's EidosAPI demo passes an executable Python fixture
+        # in the codex slot. Its .py command is explicit trusted-host testing,
+        # just like a Python interpreter or disposable env-wrapped probe.
+        self.execution_profile = NativeExecutionProfile(codex_binary=self.command[0]) if native_command else None
         self._clients: set[AppServerClient] = set()
         self._clients_lock = threading.RLock()
         self._closed = False
@@ -133,7 +462,12 @@ class NativeInvestigationWorker:
         attempt: Mapping[str, Any],
         context: Mapping[str, Any],
         update: Callable[..., None],
+        *,
+        on_event: Callable[[NativeSpecialistEvent], None] | None = None,
     ) -> dict[str, Any]:
+        with self._clients_lock:
+            if self._closed:
+                raise NativeInvestigationError("native worker has been closed")
         timeout = min(120.0, float(attempt.get("timeoutSeconds", 120)))
         if timeout <= 0:
             raise ValueError("worker timeout must be positive")
@@ -158,6 +492,8 @@ class NativeInvestigationWorker:
             # Persist the incarnation before process launch. A crash before the
             # subsequent native acknowledgement must remain visibly uncertain.
             remember(source=client.source)
+            adapter = NativeSpecialistAdapter(self.trace, state, context, client.source, on_event)
+            closure_reason = "Owned worker transport closed; no pending native interaction is resumable."
 
             def pump() -> None:
                 observed_chars = 0
@@ -170,11 +506,14 @@ class NativeInvestigationWorker:
                         observed_chars += len(str(event))
                         if observed_chars > self.MAX_OUTPUT_CHARS:
                             raise NativeInvestigationError("native worker output limit exceeded")
+                        adapter.refresh()
                         if "id" in event and "method" in event:
-                            client.respond(event["id"], error={
-                                "code": -32000,
-                                "message": "Nema investigation does not support interactive native requests",
-                            })
+                            if adapter.refuse_once(event):
+                                client.respond(event["id"], error={
+                                    "code": -32000,
+                                    "message": "Nema investigation does not support interactive native requests",
+                                })
+                                adapter.refresh()
                             continue
                         try:
                             events.put_nowait(event)
@@ -190,6 +529,39 @@ class NativeInvestigationWorker:
             reader: threading.Thread | None = None
             watchdog: threading.Timer | None = None
             try:
+                if self.execution_profile is not None:
+                    try:
+                        launch = self.execution_profile.prepare(cwd)
+                        self.trace.append(source=client.source, direction="internal", message={
+                            "method": "$native/profile", "params": {
+                                "admission": "refused" if not launch.live_admitted else "admitted",
+                                "profile": dict(launch.evidence),
+                            },
+                        })
+                        adapter.refresh()
+                        client.command = launch.command
+                        client.env = dict(launch.env)
+                        client.inherit_env = False
+                        client.launch_guard = launch.require_live_admission
+                        launch.require_live_admission()
+                    except NativeExecutionProfileError as exc:
+                        self.trace.append(source=client.source, direction="internal", message={
+                            "method": "$native/profile", "params": {
+                                "admission": "refused", "version": self.execution_profile.VERSION,
+                                "reason": str(exc),
+                            },
+                        })
+                        adapter.refresh()
+                        raise NativeInvestigationError(f"native pre-launch admission refused: {exc}", status="failed") from exc
+                else:
+                    self.trace.append(source=client.source, direction="internal", message={
+                        "method": "$native/profile", "params": {
+                            "admission": "custom-command-trusted-host", "completeIsolation": False,
+                            "executionEvidence": self.execution_evidence,
+                            "reason": "Explicit custom command; no native execution profile is established.",
+                        },
+                    })
+                    adapter.refresh()
                 with self._clients_lock:
                     if self._closed:
                         raise NativeInvestigationError("native worker has been closed")
@@ -261,6 +633,7 @@ class NativeInvestigationWorker:
             except Exception as exc:
                 if not isinstance(exc, NativeInvestigationError) and not errors.empty():
                     exc = errors.get_nowait()
+                closure_reason = f"Local worker stopped: {type(exc).__name__}: {exc}. Native delivery/outcome may be unknown."
                 if isinstance(exc, NativeInvestigationError):
                     raise exc
                 raise NativeInvestigationError(f"{type(exc).__name__}: {exc}") from exc
@@ -271,8 +644,43 @@ class NativeInvestigationWorker:
                 client.close()
                 if reader is not None:
                     reader.join(timeout=1.0)
+                adapter.refresh()
+                adapter.close(closure_reason)
                 with self._clients_lock:
                     self._clients.discard(client)
+
+    @staticmethod
+    def _execution_evidence(records: Sequence[TraceRecord], request_seq: int) -> str:
+        """Classify historical output using only preceding host admissions.
+
+        Child output, selected text, and later annotations cannot establish a
+        model resource claim. Internal records are a trusted-host seam, not a
+        security boundary against a caller that can alter the trace database.
+        Unknown, missing, or contradictory admissions remain unverified.
+        """
+        classifications: set[str] = set()
+        for record in records:
+            if (record.direction != "internal" or record.method != "$native/profile"
+                    or record.seq >= request_seq):
+                continue
+            params = record.message.get("params")
+            if not isinstance(params, dict):
+                classifications.add("unverified")
+                continue
+            if params.get("admission") == "custom-command-trusted-host":
+                classifications.add(
+                    "synthetic" if params.get("executionEvidence") == "synthetic" else "unverified"
+                )
+                continue
+            profile = params.get("profile")
+            admitted = (
+                params.get("admission") == "admitted" and isinstance(profile, dict)
+                and profile.get("version") == NativeExecutionProfile.VERSION
+                and profile.get("binarySha256") == NativeExecutionProfile.BINARY_SHA256
+                and profile.get("liveAdmitted") is True
+            )
+            classifications.add("native-observed" if admitted else "unverified")
+        return next(iter(classifications)) if len(classifications) == 1 else "unverified"
 
     def recover(self, attempt: Mapping[str, Any], context: Mapping[str, Any]) -> dict[str, Any] | None:
         """Read matching native evidence, including acknowledgements not mapped locally."""
@@ -299,6 +707,13 @@ class NativeInvestigationWorker:
             attempt.get("threadId") is not None and attempt["threadId"] != thread_id
         ):
             raise NativeInvestigationError("recorded worker thread contradicts attempt mapping")
+        # Recovery can establish the historical thread from the one validated
+        # outbound request even if the local mapping/acknowledgement was lost.
+        # This never makes a reconstructed interaction answerable.
+        adapter = NativeSpecialistAdapter(self.trace, {**attempt, "threadId": thread_id}, context, source)
+        adapter.refresh()
+        if adapter.ambiguous:
+            raise NativeInvestigationError("native interaction or terminal evidence is contradictory")
 
         turn_ids: set[str] = set()
         if isinstance(attempt.get("turnId"), str):
@@ -323,6 +738,10 @@ class NativeInvestigationWorker:
                 and isinstance(event_params.get("turn"), dict)
                 and isinstance(event_params["turn"].get("id"), str)
             ):
+                if "id" in message:
+                    raise NativeInvestigationError(
+                        "native terminal event is an RPC request, not a completion notification"
+                    )
                 terminal.append(record)
                 turn_ids.add(event_params["turn"]["id"])
         if len(turn_ids) > 1:
@@ -380,6 +799,10 @@ class NativeInvestigationWorker:
                 continue
             item_params = record.message.get("params", {})
             if item_params.get("threadId") == thread_id and item_params.get("turnId") == turn_id:
+                if "id" in record.message:
+                    raise NativeInvestigationError(
+                        "native completed item is an RPC request, not a completion notification"
+                    )
                 add(item_params.get("item"), record.seq)
         for record in terminal:
             for item in record.message["params"]["turn"].get("items", []):
@@ -402,6 +825,7 @@ class NativeInvestigationWorker:
         available = {record["seq"] for record in context.get("records", [])}
         return {
             "text": text,
+            "executionEvidence": self._execution_evidence(records, request.seq),
             "outputSeqs": sorted({entry[2] for entry in selected}),
             "citations": sorted(cited & available),
             "unsupportedCitations": sorted(cited - available),

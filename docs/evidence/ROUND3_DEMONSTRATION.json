@@ -1,0 +1,171 @@
+{
+  "schemaVersion": 1,
+  "evidenceClass": "synthetic",
+  "nativeModelCalls": 0,
+  "investigationId": "investigation_84fa1264c0aa4dee8efaaafcd1f91459",
+  "attemptIds": [
+    "attempt_283cccd8e4af4bdbae25001110ee5327",
+    "attempt_7d47396c6c2b4d8cb2d4449e52146dd6"
+  ],
+  "requestPins": [
+    "attempt_283cccd8e4af4bdbae25001110ee5327/app-server-input",
+    "attempt_7d47396c6c2b4d8cb2d4449e52146dd6/app-server-input"
+  ],
+  "fixtureTurns": 2,
+  "inquiryId": "inquiry_e7b0a3c48b2d422ab2140651806e5d3f",
+  "responseIds": [
+    "response_3da7e83894024762be81180edef9b188",
+    "response_d753532b2cf84bbeb3d49a6b40f02f21"
+  ],
+  "sourceDecisionOccurrence": "occurrence_101fcc7876db4b2bb23f9b49196514f6",
+  "incorporationOutcome": "occurrence_1902813a961e4bde851ce8cf8d9996c4",
+  "originalContextId": "context_02513f95a280fe754fa9f873e7f0465dd96f8637beb4ff339aaee2a57ac65b02",
+  "expandedContextId": "context_c6acb8b581c2cf337f3d97eac196b5c0a34a421461e20f0b66f22edc774aa48c",
+  "baselineArtifactId": "artifact_84c15450230918740aa6a52d2a12b6b86890f94814c25f569b8520586dfc83dd",
+  "receiptArtifactId": "artifact_1c6e1285b50f74171d04201b68be6b2d059b784e24ba28cdb4b9ac7285a6e44f",
+  "returnedArtifactId": "artifact_51b7d5aa0fd1304933e24bead5e57084fd100c64828b3f2eec965e2dd732fa71",
+  "executionEvidence": "synthetic",
+  "experiment": {
+    "alternative": {
+      "contextId": "context_c6acb8b581c2cf337f3d97eac196b5c0a34a421461e20f0b66f22edc774aa48c",
+      "investigationId": "investigation_84fa1264c0aa4dee8efaaafcd1f91459"
+    },
+    "baseline": {
+      "artifactId": "artifact_84c15450230918740aa6a52d2a12b6b86890f94814c25f569b8520586dfc83dd",
+      "attemptId": "attempt_283cccd8e4af4bdbae25001110ee5327",
+      "contextId": "context_02513f95a280fe754fa9f873e7f0465dd96f8637beb4ff339aaee2a57ac65b02",
+      "investigationId": "investigation_84fa1264c0aa4dee8efaaafcd1f91459"
+    },
+    "evaluation": {
+      "addedRecordIds": [
+        14
+      ],
+      "additionalPromptBytes": 2381,
+      "alternative": {
+        "promptBytes": 5524,
+        "recordCount": 3,
+        "recordIds": [
+          12,
+          14,
+          72
+        ]
+      },
+      "baseline": {
+        "promptBytes": 3143,
+        "recordCount": 2,
+        "recordIds": [
+          12,
+          72
+        ]
+      },
+      "checks": {
+        "baselineEvidenceRetained": true,
+        "sameQuestion": true,
+        "withinContextBound": true
+      },
+      "id": "comparison_f68da39ad3c7ec25a8225b95b7a852586c48c16bf971b0b4fad3950ca15901eb/evaluation",
+      "limitations": [
+        "Measures selected evidence and prompt bytes only; answer quality and entailment are ungraded.",
+        "Follow-up packets may also change instructions, prior-output quotations and response notes; this is not an isolated causal test.",
+        "No held-out generalization, token cost, provider context or native continuation is established.",
+        "Review records a bounded context-selection decision; it does not activate a global policy or send work."
+      ],
+      "measuredModelReasoningImprovement": false,
+      "method": "context-selection-comparison/v1",
+      "modelCalls": 0,
+      "passes": true,
+      "removedRecordIds": []
+    },
+    "evidenceClass": "synthetic",
+    "id": "comparison_f68da39ad3c7ec25a8225b95b7a852586c48c16bf971b0b4fad3950ca15901eb",
+    "investigationId": "investigation_84fa1264c0aa4dee8efaaafcd1f91459",
+    "mode": "reinterpretation",
+    "proposalId": "comparison_f68da39ad3c7ec25a8225b95b7a852586c48c16bf971b0b4fad3950ca15901eb/proposal",
+    "rationale": "Retain the requested completion source beside the original evidence; inspect the increased packet cost.",
+    "review": {
+      "id": "round3-demo-review",
+      "decision": "adopt",
+      "rationale": "Exercise durable decision storage only.",
+      "actor": "synthetic-demo",
+      "kind": "synthetic"
+    },
+    "adoption": {
+      "id": "round3-demo-adoption",
+      "activation": "not-performed"
+    },
+    "rollback": {
+      "id": "round3-demo-rollback",
+      "rationale": "Restore the original candidate in this synthetic demonstration."
+    },
+    "status": "rolled-back"
+  },
+  "rejectedExperiment": {
+    "alternative": {
+      "contextId": "context_c6acb8b581c2cf337f3d97eac196b5c0a34a421461e20f0b66f22edc774aa48c",
+      "investigationId": "investigation_84fa1264c0aa4dee8efaaafcd1f91459"
+    },
+    "baseline": {
+      "artifactId": "artifact_84c15450230918740aa6a52d2a12b6b86890f94814c25f569b8520586dfc83dd",
+      "attemptId": "attempt_283cccd8e4af4bdbae25001110ee5327",
+      "contextId": "context_02513f95a280fe754fa9f873e7f0465dd96f8637beb4ff339aaee2a57ac65b02",
+      "investigationId": "investigation_84fa1264c0aa4dee8efaaafcd1f91459"
+    },
+    "evaluation": {
+      "addedRecordIds": [
+        14
+      ],
+      "additionalPromptBytes": 2381,
+      "alternative": {
+        "promptBytes": 5524,
+        "recordCount": 3,
+        "recordIds": [
+          12,
+          14,
+          72
+        ]
+      },
+      "baseline": {
+        "promptBytes": 3143,
+        "recordCount": 2,
+        "recordIds": [
+          12,
+          72
+        ]
+      },
+      "checks": {
+        "baselineEvidenceRetained": true,
+        "sameQuestion": true,
+        "withinContextBound": true
+      },
+      "id": "comparison_81d74c132735e46924704886015549465fa52f792c7c4f20350ed50db721932a/evaluation",
+      "limitations": [
+        "Measures selected evidence and prompt bytes only; answer quality and entailment are ungraded.",
+        "Follow-up packets may also change instructions, prior-output quotations and response notes; this is not an isolated causal test.",
+        "No held-out generalization, token cost, provider context or native continuation is established.",
+        "Review records a bounded context-selection decision; it does not activate a global policy or send work."
+      ],
+      "measuredModelReasoningImprovement": false,
+      "method": "context-selection-comparison/v1",
+      "modelCalls": 0,
+      "passes": true,
+      "removedRecordIds": []
+    },
+    "evidenceClass": "synthetic",
+    "id": "comparison_81d74c132735e46924704886015549465fa52f792c7c4f20350ed50db721932a",
+    "investigationId": "investigation_84fa1264c0aa4dee8efaaafcd1f91459",
+    "mode": "reinterpretation",
+    "proposalId": "comparison_81d74c132735e46924704886015549465fa52f792c7c4f20350ed50db721932a/proposal",
+    "rationale": "Retain the requested completion source beside the original evidence; inspect the increased packet cost.",
+    "review": {
+      "id": "round3-demo-rejection",
+      "decision": "reject",
+      "rationale": "No measured answer-quality improvement; preserve the counterexample.",
+      "actor": "synthetic-demo",
+      "kind": "synthetic"
+    },
+    "adoption": null,
+    "rollback": null,
+    "status": "rejected"
+  },
+  "limitation": "Fixture inquiry and answers; measured packet changes do not establish improved model reasoning."
+}

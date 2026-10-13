@@ -105,6 +105,32 @@ from branch test counts. Defer specialist-originated interaction and broader cap
 until a bounded real-native loop is verified. The [integration contract](../agents/INVESTIGATION_INTEGRATION_CONTRACT.md)
 records compatibility; [evidence](../evidence/INTEGRATION_CYCLE_B.md) states the limits.
 
+### D26 — Round 3 preserves native admission and separates measured alternatives
+
+**Accepted, 2026-10-13**, integration base `50d1bc9`. Concrete incompatibilities:
+A2 rollover broke C/D baseline resolution; D's authored fixture was not a durable
+inquiry/evaluation controller; startup profile evidence did not establish safe live
+model execution. Resolve exact artifacts and attempts through retained history,
+adapt the existing experiment graph to scoped owner actions, and expose explicit
+startup refusal. Terminal evidence requests use the existing Eidos continuation
+and one separately admitted native follow-up; do not call that hidden-stack resume.
+
+Preserve Ultra's transactional pre-send attempt/pin. Retry and recovery never send.
+Source disclosure remains distinct from recipient incorporation. Evaluation records
+selection/size or structured synthetic checks; adoption is a separate bounded
+decision and activates no configuration. Historical host evidence, not output text,
+classifies synthetic/native-observed/unverified results. Legacy HTTP model actions
+remain gated alongside investigation dispatch. Generic TM stays privileged and
+unexposed; its arbitrary-successor limitation is retained as a counterexample.
+
+Reject competing controllers, dynamic latest-result baselines, automatic model
+retries, fixture-derived claims of live readiness and measurement-derived authority.
+Native resource authorization is separate from the prior no-model probes. See the
+[contract](../agents/ROUND3_INTEGRATION.md) and
+[verification](../evidence/INTEGRATION_ROUND3.md). This amends D21's deferred inquiry
+and alternatives list within the documented one-inquiry/one-follow-up scope; the
+V1 destination and language commitments remain unchanged.
+
 ## Deferred explorations, kept for their potential
 
 ### D22 — Names, routing, locality, and leases

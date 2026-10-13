@@ -1,0 +1,1105 @@
+{
+  "cases": {
+    "budget": {
+      "alternativeContextId": "context_fe177f9c69aabd31e4ee3130ba329d5f7f5a35f8e784bb969758aa3f060f78c3",
+      "alternativeInvestigationId": "investigation_4cc6cada6d8148a0883c1a8ad4cdc982",
+      "alternativeSnapshotId": "cm1_1af3e79e712264659e49d45f089cf12be80485ac5471a1ef1dc939caa1e5dfe5",
+      "baselineArtifactId": "artifact_9e23f2f2530c2f5fe8a4b68c312fd8f099271fa137ca7cc1efb9cecd0ce3652c",
+      "baselineContextId": "context_fe177f9c69aabd31e4ee3130ba329d5f7f5a35f8e784bb969758aa3f060f78c3",
+      "baselineInvestigationId": "investigation_3343c29ea8c248469facc5747109531a",
+      "baselineSnapshotId": "cm1_db0e2e471634e70e6c9a7df4890fcbecc3e0a564859d42b4a57d1c228ae5295d",
+      "comparison": {
+        "answerTextEvaluated": false,
+        "checks": {
+          "boundedAdditionalContext": true,
+          "fixtureImprovement": false,
+          "noHindsightLeakage": true,
+          "noReportedExecutionFailures": true,
+          "noUnsupportedClaims": true,
+          "selectionPrecisionNondecreasing": true,
+          "selectionRecallNondecreasing": true,
+          "usefulnessNondecreasing": true
+        },
+        "criteriaId": "sha256:7aaac7f574c4e7008bfbd8a7798a0797f8ce391937dce95cc7d3a523d6878cdf",
+        "deltas": {
+          "groundedClaims": 0,
+          "selectionPrecision": 0.0,
+          "selectionRecall": 0.0,
+          "unsupportedClaims": 0,
+          "usefulnessCoverage": 0.0
+        },
+        "evaluatedSurface": "structured_fixture_claims_only",
+        "evaluatorVersion": "fixture-grounding/v1",
+        "evidenceHorizonId": "sha256:0b964bd8953d2506ae78d0c19532374169db7789108f32bc78ec155236b0c858",
+        "evidence_class": "synthetic",
+        "measured_model_reasoning_improvement": false,
+        "passes": false,
+        "recommendation": "retain_counterexample",
+        "resourceTradeoff": {
+          "additionalBytes": 0,
+          "additionalEstimatedTokens": 0,
+          "maxAdditionalBytes": 0,
+          "observedAdditionalCost": null,
+          "observedAdditionalTokens": null
+        },
+        "schemaVersion": 1
+      },
+      "evaluation": {
+        "cid": "cm1_2a131d10f478de09e43e8069528d805e4ee9c86aa659ddb7ea871d986882fa7d",
+        "kind": "evaluation",
+        "name": "fixture/context-one-hop/budget/evaluation"
+      },
+      "experiment": {
+        "cid": "cm1_6fc459992ad215f9e54d959ca2269207631370d4c03624e2fba92f95d176fb3d",
+        "kind": "experiment",
+        "name": "fixture/context-one-hop/budget"
+      },
+      "metrics": {
+        "alternative": {
+          "failures": [
+            {
+              "code": "omitted_relevant_evidence",
+              "recordId": 13
+            },
+            {
+              "code": "missing_required_facet",
+              "facet": "expensive_detail"
+            }
+          ],
+          "groundedClaims": 1,
+          "leakageCount": 0,
+          "precision": {
+            "denominator": 1,
+            "numerator": 1,
+            "value": 1.0
+          },
+          "projectedBytes": 1597,
+          "recall": {
+            "denominator": 2,
+            "numerator": 1,
+            "value": 0.5
+          },
+          "unsupportedClaims": [],
+          "usefulness": {
+            "denominator": 2,
+            "numerator": 1,
+            "value": 0.5
+          }
+        },
+        "baseline": {
+          "failures": [
+            {
+              "code": "omitted_relevant_evidence",
+              "recordId": 13
+            },
+            {
+              "code": "missing_required_facet",
+              "facet": "expensive_detail"
+            }
+          ],
+          "groundedClaims": 1,
+          "leakageCount": 0,
+          "precision": {
+            "denominator": 1,
+            "numerator": 1,
+            "value": 1.0
+          },
+          "projectedBytes": 1597,
+          "recall": {
+            "denominator": 2,
+            "numerator": 1,
+            "value": 0.5
+          },
+          "unsupportedClaims": [],
+          "usefulness": {
+            "denominator": 2,
+            "numerator": 1,
+            "value": 0.5
+          }
+        }
+      },
+      "outcomes": {
+        "alternative": {
+          "cid": "cm1_f90584d302105436c8dc1ac4fb69c711d63f16f84ea02dba13ccec1e1ce5a57b",
+          "kind": "outcome",
+          "name": "fixture/context-one-hop/budget/alternative/outcome"
+        },
+        "alternativeAttempt": {
+          "cid": "cm1_3a8857015259cf6f661e2d078291a1b559b10644adfbd2434e9754dc2e481b89",
+          "kind": "attempt",
+          "name": "fixture/context-one-hop/budget/alternative/attempt"
+        },
+        "baseline": {
+          "cid": "cm1_e617f41129f6b4315a815136b579e3d36f22ca492944ba18d94ed6ae9bd21e81",
+          "kind": "outcome",
+          "name": "fixture/context-one-hop/budget/baseline/outcome"
+        },
+        "baselineAttempt": {
+          "cid": "cm1_db377e5999ff350c15be35ab956f7907d62f34960be31d9d0eda827377ae0958",
+          "kind": "attempt",
+          "name": "fixture/context-one-hop/budget/baseline/attempt"
+        }
+      },
+      "question": "Which evidence remains available when a relevant linked source exceeds the context allocation?",
+      "role": "guardrail",
+      "selection": {
+        "P0": {
+          "inputBytes": 460,
+          "omissions": [],
+          "policy": "P0",
+          "selectedRecordIds": [
+            12
+          ]
+        },
+        "P1": {
+          "inputBytes": 460,
+          "omissions": [
+            {
+              "reason": "bytes_budget",
+              "recordId": 13
+            }
+          ],
+          "policy": "P1",
+          "selectedRecordIds": [
+            12
+          ]
+        }
+      }
+    },
+    "cycle": {
+      "alternativeContextId": "context_60b66e33d9c6e3a26a8dca8bd50d4f60012971883766cd0a340a06ec2685773c",
+      "alternativeInvestigationId": "investigation_5b32ac1e236e4edd8a5582d55a074e6d",
+      "alternativeSnapshotId": "cm1_42b130a24c86080b6f6f92aefce1b4d685affd4ecabb2a072288311563077f4b",
+      "baselineArtifactId": "artifact_e0e1200ca937d0f5c1d055a598ea41b2ddb516c612fef6d589d320d51ffd375a",
+      "baselineContextId": "context_45b5e73b5a1d986d48b1be77f15b1791247d4525062adaad1e2901a64ecf25af",
+      "baselineInvestigationId": "investigation_8ea4492a393e4156a2078d69113e285f",
+      "baselineSnapshotId": "cm1_b50dd8b2fb56c19df0f477cd7c54cbc6777234a7a7e6270cb78b9289b1eb891c",
+      "comparison": {
+        "answerTextEvaluated": false,
+        "checks": {
+          "boundedAdditionalContext": true,
+          "fixtureImprovement": true,
+          "noHindsightLeakage": true,
+          "noReportedExecutionFailures": true,
+          "noUnsupportedClaims": true,
+          "selectionPrecisionNondecreasing": true,
+          "selectionRecallNondecreasing": true,
+          "usefulnessNondecreasing": true
+        },
+        "criteriaId": "sha256:37edc3d6453cb15763c94c31ae7b2e2a7bf0bbfe0f5afc4ac8d748646721640d",
+        "deltas": {
+          "groundedClaims": 1,
+          "selectionPrecision": 0.0,
+          "selectionRecall": 0.5,
+          "unsupportedClaims": 0,
+          "usefulnessCoverage": 0.5
+        },
+        "evaluatedSurface": "structured_fixture_claims_only",
+        "evaluatorVersion": "fixture-grounding/v1",
+        "evidenceHorizonId": "sha256:0b964bd8953d2506ae78d0c19532374169db7789108f32bc78ec155236b0c858",
+        "evidence_class": "synthetic",
+        "measured_model_reasoning_improvement": false,
+        "passes": true,
+        "recommendation": "review_bounded_fixture_improvement",
+        "resourceTradeoff": {
+          "additionalBytes": 745,
+          "additionalEstimatedTokens": 187,
+          "maxAdditionalBytes": 4000,
+          "observedAdditionalCost": null,
+          "observedAdditionalTokens": null
+        },
+        "schemaVersion": 1
+      },
+      "evaluation": {
+        "cid": "cm1_16e07dc71f7ce4a8f9424ac899e3fe728407f3a0947c62d6521d10f7d6c15141",
+        "kind": "evaluation",
+        "name": "fixture/context-one-hop/cycle/evaluation"
+      },
+      "experiment": {
+        "cid": "cm1_fe9787b6f8a8c91f97b875dd974db5838428dfa2a27082971e8200bcae80ee6b",
+        "kind": "experiment",
+        "name": "fixture/context-one-hop/cycle"
+      },
+      "metrics": {
+        "alternative": {
+          "failures": [],
+          "groundedClaims": 2,
+          "leakageCount": 0,
+          "precision": {
+            "denominator": 2,
+            "numerator": 2,
+            "value": 1.0
+          },
+          "projectedBytes": 2277,
+          "recall": {
+            "denominator": 2,
+            "numerator": 2,
+            "value": 1.0
+          },
+          "unsupportedClaims": [],
+          "usefulness": {
+            "denominator": 2,
+            "numerator": 2,
+            "value": 1.0
+          }
+        },
+        "baseline": {
+          "failures": [
+            {
+              "code": "omitted_relevant_evidence",
+              "recordId": 9
+            },
+            {
+              "code": "missing_required_facet",
+              "facet": "cycle"
+            }
+          ],
+          "groundedClaims": 1,
+          "leakageCount": 0,
+          "precision": {
+            "denominator": 1,
+            "numerator": 1,
+            "value": 1.0
+          },
+          "projectedBytes": 1532,
+          "recall": {
+            "denominator": 2,
+            "numerator": 1,
+            "value": 0.5
+          },
+          "unsupportedClaims": [],
+          "usefulness": {
+            "denominator": 2,
+            "numerator": 1,
+            "value": 0.5
+          }
+        }
+      },
+      "outcomes": {
+        "alternative": {
+          "cid": "cm1_f849bfc6e980e2176152cd76fe5f60a42c483d77d00c1d7ae836348bf5613e49",
+          "kind": "outcome",
+          "name": "fixture/context-one-hop/cycle/alternative/outcome"
+        },
+        "alternativeAttempt": {
+          "cid": "cm1_8369c30e31d29e304a8632bec6293a82b08beb96fb294323797a8ad8f8e40e4d",
+          "kind": "attempt",
+          "name": "fixture/context-one-hop/cycle/alternative/attempt"
+        },
+        "baseline": {
+          "cid": "cm1_b1df3e9e34605b1b788ba227b584587a4941ebf389cc150aeca51da0f08ccbee",
+          "kind": "outcome",
+          "name": "fixture/context-one-hop/cycle/baseline/outcome"
+        },
+        "baselineAttempt": {
+          "cid": "cm1_ab34ff2abf8c09a107984165ed50af4ee3cca151479296e9ac2adab7c8526b1a",
+          "kind": "attempt",
+          "name": "fixture/context-one-hop/cycle/baseline/attempt"
+        }
+      },
+      "question": "How far should direct supporting references expand, including cycles?",
+      "role": "guardrail",
+      "selection": {
+        "P0": {
+          "inputBytes": 420,
+          "omissions": [],
+          "policy": "P0",
+          "selectedRecordIds": [
+            8
+          ]
+        },
+        "P1": {
+          "inputBytes": 877,
+          "omissions": [],
+          "policy": "P1",
+          "selectedRecordIds": [
+            8,
+            9
+          ]
+        }
+      }
+    },
+    "discovery": {
+      "alternativeContextId": "context_f1d6b5773f8f9a6775322ee84d23e53a9aeec15a1776052ef4804880ed0d4405",
+      "alternativeInvestigationId": "investigation_e29e6a4874c041d48e433244be86d76a",
+      "alternativeSnapshotId": "cm1_41e71b48570ce3b3f52aba91ef3aba056cfb6a24b7089c1323afc3e39173562d",
+      "baselineArtifactId": "artifact_16b102572817478e08c4ec1d47a4508c110cb9dc6553fa584348329a6d1f481d",
+      "baselineContextId": "context_fb5f71dc72edc14cad63488a4ea3f6cb2fb2398c75dfd2474e9aae30d92c95ae",
+      "baselineInvestigationId": "investigation_128894bb7d0544c693824dae7a0e1769",
+      "baselineSnapshotId": "cm1_ec604b9eaaf25ce8abb6cc476323c7942143a46fce2118bb40ca7d97129130a8",
+      "comparison": {
+        "answerTextEvaluated": false,
+        "checks": {
+          "boundedAdditionalContext": true,
+          "fixtureImprovement": true,
+          "noHindsightLeakage": true,
+          "noReportedExecutionFailures": true,
+          "noUnsupportedClaims": true,
+          "selectionPrecisionNondecreasing": true,
+          "selectionRecallNondecreasing": true,
+          "usefulnessNondecreasing": true
+        },
+        "criteriaId": "sha256:8ef707e2cbc5666256e82f31d3e26749967426e00bf4a49d0dc91d0cc3e49221",
+        "deltas": {
+          "groundedClaims": 1,
+          "selectionPrecision": 0.0,
+          "selectionRecall": 0.5,
+          "unsupportedClaims": 0,
+          "usefulnessCoverage": 0.5
+        },
+        "evaluatedSurface": "structured_fixture_claims_only",
+        "evaluatorVersion": "fixture-grounding/v1",
+        "evidenceHorizonId": "sha256:0b964bd8953d2506ae78d0c19532374169db7789108f32bc78ec155236b0c858",
+        "evidence_class": "synthetic",
+        "measured_model_reasoning_improvement": false,
+        "passes": true,
+        "recommendation": "review_bounded_fixture_improvement",
+        "resourceTradeoff": {
+          "additionalBytes": 773,
+          "additionalEstimatedTokens": 193,
+          "maxAdditionalBytes": 4000,
+          "observedAdditionalCost": null,
+          "observedAdditionalTokens": null
+        },
+        "schemaVersion": 1
+      },
+      "evaluation": {
+        "cid": "cm1_261fb6767e5ead29bd8625a188a8190aefb8b93cf6864f923453d9ebacc5defd",
+        "kind": "evaluation",
+        "name": "fixture/context-one-hop/discovery/evaluation"
+      },
+      "experiment": {
+        "cid": "cm1_eb4f67d4294bb1959a09d762a73bb5d5c291fa0742975fea071f62c17fb23a5b",
+        "kind": "experiment",
+        "name": "fixture/context-one-hop/discovery"
+      },
+      "metrics": {
+        "alternative": {
+          "failures": [],
+          "groundedClaims": 2,
+          "leakageCount": 0,
+          "precision": {
+            "denominator": 2,
+            "numerator": 2,
+            "value": 1.0
+          },
+          "projectedBytes": 2344,
+          "recall": {
+            "denominator": 2,
+            "numerator": 2,
+            "value": 1.0
+          },
+          "unsupportedClaims": [],
+          "usefulness": {
+            "denominator": 2,
+            "numerator": 2,
+            "value": 1.0
+          }
+        },
+        "baseline": {
+          "failures": [
+            {
+              "code": "omitted_relevant_evidence",
+              "recordId": 2
+            },
+            {
+              "code": "missing_required_facet",
+              "facet": "recovery_gap"
+            }
+          ],
+          "groundedClaims": 1,
+          "leakageCount": 0,
+          "precision": {
+            "denominator": 1,
+            "numerator": 1,
+            "value": 1.0
+          },
+          "projectedBytes": 1571,
+          "recall": {
+            "denominator": 2,
+            "numerator": 1,
+            "value": 0.5
+          },
+          "unsupportedClaims": [],
+          "usefulness": {
+            "denominator": 2,
+            "numerator": 1,
+            "value": 0.5
+          }
+        }
+      },
+      "outcomes": {
+        "alternative": {
+          "cid": "cm1_a11483d0f11dd5f825d1231ae04f725d9998815b53b36d2c61823cfdbb67d8d2",
+          "kind": "outcome",
+          "name": "fixture/context-one-hop/discovery/alternative/outcome"
+        },
+        "alternativeAttempt": {
+          "cid": "cm1_9fb7cf1a9e01289247e771a9fb0ebcd27a8137e24754ca4d7199d49c408745aa",
+          "kind": "attempt",
+          "name": "fixture/context-one-hop/discovery/alternative/attempt"
+        },
+        "baseline": {
+          "cid": "cm1_9b64f0324487228e16bde498989da42d09f7a2c4bc18a3fc296358f21dbe163b",
+          "kind": "outcome",
+          "name": "fixture/context-one-hop/discovery/baseline/outcome"
+        },
+        "baselineAttempt": {
+          "cid": "cm1_e0e067a014e64893adb1758a2cb8cfa2ac730082a70c0968d24647e4e11f57e9",
+          "kind": "attempt",
+          "name": "fixture/context-one-hop/discovery/baseline/attempt"
+        }
+      },
+      "question": "What do the design and crash experiment jointly imply about retrying an interrupted dispatch?",
+      "role": "discovery",
+      "selection": {
+        "P0": {
+          "inputBytes": 437,
+          "omissions": [],
+          "policy": "P0",
+          "selectedRecordIds": [
+            1
+          ]
+        },
+        "P1": {
+          "inputBytes": 926,
+          "omissions": [],
+          "policy": "P1",
+          "selectedRecordIds": [
+            1,
+            2
+          ]
+        }
+      }
+    },
+    "heldout": {
+      "alternativeContextId": "context_b0280fab8a082705766cd922c732b771c0e2f47cf87f2e468de626ef65435b50",
+      "alternativeInvestigationId": "investigation_eb47f3a1c4234227839d1443a4b4d43e",
+      "alternativeSnapshotId": "cm1_cd942b31e10218a59db25e18c6b57aef95c37f08d6b48fedb0c31cbe529f3bdc",
+      "baselineArtifactId": "artifact_e838015d9f15d1fa1b0450bf4a83179e2212db4b9389525cd2435142236d327e",
+      "baselineContextId": "context_3be6301ce5e119d61c8ea5d605f898b60d085fa028c51b6ca64359cfbd77f318",
+      "baselineInvestigationId": "investigation_25bb932ab0d04e92a29962b275dd49b4",
+      "baselineSnapshotId": "cm1_7eb5eb017f284d7f1a2f578d59a4b42580aae8cee787b3476d475660abf02c76",
+      "comparison": {
+        "answerTextEvaluated": false,
+        "checks": {
+          "boundedAdditionalContext": true,
+          "fixtureImprovement": true,
+          "noHindsightLeakage": true,
+          "noReportedExecutionFailures": true,
+          "noUnsupportedClaims": true,
+          "selectionPrecisionNondecreasing": true,
+          "selectionRecallNondecreasing": true,
+          "usefulnessNondecreasing": true
+        },
+        "criteriaId": "sha256:8119445d815a38eec9b5274f5f679d6f336efe39d0f3378ee157ab8c23de0536",
+        "deltas": {
+          "groundedClaims": 1,
+          "selectionPrecision": 0.0,
+          "selectionRecall": 0.5,
+          "unsupportedClaims": 0,
+          "usefulnessCoverage": 0.5
+        },
+        "evaluatedSurface": "structured_fixture_claims_only",
+        "evaluatorVersion": "fixture-grounding/v1",
+        "evidenceHorizonId": "sha256:0b964bd8953d2506ae78d0c19532374169db7789108f32bc78ec155236b0c858",
+        "evidence_class": "synthetic",
+        "measured_model_reasoning_improvement": false,
+        "passes": true,
+        "recommendation": "review_bounded_fixture_improvement",
+        "resourceTradeoff": {
+          "additionalBytes": 767,
+          "additionalEstimatedTokens": 192,
+          "maxAdditionalBytes": 4000,
+          "observedAdditionalCost": null,
+          "observedAdditionalTokens": null
+        },
+        "schemaVersion": 1
+      },
+      "evaluation": {
+        "cid": "cm1_c296cf63329ec2e71712417659df6d7dcd05ae82ebfea371e463564f0c2aef15",
+        "kind": "evaluation",
+        "name": "fixture/context-one-hop/heldout/evaluation"
+      },
+      "experiment": {
+        "cid": "cm1_da1c0fa3b4d967a03c50cb0f54a4cb2a09b16279e73c2c8022560711d07ad0c2",
+        "kind": "experiment",
+        "name": "fixture/context-one-hop/heldout"
+      },
+      "metrics": {
+        "alternative": {
+          "failures": [],
+          "groundedClaims": 2,
+          "leakageCount": 0,
+          "precision": {
+            "denominator": 2,
+            "numerator": 2,
+            "value": 1.0
+          },
+          "projectedBytes": 2423,
+          "recall": {
+            "denominator": 2,
+            "numerator": 2,
+            "value": 1.0
+          },
+          "unsupportedClaims": [],
+          "usefulness": {
+            "denominator": 2,
+            "numerator": 2,
+            "value": 1.0
+          }
+        },
+        "baseline": {
+          "failures": [
+            {
+              "code": "omitted_relevant_evidence",
+              "recordId": 5
+            },
+            {
+              "code": "missing_required_facet",
+              "facet": "visibility"
+            }
+          ],
+          "groundedClaims": 1,
+          "leakageCount": 0,
+          "precision": {
+            "denominator": 1,
+            "numerator": 1,
+            "value": 1.0
+          },
+          "projectedBytes": 1656,
+          "recall": {
+            "denominator": 2,
+            "numerator": 1,
+            "value": 0.5
+          },
+          "unsupportedClaims": [],
+          "usefulness": {
+            "denominator": 2,
+            "numerator": 1,
+            "value": 0.5
+          }
+        }
+      },
+      "outcomes": {
+        "alternative": {
+          "cid": "cm1_ebceb569cdb32c36beed8fa1b48f1070a6a9ae18eac123b10978ebb43e464992",
+          "kind": "outcome",
+          "name": "fixture/context-one-hop/heldout/alternative/outcome"
+        },
+        "alternativeAttempt": {
+          "cid": "cm1_d2afa299fc58625b4b16e5724f0b9d7036aa416c2bf4d2a162374120e683a87a",
+          "kind": "attempt",
+          "name": "fixture/context-one-hop/heldout/alternative/attempt"
+        },
+        "baseline": {
+          "cid": "cm1_5a052d64d3153031f36d8cd186f2e5de506ac0d76dcc00049ee4eba884c68372",
+          "kind": "outcome",
+          "name": "fixture/context-one-hop/heldout/baseline/outcome"
+        },
+        "baselineAttempt": {
+          "cid": "cm1_2a1809ceb99001a33d6c7ff92449c27ddb49a3f63928ede42b876d120aebc01b",
+          "kind": "attempt",
+          "name": "fixture/context-one-hop/heldout/baseline/attempt"
+        }
+      },
+      "question": "What does the context projection establish, and what remains unknown across the provider boundary?",
+      "role": "heldout",
+      "selection": {
+        "P0": {
+          "inputBytes": 499,
+          "omissions": [],
+          "policy": "P0",
+          "selectedRecordIds": [
+            4
+          ]
+        },
+        "P1": {
+          "inputBytes": 960,
+          "omissions": [],
+          "policy": "P1",
+          "selectedRecordIds": [
+            4,
+            5
+          ]
+        }
+      }
+    },
+    "irrelevant": {
+      "alternativeContextId": "context_b1d88f9544e97adb979959927b991e1e63eb16ccea6bc8b5ac96ebea9073fcc2",
+      "alternativeInvestigationId": "investigation_76217070c75c461282674ce8daffdccb",
+      "alternativeSnapshotId": "cm1_16be9ffa258d551badf65324069d252bbb10d13de942e0909665558619a83fa8",
+      "baselineArtifactId": "artifact_70db66f99e2f00e7775e0d6c2ade300e76c84abb5c6b5637ce4c0f6bd7cea91d",
+      "baselineContextId": "context_b1d88f9544e97adb979959927b991e1e63eb16ccea6bc8b5ac96ebea9073fcc2",
+      "baselineInvestigationId": "investigation_fc3a16ddd29b42b5adcda7000f4623c1",
+      "baselineSnapshotId": "cm1_aa6a5bb8e473471c180d53710922a866fa0e9830f6dac93752cd5c1455c2f862",
+      "comparison": {
+        "answerTextEvaluated": false,
+        "checks": {
+          "boundedAdditionalContext": true,
+          "fixtureImprovement": false,
+          "noHindsightLeakage": true,
+          "noReportedExecutionFailures": true,
+          "noUnsupportedClaims": true,
+          "selectionPrecisionNondecreasing": true,
+          "selectionRecallNondecreasing": true,
+          "usefulnessNondecreasing": true
+        },
+        "criteriaId": "sha256:ae056a4ef5a700afb9084cf1d25128eaf74d64bd9fe4d4a97ee729da261fa924",
+        "deltas": {
+          "groundedClaims": 0,
+          "selectionPrecision": 0.0,
+          "selectionRecall": 0.0,
+          "unsupportedClaims": 0,
+          "usefulnessCoverage": 0.0
+        },
+        "evaluatedSurface": "structured_fixture_claims_only",
+        "evaluatorVersion": "fixture-grounding/v1",
+        "evidenceHorizonId": "sha256:0b964bd8953d2506ae78d0c19532374169db7789108f32bc78ec155236b0c858",
+        "evidence_class": "synthetic",
+        "measured_model_reasoning_improvement": false,
+        "passes": false,
+        "recommendation": "retain_counterexample",
+        "resourceTradeoff": {
+          "additionalBytes": 0,
+          "additionalEstimatedTokens": 0,
+          "maxAdditionalBytes": 4000,
+          "observedAdditionalCost": null,
+          "observedAdditionalTokens": null
+        },
+        "schemaVersion": 1
+      },
+      "evaluation": {
+        "cid": "cm1_176862af8c287798a4334b8e0acf0e20390cd5e4f51b8f18eb043c339cac33fd",
+        "kind": "evaluation",
+        "name": "fixture/context-one-hop/irrelevant/evaluation"
+      },
+      "experiment": {
+        "cid": "cm1_1b46af44469fc6f0b5dd48b91ac2a169580d54027a16e6ad32d30f97bc5aedfe",
+        "kind": "experiment",
+        "name": "fixture/context-one-hop/irrelevant"
+      },
+      "metrics": {
+        "alternative": {
+          "failures": [],
+          "groundedClaims": 1,
+          "leakageCount": 0,
+          "precision": {
+            "denominator": 1,
+            "numerator": 1,
+            "value": 1.0
+          },
+          "projectedBytes": 1531,
+          "recall": {
+            "denominator": 1,
+            "numerator": 1,
+            "value": 1.0
+          },
+          "unsupportedClaims": [],
+          "usefulness": {
+            "denominator": 1,
+            "numerator": 1,
+            "value": 1.0
+          }
+        },
+        "baseline": {
+          "failures": [],
+          "groundedClaims": 1,
+          "leakageCount": 0,
+          "precision": {
+            "denominator": 1,
+            "numerator": 1,
+            "value": 1.0
+          },
+          "projectedBytes": 1531,
+          "recall": {
+            "denominator": 1,
+            "numerator": 1,
+            "value": 1.0
+          },
+          "unsupportedClaims": [],
+          "usefulness": {
+            "denominator": 1,
+            "numerator": 1,
+            "value": 1.0
+          }
+        }
+      },
+      "outcomes": {
+        "alternative": {
+          "cid": "cm1_89c9f073f7e576ebc9f5ef8d96c80f9642ccf126d417775a4375b0989b4ae112",
+          "kind": "outcome",
+          "name": "fixture/context-one-hop/irrelevant/alternative/outcome"
+        },
+        "alternativeAttempt": {
+          "cid": "cm1_b91e7b6f62c32345ac9b916c2d691ba868d2b21d497794d8193a8fa3ea4ebbd0",
+          "kind": "attempt",
+          "name": "fixture/context-one-hop/irrelevant/alternative/attempt"
+        },
+        "baseline": {
+          "cid": "cm1_fcf06083f28259b45d2498e740f5248b242bd93b1950ae458db1737ada48a8f4",
+          "kind": "outcome",
+          "name": "fixture/context-one-hop/irrelevant/baseline/outcome"
+        },
+        "baselineAttempt": {
+          "cid": "cm1_1ae205d1dee95be4bf27ce08d6d2d0c6ddc3be3f0a74471dfcc7bb4ff78a520c",
+          "kind": "attempt",
+          "name": "fixture/context-one-hop/irrelevant/baseline/attempt"
+        }
+      },
+      "question": "What must happen to historical evidence?",
+      "role": "guardrail",
+      "selection": {
+        "P0": {
+          "inputBytes": 442,
+          "omissions": [],
+          "policy": "P0",
+          "selectedRecordIds": [
+            6
+          ]
+        },
+        "P1": {
+          "inputBytes": 442,
+          "omissions": [],
+          "policy": "P1",
+          "selectedRecordIds": [
+            6
+          ]
+        }
+      }
+    },
+    "posthorizon": {
+      "alternativeContextId": "context_e77d0d67d08d94266ea5aca083d7d1f9e887a796a6778d031c73b3f2c7c1acbf",
+      "alternativeInvestigationId": "investigation_568af341e76045858586e1b2cf47936d",
+      "alternativeSnapshotId": "cm1_80d3250ef6172d21fdd344b2a3e565257a65e4e3856830080604cac9b99d341e",
+      "baselineArtifactId": "artifact_d3beef1af55bfe2f2f68bc73dcaeb3c9a1e0b2d2d20ca0c37b7be61df0515f28",
+      "baselineContextId": "context_e77d0d67d08d94266ea5aca083d7d1f9e887a796a6778d031c73b3f2c7c1acbf",
+      "baselineInvestigationId": "investigation_9a867eb1078540dcbd167f0531cb4fe8",
+      "baselineSnapshotId": "cm1_accd8364379ac86da3080470d4deb878955e02bb9845bba501fd35598eaa5ca1",
+      "comparison": {
+        "answerTextEvaluated": false,
+        "checks": {
+          "boundedAdditionalContext": true,
+          "fixtureImprovement": false,
+          "noHindsightLeakage": true,
+          "noReportedExecutionFailures": true,
+          "noUnsupportedClaims": true,
+          "selectionPrecisionNondecreasing": true,
+          "selectionRecallNondecreasing": true,
+          "usefulnessNondecreasing": true
+        },
+        "criteriaId": "sha256:0b5d0136e59ed79d11bbeb28a0df447af05ac15491cbb4ba3b57626c215fd466",
+        "deltas": {
+          "groundedClaims": 0,
+          "selectionPrecision": 0.0,
+          "selectionRecall": 0.0,
+          "unsupportedClaims": 0,
+          "usefulnessCoverage": 0.0
+        },
+        "evaluatedSurface": "structured_fixture_claims_only",
+        "evaluatorVersion": "fixture-grounding/v1",
+        "evidenceHorizonId": "sha256:0b964bd8953d2506ae78d0c19532374169db7789108f32bc78ec155236b0c858",
+        "evidence_class": "synthetic",
+        "measured_model_reasoning_improvement": false,
+        "passes": false,
+        "recommendation": "retain_counterexample",
+        "resourceTradeoff": {
+          "additionalBytes": 0,
+          "additionalEstimatedTokens": 0,
+          "maxAdditionalBytes": 4000,
+          "observedAdditionalCost": null,
+          "observedAdditionalTokens": null
+        },
+        "schemaVersion": 1
+      },
+      "evaluation": {
+        "cid": "cm1_ad535a3f4db4ec650e63037816a8fa8dad0cdf1f7622921c3c304fec11c5cca7",
+        "kind": "evaluation",
+        "name": "fixture/context-one-hop/posthorizon/evaluation"
+      },
+      "experiment": {
+        "cid": "cm1_26a27d4825ea0d294eff0b610bb3eb2123e82b1f422fb2d95480cbf930381bea",
+        "kind": "experiment",
+        "name": "fixture/context-one-hop/posthorizon"
+      },
+      "metrics": {
+        "alternative": {
+          "failures": [],
+          "groundedClaims": 1,
+          "leakageCount": 0,
+          "precision": {
+            "denominator": 1,
+            "numerator": 1,
+            "value": 1.0
+          },
+          "projectedBytes": 1577,
+          "recall": {
+            "denominator": 1,
+            "numerator": 1,
+            "value": 1.0
+          },
+          "unsupportedClaims": [],
+          "usefulness": {
+            "denominator": 1,
+            "numerator": 1,
+            "value": 1.0
+          }
+        },
+        "baseline": {
+          "failures": [],
+          "groundedClaims": 1,
+          "leakageCount": 0,
+          "precision": {
+            "denominator": 1,
+            "numerator": 1,
+            "value": 1.0
+          },
+          "projectedBytes": 1577,
+          "recall": {
+            "denominator": 1,
+            "numerator": 1,
+            "value": 1.0
+          },
+          "unsupportedClaims": [],
+          "usefulness": {
+            "denominator": 1,
+            "numerator": 1,
+            "value": 1.0
+          }
+        }
+      },
+      "outcomes": {
+        "alternative": {
+          "cid": "cm1_b558eadcb9cf42d7899c5e8e08feee2f59b98675b1676f74e00e7b3dee281938",
+          "kind": "outcome",
+          "name": "fixture/context-one-hop/posthorizon/alternative/outcome"
+        },
+        "alternativeAttempt": {
+          "cid": "cm1_997811883cb9a6302493a6aaf721cb05907bef1c0a57f9224868945faa91b8bb",
+          "kind": "attempt",
+          "name": "fixture/context-one-hop/posthorizon/alternative/attempt"
+        },
+        "baseline": {
+          "cid": "cm1_e5dce18408462b9d4e295f06df5a3866f613e9dff6965bcd6947722726e73bfe",
+          "kind": "outcome",
+          "name": "fixture/context-one-hop/posthorizon/baseline/outcome"
+        },
+        "baselineAttempt": {
+          "cid": "cm1_75c98109a39ad406f9345df536b5df6a8518ea7d667767820647eeb17228495b",
+          "kind": "attempt",
+          "name": "fixture/context-one-hop/posthorizon/baseline/attempt"
+        }
+      },
+      "question": "May this historical investigation use the source recorded after its horizon?",
+      "role": "guardrail",
+      "selection": {
+        "P0": {
+          "inputBytes": 456,
+          "omissions": [],
+          "policy": "P0",
+          "selectedRecordIds": [
+            11
+          ]
+        },
+        "P1": {
+          "inputBytes": 456,
+          "omissions": [
+            {
+              "reason": "outside_frozen_horizon",
+              "recordId": 14
+            }
+          ],
+          "policy": "P1",
+          "selectedRecordIds": [
+            11
+          ]
+        }
+      }
+    }
+  },
+  "evidenceNote": "Observed synthetic local run; fresh runs allocate new canonical investigation and occurrence identities. Reopen preserves them. Full source fixture is in scripts/counterfactual_demo.py.",
+  "externalEffects": "none; reinterpretation only",
+  "extractorVersion": "fixture-annotation-extractor/v1",
+  "frozenRecordIds": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13
+  ],
+  "generalization": {
+    "improvedCases": [
+      "discovery",
+      "heldout",
+      "cycle"
+    ],
+    "nonregressingCases": [
+      "discovery",
+      "heldout",
+      "irrelevant",
+      "cycle",
+      "posthorizon",
+      "budget"
+    ],
+    "realWorldGeneralizationEstablished": false,
+    "remainingFailure": "The budget guardrail still omits relevant evidence; one-hop selection cannot recover unlinked evidence.",
+    "scope": "Predeclared synthetic structural cases only; not a blinded benchmark."
+  },
+  "horizon": "cm1_697aaefe6d8a63dcb7997c17dee0c5c34fe93c7c4a3c98411d3ca76e126bae6f",
+  "implementationBase": "50d1bc91870b9118a84706606d6a06008dffcdf7",
+  "limitations": [
+    "Fixture usefulness is required-facet coverage, not human-rated answer quality.",
+    "The heldout case is a predeclared structural fixture, not a blinded benchmark or real-world validation.",
+    "Token figures are estimates; provider token usage and prices were not observed.",
+    "Unlinked relevant sources and relevant over-budget sources can remain omitted.",
+    "Adoption and rollback record synthetic review decisions; no native configuration is changed."
+  ],
+  "measured_model_reasoning_improvement": false,
+  "nativeModelCalls": 0,
+  "nativeTurnStarts": 0,
+  "ownerApproval": false,
+  "policyActivated": false,
+  "postHorizonRecordId": 14,
+  "records": {
+    "adoption": {
+      "cid": "cm1_eb9b021c83d3c18afa3f101e47e327fd8123c2749915e6c5a69be41b89471364",
+      "kind": "adoption",
+      "name": "fixture/context-one-hop/adoption"
+    },
+    "proposal": {
+      "cid": "cm1_8f61281e87d5888b43ece36043ba4986c748a3436c868b06f943b29dcba074a2",
+      "kind": "proposal",
+      "name": "fixture/context-one-hop/proposal"
+    },
+    "rejectedProposal": {
+      "cid": "cm1_a638f5ad8e85b15adda0255781b3294edf1cf84b77d3601cffcbf86dbcb261f0",
+      "kind": "proposal",
+      "name": "fixture/context-relabel/proposal"
+    },
+    "rejectedReview": {
+      "cid": "cm1_2c7eddf23340f8d3930322604c58e9b59ba3be5bf9d582585a4f195f2a7eb284",
+      "kind": "review",
+      "name": "fixture/context-relabel/review"
+    },
+    "review": {
+      "cid": "cm1_345df9d81a88894f3dac836796aa86e0046fae0eac8549b723b073ae20b79d18",
+      "kind": "review",
+      "name": "fixture/context-one-hop/review"
+    },
+    "rollback": {
+      "cid": "cm1_2bee08d18b6be0c198dc2dd67434840a55a66f7b1d0927bf58a1cbce42e4c75a",
+      "kind": "rollback",
+      "name": "fixture/context-one-hop/rollback"
+    }
+  },
+  "rejectedAlternative": {
+    "comparison": {
+      "answerTextEvaluated": false,
+      "checks": {
+        "boundedAdditionalContext": true,
+        "fixtureImprovement": false,
+        "noHindsightLeakage": true,
+        "noReportedExecutionFailures": true,
+        "noUnsupportedClaims": true,
+        "selectionPrecisionNondecreasing": true,
+        "selectionRecallNondecreasing": true,
+        "usefulnessNondecreasing": true
+      },
+      "criteriaId": "sha256:8ef707e2cbc5666256e82f31d3e26749967426e00bf4a49d0dc91d0cc3e49221",
+      "deltas": {
+        "groundedClaims": 0,
+        "selectionPrecision": 0.0,
+        "selectionRecall": 0.0,
+        "unsupportedClaims": 0,
+        "usefulnessCoverage": 0.0
+      },
+      "evaluatedSurface": "structured_fixture_claims_only",
+      "evaluatorVersion": "fixture-grounding/v1",
+      "evidenceHorizonId": "sha256:0b964bd8953d2506ae78d0c19532374169db7789108f32bc78ec155236b0c858",
+      "evidence_class": "synthetic",
+      "measured_model_reasoning_improvement": false,
+      "passes": false,
+      "recommendation": "retain_counterexample",
+      "resourceTradeoff": {
+        "additionalBytes": 0,
+        "additionalEstimatedTokens": 0,
+        "maxAdditionalBytes": 4000,
+        "observedAdditionalCost": null,
+        "observedAdditionalTokens": null
+      },
+      "schemaVersion": 1
+    },
+    "evaluation": {
+      "cid": "cm1_ef061562203a99d641a1e1e54e82282ae7d1563913d9e482a7bceec1df77d916",
+      "kind": "evaluation",
+      "name": "fixture/context-relabel/discovery/evaluation"
+    },
+    "experiment": {
+      "cid": "cm1_4aa60bc765d0d583f882c68a59a91ffd5d7260375d63e12ee62402e822879861",
+      "kind": "experiment",
+      "name": "fixture/context-relabel/discovery"
+    },
+    "outcomes": {
+      "alternative": {
+        "cid": "cm1_9b64f0324487228e16bde498989da42d09f7a2c4bc18a3fc296358f21dbe163b",
+        "kind": "outcome",
+        "name": "fixture/context-relabel/discovery/alternative/outcome"
+      },
+      "alternativeAttempt": {
+        "cid": "cm1_3cccd2bf4dd32ae97c83beb49eb529ac1df90fff592c7654a2a2e379166bb323",
+        "kind": "attempt",
+        "name": "fixture/context-relabel/discovery/alternative/attempt"
+      },
+      "baseline": {
+        "cid": "cm1_9b64f0324487228e16bde498989da42d09f7a2c4bc18a3fc296358f21dbe163b",
+        "kind": "outcome",
+        "name": "fixture/context-relabel/discovery/baseline/outcome"
+      },
+      "baselineAttempt": {
+        "cid": "cm1_2fa7f3e14f373b1cc18bc8ba0bb319234c013ada3e5875cab9d84200523b7acc",
+        "kind": "attempt",
+        "name": "fixture/context-relabel/discovery/baseline/attempt"
+      }
+    }
+  },
+  "reviewKind": "synthetic",
+  "synthetic": true,
+  "versionDefinitions": {
+    "alternative": {
+      "component": "context-selection",
+      "definition": {
+        "evaluatorSelectorSourceSha256": "13a8e1d20ab811dc747bec31e8d4e63b3890ebfa7cd6d202c0f055ef9e596a4c",
+        "evaluatorVersion": "fixture-grounding/v1",
+        "extractorSourceSha256": "44c29c8d88ca96158734cf5c8b3d209d35531072c72568338be9d7b99e176a36",
+        "interpreterVersion": "fixture-annotation-extractor/v1",
+        "policy": "P1",
+        "rule": "Add seeds' explicit one-hop relatedEvidence links within frozen horizon and budgets."
+      },
+      "version": "P1/v1"
+    },
+    "baseline": {
+      "component": "context-selection",
+      "definition": {
+        "evaluatorSelectorSourceSha256": "13a8e1d20ab811dc747bec31e8d4e63b3890ebfa7cd6d202c0f055ef9e596a4c",
+        "evaluatorVersion": "fixture-grounding/v1",
+        "extractorSourceSha256": "44c29c8d88ca96158734cf5c8b3d209d35531072c72568338be9d7b99e176a36",
+        "interpreterVersion": "fixture-annotation-extractor/v1",
+        "policy": "P0",
+        "rule": "Retain only selected seed records."
+      },
+      "version": "P0/v1"
+    }
+  },
+  "versions": {
+    "alternative": "cm1_24944704a335965b97639ff8f27d12537961b8e2c4b25aff90ae061e17a645c0",
+    "baseline": "cm1_f10ea8ee3f3518c3cb1c93250601c9e75d6244da0f7cc5681ce82796b4855a28"
+  }
+}

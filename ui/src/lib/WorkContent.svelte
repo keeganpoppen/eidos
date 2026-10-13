@@ -2,10 +2,11 @@
   import Markdown from './Markdown.svelte';
   import { contentBlocks, patchLines } from './semantic';
 
-  let { source, onFocus, focusedBlockId = '' }: {
+  let { source, onFocus, focusedBlockId = '', patchLabel = 'Returned diff · not applied' }: {
     source: string;
     onFocus?: (block: { id: string; text: string; citations: number[] }) => void;
     focusedBlockId?: string;
+    patchLabel?: string;
   } = $props();
 
   let page = $state(0);
@@ -26,8 +27,8 @@
     <section class="work-block" class:focused={block.id === focusedBlockId} data-block-id={block.id}>
       {#if block.diff !== undefined}
         {@const lines = patchLines(block.diff)}
-        <div class="native-patch" aria-label="Returned patch; presentation only">
-          <div class="patch-label">Returned diff · not applied</div>
+        <div class="native-patch" aria-label={patchLabel}>
+          <div class="patch-label">{patchLabel}</div>
           <pre>{#each expandedPatches.has(block.id) ? lines : lines.slice(0, 120) as line}<span class={line.kind}>{line.text || ' '}</span>{/each}</pre>
           {#if lines.length > 120}
             <button class="content-control" onclick={() => {

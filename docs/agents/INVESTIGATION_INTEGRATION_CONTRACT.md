@@ -1,5 +1,10 @@
 # One investigation across context, native work, review, and comparison
 
+**Round 3 amendment:** [ROUND3_INTEGRATION](ROUND3_INTEGRATION.md) now joins
+terminal specialist inquiries, explicit follow-up attempts and durable context
+experiments. This Cycle B contract remains the historical basis; its deferred
+specialist/alternative list below is superseded only within that amendment's scope.
+
 **Integration contract, 2026-10-13; implementation base `ac2c093b675c5765abccaeff33a721f48f4318ce`.**
 This additive contract reconciles the four branch deliveries. It supersedes their
 proposed integration seams, not their historical evidence or the V1 destination.

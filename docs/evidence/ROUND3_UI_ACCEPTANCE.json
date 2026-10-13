@@ -1,0 +1,86 @@
+{
+  "passed": true,
+  "investigationId": "investigation_8a390dbf27fe4f19bf025efa74730d22",
+  "alternativeId": "investigation_4553e1e28b2d47bdb0c5ac4c12a6130c",
+  "round3Id": "investigation_b0c961ca48da460695247c95f9f5339f",
+  "round3ExperimentStatuses": [
+    "rolled-back",
+    "rejected"
+  ],
+  "records": 3,
+  "sourceThreads": 2,
+  "revisions": 2,
+  "status": "completed",
+  "adoption": "adopt",
+  "compared": [
+    "saved investigations",
+    "context revisions",
+    "returned artifacts"
+  ],
+  "verified": [
+    "review/cancel/apply/undo",
+    "keyboard support navigation",
+    "cross-aperture focus",
+    "reload",
+    "presentation does not mutate server work",
+    "context manifest and immutable request pin",
+    "defer/reload/offer/adopt",
+    "native artifact version survives local review",
+    "recorded original/offered/result attention arrangement",
+    "explicit pending/supplied inquiry fixture",
+    "named counterfactual and exact context diff",
+    "unsupported intent rejected without dispatch",
+    "inspectable improvement and reversible evidence-first browser preview",
+    "unsupported durable adoption disabled",
+    "all attention workflows issue zero API mutations",
+    "durable specialist inquiry with deferral and separately offered evidence",
+    "separately admitted synthetic A2 preserves A1 and receipt",
+    "controlled saved-input evaluation with adoption, rollback and rejection",
+    "A2 exact context/artifact chain survives reload"
+  ],
+  "history": {
+    "source": "browser-only synthetic projection",
+    "turns": 1200,
+    "renderedTurnLimit": 40,
+    "retrieval": {
+      "source": "CDP-intercepted synthetic responses; decoded JSON, not compressed wire bytes",
+      "fullPayloadBytes": 453592,
+      "fortyTurnProjectionBytes": 27310,
+      "observedFullDeliveries": 3,
+      "totalDecodedBytes": 1360776,
+      "browserHeapBefore": {
+        "usedSize": 26625260,
+        "totalSize": 37257216,
+        "embedderHeapUsedSize": 16333392,
+        "backingStorageSize": 4860294
+      },
+      "browserHeapAfter": {
+        "usedSize": 24611596,
+        "totalSize": 46432256,
+        "embedderHeapUsedSize": 11459576,
+        "backingStorageSize": 5155342
+      },
+      "limitation": "Whole-history retrieval and retention remain unbounded. Heap snapshots include browser application activity; this is not a memory bound or leak test."
+    }
+  },
+  "retrievalEvidence": "docs/evidence/round3-retrieval.json",
+  "supplementary": "Browser-only competing artifact with outputSeqs cleared; native diff, unavailable citation, unknown question and 900/390px overflow verified; no API mutation",
+  "screenshots": [
+    "docs/evidence/round3-workbench.png",
+    "docs/evidence/round3-server-comparison.png",
+    "docs/evidence/round3-context-diff.png",
+    "docs/evidence/round3-context-provenance.png",
+    "docs/evidence/round3-local-review.png",
+    "docs/evidence/round3-review-comparison.png",
+    "docs/evidence/round3-recorded-evidence-chain.png",
+    "docs/evidence/round3-pending-inquiry.png",
+    "docs/evidence/round3-supplied-evidence-chain.png",
+    "docs/evidence/round3-named-alternative.png",
+    "docs/evidence/round3-improvement-review.png",
+    "docs/evidence/round3-specialist-inquiry.png",
+    "docs/evidence/round3-followup-admission.png",
+    "docs/evidence/round3-evaluated-alternative.png",
+    "docs/evidence/round3-preserved-decisions.png",
+    "docs/evidence/round3-integrated-evidence-chain.png"
+  ]
+}

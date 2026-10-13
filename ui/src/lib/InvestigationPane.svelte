@@ -2,14 +2,16 @@
   import { onMount } from 'svelte';
   import Markdown from './Markdown.svelte';
   import ContextProvenance from './ContextProvenance.svelte';
+  import RecordedExperiment from './RecordedExperiment.svelte';
+  import { artifacts, attempts, outputEvidence } from './comparison';
   import EvidenceReview from './EvidenceReview.svelte';
   import { sameSelections } from './semantic';
-  import type { EvidenceSelection, Investigation, InvestigationContext } from './types';
+  import type { EvidenceSelection, Investigation, InvestigationContext, InvestigationCapabilities } from './types';
 
   let { selections = $bindable([]), onSource, onCompare }: {
     selections: EvidenceSelection[];
     onSource: (selection: EvidenceSelection) => void;
-    onCompare: (investigationId: string) => void;
+    onCompare: (investigationId: string, intent?: 'comparison' | 'evidence-chain') => void;
   } = $props();
 
   const storageKey = 'nema.investigation-draft.v1';
@@ -23,20 +25,27 @@
   let error = $state('');
   let notice = $state('');
   let ready = $state(false);
+  let capabilities = $state<InvestigationCapabilities | null>(null);
   let previewId = $state('');
   let poll: ReturnType<typeof setInterval> | undefined;
   let pendingRequest = $state<{ body: string; id: string } | null>(null);
 
   const activeContext = $derived(current?.contexts.find((context) => context.id === current?.currentContextId));
   const preview = $derived(current?.contexts.find((context) => context.id === previewId) ?? activeContext);
+  const previewAttempt = $derived(attempts(current ?? undefined).find((item) => item.contextId === preview?.id));
   const baseline = $derived(current?.contexts.find((context) => context.id === preview?.parentContextId));
-  const displayedArtifact = $derived(current?.nativeArtifact ?? current?.artifact);
+  const displayedArtifact = $derived(current?.artifact?.continuedFrom ? current.artifact : current?.nativeArtifact ?? current?.artifact);
+  const displayedAttempt = $derived(attempts(current ?? undefined).find((item) => item.id === displayedArtifact?.attemptId));
   const artifactContext = $derived(current?.contexts.find((context) => context.id === displayedArtifact?.contextId));
   const dirty = $derived(!!activeContext && (
     activeContext.question !== question || !sameSelections(activeContext.selections, selections)
   ));
   const canSave = $derived(title.trim().length > 0 && question.trim().length > 0 && selections.length > 0 && !busy);
   const threadCount = $derived(new Set(selections.map((selection) => selection.threadId)).size);
+
+  function jumpTo(selector: string) {
+    document.querySelector(`.investigation-pane ${selector}`)?.scrollIntoView({ block: 'start', behavior: 'smooth' });
+  }
 
   function key(selection: EvidenceSelection): string {
     return `${selection.threadId}:${selection.startSeq}:${selection.endSeq}`;
@@ -166,6 +175,7 @@
   }
 
   onMount(() => {
+    void api<InvestigationCapabilities>('/api/investigations/capabilities').then((value) => capabilities = value).catch(() => {});
     let rememberedId = '';
     try {
       const stored = JSON.parse(localStorage.getItem(storageKey) ?? 'null');
@@ -221,6 +231,8 @@
     </select>
     <button class="work-secondary" disabled={busy} onclick={() => newDraft()}>New investigation</button>
     {#if current}<button class="work-secondary" onclick={() => onCompare(current!.id)}>Compare saved work</button>{/if}
+    {#if current?.continuation?.inquiry}<button class="work-secondary" onclick={() => jumpTo('.evidence-review')}>Go to inquiry</button><button class="work-secondary" onclick={() => onCompare(current!.id, 'evidence-chain')}>Follow evidence & response</button>{/if}
+    {#if current && artifacts(current).length}<button class="work-secondary" onclick={() => jumpTo('.recorded-experiments')}>Go to experiments</button>{/if}
   </div>
 
   <section class="context-builder" aria-label="Selected context">
@@ -282,7 +294,7 @@
           {:else}<p>Question unchanged.</p>{/if}
         </details>
       {/if}
-      <ContextProvenance investigationId={current.id} contextId={preview.id} attemptId={current.attempt?.id} attemptStatus={current.attempt?.status} />
+      <ContextProvenance investigationId={current.id} contextId={preview.id} attemptId={previewAttempt?.id} attemptStatus={previewAttempt?.status} />
       <details class="exact-input">
         <summary>Exact specialist input · {preview.projectedPrompt.length.toLocaleString()} characters</summary>
         <pre>{preview.projectedPrompt}</pre>
@@ -300,9 +312,9 @@
       </details>
       {#if current.status === 'draft'}
         <div class="dispatch-scope">
-          <strong>One native specialist turn</strong>
-          <p>Read-only policy, temporary working directory, 120-second turn deadline. Ambient native startup integrations are not contained. Native account resources are used; this is not a token or cost cap.</p>
-          <button class="work-primary" disabled={busy || dirty || preview.id !== current.currentContextId} onclick={() => act('dispatch', { contextId: current?.currentContextId })}>Start specialist with this context</button>
+          <strong>{capabilities?.nativeExecution.mode === 'synthetic' ? 'One synthetic specialist turn' : 'One native specialist turn'}</strong>
+          <p>{capabilities?.nativeExecution.reason ?? 'Execution capability has not been established. Native model resources require a separate authorization gate.'}</p>
+          <button class="work-primary" disabled={busy || dirty || preview.id !== current.currentContextId || !capabilities?.nativeExecution.available} onclick={() => act('dispatch', { contextId: current?.currentContextId })}>Start specialist with this context</button>
           {#if preview.id !== current.currentContextId}<p>Select the current revision to start work.</p>{/if}
         </div>
       {/if}
@@ -330,11 +342,11 @@
 
     {#if displayedArtifact}
       <section class="investigation-result" aria-label="Specialist result">
-        <h3>{current.nativeArtifact ? 'Original native result' : 'Specialist result'}</h3>
-        <p class="work-muted">Model interpretation · input {displayedArtifact.contextId}</p>
+        <h3>{displayedArtifact.continuedFrom ? 'Follow-up specialist result' : displayedArtifact.kind === 'native-needs-evidence' ? 'Specialist evidence request' : current.nativeArtifact ? 'Original specialist result' : 'Specialist result'}</h3>
+        <p class="work-muted">{outputEvidence(displayedArtifact)} · input {displayedArtifact.contextId}</p>
         <Markdown source={displayedArtifact.text} />
-        {#if current.attempt?.threadId && displayedArtifact.outputSeqs.length}
-          <button class="source-link" onclick={() => onSource({ threadId: current!.attempt!.threadId!, startSeq: displayedArtifact!.outputSeqs[0], endSeq: displayedArtifact!.outputSeqs.at(-1)!, rationale: '' })}>Inspect recorded native output</button>
+        {#if displayedAttempt?.threadId && displayedArtifact.outputSeqs.length}
+          <button class="source-link" onclick={() => onSource({ threadId: displayedAttempt!.threadId!, startSeq: displayedArtifact!.outputSeqs[0], endSeq: displayedArtifact!.outputSeqs.at(-1)!, rationale: '' })}>Inspect recorded native output</button>
         {/if}
         <h4>Cited source evidence</h4>
         <p class="work-muted">A source link confirms the record was supplied; it does not prove the conclusion.</p>
@@ -350,13 +362,12 @@
         {#if displayedArtifact.unsupportedCitations.length}
           <p class="work-error">References outside this packet: {displayedArtifact.unsupportedCitations.map((seq) => `[evidence:${seq}]`).join(', ')}. Their support is unverified.</p>
         {/if}
-        {#if current.nativeArtifact && current.artifact}
-          <details class="reviewed-artifact"><summary>Reviewed artifact / native answer with local decision receipt</summary><Markdown source={current.artifact.text} /><p class="object-ref">{current.artifact.id}</p></details>
-          <p class="work-muted">Adoption below selects this reviewed artifact. The original native answer and its input are preserved.</p>
-        {/if}
+        {#each artifacts(current).filter((artifact) => artifact.id !== displayedArtifact.id) as historical (historical.id)}
+          <details class="reviewed-artifact"><summary>{outputEvidence(historical)} · retained version</summary><Markdown source={historical.text} /><p class="object-ref">{historical.id}<br />Input {historical.contextId}</p></details>
+        {/each}
         {#if current.adoption}
           <div class="adoption-receipt"><strong>{current.adoption.decision === 'adopt' ? 'Conclusion adopted' : 'Conclusion rejected'}</strong><p>{current.adoption.note || 'No note added.'}</p><p class="work-muted">Source history and files remain unchanged.</p></div>
-        {:else if current.artifact}
+        {:else if current.artifact && current.status === 'completed' && !['native-needs-evidence', 'native-inquiry-invalid'].includes(current.artifact.kind ?? '') && !(current.continuation?.origin === 'native-specialist' && current.artifact.kind === 'eidos-evidence-review')}
           <label for="adoption-note">Decision note</label>
           <textarea id="adoption-note" bind:value={note} rows="3" placeholder="What should carry forward, and why?"></textarea>
           <div class="decision-actions">
@@ -367,7 +378,8 @@
         {/if}
       </section>
     {/if}
-    {#key current.id}<EvidenceReview investigation={current} {selections} onUpdate={(value) => { if (selectedId === value.id) useInvestigation(value, false); }} />{/key}
+    {#if current.inquiryAdmissionError}<p class="work-error" role="alert">Inquiry admission: {current.inquiryAdmissionError}</p>{/if}
+    {#key current.id}<EvidenceReview investigation={current} {selections} onUpdate={(value) => { if (selectedId === value.id) useInvestigation(value, false); }} /><RecordedExperiment investigation={current} />{/key}
   {/if}
 
   {#if error}<p class="work-error" role="alert">{error}</p>{/if}

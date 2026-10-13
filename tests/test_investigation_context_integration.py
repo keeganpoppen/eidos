@@ -49,6 +49,7 @@ def test_revisions_project_frozen_packets_and_share_unchanged_ingredients(tmp_pa
 def test_pin_and_claim_rollback_together_before_any_launch(tmp_path, monkeypatch):
     trace = TraceStore(tmp_path / "rollback.db")
     api = EidosAPI(trace)
+    api.investigation_worker = NativeInvestigationWorker(trace, command=["/synthetic-never-launched"])
     work = api.investigations.create(sources(trace))
     before = trace.db.execute("SELECT COUNT(*) FROM cm_objects").fetchone()[0]
     original = api.investigations._save

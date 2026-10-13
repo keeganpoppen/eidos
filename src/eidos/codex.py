@@ -1,15 +1,20 @@
 from __future__ import annotations
 
 from collections import deque
+from dataclasses import dataclass
+import hashlib
 import json
 import os
 from pathlib import Path
 import queue
+import shutil
 import subprocess
+import sys
 import threading
 import time
+import tomllib
 import uuid
-from typing import Any, Mapping, Sequence
+from typing import Any, Callable, Mapping, Sequence
 
 from .trace import TraceStore
 
@@ -22,6 +27,223 @@ class AppServerRPCError(RuntimeError):
 
 class AppServerClosed(RuntimeError):
     pass
+
+
+class NativeExecutionProfileError(RuntimeError):
+    """Configuration cannot be admitted before an owned native process starts."""
+
+
+def _profile_fingerprint(path: Path) -> str:
+    """Include absence and directory entries, without reading auth or history."""
+    if any(parent.is_symlink() for parent in (path, *path.parents)):
+        raise NativeExecutionProfileError("native profile source is a symlink")
+    if not path.exists():
+        return "absent"
+    if path.is_dir():
+        payload = json.dumps(sorted(child.name for child in path.iterdir())).encode()
+        return "directory:" + hashlib.sha256(payload).hexdigest()
+    if not path.is_file():
+        raise NativeExecutionProfileError("native profile source is not a regular file")
+    if path.suffix in {".toml", ".json"} and path.stat().st_size > 1_048_576:
+        raise NativeExecutionProfileError("native config source exceeds the admission size limit")
+    return "file:" + hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+@dataclass(frozen=True)
+class NativeLaunch:
+    command: tuple[str, ...]
+    env: Mapping[str, str]
+    evidence: Mapping[str, Any]
+    _sources: tuple[tuple[Path, str], ...]
+
+    @property
+    def live_admitted(self) -> bool:
+        # This version intentionally has no opt-out for unresolved cloud policy.
+        return False
+
+    def check_unchanged(self) -> None:
+        """Detect intervening edits; not an atomic filesystem/config snapshot."""
+        for path, expected in self._sources:
+            if _profile_fingerprint(path) != expected:
+                raise NativeExecutionProfileError("native profile changed after admission; launch refused")
+
+    def require_live_admission(self) -> None:
+        self.check_unchanged()
+        if not self.live_admitted:
+            raise NativeExecutionProfileError(
+                "account-backed cloud configuration may refresh during native startup; "
+                "no complete pre-launch admission is established"
+            )
+
+
+class NativeExecutionProfile:
+    """Versioned, conservative local configuration admission for Codex 0.154.0.
+
+    This constrains enumerated local startup sources before Popen. It is not an
+    OS boundary, a complete model context manifest, or attestation of remotely
+    refreshed cloud defaults. Existing subscription authentication stays in its
+    original location; this code never reads or copies credential files.
+    """
+
+    VERSION = "nema-native-profile/1"
+    BINARY_SHA256 = "9b7c1c7abdc26fc3c4f47c77656a8e9121def5483dbae830ef1ee561758448a9"
+    DISABLED_FEATURES = (
+        "apps", "plugins", "remote_plugin", "hooks", "shell_tool", "shell_snapshot",
+        "multi_agent", "multi_agent_v2", "memories", "goals", "browser_use",
+        "browser_use_external", "computer_use", "in_app_browser", "in_app_local_automation",
+        "code_mode", "code_mode_host", "code_mode_prewarm", "skill_mcp_dependency_install",
+        "skill_search", "workspace_dependencies", "image_generation", "sleep_tool",
+    )
+    # Deliberately narrow. Unknown settings are not copied into a new home or
+    # presumed inert merely because a native parser accepts them.
+    ADMITTED_KEYS = frozenset({
+        "model", "model_provider", "model_reasoning_effort", "model_reasoning_summary",
+        "model_verbosity", "personality", "service_tier", "approval_policy", "sandbox_mode",
+        "web_search", "features", "mcp_servers", "projects", "cli_auth_credentials_store",
+        "forced_login_method", "forced_chatgpt_workspace_id", "history", "tui", "hide_agent_reasoning",
+        "show_raw_agent_reasoning", "suppress_unstable_features_warning", "check_for_update_on_startup",
+        "analytics", "feedback", "notice", "windows_wsl_setup_acknowledged",
+    })
+
+    def __init__(
+        self,
+        codex_binary: str = "codex",
+        *,
+        env: Mapping[str, str] | None = None,
+        system_root: str | Path = "/etc/codex",
+        expected_binary_sha256: str = BINARY_SHA256,
+    ) -> None:
+        self.codex_binary = codex_binary
+        self._ambient_env = dict(os.environ if env is None else env)
+        self.system_root = Path(system_root)
+        self.expected_binary_sha256 = expected_binary_sha256
+
+    @staticmethod
+    def check_account(response: Mapping[str, Any]) -> None:
+        account = response.get("account")
+        if (
+            not isinstance(account, dict)
+            or account.get("type") != "chatgpt"
+            or response.get("requiresOpenaiAuth") is not True
+        ):
+            raise NativeExecutionProfileError("native specialist requires existing ChatGPT subscription authentication")
+
+    def prepare(self, cwd: str | Path) -> NativeLaunch:
+        if sys.platform != "linux":
+            raise NativeExecutionProfileError("native execution profile is verified only for Linux")
+        directory = Path(cwd).absolute()
+        if not directory.is_dir() or directory.is_symlink():
+            raise NativeExecutionProfileError("native profile requires an existing nonsymlink working directory")
+        raw_home = self._ambient_env.get("HOME")
+        if not raw_home or not Path(raw_home).is_absolute():
+            raise NativeExecutionProfileError("native profile requires an explicit absolute HOME")
+        home = Path(raw_home)
+        codex_home = Path(self._ambient_env.get("CODEX_HOME", str(home / ".codex")))
+        if not codex_home.is_absolute():
+            raise NativeExecutionProfileError("native profile requires an absolute CODEX_HOME")
+        executable = shutil.which(self.codex_binary, path=self._ambient_env.get("PATH", "/usr/bin:/bin"))
+        if executable is None:
+            raise NativeExecutionProfileError("native executable is unavailable")
+        binary = Path(executable).resolve()
+        if hashlib.sha256(binary.read_bytes()).hexdigest() != self.expected_binary_sha256:
+            raise NativeExecutionProfileError("native binary has no reviewed execution profile")
+
+        configs = [self.system_root / "config.toml", codex_home / "config.toml"]
+        # Include all ancestors, even sources native trust/project discovery
+        # currently skips. A temporary cwd does not remove ancestor config.
+        configs.extend(parent / ".codex" / "config.toml" for parent in (directory, *directory.parents))
+        forbidden = [
+            self.system_root / "managed_config.toml", self.system_root / "requirements.toml",
+            codex_home / "managed_config.toml", codex_home / "requirements.toml",
+            codex_home / "cloud-config-bundle-cache.json",
+        ]
+        sources: dict[Path, str] = {}
+        roles: dict[Path, str] = {}
+        for path in [binary, *configs, *forbidden]:
+            sources[path] = _profile_fingerprint(path)
+            roles[path] = (
+                "binary" if path == binary else
+                "managed-source" if path in forbidden else
+                "system-config" if path == self.system_root / "config.toml" else
+                "user-config" if path == codex_home / "config.toml" else "ancestor-config"
+            )
+            if path != binary:
+                sources[path.parent] = _profile_fingerprint(path.parent)
+                roles[path.parent] = "source-directory"
+        # Reject parent symlinks too; this does not defeat concurrent replacement
+        # after the final check and is intentionally not called isolation.
+        for base in (directory, home, codex_home, self.system_root):
+            if any(parent.is_symlink() for parent in (base, *base.parents)):
+                raise NativeExecutionProfileError("native profile path traverses a symlink")
+        for path in forbidden:
+            if sources[path] != "absent":
+                raise NativeExecutionProfileError("native managed/cloud configuration requires separate admission")
+
+        mcp_names: set[str] = set()
+        for path in dict.fromkeys(configs):
+            if sources[path] == "absent":
+                continue
+            if not path.is_file() or path.stat().st_size > 1_048_576:
+                raise NativeExecutionProfileError("native config source is not an admissible small file")
+            try:
+                raw = path.read_bytes()
+                if "file:" + hashlib.sha256(raw).hexdigest() != sources[path]:
+                    raise NativeExecutionProfileError("native config changed during admission")
+                config = tomllib.loads(raw.decode("utf-8"))
+            except (OSError, UnicodeError, tomllib.TOMLDecodeError) as exc:
+                raise NativeExecutionProfileError("native config source could not be parsed") from exc
+            if config.keys() - self.ADMITTED_KEYS:
+                raise NativeExecutionProfileError("native configuration contains unreviewed settings")
+            if config.get("model_provider", "openai") != "openai":
+                raise NativeExecutionProfileError("native specialist refuses a custom or paid API provider")
+            if config.get("forced_login_method", "chatgpt") != "chatgpt":
+                raise NativeExecutionProfileError("native specialist refuses API authentication configuration")
+            features = config.get("features", {})
+            if not isinstance(features, dict) or any(
+                name not in {*self.DISABLED_FEATURES, "skip_host_skill_discovery"}
+                or not isinstance(value, bool) for name, value in features.items()
+            ):
+                raise NativeExecutionProfileError("native feature configuration requires review")
+            servers = config.get("mcp_servers", {})
+            if not isinstance(servers, dict) or any(not isinstance(value, dict) for value in servers.values()):
+                raise NativeExecutionProfileError("native MCP declarations are malformed")
+            # The native dotted override parser does not safely address every
+            # arbitrary TOML key. Restrict identities to its tested bare keys.
+            for name in servers:
+                if not name or any(char not in "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-" for char in name):
+                    raise NativeExecutionProfileError("native MCP identity cannot be safely overridden")
+                mcp_names.add(name)
+
+        overrides = [
+            'model_provider="openai"', 'forced_login_method="chatgpt"',
+            'approval_policy="never"', 'sandbox_mode="read-only"', 'web_search="disabled"',
+            'analytics.enabled=false', 'feedback.enabled=false', 'check_for_update_on_startup=false',
+        ]
+        overrides.extend(f"features.{name}=false" for name in self.DISABLED_FEATURES)
+        overrides.append("features.skip_host_skill_discovery=true")
+        overrides.extend(f"mcp_servers.{name}.enabled=false" for name in sorted(mcp_names))
+        command = (str(binary), "app-server", "--listen", "stdio://", "--strict-config",
+                   *(part for override in overrides for part in ("-c", override)))
+        env = {"HOME": str(home), "CODEX_HOME": str(codex_home), "PATH": "/usr/bin:/bin", "LANG": "C.UTF-8"}
+        # Do not forward API keys, provider endpoints, code-mode hosts, proxy
+        # hooks, preload libraries, or ambient configuration selector variables.
+        evidence = {
+            "version": self.VERSION, "binarySha256": self.expected_binary_sha256,
+            "completeIsolation": False, "localMcpStartupSuppression": True,
+            "cloudConfiguration": "unverified-live-launch-refused",
+            "liveAdmitted": False,
+            "credentialHandling": "existing-location-no-read-no-copy",
+            "disabledMcpCount": len(mcp_names),
+            "sourceFingerprints": [
+                {"role": roles[path], "pathId": hashlib.sha256(str(path).encode()).hexdigest(),
+                 "fingerprint": fingerprint} for path, fingerprint in sources.items()
+            ],
+            "limitations": ["cloud-refresh", "filesystem-check-to-launch-race", "host-read-visibility",
+                            "native-auth-and-state-writes", "provider-context", "descendant-processes"],
+        }
+        launch = NativeLaunch(command, env, evidence, tuple(sources.items()))
+        launch.check_unchanged()
+        return launch
 
 
 class AppServerClient:
@@ -40,11 +262,15 @@ class AppServerClient:
         cwd: str | Path | None = None,
         env: Mapping[str, str] | None = None,
         source: str = "codex-app-server",
+        inherit_env: bool = True,
+        launch_guard: Callable[[], None] | None = None,
     ) -> None:
         self.command = tuple(command)
         self.trace = trace
         self.cwd = str(cwd) if cwd is not None else None
         self.env = dict(env) if env is not None else None
+        self.inherit_env = inherit_env
+        self.launch_guard = launch_guard
         self.source = f"{source}/{uuid.uuid4().hex[:12]}"
         self.process: subprocess.Popen[str] | None = None
         self._next_id = 1
@@ -69,9 +295,11 @@ class AppServerClient:
     def _start(self) -> "AppServerClient":
         if self.process is not None:
             return self
-        env = os.environ.copy()
+        env = os.environ.copy() if self.inherit_env else {}
         if self.env is not None:
             env.update(self.env)
+        if self.launch_guard is not None:
+            self.launch_guard()
         self.process = subprocess.Popen(
             list(self.command),
             cwd=self.cwd,

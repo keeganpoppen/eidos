@@ -4,14 +4,24 @@
   import WorkContent from './WorkContent.svelte';
   import EvidenceRecord from './EvidenceRecord.svelte';
   import LineDiff from './LineDiff.svelte';
+  import InquirySurface from './InquirySurface.svelte';
+  import ImprovementReview from './ImprovementReview.svelte';
+  import { makeReflectionFixture } from './reflection-fixture';
   import { contentBlocks } from './semantic';
-  import { applyArrangement, compositionKey, contextText, emptyComposition, readComposition, resolveAttention, resolveTarget, artifacts, sameArrangement, undoArrangement } from './comparison';
+  import { applyArrangement, compositionKey, compileAttentionRequest, contextText, emptyComposition, evidenceChain, matchesExperiment, readComposition, resolveAttention, resolveTarget, artifacts, outputEvidence, sameArrangement, undoArrangement, validateEvidenceChain } from './comparison';
   import type { ApertureTarget, Arrangement } from './comparison';
-  import type { Investigation, InvestigationContext, ContextRecord, InvestigationArtifact } from './types';
+  import type { Investigation, InvestigationContext, ContextRecord, InvestigationArtifact, EvidenceSelection } from './types';
 
-  let { open = $bindable(false), initialId = '', requestId = 0 }: { open: boolean; initialId?: string; requestId?: number } = $props();
+  let { open = $bindable(false), initialId = '', requestId = 0, requestIntent = 'comparison', selections = [] }: { open: boolean; initialId?: string; requestId?: number; requestIntent?: 'comparison' | 'evidence-chain'; selections?: EvidenceSelection[] } = $props();
   let composition = $state(emptyComposition());
-  let investigations = $state<Investigation[]>([]);
+  let savedInvestigations = $state<Investigation[]>([]);
+  let fixtureStage = $state<'pending' | 'supplied' | null>(null);
+  const fixture = $derived(fixtureStage ? makeReflectionFixture(fixtureStage) : null);
+  const investigations = $derived([...savedInvestigations, ...(fixture?.investigations ?? [])]);
+  let attentionRequest = $state('');
+  let intentError = $state('');
+  let reviewBase = $state('');
+  let previewVersion = $state<string | null>(null);
   let draft = $state<Arrangement>({ left: { investigationId: '', contextId: '' }, right: { investigationId: '', contextId: '' }, lens: 'result', layout: 'beside' });
   let editing = $state(false);
   let reviewing = $state(false);
@@ -36,6 +46,9 @@
   const support = $derived(focusedBlock?.citations ?? (composition.focus?.seq ? [composition.focus.seq] : []));
   const focusedRecord = $derived(resolveAttention(investigations, composition.focus, focusedBlock?.citations).record);
   const canReview = $derived(!!resolveTarget(investigations, draft.left).context && !!resolveTarget(investigations, draft.right).context && !sameArrangement(arranged, draft));
+  const inquirySubjects = $derived(investigations.filter((item) => item.continuation?.inquiry));
+  const activeSubject = $derived(investigations.find((item) => item.id === draft.left.investigationId && item.continuation?.inquiry) ?? inquirySubjects[0]);
+  const activeExperiment = $derived(arranged && fixture && matchesExperiment(arranged, fixture.experiment) ? fixture.experiment : null);
   const sides = $derived([
     { side: 'left' as const, label: 'A / Baseline', ...left },
     { side: 'right' as const, label: 'B / Competing reading', ...right }
@@ -45,8 +58,14 @@
     if (!ref) return 'No aperture';
     const { investigation, context, artifact } = resolveTarget(investigations, ref);
     if (!investigation || !context) return `Unavailable · ${ref.investigationId}`;
-    const version = ref.artifactId ? ` · ${artifact?.kind === 'eidos-evidence-review' ? 'answer + review receipt' : 'native answer'} ${ref.artifactId.slice(-12)}` : '';
-    return `${investigation.title} · revision ${investigation.contexts.indexOf(context) + 1}${version}`;
+    const version = ref.artifactId ? ` · ${artifactLabel(investigation, artifact)} ${ref.artifactId.slice(-12)}` : '';
+    const revision = investigation.contexts.indexOf(context);
+    return `${investigation.title} · ${revision < 0 ? 'separately offered context' : `revision ${revision + 1}`}${version}`;
+  }
+
+  function artifactLabel(investigation: Investigation | undefined, artifact: InvestigationArtifact | undefined): string {
+    if (investigation?.id.startsWith('fixture:')) return artifact?.kind === 'eidos-evidence-review' ? 'synthetic Eidos receipt' : artifact?.kind === 'synthetic-counterfactual' ? 'synthetic counterfactual' : 'synthetic model-output example';
+    return outputEvidence(artifact);
   }
 
   function contextFor(item: Investigation): string {
@@ -76,13 +95,45 @@
 
   function beginEdit(seed = '') {
     if (arranged) draft = structuredClone($state.snapshot(arranged));
-    if (seed) bindTarget('left', seed);
+    if (seed) { freeComparison(); bindTarget('left', seed); }
     if (!draft.left.investigationId && investigations[0]) bindTarget('left', investigations[0].id);
     if (!draft.right.investigationId) {
       const other = investigations.find((i) => i.id !== draft.left.investigationId) ?? investigations[0];
       if (other) bindTarget('right', other.id);
     }
     editing = true; reviewing = false; receipt = '';
+  }
+
+  function freeComparison() {
+    draft = { left: draft.left, right: draft.right, lens: draft.lens, layout: draft.layout };
+    reviewing = false; intentError = '';
+  }
+
+  function reviewDraft() {
+    reviewBase = JSON.stringify(arranged);
+    reviewing = true;
+  }
+
+  function stageIntent(intent: 'evidence-chain' | 'alternative-review', investigationId = activeSubject?.id) {
+    attentionRequest = JSON.stringify({ version: 1, intent, ...(intent === 'evidence-chain' ? { investigationId } : { experimentId: fixture?.experiment.id }) }, null, 2);
+    previewRequest();
+  }
+
+  function previewRequest() {
+    try {
+      draft = compileAttentionRequest(JSON.parse(attentionRequest), investigations, fixture ? [fixture.experiment] : []);
+      intentError = ''; editing = true; reviewDraft(); receipt = '';
+    } catch (cause) { intentError = cause instanceof Error ? cause.message : String(cause); }
+  }
+
+  async function openFixture(stage: 'pending' | 'supplied' = 'pending') {
+    fixtureStage = stage;
+    await tick();
+    stageIntent('evidence-chain', fixture!.inquiry.baseline.investigationId);
+  }
+
+  function updateInvestigation(value: Investigation) {
+    savedInvestigations = savedInvestigations.map((item) => item.id === value.id ? value : item);
   }
 
   async function refresh() {
@@ -93,7 +144,7 @@
       const result = await response.json();
       if (!response.ok) throw new Error(result.error ?? 'Could not load saved investigations.');
       if (disposed) return;
-      investigations = result.investigations;
+      savedInvestigations = result.investigations;
       error = '';
       if (!arranged && !draft.left.investigationId) beginEdit(initialId);
     } catch (cause) {
@@ -103,6 +154,10 @@
 
   async function apply() {
     if (!canReview) return;
+    if (!reviewing || reviewBase !== JSON.stringify(arranged)) { intentError = 'The arrangement changed after review. Review this proposal again.'; reviewing = false; return; }
+    const failure = validateEvidenceChain(investigations, draft);
+    if (failure) { intentError = failure; return; }
+    if (draft.experimentId && (!fixture || !matchesExperiment(draft, fixture.experiment))) { intentError = 'The experiment requires its exact baseline and alternative. Preview the named alternative again.'; return; }
     composition = applyArrangement($state.snapshot(composition), $state.snapshot(draft));
     editing = false; reviewing = false;
     recordPage = { left: 0, right: 0 };
@@ -157,6 +212,8 @@
   onMount(() => {
     try {
       composition = readComposition(localStorage.getItem(compositionKey));
+      const stage = localStorage.getItem('nema.reflection-fixture.v1');
+      fixtureStage = stage === 'pending' || stage === 'supplied' ? stage : null;
       open = open || composition.open;
     } catch { storageError = true; }
     editing = !composition.arrangement;
@@ -170,10 +227,12 @@
     if (!ready) return;
     try { localStorage.setItem(compositionKey, JSON.stringify({ ...composition, open })); storageError = false; }
     catch { storageError = true; }
+    try { if (fixtureStage) localStorage.setItem('nema.reflection-fixture.v1', fixtureStage); else localStorage.removeItem('nema.reflection-fixture.v1'); } catch { storageError = true; }
   });
   $effect(() => {
     if (ready && initialId && requestId !== seenRequest && investigations.some((i) => i.id === initialId)) {
-      seenRequest = requestId; beginEdit(initialId);
+      seenRequest = requestId;
+      if (requestIntent === 'evidence-chain') stageIntent('evidence-chain', initialId); else beginEdit(initialId);
     }
   });
 </script>
@@ -182,7 +241,7 @@
 
 <section class="comparison-surface" class:hidden-aperture={!open} data-layout={arranged?.layout ?? 'beside'} aria-label="Reflective comparison">
   <header class="composition-heading">
-    <div><div class="eyebrow">Nema / reflective surface</div><h2>Hold two interpretations together.</h2><p>Keep the evidence close. Change the arrangement without losing the inquiry.</p></div>
+    <div><div class="eyebrow">Nema / reflective surface</div><h2>Keep the question in view.</h2><p>Arrange the evidence, the alternatives, and what could change your mind.</p></div>
     <div class="composition-actions">
       <button bind:this={editButton} onclick={() => beginEdit()}>Edit arrangement</button>
       <button disabled={!composition.undo.length} onclick={undo}>Undo arrangement</button>
@@ -193,6 +252,21 @@
   {#if error}<p class="work-error" role="alert">{error} {investigations.length ? 'Showing last fetched state; it may be stale.' : 'Saved references are retained.'} <button onclick={() => void refresh()}>Retry</button></p>{/if}
   {#if storageError}<p class="work-notice" role="status">Browser storage is unavailable. This arrangement will not survive reload.</p>{/if}
   {#if receipt}<p class="composition-receipt" role="status">{receipt}</p>{/if}
+
+  <section class="attention-intents" aria-label="Organize this investigation">
+    <div class="intent-copy"><span class="eyebrow">Arrange attention</span><p>{previewVersion && activeExperiment ? 'Presentation preview · evidence before interpretation' : 'Choose a relation to bring into view.'}</p></div>
+    <div class="intent-actions">
+      <button id="arrange-evidence-chain" disabled={!activeSubject} onclick={() => stageIntent('evidence-chain')}>Original evidence → request → result</button>
+      <button id="arrange-alternative" disabled={!fixture} onclick={() => stageIntent('alternative-review')}>Compare the named alternative</button>
+    </div>
+    <details class="structured-attention"><summary>Structured attention request</summary><p>Versioned presentation intent. Preview resolves exact saved bindings; it grants no execution authority.</p><label for="arrangement-request">Request JSON</label><textarea id="arrangement-request" bind:value={attentionRequest} rows="5" placeholder={'{"version":1,"intent":"evidence-chain","investigationId":"…"}'}></textarea><button onclick={previewRequest}>Preview attention request</button></details>
+    {#if !fixture}
+      <div class="fixture-entry"><button onclick={() => openFixture()}>Open synthetic inquiry & experiment</button><span>Authored example · no model or live investigation is created.</span></div>
+    {:else}
+      <div class="fixture-entry" data-fixture-stage={fixtureStage}><strong>Synthetic inquiry & experiment</strong><span>Explicit fixture · {fixtureStage} stage · no native model run.</span><button onclick={() => { fixtureStage = null; receipt = 'Fixture closed. Saved fixture bindings remain unresolved until it is reopened.'; }}>Close synthetic example</button></div>
+    {/if}
+    {#if intentError}<p class="work-error" role="alert">{intentError}</p>{/if}
+  </section>
 
   {#if editing}
     <section class="arrangement-editor" aria-label="Arrange this surface">
@@ -222,7 +296,7 @@
                   <option value="">No result version bound</option>
                   {#if draft[position].artifactId && !artifacts(item).some((artifact) => artifact.id === draft[position].artifactId)}<option value={draft[position].artifactId}>Unavailable saved artifact</option>{/if}
                   {#each artifacts(item).filter((artifact) => artifact.contextId === draft[position].contextId) as artifact (artifact.id)}
-                    <option value={artifact.id}>{artifact.kind === 'eidos-evidence-review' ? 'Native answer + local review receipt' : 'Original native answer'} · {artifact.id.slice(-12)}</option>
+                    <option value={artifact.id}>{artifactLabel(item, artifact)} · {artifact.id.slice(-12)}</option>
                   {/each}
                 </select>
               {/if}
@@ -230,16 +304,19 @@
           {/each}
         </div>
         <div class="arrangement-options">
-          <label>Lens <select id="compare-lens" value={draft.lens} onchange={(event) => setLens(event.currentTarget.value as Arrangement['lens'])}><option value="result">Returned work</option><option value="context">Context & evidence</option></select></label>
+          {#if draft.intent}<button onclick={freeComparison}>Use a free comparison</button>{/if}
+          <label>Lens <select id="compare-lens" disabled={draft.intent === 'evidence-chain'} value={draft.lens} onchange={(event) => setLens(event.currentTarget.value as Arrangement['lens'])}><option value="result">{draft.intent === 'evidence-chain' ? 'Evidence, question & receipt' : 'Returned work'}</option><option value="context">Context & evidence</option></select></label>
           <label>Placement <select id="compare-layout" bind:value={draft.layout}><option value="beside">Side by side</option><option value="stacked">Stacked</option></select></label>
-          <button class="composition-primary" disabled={!canReview} onclick={() => reviewing = true}>Review arrangement</button>
+          <button class="composition-primary" disabled={!canReview} onclick={reviewDraft}>Review arrangement</button>
           {#if arranged}<button onclick={cancelEdit}>Cancel changes</button>{/if}
         </div>
         {#if reviewing}
           <div class="arrangement-review" aria-label="Review arrangement change">
             <h3>Presentation change</h3>
+            {#if draft.intent}<p class="intent-rationale">{draft.intent === 'evidence-chain' ? 'Show the original evidence for this conclusion, the additional evidence requested, and the result after it was supplied.' : 'Compare this interpretation with the named alternative. Keep context changes, evidential support, and evaluation together.'}</p>{/if}
             <div class="proposal-lines"><p><span>−</span> {arranged ? `${label(arranged.left)} / ${label(arranged.right)} · ${arranged.lens} · ${arranged.layout}` : 'No comparison on this surface'}</p><p><span>+</span> {label(draft.left)} / {label(draft.right)} · {draft.lens} · {draft.layout}</p></div>
             <p>Retain {composition.focus ? `focus on ${label(composition.focus)}` : 'the current investigation and source focus'}. Applies only to this browser’s arrangement; no task is launched or conclusion adopted.</p>
+            {#if draft.inquiry}<p class="object-ref">Inquiry {draft.inquiry.inquiryId}<br />Offered input {draft.inquiry.evidenceContextId ?? 'not yet bound'}<br />Response {draft.inquiry.responseId ?? 'pending'}</p>{/if}
             <button class="composition-primary" onclick={apply}>Apply arrangement</button>
             <button onclick={cancelEdit}>Cancel changes</button>
           </div>
@@ -249,7 +326,18 @@
   {/if}
 
   {#if arranged}
-    <div class="composition-meta"><span>Lens / {arranged.lens === 'result' ? 'returned work' : 'context & evidence'} · v1</span><span>Saved references · browser arrangement · {arranged.layout === 'beside' ? 'side by side' : 'stacked'}</span></div>
+    <div class="composition-meta"><span>Lens / {arranged.intent === 'evidence-chain' ? 'evidence, question & receipt' : arranged.lens === 'result' ? 'returned work' : 'context & evidence'} · v1</span><span>Saved references · browser arrangement · {arranged.layout === 'beside' ? 'side by side' : 'stacked'}</span></div>
+    {#if arranged.intent === 'evidence-chain'}
+      <InquirySurface arrangement={arranged} {investigations} {selections} fixtureInquiry={fixture?.inquiry} focus={composition.focus} onBlock={focusBlock} onRecord={focusRecord} onUpdate={updateInvestigation} onRebind={() => stageIntent('evidence-chain', arranged.left.investigationId)} onPreview={() => openFixture('supplied')} />
+    {:else}
+    {#if arranged.experimentId && !activeExperiment}<p class="work-notice">The named experiment cannot be resolved with these exact bindings. Its evaluation and adoption preview are unavailable.</p>{/if}
+    {#if activeExperiment}
+      <header class="experiment-heading" data-experiment-id={activeExperiment.id}><span class="eyebrow">Named alternative / synthetic counterfactual</span><h3>{activeExperiment.name}</h3><p>{activeExperiment.change}</p><p class="work-muted">Original and counterfactual artifacts have separate identities. No native conversation or workspace fork was executed.</p></header>
+    {/if}
+    {#if activeExperiment && fixture && previewVersion === fixture.improvement.afterVersion}
+      {@const chain = evidenceChain(fixture.investigations[0])}
+      {#if chain}<section data-presentation-preview="evidence-first" aria-label="Evidence first presentation preview"><p class="preview-boundary">Presentation preview · bring the evidence chain before the competing interpretations</p><InquirySurface arrangement={chain} {investigations} {selections} fixtureInquiry={fixture.inquiry} focus={composition.focus} onBlock={focusBlock} onRecord={focusRecord} onUpdate={updateInvestigation} onRebind={() => stageIntent('evidence-chain', chain.left.investigationId)} onPreview={() => openFixture('supplied')} /></section>{/if}
+    {/if}
     <div class="comparison-apertures">
       {#each sides as item (item.side)}
         <article class="comparison-aperture" data-aperture={item.side} data-investigation-id={arranged[item.side].investigationId} data-context-id={arranged[item.side].contextId} data-artifact-id={arranged[item.side].artifactId ?? ''} aria-label={item.label}>
@@ -274,7 +362,7 @@
             <details class="aperture-details"><summary>Exact input & capture limits</summary><p>{String(item.context.coverage)}</p><pre>{item.context.projectedPrompt}</pre></details>
           {:else if item.artifact}
             {@const artifact = item.artifact}
-            <p class="aperture-caption">{artifact.kind === 'eidos-evidence-review' ? 'Native answer + local review receipt' : 'Original native answer'} · citations establish supplied input, not proof</p>
+            <p class="aperture-caption">{artifactLabel(item.investigation, artifact)} · citations establish supplied input, not proof</p>
             <WorkContent source={artifact.text} focusedBlockId={composition.focus?.artifactId === artifact.id ? composition.focus.blockId : undefined} onFocus={(block) => focusBlock(item.investigation!, artifact, block)} />
             {#if artifact.unsupportedCitations.length}<p class="work-notice">Outside the supplied packet: {artifact.unsupportedCitations.map((seq) => `[evidence:${seq}]`).join(', ')}. Support is unverified.</p>{/if}
             {#if item.investigation.adoption?.artifactId === artifact.id}<p class="comparison-adoption">Conclusion {item.investigation.adoption.decision === 'adopt' ? 'adopted' : 'rejected'} · {item.investigation.adoption.note || 'No note recorded.'}</p>{/if}
@@ -286,8 +374,8 @@
             {#if item.investigation.status === 'unknown'}<p class="work-notice">Missing output does not establish that nothing ran. Recovery checks recorded evidence and never resends this attempt.</p>{/if}
 
           {/if}
-          {#if item.investigation?.continuation}
-            <div class="pending-question"><span class="aperture-caption">Owner-started local evidence review · {item.investigation.continuation.status}</span><Markdown source={item.investigation.continuation.question} /><p class="work-muted">This is a local disclosure decision, not a new Codex question. Open this saved investigation in the Investigation view to inspect its decisions or respond.</p></div>
+          {#if item.investigation?.continuation && !item.investigation.id.startsWith('fixture:')}
+            <div class="pending-question"><span class="aperture-caption">{item.investigation.continuation.origin === 'native-specialist' ? 'Specialist evidence inquiry' : 'Owner-started local evidence review'} · {item.investigation.continuation.status}</span><Markdown source={item.investigation.continuation.question} /><p class="work-muted">{item.investigation.continuation.origin === 'native-specialist' ? 'The specialist requested evidence in a completed native turn. A response does not resume a hidden native stack.' : 'This is an owner-started local disclosure decision.'} Open this saved investigation in the Investigation view to inspect its decisions or respond.</p></div>
           {/if}
         </article>
       {/each}
@@ -300,6 +388,12 @@
         <p class="work-muted">{arranged.lens === 'context' ? 'Hashes expose changed frozen records at the same address. Raw evidence remains in the evidence aperture.' : 'Text differences do not establish which interpretation is correct.'}</p>
       {:else}<p>Both saved targets need comparable {arranged.lens === 'result' ? 'returned artifacts in these revisions' : 'contexts'}.</p>{/if}
     </details>
+    {#if activeExperiment}
+      <details class="comparison-diff" open><summary>Context changed / exact inputs and evidence <span>A → B</span></summary><LineDiff before={contextText(left.context)} after={contextText(right.context)} /><p class="work-muted">This authored counterfactual uses later evidence. It is a retrospective test case, not a blinded replay.</p></details>
+      <section class="experiment-evaluation" aria-label="What the evaluation established"><span class="eyebrow">Evaluation / {activeExperiment.evaluation.id}</span><h3>What the comparison establishes</h3><p>{activeExperiment.evaluation.method}</p><div class="evaluation-columns"><div><h4>Established in this fixture</h4><ul>{#each activeExperiment.evaluation.established as finding}<li>{finding}</li>{/each}</ul></div><div><h4>Still unknown</h4><ul>{#each activeExperiment.evaluation.limitations as limit}<li>{limit}</li>{/each}</ul></div></div></section>
+      {#if fixture}<ImprovementReview experiment={activeExperiment} improvement={fixture.improvement} onchange={(version) => previewVersion = version} />{/if}
+    {/if}
+    {/if}
   {/if}
 
   <section class="focus-evidence" data-investigation-id={composition.focus?.investigationId} data-context-id={composition.focus?.contextId} aria-label="Focused original evidence">
@@ -329,3 +423,27 @@
     {:else}<p>Select “Inspect support” beside a returned passage, or inspect a frozen context record. Evidence opens here without replacing either aperture.</p>{/if}
   </section>
 </section>
+
+<style>
+  .attention-intents { border-block:1px solid var(--line); padding:16px 0; margin-bottom:18px; }
+  .intent-copy p { font-size:15px; margin:7px 0 12px; }
+  .intent-actions { display:flex; gap:10px; flex-wrap:wrap; }
+  .fixture-entry { display:flex; align-items:center; flex-wrap:wrap; gap:10px; font-size:13px; color:var(--muted); margin-top:14px; }
+  .fixture-entry strong { color:var(--accent); font-weight:500; }
+  .structured-attention { margin-top:12px; }
+  .structured-attention p { font-size:14px; color:var(--muted); }
+  .structured-attention label { display:block; font-size:13px; }
+  textarea { display:block; width:100%; box-sizing:border-box; max-width:760px; font:13px/1.5 monospace; margin:8px 0; padding:10px; }
+  .intent-rationale { font:20px/1.4 Georgia,serif; max-width:850px; }
+  .experiment-heading { padding:20px 0; }
+  .preview-boundary { padding:12px; border-left:3px solid var(--accent); background:var(--selection); font-size:14px; }
+  .experiment-heading h3 { font-size:28px; font-weight:500; letter-spacing:-.035em; margin:10px 0; }
+  .experiment-heading p { font-size:15px; line-height:1.5; max-width:850px; }
+  .experiment-evaluation { padding:24px 0; border-bottom:1px solid var(--line); }
+  .experiment-evaluation h3 { font-size:24px; font-weight:500; margin:10px 0; }
+  .experiment-evaluation p,.experiment-evaluation li { font-size:15px; line-height:1.6; }
+  .evaluation-columns { display:grid; grid-template-columns:1fr 1fr; gap:30px; }
+  .evaluation-columns h4 { font-size:16px; font-weight:500; }
+  .evaluation-columns ul { padding-left:20px; }
+  @media(max-width:760px) { .evaluation-columns { grid-template-columns:1fr; gap:10px; } }
+</style>

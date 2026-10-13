@@ -8,6 +8,7 @@
   import ThreadItemCard from '#lib/ThreadItem.svelte';
   import type {
     EvidenceSelection,
+    InvestigationCapabilities,
     ObserverJob,
     ObserverJobEvent,
     SemanticNode,
@@ -18,11 +19,15 @@
   } from '#lib/types.ts';
 
   let threads = $state<ThreadSummary[]>([]);
+  let capabilities = $state<InvestigationCapabilities | null>(null);
+  const liveAvailable = $derived(capabilities?.legacyLiveActions?.available === true);
+  const liveReason = $derived(capabilities?.legacyLiveActions?.reason ?? 'Live model actions require separate resource authorization.');
   let selections = $state<EvidenceSelection[]>([]);
   let workMode = $state(true);
   let comparisonOpen = $state(false);
   let comparisonSeed = $state('');
   let comparisonRequest = $state(0);
+  let comparisonIntent = $state<'comparison' | 'evidence-chain'>('comparison');
   let historyStart = $state(0);
   const historyWindow = 40;
   let recordQuery = $state('');
@@ -134,6 +139,7 @@
   }
 
   async function newThread() {
+    if (!liveAvailable) return;
     startingThread = true;
     error = '';
     try {
@@ -157,7 +163,7 @@
 
   async function send() {
     const text = composer.trim();
-    if (!selectedThread || !text || sending) return;
+    if (!liveAvailable || !selectedThread || !text || sending) return;
     sending = true;
     error = '';
     composer = '';
@@ -238,7 +244,7 @@
   }
 
   async function runObserver() {
-    if (!selectedThread || observerBusy) return;
+    if (!liveAvailable || !selectedThread || observerBusy) return;
     observerBusy = true;
     observerProgress = 'planning';
     observerEvents = [];
@@ -360,8 +366,9 @@
     document.querySelector('.history-navigation')?.scrollIntoView({ block: 'start' });
   }
 
-  function compareInvestigation(id: string) {
+  function compareInvestigation(id: string, intent: 'comparison' | 'evidence-chain' = 'comparison') {
     comparisonSeed = id;
+    comparisonIntent = intent;
     comparisonRequest += 1;
     comparisonOpen = true;
   }
@@ -372,6 +379,7 @@
   }
 
   onMount(() => {
+    void api<InvestigationCapabilities>('/api/investigations/capabilities').then((value) => capabilities = value).catch(() => {});
     try {
       const saved = JSON.parse(localStorage.getItem('nema.source-focus.v1') ?? 'null');
       if (saved && typeof saved.threadId === 'string') {
@@ -424,7 +432,7 @@
 
     <div class="new-thread">
       <input bind:value={cwd} placeholder="cwd (optional)" aria-label="working directory" />
-      <button disabled={startingThread} onclick={newThread}>
+      <button disabled={startingThread || !liveAvailable} title={liveReason} onclick={newThread}>
         {startingThread ? 'starting…' : 'new thread'}
       </button>
     </div>
@@ -444,7 +452,7 @@
     </div>
   </aside>
 
-  <ComparisonSurface bind:open={comparisonOpen} initialId={comparisonSeed} requestId={comparisonRequest} />
+  <ComparisonSurface bind:open={comparisonOpen} initialId={comparisonSeed} requestId={comparisonRequest} requestIntent={comparisonIntent} {selections} />
 
   <div class:hidden-aperture={!workMode || comparisonOpen} class="work-aperture">
     <InvestigationPane bind:selections onSource={returnToSource} onCompare={compareInvestigation} />
@@ -459,6 +467,8 @@
     onSelectNode={selectSemanticNode}
     onSelectRevision={selectRevision}
     onObserve={runObserver}
+    observerAvailable={liveAvailable}
+    observerUnavailableReason={liveReason}
     {observerBusy}
     {observerProgress}
     {observerEvents}
@@ -555,13 +565,13 @@
   <div class="composer-inner">
     <textarea
       bind:value={composer}
-      disabled={!selectedThread || sending}
+      disabled={!selectedThread || sending || !liveAvailable}
       onkeydown={handleComposerKeydown}
       placeholder={selectedThread
         ? 'Message Codex · ⌘↵ / Ctrl↵ to send'
         : 'Select or start a thread first.'}
     ></textarea>
-    <button disabled={!selectedThread || !composer.trim() || sending} onclick={send}>
+    <button disabled={!selectedThread || !composer.trim() || sending || !liveAvailable} title={liveReason} onclick={send}>
       {sending ? 'sending…' : 'send'}
     </button>
   </div>

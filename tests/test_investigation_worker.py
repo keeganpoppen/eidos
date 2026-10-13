@@ -1,13 +1,16 @@
 from __future__ import annotations
 
 import sys
+import subprocess
 import threading
 import time
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
 from eidos.investigation_worker import NativeInvestigationError, NativeInvestigationWorker
+from eidos.codex import NativeExecutionProfileError, NativeLaunch
 from eidos.trace import TraceStore
 
 
@@ -88,14 +91,27 @@ for line in sys.stdin:
             if mode == "stalled-reader":
                 time.sleep(30)
     elif method == "turn/start":
-        if mode == "interactive":
+        if mode in {"interactive", "interactive-duplicate", "interactive-conflict", "interactive-timeout"}:
             waiting = ident
-            send({"id": 900, "method": "item/tool/requestUserInput", "params": {"question": "authorize?"}})
+            request = {"id": 900, "method": "item/tool/requestUserInput", "params": {
+                "threadId": "worker-thread", "turnId": "worker-turn", "itemId": "question-item",
+                "isBlocking": True, "questions": [{"id": "question", "header": "Evidence", "question": "Disclose more?"}],
+            }}
+            send(request)
+            if mode == "interactive-duplicate":
+                send(request)
+            elif mode == "interactive-conflict":
+                request["params"]["questions"][0]["question"] = "Changed question?"
+                send(request)
+            elif mode == "interactive-timeout":
+                send({"id": ident, "result": {"turn": {"id": "worker-turn", "status": "inProgress", "items": []}}})
         else:
             finish(ident)
     elif ident == 900 and waiting is not None:
         assert "error" in msg
-        finish(waiting)
+        if mode != "interactive-timeout":
+            send({"method": "serverRequest/resolved", "params": {"threadId": "worker-thread", "requestId": 900}})
+            finish(waiting)
 '''
 
 
@@ -211,6 +227,107 @@ def test_interactive_request_is_explicitly_rejected_while_turn_rpc_is_pending(tm
     assert artifact["text"]
     rejected = next(record for record in store.records() if record.direction == "client_to_appserver" and record.message.get("id") == 900)
     assert rejected.message["error"]["code"] == -32000
+
+
+def test_duplicate_native_request_is_forwarded_but_refused_only_once(tmp_path, context):
+    store = TraceStore()
+    state = attempt()
+    events = []
+    worker = worker_at(tmp_path, store, "interactive-duplicate")
+    artifact = worker.run(state, context, lambda **fields: state.update(fields), on_event=events.append)
+    assert artifact["text"]
+    assert len([record for record in store.records() if record.direction == "client_to_appserver"
+                and record.message.get("id") == 900]) == 1
+    assert len([event for event in events if event.kind == "request_pending"]) == 1
+    assert len([event for event in events if event.kind == "request_duplicate"]) == 1
+    assert any(event.kind == "request_response_recorded" for event in events)
+    assert any(event.kind == "request_resolved" for event in events)
+    assert all(event.attempt_id == state["id"] and event.context_id == context["id"] for event in events)
+
+
+def test_native_request_timeout_forwards_abandonment_without_claiming_cancellation(tmp_path, context):
+    store = TraceStore()
+    state = attempt(0.3)
+    events = []
+    worker = worker_at(tmp_path, store, "interactive-timeout")
+    with pytest.raises(NativeInvestigationError, match="deadline"):
+        worker.run(state, context, lambda **fields: state.update(fields), on_event=events.append)
+    assert any(event.kind == "request_pending" for event in events)
+    assert any(event.kind == "request_response_recorded" for event in events)
+    assert events[-2].kind == "request_abandoned"
+    assert events[-1].kind == "transport_closed"
+    assert events[-1].terminal_state == "unknown"
+    assert worker.recover(state, context) is None
+
+
+@pytest.mark.parametrize("prepare_failure", [False, True])
+def test_default_profile_refuses_before_process_or_model_start(monkeypatch, context, prepare_failure):
+    store = TraceStore()
+    worker = NativeInvestigationWorker(store)
+    def prepare(cwd):
+        if prepare_failure:
+            raise NativeExecutionProfileError("synthetic inherited configuration refused")
+        return NativeLaunch(("/must/not/start",), {}, {"version": "synthetic-profile", "liveAdmitted": False}, ())
+    worker.execution_profile = SimpleNamespace(VERSION="synthetic-profile", prepare=prepare)
+    monkeypatch.setattr(subprocess, "Popen", lambda *args, **kwargs: pytest.fail("profile refusal must precede Popen"))
+    state, events = attempt(), []
+    with pytest.raises(NativeInvestigationError, match="pre-launch admission refused") as failure:
+        worker.run(state, context, lambda **fields: state.update(fields), on_event=events.append)
+    assert failure.value.status == "failed"
+    assert isinstance(state["source"], str)
+    assert all(record.direction == "internal" for record in store.records())
+    assert any(event.kind == "profile_observed" and event.detail == "refused" for event in events)
+    assert worker.recover(state, context) is None
+
+
+def test_custom_command_is_labeled_trusted_host_without_native_profile(tmp_path, context):
+    store = TraceStore()
+    worker = worker_at(tmp_path, store)
+    artifact, _ = run_worker(worker, attempt(), context)
+    assert artifact["text"]
+    profile = next(record for record in store.records() if record.method == "$native/profile")
+    assert profile.message["params"]["admission"] == "custom-command-trusted-host"
+    assert profile.message["params"]["completeIsolation"] is False
+
+
+@pytest.mark.parametrize("command", [
+    ["codex", "app-server", "--listen", "stdio://"],
+    ["/synthetic/native-binary", "app-server", "--listen", "stdio://"],
+    ["/synthetic/codex", "-c", "features.apps=true", "app-server"],
+    ["/synthetic/renamed-native", "-c", "features.apps=true", "app-server"],
+])
+def test_api_shaped_explicit_native_command_cannot_bypass_prelaunch_profile(monkeypatch, context, command):
+    store = TraceStore()
+    worker = NativeInvestigationWorker(store, command=command)
+    assert worker.execution_profile is not None
+    assert worker.execution_profile.codex_binary == command[0]
+    worker.execution_profile.prepare = lambda cwd: NativeLaunch(
+        tuple(command), {}, {"version": "synthetic-profile", "liveAdmitted": False}, (),
+    )
+    monkeypatch.setattr(subprocess, "Popen", lambda *args, **kwargs: pytest.fail("explicit native command must be gated"))
+    state = attempt()
+    with pytest.raises(NativeInvestigationError, match="pre-launch admission refused"):
+        worker.run(state, context, lambda **fields: state.update(fields))
+    assert all(record.direction == "internal" for record in store.records())
+
+
+def test_api_executable_python_fixture_remains_an_explicit_trusted_host_command():
+    fixture = Path(__file__).parent / "fixtures" / "investigation_appserver.py"
+    worker = NativeInvestigationWorker(TraceStore(), [str(fixture), "app-server", "--listen", "stdio://"])
+    assert worker.execution_profile is None
+
+
+def test_existing_api_default_worker_uses_native_profile():
+    from eidos.api import EidosAPI
+
+    store = TraceStore()
+    api = EidosAPI(store)
+    try:
+        assert api.investigation_worker.execution_profile is not None
+        assert api.investigation_worker.execution_profile.codex_binary == "codex"
+    finally:
+        api.close()
+        store.close()
 
 
 def test_timeout_closes_owned_process_and_retains_uncertain_attempt(tmp_path, context):
@@ -361,6 +478,7 @@ def test_recovery_can_attribute_text_in_terminal_payload_without_item_event(cont
     assert artifact == {
         "text": "Result [evidence:11].", "outputSeqs": [terminal.seq],
         "citations": [11], "unsupportedCitations": [],
+        "executionEvidence": "unverified",
     }
 
 

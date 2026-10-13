@@ -19,3 +19,11 @@ test('refusal and deferral never carry the selected evidence, and storage cannot
   expect(readReviewRequest('{', 'a')).toBeNull();
   expect(readReviewRequest(JSON.stringify({ version: 1, investigationId: 'a', path: 'dispatch', body: { requestId: 'r' } }), 'a')).toBeNull();
 });
+
+test('separate follow-up and cancellation recover their original retry identities', () => {
+  const followup = { version: 1, investigationId: 'work', path: 'continue', body: { requestId: 'admit-a2', continuationId: 'continuation-a1', contextId: 'expanded-a2' } };
+  expect(readReviewRequest(JSON.stringify(followup), 'work')).toEqual(followup);
+  expect(readReviewRequest(JSON.stringify({ ...followup, path: 'inquiries/question-1/cancel' }), 'work')?.body.requestId).toBe('admit-a2');
+  expect(readReviewRequest(JSON.stringify(followup), 'another-work')).toBeNull();
+  expect(readReviewRequest(JSON.stringify({ ...followup, path: 'dispatch' }), 'work')).toBeNull();
+});

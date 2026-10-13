@@ -110,7 +110,7 @@ class FakeLive:
         pass
 
 
-def test_api_create_thread_and_send_message_without_frontend_state():
+def test_legacy_live_actions_require_separate_admission_even_without_frontend_state():
     store = TraceStore()
     api = EidosAPI(store)
     fake = FakeLive()
@@ -122,9 +122,9 @@ def test_api_create_thread_and_send_message_without_frontend_state():
         "/api/threads",
         {},
     )
-    assert status == 201
-    assert payload == {"threadId": "new-thread"}
-    assert fake.started == ["/tmp/project"]
+    assert status == 409
+    assert "separate resource authorization" in payload["error"]
+    assert fake.started == []
 
     status, payload = api.dispatch(
         DummyHandler({"text": "do the thing"}),
@@ -132,9 +132,11 @@ def test_api_create_thread_and_send_message_without_frontend_state():
         "/api/threads/new-thread/messages",
         {},
     )
-    assert status == 202
-    assert payload == {"turnId": "turn-new"}
-    assert fake.sent == [("new-thread", "do the thing")]
+    assert status == 409
+    assert "separate resource authorization" in payload["error"]
+    assert fake.sent == []
+    api.close()
+    store.close()
 
 
 

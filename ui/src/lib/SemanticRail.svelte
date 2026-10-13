@@ -15,6 +15,8 @@
     onSelectRevision,
     onObserve,
     observerBusy = false,
+    observerAvailable = false,
+    observerUnavailableReason = 'Model-backed indexing requires separate authorization.',
     observerProgress = '',
     observerEvents = []
   }: {
@@ -26,6 +28,8 @@
     onSelectRevision: (revision: string) => void;
     onObserve: () => void;
     observerBusy?: boolean;
+    observerAvailable?: boolean;
+    observerUnavailableReason?: string;
     observerProgress?: string;
     observerEvents?: ObserverJobEvent[];
   } = $props();
@@ -116,7 +120,7 @@
   </div>
 
   <div class="observer-actions single">
-    <button class="observe" disabled={observerBusy} onclick={onObserve}>
+    <button class="observe" disabled={observerBusy || !observerAvailable} title={observerUnavailableReason} onclick={onObserve}>
       {observerBusy ? 'working…' : 'rebuild map'}
     </button>
   </div>

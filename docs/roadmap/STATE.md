@@ -6,6 +6,55 @@ The baseline GitHub Actions run `38240774514` completed successfully: pytest and
 
 Refresh this file when implementation claims materially change. Keep historical audit IDs instead of quietly relabelling old evidence as current.
 
+## Round 3 integrated investigation — 2026-10-13
+
+The commit containing this update integrates actual branches A `18f25c1`, B
+`f3d7228`, C `c8b701e`, D `6e491b5` from clean main
+`50d1bc91870b9118a84706606d6a06008dffcdf7`. See the
+[integration report](../evidence/INTEGRATION_ROUND3.md),
+[identity/admission contract](../agents/ROUND3_INTEGRATION.md), and
+[current handoff](../agents/CURRENT_HANDOFF.md). Older audits below retain their
+original scope and are not statements about current native availability.
+
+The actual workbench now connects durable specialist terminal inquiries,
+offer/refuse/defer/cancel, separate source disclosure and recipient incorporation,
+immutable expanded context, explicit A2 admission, preserved original/receipt/result
+artifacts, saved alternative evaluation and durable adoption/rejection/rollback.
+One canonical investigation owns the lifecycle. Original durable pre-send attempt
+and manifest-pin admission is preserved; HTTP retry, recovery, disclosure and
+experiment evaluation never authorize additional native execution.
+
+**Default live native startup is unavailable.** The accepted profile refuses before
+startup because authenticated cloud configuration remains outside verified admission.
+Interactive native replies remain unsupported. The API/UI clearly expose this gate;
+legacy HTTP chat and model-indexing actions cannot bypass it. No fresh native probe,
+subscription model turn or paid API call ran. Earlier no-model authorization grants
+no permission for model turns. Source branch no-model reports remain historical.
+
+Combined verification: **607 Python tests passed, 4 native probes skipped**;
+**38 Bun tests / 193 assertions**, Svelte **0 errors / 0 warnings**, production
+build passed. Fresh/reopened joined synthetic demo reports match with two explicit
+fixture attempts/pins and three exact artifact versions. Actual Chromium acceptance
+covers inquiry/defer/reload/offer/A2/evaluation/adopt/rollback/reject and evidence
+navigation; screenshots were inspected independently at desktop/narrow widths.
+Actual subprocess deaths and cross-process requests test atomic follow-up admission
+and disclosure/incorporation separation. Native review also repaired malformed
+completion envelopes and historical execution classification.
+
+Improvement evidence is bounded: recorded-packet comparison measures record/byte
+changes, not answer quality. C's fixed synthetic annotation suite improves three
+cases and preserves nonregression on all six; unchanged guardrails do not satisfy
+the stricter improvement predicate. No real model reasoning, cost or human speed
+improvement is measured. Decisions activate neither configuration nor authority.
+
+Generic TM remains privileged and can accept arbitrary successor grants from Python
+host callers; new HTTP paths cannot supply grants/holders/executors. Full native
+containment, provider context, account entitlement, resource caps, authenticated
+multiuser isolation and exactly-once external effects remain unproved. One inquiry
+and one follow-up are supported; arrangements are browser-local and server history
+retrieval is not bounded. Next: resolve native admission, then seek separate live
+resource authorization. The synthetic joined workflow is runnable meanwhile.
+
 ## Authorized native preflight follow-up — 2026-10-13
 
 After explicit owner authorization, both no-model probes were rerun against integrated

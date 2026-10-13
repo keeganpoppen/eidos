@@ -1,0 +1,2075 @@
+{
+  "schemaVersion": "nema-native-profile-probe/1",
+  "binarySha256": "9b7c1c7abdc26fc3c4f47c77656a8e9121def5483dbae830ef1ee561758448a9",
+  "classification": "OBSERVED_NO_MODEL_SYNTHETIC",
+  "modelTurns": 0,
+  "allowedMethods": [
+    "config/read",
+    "initialize",
+    "mcpServerStatus/list",
+    "thread/start"
+  ],
+  "cloudConfigSuppression": "UNVERIFIED; account-backed launch refused",
+  "cases": {
+    "inherited": {
+      "initialized": {
+        "userAgent": "eidos/0.154.0 (Arch Linux Unknown; aarch64) unknown (eidos; 0.1.0)",
+        "codexHome": "<probe>/inherited/codex",
+        "platformFamily": "unix",
+        "platformOs": "linux"
+      },
+      "config": {
+        "config": {
+          "model": "nema-no-model",
+          "review_model": null,
+          "model_context_window": null,
+          "model_auto_compact_token_limit": null,
+          "model_auto_compact_token_limit_scope": null,
+          "model_provider": "openai",
+          "approval_policy": "never",
+          "approvals_reviewer": null,
+          "sandbox_mode": "read-only",
+          "sandbox_workspace_write": null,
+          "forced_chatgpt_workspace_id": null,
+          "forced_login_method": "chatgpt",
+          "web_search": "disabled",
+          "tools": null,
+          "instructions": null,
+          "developer_instructions": null,
+          "compact_prompt": null,
+          "model_reasoning_effort": null,
+          "model_reasoning_summary": null,
+          "model_verbosity": null,
+          "service_tier": null,
+          "analytics": {
+            "enabled": false
+          },
+          "apps": null,
+          "browser_use": null,
+          "computer_use": null,
+          "desktop": null,
+          "ghost_snapshot": null,
+          "audio": null,
+          "model_providers": {},
+          "tool_output_token_limit": null,
+          "project_doc_max_bytes": 32768,
+          "log_dir": null,
+          "personality": null,
+          "memories": null,
+          "disable_paste_burst": null,
+          "allow_login_shell": true,
+          "mcp_optional_startup_grace_ms": null,
+          "project_doc_fallback_filenames": [],
+          "allow_symlinked_codex_home": null,
+          "responses_api_metadata": null,
+          "otel": null,
+          "experimental_thread_store_endpoint": null,
+          "experimental_realtime_ws_model": null,
+          "include_apps_instructions": true,
+          "experimental_realtime_webrtc_call_base_url": null,
+          "realtime": null,
+          "experimental_realtime_ws_backend_prompt": null,
+          "shell_environment_policy": {
+            "inherit": null,
+            "ignore_default_excludes": null,
+            "exclude": null,
+            "set": null,
+            "include_only": null,
+            "filters": null,
+            "experimental_use_profile": null
+          },
+          "model_catalog_json": null,
+          "apps_mcp_product_sku": null,
+          "check_for_update_on_startup": false,
+          "cli_auth_credentials_store": "file",
+          "show_raw_agent_reasoning": null,
+          "hide_agent_reasoning": false,
+          "suppress_unstable_features_warning": null,
+          "thread_unload_delay_secs": null,
+          "chatgpt_base_url": "https://chatgpt.com/backend-api/",
+          "oss_provider": null,
+          "include_environment_context": true,
+          "experimental_thread_store": null,
+          "sqlite_home": null,
+          "features": {
+            "code_mode": false,
+            "code_mode_host": false,
+            "multi_agent_v2": false,
+            "sleep_tool": false,
+            "network_proxy": null,
+            "apps": false,
+            "browser_use": false,
+            "browser_use_external": false,
+            "code_mode_prewarm": false,
+            "computer_use": false,
+            "goals": false,
+            "hooks": false,
+            "image_generation": false,
+            "in_app_browser": false,
+            "in_app_local_automation": false,
+            "memories": false,
+            "multi_agent": false,
+            "plugins": false,
+            "remote_plugin": false,
+            "shell_snapshot": false,
+            "shell_tool": false,
+            "skill_mcp_dependency_install": false,
+            "skill_search": false,
+            "skip_host_skill_discovery": true,
+            "workspace_dependencies": false,
+            "auth_elicitation": true,
+            "background_paginated_rollout_migration": false,
+            "mcp_2026_07_28": false,
+            "mentions_v2": true,
+            "remote_control": false,
+            "tool_suggest": true,
+            "windows_sandbox_service": false
+          },
+          "notice": null,
+          "skills": null,
+          "tool_suggest": null,
+          "default_permissions": null,
+          "hooks": null,
+          "history": {
+            "persistence": "save-all",
+            "max_bytes": null
+          },
+          "windows": null,
+          "experimental_realtime_start_instructions": null,
+          "goals": null,
+          "permissions": null,
+          "plugins": {},
+          "marketplaces": {},
+          "file_opener": "vscode",
+          "experimental_realtime_ws_base_url": null,
+          "include_collaboration_mode_instructions": true,
+          "mcp_oauth_callback_port": null,
+          "js_repl_node_module_dirs": null,
+          "mcp_oauth_callback_url": null,
+          "js_repl_node_path": null,
+          "mcp_servers": {
+            "synthetic": {
+              "command": "<python>",
+              "args": [
+                "<probe>/inherited/fixture.py",
+                "resources",
+                "<probe>/inherited/mcp-startup.jsonl"
+              ],
+              "environment_id": "local",
+              "enabled": true,
+              "startup_timeout_sec": 2.0,
+              "tool_timeout_sec": null
+            }
+          },
+          "tui": null,
+          "notify": null,
+          "background_terminal_max_timeout": 300000,
+          "orchestrator": null,
+          "experimental_compact_prompt_file": null,
+          "agents": null,
+          "auto_review": null,
+          "plan_mode_reasoning_effort": null,
+          "openai_base_url": null,
+          "include_permissions_instructions": true,
+          "mcp_oauth_credentials_store": "auto",
+          "profile": null,
+          "experimental_realtime_ws_startup_context": null,
+          "projects": null,
+          "profiles": {},
+          "project_root_markers": [
+            ".git"
+          ],
+          "experimental_use_unified_exec_tool": null,
+          "feedback": {
+            "enabled": false
+          },
+          "model_instructions_file": null
+        },
+        "origins": {
+          "features.hooks": {
+            "name": {
+              "type": "sessionFlags"
+            },
+            "version": "sha256:c129456799c92713276afe8f75cee2dd0a92c45198dcf4b83f3b8e598aecf416"
+          },
+          "features.skill_search": {
+            "name": {
+              "type": "sessionFlags"
+            },
+            "version": "sha256:c129456799c92713276afe8f75cee2dd0a92c45198dcf4b83f3b8e598aecf416"
+          },
+          "features.code_mode": {
+            "name": {
+              "type": "sessionFlags"
+            },
+            "version": "sha256:c129456799c92713276afe8f75cee2dd0a92c45198dcf4b83f3b8e598aecf416"
+          },
+          "mcp_servers.synthetic.args.2": {
+            "name": {
+              "type": "user",
+              "file": "<probe>/inherited/codex/config.toml",
+              "profile": null
+            },
+            "version": "sha256:530f5da0f6f19d1ef9a1656f50d49f6678b0409c6a98396088feef7a15d6dfab"
+          },
+          "web_search": {
+            "name": {
+              "type": "sessionFlags"
+            },
+            "version": "sha256:c129456799c92713276afe8f75cee2dd0a92c45198dcf4b83f3b8e598aecf416"
+          },
+          "features.plugins": {
+            "name": {
+              "type": "sessionFlags"
+            },
+            "version": "sha256:c129456799c92713276afe8f75cee2dd0a92c45198dcf4b83f3b8e598aecf416"
+          },
+          "sandbox_mode": {
+            "name": {
+              "type": "sessionFlags"
+            },
+            "version": "sha256:c129456799c92713276afe8f75cee2dd0a92c45198dcf4b83f3b8e598aecf416"
+          },
+          "forced_login_method": {
+            "name": {
+              "type": "sessionFlags"
+            },
+            "version": "sha256:c129456799c92713276afe8f75cee2dd0a92c45198dcf4b83f3b8e598aecf416"
+          },
+          "features.code_mode_prewarm": {
+            "name": {
+              "type": "sessionFlags"
+            },
+            "version": "sha256:c129456799c92713276afe8f75cee2dd0a92c45198dcf4b83f3b8e598aecf416"
+          },
+          "mcp_servers.synthetic.enabled": {
+            "name": {
+              "type": "user",
+              "file": "<probe>/inherited/codex/config.toml",
+              "profile": null
+            },
+            "version": "sha256:530f5da0f6f19d1ef9a1656f50d49f6678b0409c6a98396088feef7a15d6dfab"
+          },
+          "check_for_update_on_startup": {
+            "name": {
+              "type": "sessionFlags"
+            },
+            "version": "sha256:c129456799c92713276afe8f75cee2dd0a92c45198dcf4b83f3b8e598aecf416"
+          },
+          "mcp_servers.synthetic.args.1": {
+            "name": {
+              "type": "user",
+              "file": "<probe>/inherited/codex/config.toml",
+              "profile": null
+            },
+            "version": "sha256:530f5da0f6f19d1ef9a1656f50d49f6678b0409c6a98396088feef7a15d6dfab"
+          },
+          "features.code_mode_host": {
+            "name": {
+              "type": "sessionFlags"
+            },
+            "version": "sha256:c129456799c92713276afe8f75cee2dd0a92c45198dcf4b83f3b8e598aecf416"
+          },
+          "features.browser_use_external": {
+            "name": {
+              "type": "sessionFlags"
+            },
+            "version": "sha256:c129456799c92713276afe8f75cee2dd0a92c45198dcf4b83f3b8e598aecf416"
+          },
+          "features.in_app_local_automation": {
+            "name": {
+              "type": "sessionFlags"
+            },
+            "version": "sha256:c129456799c92713276afe8f75cee2dd0a92c45198dcf4b83f3b8e598aecf416"
+          },
+          "analytics.enabled": {
+            "name": {
+              "type": "sessionFlags"
+            },
+            "version": "sha256:c129456799c92713276afe8f75cee2dd0a92c45198dcf4b83f3b8e598aecf416"
+          },
+          "features.image_generation": {
+            "name": {
+              "type": "sessionFlags"
+            },
+            "version": "sha256:c129456799c92713276afe8f75cee2dd0a92c45198dcf4b83f3b8e598aecf416"
+          },
+          "features.in_app_browser": {
+            "name": {
+              "type": "sessionFlags"
+            },
+            "version": "sha256:c129456799c92713276afe8f75cee2dd0a92c45198dcf4b83f3b8e598aecf416"
+          },
+          "feedback.enabled": {
+            "name": {
+              "type": "sessionFlags"
+            },
+            "version": "sha256:c129456799c92713276afe8f75cee2dd0a92c45198dcf4b83f3b8e598aecf416"
+          },
+          "features.shell_snapshot": {
+            "name": {
+              "type": "sessionFlags"
+            },
+            "version": "sha256:c129456799c92713276afe8f75cee2dd0a92c45198dcf4b83f3b8e598aecf416"
+          },
+          "model_provider": {
+            "name": {
+              "type": "sessionFlags"
+            },
+            "version": "sha256:c129456799c92713276afe8f75cee2dd0a92c45198dcf4b83f3b8e598aecf416"
+          },
+          "mcp_servers.synthetic.startup_timeout_sec": {
+            "name": {
+              "type": "user",
+              "file": "<probe>/inherited/codex/config.toml",
+              "profile": null
+            },
+            "version": "sha256:530f5da0f6f19d1ef9a1656f50d49f6678b0409c6a98396088feef7a15d6dfab"
+          },
+          "approval_policy": {
+            "name": {
+              "type": "sessionFlags"
+            },
+            "version": "sha256:c129456799c92713276afe8f75cee2dd0a92c45198dcf4b83f3b8e598aecf416"
+          },
+          "features.apps": {
+            "name": {
+              "type": "sessionFlags"
+            },
+            "version": "sha256:c129456799c92713276afe8f75cee2dd0a92c45198dcf4b83f3b8e598aecf416"
+          },
+          "features.browser_use": {
+            "name": {
+              "type": "sessionFlags"
+            },
+            "version": "sha256:c129456799c92713276afe8f75cee2dd0a92c45198dcf4b83f3b8e598aecf416"
+          },
+          "mcp_servers.synthetic.args.0": {
+            "name": {
+              "type": "user",
+              "file": "<probe>/inherited/codex/config.toml",
+              "profile": null
+            },
+            "version": "sha256:530f5da0f6f19d1ef9a1656f50d49f6678b0409c6a98396088feef7a15d6dfab"
+          },
+          "features.remote_plugin": {
+            "name": {
+              "type": "sessionFlags"
+            },
+            "version": "sha256:c129456799c92713276afe8f75cee2dd0a92c45198dcf4b83f3b8e598aecf416"
+          },
+          "features.sleep_tool.enabled": {
+            "name": {
+              "type": "sessionFlags"
+            },
+            "version": "sha256:c129456799c92713276afe8f75cee2dd0a92c45198dcf4b83f3b8e598aecf416"
+          },
+          "features.multi_agent_v2.enabled": {
+            "name": {
+              "type": "sessionFlags"
+            },
+            "version": "sha256:c129456799c92713276afe8f75cee2dd0a92c45198dcf4b83f3b8e598aecf416"
+          },
+          "features.skip_host_skill_discovery": {
+            "name": {
+              "type": "sessionFlags"
+            },
+            "version": "sha256:c129456799c92713276afe8f75cee2dd0a92c45198dcf4b83f3b8e598aecf416"
+          },
+          "features.skill_mcp_dependency_install": {
+            "name": {
+              "type": "sessionFlags"
+            },
+            "version": "sha256:c129456799c92713276afe8f75cee2dd0a92c45198dcf4b83f3b8e598aecf416"
+          },
+          "features.multi_agent": {
+            "name": {
+              "type": "sessionFlags"
+            },
+            "version": "sha256:c129456799c92713276afe8f75cee2dd0a92c45198dcf4b83f3b8e598aecf416"
+          },
+          "features.shell_tool": {
+            "name": {
+              "type": "sessionFlags"
+            },
+            "version": "sha256:c129456799c92713276afe8f75cee2dd0a92c45198dcf4b83f3b8e598aecf416"
+          },
+          "features.computer_use": {
+            "name": {
+              "type": "sessionFlags"
+            },
+            "version": "sha256:c129456799c92713276afe8f75cee2dd0a92c45198dcf4b83f3b8e598aecf416"
+          },
+          "features.goals": {
+            "name": {
+              "type": "sessionFlags"
+            },
+            "version": "sha256:c129456799c92713276afe8f75cee2dd0a92c45198dcf4b83f3b8e598aecf416"
+          },
+          "features.memories": {
+            "name": {
+              "type": "sessionFlags"
+            },
+            "version": "sha256:c129456799c92713276afe8f75cee2dd0a92c45198dcf4b83f3b8e598aecf416"
+          },
+          "features.workspace_dependencies": {
+            "name": {
+              "type": "sessionFlags"
+            },
+            "version": "sha256:c129456799c92713276afe8f75cee2dd0a92c45198dcf4b83f3b8e598aecf416"
+          },
+          "model": {
+            "name": {
+              "type": "user",
+              "file": "<probe>/inherited/codex/config.toml",
+              "profile": null
+            },
+            "version": "sha256:530f5da0f6f19d1ef9a1656f50d49f6678b0409c6a98396088feef7a15d6dfab"
+          },
+          "mcp_servers.synthetic.command": {
+            "name": {
+              "type": "user",
+              "file": "<probe>/inherited/codex/config.toml",
+              "profile": null
+            },
+            "version": "sha256:530f5da0f6f19d1ef9a1656f50d49f6678b0409c6a98396088feef7a15d6dfab"
+          }
+        }
+      },
+      "startupMarkersBeforeInventory": [
+        {
+          "event": "started",
+          "mode": "resources"
+        },
+        {
+          "event": "request",
+          "method": "initialize"
+        },
+        {
+          "event": "request",
+          "method": "notifications/initialized"
+        },
+        {
+          "event": "request",
+          "method": "tools/list"
+        }
+      ],
+      "startupMarkers": [
+        {
+          "event": "started",
+          "mode": "resources"
+        },
+        {
+          "event": "request",
+          "method": "initialize"
+        },
+        {
+          "event": "request",
+          "method": "notifications/initialized"
+        },
+        {
+          "event": "request",
+          "method": "tools/list"
+        },
+        {
+          "event": "started",
+          "mode": "resources"
+        },
+        {
+          "event": "request",
+          "method": "initialize"
+        },
+        {
+          "event": "request",
+          "method": "notifications/initialized"
+        },
+        {
+          "event": "request",
+          "method": "tools/list"
+        },
+        {
+          "event": "request",
+          "method": "resources/templates/list"
+        },
+        {
+          "event": "request",
+          "method": "resources/list"
+        }
+      ],
+      "inventory": {
+        "data": [
+          {
+            "name": "synthetic",
+            "runtimeStatus": "connected",
+            "pluginId": null,
+            "serverInfo": {
+              "name": "nema-synthetic-resources",
+              "title": null,
+              "version": "1",
+              "description": null,
+              "icons": null,
+              "websiteUrl": null
+            },
+            "tools": {},
+            "toolsError": null,
+            "resources": [
+              {
+                "name": "Synthetic resource",
+                "uri": "nema-probe://synthetic"
+              }
+            ],
+            "resourceTemplates": [
+              {
+                "uriTemplate": "nema-probe://{id}",
+                "name": "Synthetic template"
+              }
+            ],
+            "authStatus": "unsupported"
+          }
+        ],
+        "nextCursor": null
+      },
+      "command": [
+        "/usr/bin/codex",
+        "app-server",
+        "--listen",
+        "stdio://",
+        "--strict-config",
+        "-c",
+        "model_provider=\"openai\"",
+        "-c",
+        "forced_login_method=\"chatgpt\"",
+        "-c",
+        "approval_policy=\"never\"",
+        "-c",
+        "sandbox_mode=\"read-only\"",
+        "-c",
+        "web_search=\"disabled\"",
+        "-c",
+        "analytics.enabled=false",
+        "-c",
+        "feedback.enabled=false",
+        "-c",
+        "check_for_update_on_startup=false",
+        "-c",
+        "features.apps=false",
+        "-c",
+        "features.plugins=false",
+        "-c",
+        "features.remote_plugin=false",
+        "-c",
+        "features.hooks=false",
+        "-c",
+        "features.shell_tool=false",
+        "-c",
+        "features.shell_snapshot=false",
+        "-c",
+        "features.multi_agent=false",
+        "-c",
+        "features.multi_agent_v2=false",
+        "-c",
+        "features.memories=false",
+        "-c",
+        "features.goals=false",
+        "-c",
+        "features.browser_use=false",
+        "-c",
+        "features.browser_use_external=false",
+        "-c",
+        "features.computer_use=false",
+        "-c",
+        "features.in_app_browser=false",
+        "-c",
+        "features.in_app_local_automation=false",
+        "-c",
+        "features.code_mode=false",
+        "-c",
+        "features.code_mode_host=false",
+        "-c",
+        "features.code_mode_prewarm=false",
+        "-c",
+        "features.skill_mcp_dependency_install=false",
+        "-c",
+        "features.skill_search=false",
+        "-c",
+        "features.workspace_dependencies=false",
+        "-c",
+        "features.image_generation=false",
+        "-c",
+        "features.sleep_tool=false",
+        "-c",
+        "features.skip_host_skill_discovery=true"
+      ],
+      "prospectiveProfileEvidence": {
+        "version": "nema-native-profile/1",
+        "binarySha256": "9b7c1c7abdc26fc3c4f47c77656a8e9121def5483dbae830ef1ee561758448a9",
+        "completeIsolation": false,
+        "localMcpStartupSuppression": true,
+        "cloudConfiguration": "unverified-live-launch-refused",
+        "liveAdmitted": false,
+        "credentialHandling": "existing-location-no-read-no-copy",
+        "disabledMcpCount": 1,
+        "sourceFingerprints": [
+          {
+            "role": "binary",
+            "pathId": "9d131600d472094ff14c6b69c3a6c86afe6e0cb559307dbc71ca8b377ca07223",
+            "fingerprint": "file:9b7c1c7abdc26fc3c4f47c77656a8e9121def5483dbae830ef1ee561758448a9"
+          },
+          {
+            "role": "system-config",
+            "pathId": "5c82e277c09ee178dab755e066c8410f1bd5a2c91491b09a840f0bc291b4af91",
+            "fingerprint": "absent"
+          },
+          {
+            "role": "source-directory",
+            "pathId": "847f8f380a5f81365a92a9b6cf0e75f2e38614d8798988ae62ad8f1d2547e21e",
+            "fingerprint": "absent"
+          },
+          {
+            "role": "user-config",
+            "pathId": "4545f665e36b89dc9108ad0535fd55ba561861d633123718bc7debc0e7f8dda1",
+            "fingerprint": "file:2aaf31ada39ec76207ac3285276df45d5a1b7095bbf7b9545a23e498f0ef88a2"
+          },
+          {
+            "role": "source-directory",
+            "pathId": "3a6da3b14ae6abba82973bba5110146e062a1e41ac62dc8f58c2992d28927c76",
+            "fingerprint": "directory:e420b7d9ea3009224639e7149a4272883ebdc88c92eb69eb3a5a569fd7cd4897"
+          },
+          {
+            "role": "ancestor-config",
+            "pathId": "aee4d50bfb7ff2da5f3328f676ba01c31dd4063b9dac802a2174b47086165c40",
+            "fingerprint": "absent"
+          },
+          {
+            "role": "source-directory",
+            "pathId": "31383c704b8e17d2279e6d109ad6275e8a183a3c85150f24463eb6959a94ae5b",
+            "fingerprint": "absent"
+          },
+          {
+            "role": "ancestor-config",
+            "pathId": "804cd9b2930da4449a0f5331b0fcf061956a543e8009f05e2e2a36575b42ea44",
+            "fingerprint": "absent"
+          },
+          {
+            "role": "source-directory",
+            "pathId": "f750591669121d53a4cdd16619a7231e353b74e1734b46069c9a14687d40ca9b",
+            "fingerprint": "absent"
+          },
+          {
+            "role": "ancestor-config",
+            "pathId": "e3aa7ae1bb0f311a40f1877ba418f6b2320b182d717c8074e3998111099d14ed",
+            "fingerprint": "absent"
+          },
+          {
+            "role": "source-directory",
+            "pathId": "f2a4893a7a8f5015937cfd829d0c34062b0118ac645e95052c5c6fbe975ee8cc",
+            "fingerprint": "absent"
+          },
+          {
+            "role": "ancestor-config",
+            "pathId": "d25e6bc64d1f3bdb78ce9c93bb4048878cacc2d5d4e0d743bb3cfa719fb3abbd",
+            "fingerprint": "absent"
+          },
+          {
+            "role": "source-directory",
+            "pathId": "b10c1cb0eb531cb16a20e26b5cdbf03494b7571190ce7982fcfbf087ab2a0974",
+            "fingerprint": "absent"
+          },
+          {
+            "role": "ancestor-config",
+            "pathId": "1958026f304515a0208982793bd9a2dc29b7c37902d289b128271f933ffafef3",
+            "fingerprint": "absent"
+          },
+          {
+            "role": "source-directory",
+            "pathId": "751397359a6a14964c688cf0f263bd66b80f7b9c5c0558525c9b3430fc87d992",
+            "fingerprint": "absent"
+          },
+          {
+            "role": "managed-source",
+            "pathId": "2c2fdf81dd16d890dc0edd1218b76e90904c73ec548bfebf70c163e267394af4",
+            "fingerprint": "absent"
+          },
+          {
+            "role": "managed-source",
+            "pathId": "35836f6318922c118871494fd2e6e5fc0b5a1818dcc7c1f5979ea6c93ed551bc",
+            "fingerprint": "absent"
+          },
+          {
+            "role": "managed-source",
+            "pathId": "19bbbb6dd54732e52ea7c9bfdf9feebca1961960d16def7777ac229dbfd52277",
+            "fingerprint": "absent"
+          },
+          {
+            "role": "managed-source",
+            "pathId": "b57e52c2e4bfaf6bb13c23b31cf0f19e6f3686ef3005f19bfe0860e4e8426eff",
+            "fingerprint": "absent"
+          },
+          {
+            "role": "managed-source",
+            "pathId": "14acf02df9756cb0a4899f685947f422cf3e98d501ee74f969cf4826bfe80255",
+            "fingerprint": "absent"
+          }
+        ],
+        "limitations": [
+          "cloud-refresh",
+          "filesystem-check-to-launch-race",
+          "host-read-visibility",
+          "native-auth-and-state-writes",
+          "provider-context",
+          "descendant-processes"
+        ]
+      },
+      "generatedProfileCommandApplied": false
+    },
+    "emptyMap": {
+      "initialized": {
+        "userAgent": "eidos/0.154.0 (Arch Linux Unknown; aarch64) unknown (eidos; 0.1.0)",
+        "codexHome": "<probe>/emptyMap/codex",
+        "platformFamily": "unix",
+        "platformOs": "linux"
+      },
+      "config": {
+        "config": {
+          "model": "nema-no-model",
+          "review_model": null,
+          "model_context_window": null,
+          "model_auto_compact_token_limit": null,
+          "model_auto_compact_token_limit_scope": null,
+          "model_provider": "openai",
+          "approval_policy": "never",
+          "approvals_reviewer": null,
+          "sandbox_mode": "read-only",
+          "sandbox_workspace_write": null,
+          "forced_chatgpt_workspace_id": null,
+          "forced_login_method": "chatgpt",
+          "web_search": "disabled",
+          "tools": null,
+          "instructions": null,
+          "developer_instructions": null,
+          "compact_prompt": null,
+          "model_reasoning_effort": null,
+          "model_reasoning_summary": null,
+          "model_verbosity": null,
+          "service_tier": null,
+          "analytics": {
+            "enabled": false
+          },
+          "apps": null,
+          "browser_use": null,
+          "computer_use": null,
+          "desktop": null,
+          "include_permissions_instructions": true,
+          "profiles": {},
+          "default_permissions": null,
+          "realtime": null,
+          "project_root_markers": [
+            ".git"
+          ],
+          "mcp_optional_startup_grace_ms": null,
+          "js_repl_node_module_dirs": null,
+          "log_dir": null,
+          "mcp_oauth_callback_port": null,
+          "background_terminal_max_timeout": 300000,
+          "shell_environment_policy": {
+            "inherit": null,
+            "ignore_default_excludes": null,
+            "exclude": null,
+            "set": null,
+            "include_only": null,
+            "filters": null,
+            "experimental_use_profile": null
+          },
+          "show_raw_agent_reasoning": null,
+          "feedback": {
+            "enabled": false
+          },
+          "include_collaboration_mode_instructions": true,
+          "openai_base_url": null,
+          "include_apps_instructions": true,
+          "chatgpt_base_url": "https://chatgpt.com/backend-api/",
+          "history": {
+            "persistence": "save-all",
+            "max_bytes": null
+          },
+          "personality": null,
+          "oss_provider": null,
+          "agents": null,
+          "memories": null,
+          "ghost_snapshot": null,
+          "experimental_realtime_ws_model": null,
+          "experimental_use_unified_exec_tool": null,
+          "windows": null,
+          "auto_review": null,
+          "tui": null,
+          "hooks": null,
+          "apps_mcp_product_sku": null,
+          "notice": null,
+          "allow_symlinked_codex_home": null,
+          "audio": null,
+          "include_environment_context": true,
+          "mcp_servers": {
+            "synthetic": {
+              "command": "<python>",
+              "args": [
+                "<probe>/emptyMap/fixture.py",
+                "resources",
+                "<probe>/emptyMap/mcp-startup.jsonl"
+              ],
+              "environment_id": "local",
+              "enabled": true,
+              "startup_timeout_sec": 2.0,
+              "tool_timeout_sec": null
+            }
+          },
+          "skills": null,
+          "model_catalog_json": null,
+          "model_providers": {},
+          "mcp_oauth_callback_url": null,
+          "allow_login_shell": true,
+          "thread_unload_delay_secs": null,
+          "responses_api_metadata": null,
+          "permissions": null,
+          "plugins": {},
+          "tool_output_token_limit": null,
+          "project_doc_max_bytes": 32768,
+          "experimental_realtime_ws_startup_context": null,
+          "experimental_thread_store_endpoint": null,
+          "model_instructions_file": null,
+          "orchestrator": null,
+          "tool_suggest": null,
+          "otel": null,
+          "marketplaces": {},
+          "project_doc_fallback_filenames": [],
+          "experimental_realtime_ws_base_url": null,
+          "js_repl_node_path": null,
+          "file_opener": "vscode",
+          "suppress_unstable_features_warning": null,
+          "experimental_realtime_start_instructions": null,
+          "experimental_thread_store": null,
+          "experimental_realtime_webrtc_call_base_url": null,
+          "check_for_update_on_startup": false,
+          "disable_paste_burst": null,
+          "mcp_oauth_credentials_store": "auto",
+          "notify": null,
+          "goals": null,
+          "sqlite_home": null,
+          "cli_auth_credentials_store": "file",
+          "projects": null,
+          "features": {
+            "code_mode": false,
+            "code_mode_host": false,
+            "multi_agent_v2": false,
+            "sleep_tool": false,
+            "network_proxy": null,
+            "apps": false,
+            "browser_use": false,
+            "browser_use_external": false,
+            "code_mode_prewarm": false,
+            "computer_use": false,
+            "goals": false,
+            "hooks": false,
+            "image_generation": false,
+            "in_app_browser": false,
+            "in_app_local_automation": false,
+            "memories": false,
+            "multi_agent": false,
+            "plugins": false,
+            "remote_plugin": false,
+            "shell_snapshot": false,
+            "shell_tool": false,
+            "skill_mcp_dependency_install": false,
+            "skill_search": false,
+            "skip_host_skill_discovery": true,
+            "workspace_dependencies": false,
+            "auth_elicitation": true,
+            "background_paginated_rollout_migration": false,
+            "mcp_2026_07_28": false,
+            "mentions_v2": true,
+            "remote_control": false,
+            "tool_suggest": true,
+            "windows_sandbox_service": false
+          },
+          "profile": null,
+          "experimental_compact_prompt_file": null,
+          "hide_agent_reasoning": false,
+          "experimental_realtime_ws_backend_prompt": null,
+          "plan_mode_reasoning_effort": null
+        },
+        "origins": {
+          "features.browser_use_external": {
+            "name": {
+              "type": "sessionFlags"
+            },
+            "version": "sha256:520343b2e290577ce5b7fbcb9c5cd91fe578eb3823331b247d8ae8140ec7645f"
+          },
+          "feedback.enabled": {
+            "name": {
+              "type": "sessionFlags"
+            },
+            "version": "sha256:520343b2e290577ce5b7fbcb9c5cd91fe578eb3823331b247d8ae8140ec7645f"
+          },
+          "sandbox_mode": {
+            "name": {
+              "type": "sessionFlags"
+            },
+            "version": "sha256:520343b2e290577ce5b7fbcb9c5cd91fe578eb3823331b247d8ae8140ec7645f"
+          },
+          "features.workspace_dependencies": {
+            "name": {
+              "type": "sessionFlags"
+            },
+            "version": "sha256:520343b2e290577ce5b7fbcb9c5cd91fe578eb3823331b247d8ae8140ec7645f"
+          },
+          "features.shell_tool": {
+            "name": {
+              "type": "sessionFlags"
+            },
+            "version": "sha256:520343b2e290577ce5b7fbcb9c5cd91fe578eb3823331b247d8ae8140ec7645f"
+          },
+          "check_for_update_on_startup": {
+            "name": {
+              "type": "sessionFlags"
+            },
+            "version": "sha256:520343b2e290577ce5b7fbcb9c5cd91fe578eb3823331b247d8ae8140ec7645f"
+          },
+          "features.skill_mcp_dependency_install": {
+            "name": {
+              "type": "sessionFlags"
+            },
+            "version": "sha256:520343b2e290577ce5b7fbcb9c5cd91fe578eb3823331b247d8ae8140ec7645f"
+          },
+          "features.sleep_tool.enabled": {
+            "name": {
+              "type": "sessionFlags"
+            },
+            "version": "sha256:520343b2e290577ce5b7fbcb9c5cd91fe578eb3823331b247d8ae8140ec7645f"
+          },
+          "features.in_app_local_automation": {
+            "name": {
+              "type": "sessionFlags"
+            },
+            "version": "sha256:520343b2e290577ce5b7fbcb9c5cd91fe578eb3823331b247d8ae8140ec7645f"
+          },
+          "mcp_servers.synthetic.command": {
+            "name": {
+              "type": "user",
+              "file": "<probe>/emptyMap/codex/config.toml",
+              "profile": null
+            },
+            "version": "sha256:3cdacaf0b96aa98120f2694e067521644709d97964e97529030b00f593f55df7"
+          },
+          "features.memories": {
+            "name": {
+              "type": "sessionFlags"
+            },
+            "version": "sha256:520343b2e290577ce5b7fbcb9c5cd91fe578eb3823331b247d8ae8140ec7645f"
+          },
+          "features.code_mode": {
+            "name": {
+              "type": "sessionFlags"
+            },
+            "version": "sha256:520343b2e290577ce5b7fbcb9c5cd91fe578eb3823331b247d8ae8140ec7645f"
+          },
+          "features.skip_host_skill_discovery": {
+            "name": {
+              "type": "sessionFlags"
+            },
+            "version": "sha256:520343b2e290577ce5b7fbcb9c5cd91fe578eb3823331b247d8ae8140ec7645f"
+          },
+          "features.code_mode_prewarm": {
+            "name": {
+              "type": "sessionFlags"
+            },
+            "version": "sha256:520343b2e290577ce5b7fbcb9c5cd91fe578eb3823331b247d8ae8140ec7645f"
+          },
+          "features.in_app_browser": {
+            "name": {
+              "type": "sessionFlags"
+            },
+            "version": "sha256:520343b2e290577ce5b7fbcb9c5cd91fe578eb3823331b247d8ae8140ec7645f"
+          },
+          "forced_login_method": {
+            "name": {
+              "type": "sessionFlags"
+            },
+            "version": "sha256:520343b2e290577ce5b7fbcb9c5cd91fe578eb3823331b247d8ae8140ec7645f"
+          },
+          "mcp_servers.synthetic.args.1": {
+            "name": {
+              "type": "user",
+              "file": "<probe>/emptyMap/codex/config.toml",
+              "profile": null
+            },
+            "version": "sha256:3cdacaf0b96aa98120f2694e067521644709d97964e97529030b00f593f55df7"
+          },
+          "model_provider": {
+            "name": {
+              "type": "sessionFlags"
+            },
+            "version": "sha256:520343b2e290577ce5b7fbcb9c5cd91fe578eb3823331b247d8ae8140ec7645f"
+          },
+          "mcp_servers.synthetic.startup_timeout_sec": {
+            "name": {
+              "type": "user",
+              "file": "<probe>/emptyMap/codex/config.toml",
+              "profile": null
+            },
+            "version": "sha256:3cdacaf0b96aa98120f2694e067521644709d97964e97529030b00f593f55df7"
+          },
+          "features.shell_snapshot": {
+            "name": {
+              "type": "sessionFlags"
+            },
+            "version": "sha256:520343b2e290577ce5b7fbcb9c5cd91fe578eb3823331b247d8ae8140ec7645f"
+          },
+          "features.multi_agent_v2.enabled": {
+            "name": {
+              "type": "sessionFlags"
+            },
+            "version": "sha256:520343b2e290577ce5b7fbcb9c5cd91fe578eb3823331b247d8ae8140ec7645f"
+          },
+          "features.remote_plugin": {
+            "name": {
+              "type": "sessionFlags"
+            },
+            "version": "sha256:520343b2e290577ce5b7fbcb9c5cd91fe578eb3823331b247d8ae8140ec7645f"
+          },
+          "features.computer_use": {
+            "name": {
+              "type": "sessionFlags"
+            },
+            "version": "sha256:520343b2e290577ce5b7fbcb9c5cd91fe578eb3823331b247d8ae8140ec7645f"
+          },
+          "features.goals": {
+            "name": {
+              "type": "sessionFlags"
+            },
+            "version": "sha256:520343b2e290577ce5b7fbcb9c5cd91fe578eb3823331b247d8ae8140ec7645f"
+          },
+          "features.plugins": {
+            "name": {
+              "type": "sessionFlags"
+            },
+            "version": "sha256:520343b2e290577ce5b7fbcb9c5cd91fe578eb3823331b247d8ae8140ec7645f"
+          },
+          "features.multi_agent": {
+            "name": {
+              "type": "sessionFlags"
+            },
+            "version": "sha256:520343b2e290577ce5b7fbcb9c5cd91fe578eb3823331b247d8ae8140ec7645f"
+          },
+          "features.image_generation": {
+            "name": {
+              "type": "sessionFlags"
+            },
+            "version": "sha256:520343b2e290577ce5b7fbcb9c5cd91fe578eb3823331b247d8ae8140ec7645f"
+          },
+          "features.hooks": {
+            "name": {
+              "type": "sessionFlags"
+            },
+            "version": "sha256:520343b2e290577ce5b7fbcb9c5cd91fe578eb3823331b247d8ae8140ec7645f"
+          },
+          "mcp_servers.synthetic.args.2": {
+            "name": {
+              "type": "user",
+              "file": "<probe>/emptyMap/codex/config.toml",
+              "profile": null
+            },
+            "version": "sha256:3cdacaf0b96aa98120f2694e067521644709d97964e97529030b00f593f55df7"
+          },
+          "mcp_servers.synthetic.enabled": {
+            "name": {
+              "type": "user",
+              "file": "<probe>/emptyMap/codex/config.toml",
+              "profile": null
+            },
+            "version": "sha256:3cdacaf0b96aa98120f2694e067521644709d97964e97529030b00f593f55df7"
+          },
+          "web_search": {
+            "name": {
+              "type": "sessionFlags"
+            },
+            "version": "sha256:520343b2e290577ce5b7fbcb9c5cd91fe578eb3823331b247d8ae8140ec7645f"
+          },
+          "model": {
+            "name": {
+              "type": "user",
+              "file": "<probe>/emptyMap/codex/config.toml",
+              "profile": null
+            },
+            "version": "sha256:3cdacaf0b96aa98120f2694e067521644709d97964e97529030b00f593f55df7"
+          },
+          "analytics.enabled": {
+            "name": {
+              "type": "sessionFlags"
+            },
+            "version": "sha256:520343b2e290577ce5b7fbcb9c5cd91fe578eb3823331b247d8ae8140ec7645f"
+          },
+          "mcp_servers.synthetic.args.0": {
+            "name": {
+              "type": "user",
+              "file": "<probe>/emptyMap/codex/config.toml",
+              "profile": null
+            },
+            "version": "sha256:3cdacaf0b96aa98120f2694e067521644709d97964e97529030b00f593f55df7"
+          },
+          "approval_policy": {
+            "name": {
+              "type": "sessionFlags"
+            },
+            "version": "sha256:520343b2e290577ce5b7fbcb9c5cd91fe578eb3823331b247d8ae8140ec7645f"
+          },
+          "features.browser_use": {
+            "name": {
+              "type": "sessionFlags"
+            },
+            "version": "sha256:520343b2e290577ce5b7fbcb9c5cd91fe578eb3823331b247d8ae8140ec7645f"
+          },
+          "features.apps": {
+            "name": {
+              "type": "sessionFlags"
+            },
+            "version": "sha256:520343b2e290577ce5b7fbcb9c5cd91fe578eb3823331b247d8ae8140ec7645f"
+          },
+          "features.skill_search": {
+            "name": {
+              "type": "sessionFlags"
+            },
+            "version": "sha256:520343b2e290577ce5b7fbcb9c5cd91fe578eb3823331b247d8ae8140ec7645f"
+          },
+          "features.code_mode_host": {
+            "name": {
+              "type": "sessionFlags"
+            },
+            "version": "sha256:520343b2e290577ce5b7fbcb9c5cd91fe578eb3823331b247d8ae8140ec7645f"
+          }
+        }
+      },
+      "startupMarkersBeforeInventory": [
+        {
+          "event": "started",
+          "mode": "resources"
+        },
+        {
+          "event": "request",
+          "method": "initialize"
+        },
+        {
+          "event": "request",
+          "method": "notifications/initialized"
+        },
+        {
+          "event": "request",
+          "method": "tools/list"
+        }
+      ],
+      "startupMarkers": [
+        {
+          "event": "started",
+          "mode": "resources"
+        },
+        {
+          "event": "request",
+          "method": "initialize"
+        },
+        {
+          "event": "request",
+          "method": "notifications/initialized"
+        },
+        {
+          "event": "request",
+          "method": "tools/list"
+        },
+        {
+          "event": "started",
+          "mode": "resources"
+        },
+        {
+          "event": "request",
+          "method": "initialize"
+        },
+        {
+          "event": "request",
+          "method": "notifications/initialized"
+        },
+        {
+          "event": "request",
+          "method": "tools/list"
+        },
+        {
+          "event": "request",
+          "method": "resources/list"
+        },
+        {
+          "event": "request",
+          "method": "resources/templates/list"
+        }
+      ],
+      "inventory": {
+        "data": [
+          {
+            "name": "synthetic",
+            "runtimeStatus": "connected",
+            "pluginId": null,
+            "serverInfo": {
+              "name": "nema-synthetic-resources",
+              "title": null,
+              "version": "1",
+              "description": null,
+              "icons": null,
+              "websiteUrl": null
+            },
+            "tools": {},
+            "toolsError": null,
+            "resources": [
+              {
+                "name": "Synthetic resource",
+                "uri": "nema-probe://synthetic"
+              }
+            ],
+            "resourceTemplates": [
+              {
+                "uriTemplate": "nema-probe://{id}",
+                "name": "Synthetic template"
+              }
+            ],
+            "authStatus": "unsupported"
+          }
+        ],
+        "nextCursor": null
+      },
+      "command": [
+        "/usr/bin/codex",
+        "app-server",
+        "--listen",
+        "stdio://",
+        "--strict-config",
+        "-c",
+        "model_provider=\"openai\"",
+        "-c",
+        "forced_login_method=\"chatgpt\"",
+        "-c",
+        "approval_policy=\"never\"",
+        "-c",
+        "sandbox_mode=\"read-only\"",
+        "-c",
+        "web_search=\"disabled\"",
+        "-c",
+        "analytics.enabled=false",
+        "-c",
+        "feedback.enabled=false",
+        "-c",
+        "check_for_update_on_startup=false",
+        "-c",
+        "features.apps=false",
+        "-c",
+        "features.plugins=false",
+        "-c",
+        "features.remote_plugin=false",
+        "-c",
+        "features.hooks=false",
+        "-c",
+        "features.shell_tool=false",
+        "-c",
+        "features.shell_snapshot=false",
+        "-c",
+        "features.multi_agent=false",
+        "-c",
+        "features.multi_agent_v2=false",
+        "-c",
+        "features.memories=false",
+        "-c",
+        "features.goals=false",
+        "-c",
+        "features.browser_use=false",
+        "-c",
+        "features.browser_use_external=false",
+        "-c",
+        "features.computer_use=false",
+        "-c",
+        "features.in_app_browser=false",
+        "-c",
+        "features.in_app_local_automation=false",
+        "-c",
+        "features.code_mode=false",
+        "-c",
+        "features.code_mode_host=false",
+        "-c",
+        "features.code_mode_prewarm=false",
+        "-c",
+        "features.skill_mcp_dependency_install=false",
+        "-c",
+        "features.skill_search=false",
+        "-c",
+        "features.workspace_dependencies=false",
+        "-c",
+        "features.image_generation=false",
+        "-c",
+        "features.sleep_tool=false",
+        "-c",
+        "features.skip_host_skill_discovery=true",
+        "-c",
+        "mcp_servers={}"
+      ],
+      "prospectiveProfileEvidence": {
+        "version": "nema-native-profile/1",
+        "binarySha256": "9b7c1c7abdc26fc3c4f47c77656a8e9121def5483dbae830ef1ee561758448a9",
+        "completeIsolation": false,
+        "localMcpStartupSuppression": true,
+        "cloudConfiguration": "unverified-live-launch-refused",
+        "liveAdmitted": false,
+        "credentialHandling": "existing-location-no-read-no-copy",
+        "disabledMcpCount": 1,
+        "sourceFingerprints": [
+          {
+            "role": "binary",
+            "pathId": "9d131600d472094ff14c6b69c3a6c86afe6e0cb559307dbc71ca8b377ca07223",
+            "fingerprint": "file:9b7c1c7abdc26fc3c4f47c77656a8e9121def5483dbae830ef1ee561758448a9"
+          },
+          {
+            "role": "system-config",
+            "pathId": "5c82e277c09ee178dab755e066c8410f1bd5a2c91491b09a840f0bc291b4af91",
+            "fingerprint": "absent"
+          },
+          {
+            "role": "source-directory",
+            "pathId": "847f8f380a5f81365a92a9b6cf0e75f2e38614d8798988ae62ad8f1d2547e21e",
+            "fingerprint": "absent"
+          },
+          {
+            "role": "user-config",
+            "pathId": "2bb33bab244cba29fddb73b68f442f919080efe0499177b22b56f7a8a9c78c55",
+            "fingerprint": "file:2b7ca65ca939bd0741ebf8ea675eb0114d54bbd88cac507eca4bf1cf2d774fa7"
+          },
+          {
+            "role": "source-directory",
+            "pathId": "75d87088464c84d2f3663833113e62a6b895742bb5857c09a7b9887ddb9785da",
+            "fingerprint": "directory:e420b7d9ea3009224639e7149a4272883ebdc88c92eb69eb3a5a569fd7cd4897"
+          },
+          {
+            "role": "ancestor-config",
+            "pathId": "aa6ae20d51930f2b40509ee3bbb9f1cd4c9d31410b2aba18b22228eccfe9cc85",
+            "fingerprint": "absent"
+          },
+          {
+            "role": "source-directory",
+            "pathId": "b05436d0d9593da929218c07448275229cda95efa4eb99398068d38d737034e9",
+            "fingerprint": "absent"
+          },
+          {
+            "role": "ancestor-config",
+            "pathId": "2eb8b6f23625a065ce9d98e338dce3dce921926857c6e6c1bd801ebb158fc967",
+            "fingerprint": "absent"
+          },
+          {
+            "role": "source-directory",
+            "pathId": "b48ef00fda8b9a4dfbd3f07fa395706d397cd33186496f0e599fb0ce6e788371",
+            "fingerprint": "absent"
+          },
+          {
+            "role": "ancestor-config",
+            "pathId": "e3aa7ae1bb0f311a40f1877ba418f6b2320b182d717c8074e3998111099d14ed",
+            "fingerprint": "absent"
+          },
+          {
+            "role": "source-directory",
+            "pathId": "f2a4893a7a8f5015937cfd829d0c34062b0118ac645e95052c5c6fbe975ee8cc",
+            "fingerprint": "absent"
+          },
+          {
+            "role": "ancestor-config",
+            "pathId": "d25e6bc64d1f3bdb78ce9c93bb4048878cacc2d5d4e0d743bb3cfa719fb3abbd",
+            "fingerprint": "absent"
+          },
+          {
+            "role": "source-directory",
+            "pathId": "b10c1cb0eb531cb16a20e26b5cdbf03494b7571190ce7982fcfbf087ab2a0974",
+            "fingerprint": "absent"
+          },
+          {
+            "role": "ancestor-config",
+            "pathId": "1958026f304515a0208982793bd9a2dc29b7c37902d289b128271f933ffafef3",
+            "fingerprint": "absent"
+          },
+          {
+            "role": "source-directory",
+            "pathId": "751397359a6a14964c688cf0f263bd66b80f7b9c5c0558525c9b3430fc87d992",
+            "fingerprint": "absent"
+          },
+          {
+            "role": "managed-source",
+            "pathId": "2c2fdf81dd16d890dc0edd1218b76e90904c73ec548bfebf70c163e267394af4",
+            "fingerprint": "absent"
+          },
+          {
+            "role": "managed-source",
+            "pathId": "35836f6318922c118871494fd2e6e5fc0b5a1818dcc7c1f5979ea6c93ed551bc",
+            "fingerprint": "absent"
+          },
+          {
+            "role": "managed-source",
+            "pathId": "6581d4d10ee20c2420167e62c8d9ef5f5ee96ae95598ebbd96e1347432f54f13",
+            "fingerprint": "absent"
+          },
+          {
+            "role": "managed-source",
+            "pathId": "472f4dacffdb3ef763ee8c9822241918b2e30c3ef7b4bd749cda7384eff5f4da",
+            "fingerprint": "absent"
+          },
+          {
+            "role": "managed-source",
+            "pathId": "94a7069b61143395de3b66c9cb4fa0292d0bb735edb00eb37c8d854db3311026",
+            "fingerprint": "absent"
+          }
+        ],
+        "limitations": [
+          "cloud-refresh",
+          "filesystem-check-to-launch-race",
+          "host-read-visibility",
+          "native-auth-and-state-writes",
+          "provider-context",
+          "descendant-processes"
+        ]
+      },
+      "generatedProfileCommandApplied": false
+    },
+    "profiled": {
+      "initialized": {
+        "userAgent": "eidos/0.154.0 (Arch Linux Unknown; aarch64) unknown (eidos; 0.1.0)",
+        "codexHome": "<probe>/profiled/codex",
+        "platformFamily": "unix",
+        "platformOs": "linux"
+      },
+      "config": {
+        "config": {
+          "model": "nema-no-model",
+          "review_model": null,
+          "model_context_window": null,
+          "model_auto_compact_token_limit": null,
+          "model_auto_compact_token_limit_scope": null,
+          "model_provider": "openai",
+          "approval_policy": "never",
+          "approvals_reviewer": null,
+          "sandbox_mode": "read-only",
+          "sandbox_workspace_write": null,
+          "forced_chatgpt_workspace_id": null,
+          "forced_login_method": "chatgpt",
+          "web_search": "disabled",
+          "tools": null,
+          "instructions": null,
+          "developer_instructions": null,
+          "compact_prompt": null,
+          "model_reasoning_effort": null,
+          "model_reasoning_summary": null,
+          "model_verbosity": null,
+          "service_tier": null,
+          "analytics": {
+            "enabled": false
+          },
+          "apps": null,
+          "browser_use": null,
+          "computer_use": null,
+          "desktop": null,
+          "js_repl_node_path": null,
+          "project_doc_fallback_filenames": [],
+          "notify": null,
+          "memories": null,
+          "model_instructions_file": null,
+          "hooks": null,
+          "include_environment_context": true,
+          "mcp_oauth_credentials_store": "auto",
+          "skills": null,
+          "file_opener": "vscode",
+          "notice": null,
+          "project_root_markers": [
+            ".git"
+          ],
+          "profile": null,
+          "log_dir": null,
+          "sqlite_home": null,
+          "responses_api_metadata": null,
+          "experimental_realtime_ws_base_url": null,
+          "marketplaces": {},
+          "model_providers": {},
+          "experimental_realtime_webrtc_call_base_url": null,
+          "include_permissions_instructions": true,
+          "realtime": null,
+          "hide_agent_reasoning": false,
+          "tool_output_token_limit": null,
+          "suppress_unstable_features_warning": null,
+          "allow_login_shell": true,
+          "experimental_compact_prompt_file": null,
+          "model_catalog_json": null,
+          "plan_mode_reasoning_effort": null,
+          "windows": null,
+          "plugins": {},
+          "auto_review": null,
+          "project_doc_max_bytes": 32768,
+          "cli_auth_credentials_store": "file",
+          "otel": null,
+          "experimental_use_unified_exec_tool": null,
+          "apps_mcp_product_sku": null,
+          "show_raw_agent_reasoning": null,
+          "oss_provider": null,
+          "include_collaboration_mode_instructions": true,
+          "mcp_servers": {
+            "synthetic": {
+              "command": "<python>",
+              "args": [
+                "<probe>/profiled/fixture.py",
+                "resources",
+                "<probe>/profiled/mcp-startup.jsonl"
+              ],
+              "environment_id": "local",
+              "enabled": false,
+              "startup_timeout_sec": 2.0,
+              "tool_timeout_sec": null
+            }
+          },
+          "experimental_realtime_ws_backend_prompt": null,
+          "permissions": null,
+          "experimental_realtime_start_instructions": null,
+          "tool_suggest": null,
+          "check_for_update_on_startup": false,
+          "experimental_thread_store_endpoint": null,
+          "include_apps_instructions": true,
+          "thread_unload_delay_secs": null,
+          "experimental_realtime_ws_model": null,
+          "mcp_oauth_callback_port": null,
+          "mcp_optional_startup_grace_ms": null,
+          "background_terminal_max_timeout": 300000,
+          "personality": null,
+          "disable_paste_burst": null,
+          "experimental_thread_store": null,
+          "projects": null,
+          "experimental_realtime_ws_startup_context": null,
+          "default_permissions": null,
+          "js_repl_node_module_dirs": null,
+          "goals": null,
+          "shell_environment_policy": {
+            "inherit": null,
+            "ignore_default_excludes": null,
+            "exclude": null,
+            "set": null,
+            "include_only": null,
+            "filters": null,
+            "experimental_use_profile": null
+          },
+          "profiles": {},
+          "agents": null,
+          "features": {
+            "code_mode": false,
+            "code_mode_host": false,
+            "multi_agent_v2": false,
+            "sleep_tool": false,
+            "network_proxy": null,
+            "apps": false,
+            "browser_use": false,
+            "browser_use_external": false,
+            "code_mode_prewarm": false,
+            "computer_use": false,
+            "goals": false,
+            "hooks": false,
+            "image_generation": false,
+            "in_app_browser": false,
+            "in_app_local_automation": false,
+            "memories": false,
+            "multi_agent": false,
+            "plugins": false,
+            "remote_plugin": false,
+            "shell_snapshot": false,
+            "shell_tool": false,
+            "skill_mcp_dependency_install": false,
+            "skill_search": false,
+            "skip_host_skill_discovery": true,
+            "workspace_dependencies": false,
+            "auth_elicitation": true,
+            "background_paginated_rollout_migration": false,
+            "mcp_2026_07_28": false,
+            "mentions_v2": true,
+            "remote_control": false,
+            "tool_suggest": true,
+            "windows_sandbox_service": false
+          },
+          "history": {
+            "persistence": "save-all",
+            "max_bytes": null
+          },
+          "allow_symlinked_codex_home": null,
+          "chatgpt_base_url": "https://chatgpt.com/backend-api/",
+          "feedback": {
+            "enabled": false
+          },
+          "ghost_snapshot": null,
+          "tui": null,
+          "openai_base_url": null,
+          "audio": null,
+          "mcp_oauth_callback_url": null,
+          "orchestrator": null
+        },
+        "origins": {
+          "mcp_servers.synthetic.enabled": {
+            "name": {
+              "type": "sessionFlags"
+            },
+            "version": "sha256:42d94ca00704bcdf035bda431b40bc9ba4fe612063b332b38e04ee505ac109c9"
+          },
+          "features.shell_tool": {
+            "name": {
+              "type": "sessionFlags"
+            },
+            "version": "sha256:42d94ca00704bcdf035bda431b40bc9ba4fe612063b332b38e04ee505ac109c9"
+          },
+          "mcp_servers.synthetic.startup_timeout_sec": {
+            "name": {
+              "type": "user",
+              "file": "<probe>/profiled/codex/config.toml",
+              "profile": null
+            },
+            "version": "sha256:d15fc289e3bd96d659e50289854ae4d0a2b4b2fe23decb42073f1741f6c97eda"
+          },
+          "mcp_servers.synthetic.args.0": {
+            "name": {
+              "type": "user",
+              "file": "<probe>/profiled/codex/config.toml",
+              "profile": null
+            },
+            "version": "sha256:d15fc289e3bd96d659e50289854ae4d0a2b4b2fe23decb42073f1741f6c97eda"
+          },
+          "features.in_app_browser": {
+            "name": {
+              "type": "sessionFlags"
+            },
+            "version": "sha256:42d94ca00704bcdf035bda431b40bc9ba4fe612063b332b38e04ee505ac109c9"
+          },
+          "features.skip_host_skill_discovery": {
+            "name": {
+              "type": "sessionFlags"
+            },
+            "version": "sha256:42d94ca00704bcdf035bda431b40bc9ba4fe612063b332b38e04ee505ac109c9"
+          },
+          "analytics.enabled": {
+            "name": {
+              "type": "sessionFlags"
+            },
+            "version": "sha256:42d94ca00704bcdf035bda431b40bc9ba4fe612063b332b38e04ee505ac109c9"
+          },
+          "feedback.enabled": {
+            "name": {
+              "type": "sessionFlags"
+            },
+            "version": "sha256:42d94ca00704bcdf035bda431b40bc9ba4fe612063b332b38e04ee505ac109c9"
+          },
+          "features.plugins": {
+            "name": {
+              "type": "sessionFlags"
+            },
+            "version": "sha256:42d94ca00704bcdf035bda431b40bc9ba4fe612063b332b38e04ee505ac109c9"
+          },
+          "features.code_mode": {
+            "name": {
+              "type": "sessionFlags"
+            },
+            "version": "sha256:42d94ca00704bcdf035bda431b40bc9ba4fe612063b332b38e04ee505ac109c9"
+          },
+          "features.browser_use": {
+            "name": {
+              "type": "sessionFlags"
+            },
+            "version": "sha256:42d94ca00704bcdf035bda431b40bc9ba4fe612063b332b38e04ee505ac109c9"
+          },
+          "features.computer_use": {
+            "name": {
+              "type": "sessionFlags"
+            },
+            "version": "sha256:42d94ca00704bcdf035bda431b40bc9ba4fe612063b332b38e04ee505ac109c9"
+          },
+          "model_provider": {
+            "name": {
+              "type": "sessionFlags"
+            },
+            "version": "sha256:42d94ca00704bcdf035bda431b40bc9ba4fe612063b332b38e04ee505ac109c9"
+          },
+          "features.image_generation": {
+            "name": {
+              "type": "sessionFlags"
+            },
+            "version": "sha256:42d94ca00704bcdf035bda431b40bc9ba4fe612063b332b38e04ee505ac109c9"
+          },
+          "features.shell_snapshot": {
+            "name": {
+              "type": "sessionFlags"
+            },
+            "version": "sha256:42d94ca00704bcdf035bda431b40bc9ba4fe612063b332b38e04ee505ac109c9"
+          },
+          "features.multi_agent": {
+            "name": {
+              "type": "sessionFlags"
+            },
+            "version": "sha256:42d94ca00704bcdf035bda431b40bc9ba4fe612063b332b38e04ee505ac109c9"
+          },
+          "features.skill_mcp_dependency_install": {
+            "name": {
+              "type": "sessionFlags"
+            },
+            "version": "sha256:42d94ca00704bcdf035bda431b40bc9ba4fe612063b332b38e04ee505ac109c9"
+          },
+          "features.sleep_tool.enabled": {
+            "name": {
+              "type": "sessionFlags"
+            },
+            "version": "sha256:42d94ca00704bcdf035bda431b40bc9ba4fe612063b332b38e04ee505ac109c9"
+          },
+          "features.memories": {
+            "name": {
+              "type": "sessionFlags"
+            },
+            "version": "sha256:42d94ca00704bcdf035bda431b40bc9ba4fe612063b332b38e04ee505ac109c9"
+          },
+          "features.hooks": {
+            "name": {
+              "type": "sessionFlags"
+            },
+            "version": "sha256:42d94ca00704bcdf035bda431b40bc9ba4fe612063b332b38e04ee505ac109c9"
+          },
+          "features.code_mode_host": {
+            "name": {
+              "type": "sessionFlags"
+            },
+            "version": "sha256:42d94ca00704bcdf035bda431b40bc9ba4fe612063b332b38e04ee505ac109c9"
+          },
+          "forced_login_method": {
+            "name": {
+              "type": "sessionFlags"
+            },
+            "version": "sha256:42d94ca00704bcdf035bda431b40bc9ba4fe612063b332b38e04ee505ac109c9"
+          },
+          "mcp_servers.synthetic.args.2": {
+            "name": {
+              "type": "user",
+              "file": "<probe>/profiled/codex/config.toml",
+              "profile": null
+            },
+            "version": "sha256:d15fc289e3bd96d659e50289854ae4d0a2b4b2fe23decb42073f1741f6c97eda"
+          },
+          "check_for_update_on_startup": {
+            "name": {
+              "type": "sessionFlags"
+            },
+            "version": "sha256:42d94ca00704bcdf035bda431b40bc9ba4fe612063b332b38e04ee505ac109c9"
+          },
+          "features.remote_plugin": {
+            "name": {
+              "type": "sessionFlags"
+            },
+            "version": "sha256:42d94ca00704bcdf035bda431b40bc9ba4fe612063b332b38e04ee505ac109c9"
+          },
+          "features.workspace_dependencies": {
+            "name": {
+              "type": "sessionFlags"
+            },
+            "version": "sha256:42d94ca00704bcdf035bda431b40bc9ba4fe612063b332b38e04ee505ac109c9"
+          },
+          "approval_policy": {
+            "name": {
+              "type": "sessionFlags"
+            },
+            "version": "sha256:42d94ca00704bcdf035bda431b40bc9ba4fe612063b332b38e04ee505ac109c9"
+          },
+          "features.multi_agent_v2.enabled": {
+            "name": {
+              "type": "sessionFlags"
+            },
+            "version": "sha256:42d94ca00704bcdf035bda431b40bc9ba4fe612063b332b38e04ee505ac109c9"
+          },
+          "web_search": {
+            "name": {
+              "type": "sessionFlags"
+            },
+            "version": "sha256:42d94ca00704bcdf035bda431b40bc9ba4fe612063b332b38e04ee505ac109c9"
+          },
+          "features.apps": {
+            "name": {
+              "type": "sessionFlags"
+            },
+            "version": "sha256:42d94ca00704bcdf035bda431b40bc9ba4fe612063b332b38e04ee505ac109c9"
+          },
+          "model": {
+            "name": {
+              "type": "user",
+              "file": "<probe>/profiled/codex/config.toml",
+              "profile": null
+            },
+            "version": "sha256:d15fc289e3bd96d659e50289854ae4d0a2b4b2fe23decb42073f1741f6c97eda"
+          },
+          "features.code_mode_prewarm": {
+            "name": {
+              "type": "sessionFlags"
+            },
+            "version": "sha256:42d94ca00704bcdf035bda431b40bc9ba4fe612063b332b38e04ee505ac109c9"
+          },
+          "features.in_app_local_automation": {
+            "name": {
+              "type": "sessionFlags"
+            },
+            "version": "sha256:42d94ca00704bcdf035bda431b40bc9ba4fe612063b332b38e04ee505ac109c9"
+          },
+          "features.browser_use_external": {
+            "name": {
+              "type": "sessionFlags"
+            },
+            "version": "sha256:42d94ca00704bcdf035bda431b40bc9ba4fe612063b332b38e04ee505ac109c9"
+          },
+          "features.skill_search": {
+            "name": {
+              "type": "sessionFlags"
+            },
+            "version": "sha256:42d94ca00704bcdf035bda431b40bc9ba4fe612063b332b38e04ee505ac109c9"
+          },
+          "sandbox_mode": {
+            "name": {
+              "type": "sessionFlags"
+            },
+            "version": "sha256:42d94ca00704bcdf035bda431b40bc9ba4fe612063b332b38e04ee505ac109c9"
+          },
+          "mcp_servers.synthetic.args.1": {
+            "name": {
+              "type": "user",
+              "file": "<probe>/profiled/codex/config.toml",
+              "profile": null
+            },
+            "version": "sha256:d15fc289e3bd96d659e50289854ae4d0a2b4b2fe23decb42073f1741f6c97eda"
+          },
+          "mcp_servers.synthetic.command": {
+            "name": {
+              "type": "user",
+              "file": "<probe>/profiled/codex/config.toml",
+              "profile": null
+            },
+            "version": "sha256:d15fc289e3bd96d659e50289854ae4d0a2b4b2fe23decb42073f1741f6c97eda"
+          },
+          "features.goals": {
+            "name": {
+              "type": "sessionFlags"
+            },
+            "version": "sha256:42d94ca00704bcdf035bda431b40bc9ba4fe612063b332b38e04ee505ac109c9"
+          }
+        }
+      },
+      "startupMarkersBeforeInventory": [],
+      "startupMarkers": [],
+      "inventory": {
+        "data": [
+          {
+            "name": "synthetic",
+            "runtimeStatus": "disabled",
+            "pluginId": null,
+            "serverInfo": null,
+            "tools": {},
+            "toolsError": null,
+            "resources": [],
+            "resourceTemplates": [],
+            "authStatus": "unsupported"
+          }
+        ],
+        "nextCursor": null
+      },
+      "command": [
+        "/usr/bin/codex",
+        "app-server",
+        "--listen",
+        "stdio://",
+        "--strict-config",
+        "-c",
+        "model_provider=\"openai\"",
+        "-c",
+        "forced_login_method=\"chatgpt\"",
+        "-c",
+        "approval_policy=\"never\"",
+        "-c",
+        "sandbox_mode=\"read-only\"",
+        "-c",
+        "web_search=\"disabled\"",
+        "-c",
+        "analytics.enabled=false",
+        "-c",
+        "feedback.enabled=false",
+        "-c",
+        "check_for_update_on_startup=false",
+        "-c",
+        "features.apps=false",
+        "-c",
+        "features.plugins=false",
+        "-c",
+        "features.remote_plugin=false",
+        "-c",
+        "features.hooks=false",
+        "-c",
+        "features.shell_tool=false",
+        "-c",
+        "features.shell_snapshot=false",
+        "-c",
+        "features.multi_agent=false",
+        "-c",
+        "features.multi_agent_v2=false",
+        "-c",
+        "features.memories=false",
+        "-c",
+        "features.goals=false",
+        "-c",
+        "features.browser_use=false",
+        "-c",
+        "features.browser_use_external=false",
+        "-c",
+        "features.computer_use=false",
+        "-c",
+        "features.in_app_browser=false",
+        "-c",
+        "features.in_app_local_automation=false",
+        "-c",
+        "features.code_mode=false",
+        "-c",
+        "features.code_mode_host=false",
+        "-c",
+        "features.code_mode_prewarm=false",
+        "-c",
+        "features.skill_mcp_dependency_install=false",
+        "-c",
+        "features.skill_search=false",
+        "-c",
+        "features.workspace_dependencies=false",
+        "-c",
+        "features.image_generation=false",
+        "-c",
+        "features.sleep_tool=false",
+        "-c",
+        "features.skip_host_skill_discovery=true",
+        "-c",
+        "mcp_servers.synthetic.enabled=false"
+      ],
+      "prospectiveProfileEvidence": {
+        "version": "nema-native-profile/1",
+        "binarySha256": "9b7c1c7abdc26fc3c4f47c77656a8e9121def5483dbae830ef1ee561758448a9",
+        "completeIsolation": false,
+        "localMcpStartupSuppression": true,
+        "cloudConfiguration": "unverified-live-launch-refused",
+        "liveAdmitted": false,
+        "credentialHandling": "existing-location-no-read-no-copy",
+        "disabledMcpCount": 1,
+        "sourceFingerprints": [
+          {
+            "role": "binary",
+            "pathId": "9d131600d472094ff14c6b69c3a6c86afe6e0cb559307dbc71ca8b377ca07223",
+            "fingerprint": "file:9b7c1c7abdc26fc3c4f47c77656a8e9121def5483dbae830ef1ee561758448a9"
+          },
+          {
+            "role": "system-config",
+            "pathId": "5c82e277c09ee178dab755e066c8410f1bd5a2c91491b09a840f0bc291b4af91",
+            "fingerprint": "absent"
+          },
+          {
+            "role": "source-directory",
+            "pathId": "847f8f380a5f81365a92a9b6cf0e75f2e38614d8798988ae62ad8f1d2547e21e",
+            "fingerprint": "absent"
+          },
+          {
+            "role": "user-config",
+            "pathId": "84e9dc2084f074dc24a09c09cea939e5efca1261fea824f37efa53986e5a118f",
+            "fingerprint": "file:bb731a4ed6c01adc2a810e6f43f737f17b007d5f5832cc5b690528eb335a7b9f"
+          },
+          {
+            "role": "source-directory",
+            "pathId": "77b715992a3765a4f5d47f7810a940abd4aa3a081d4005bd5f7b34b5356d44c9",
+            "fingerprint": "directory:e420b7d9ea3009224639e7149a4272883ebdc88c92eb69eb3a5a569fd7cd4897"
+          },
+          {
+            "role": "ancestor-config",
+            "pathId": "ecc3d17864669a08e9b9de576e854ba6aaea32724bba827057d961c0365bbd87",
+            "fingerprint": "absent"
+          },
+          {
+            "role": "source-directory",
+            "pathId": "119ff499f75d88defa21bf7e941edacdb66a4b23111d70111ce8af224fc3d4a7",
+            "fingerprint": "absent"
+          },
+          {
+            "role": "ancestor-config",
+            "pathId": "66410ccbd226a502fe49856fd390f85a537628f04f0a6bfba87a3855bb9763b6",
+            "fingerprint": "absent"
+          },
+          {
+            "role": "source-directory",
+            "pathId": "1a52a2ddfe03f6173396812cbc02744742e6a120a538b07e04df13664c448c00",
+            "fingerprint": "absent"
+          },
+          {
+            "role": "ancestor-config",
+            "pathId": "e3aa7ae1bb0f311a40f1877ba418f6b2320b182d717c8074e3998111099d14ed",
+            "fingerprint": "absent"
+          },
+          {
+            "role": "source-directory",
+            "pathId": "f2a4893a7a8f5015937cfd829d0c34062b0118ac645e95052c5c6fbe975ee8cc",
+            "fingerprint": "absent"
+          },
+          {
+            "role": "ancestor-config",
+            "pathId": "d25e6bc64d1f3bdb78ce9c93bb4048878cacc2d5d4e0d743bb3cfa719fb3abbd",
+            "fingerprint": "absent"
+          },
+          {
+            "role": "source-directory",
+            "pathId": "b10c1cb0eb531cb16a20e26b5cdbf03494b7571190ce7982fcfbf087ab2a0974",
+            "fingerprint": "absent"
+          },
+          {
+            "role": "ancestor-config",
+            "pathId": "1958026f304515a0208982793bd9a2dc29b7c37902d289b128271f933ffafef3",
+            "fingerprint": "absent"
+          },
+          {
+            "role": "source-directory",
+            "pathId": "751397359a6a14964c688cf0f263bd66b80f7b9c5c0558525c9b3430fc87d992",
+            "fingerprint": "absent"
+          },
+          {
+            "role": "managed-source",
+            "pathId": "2c2fdf81dd16d890dc0edd1218b76e90904c73ec548bfebf70c163e267394af4",
+            "fingerprint": "absent"
+          },
+          {
+            "role": "managed-source",
+            "pathId": "35836f6318922c118871494fd2e6e5fc0b5a1818dcc7c1f5979ea6c93ed551bc",
+            "fingerprint": "absent"
+          },
+          {
+            "role": "managed-source",
+            "pathId": "aee56c4f477bc47dbd10596e4906ba9a0649cfe4fca85abf3bb3f9a94036638e",
+            "fingerprint": "absent"
+          },
+          {
+            "role": "managed-source",
+            "pathId": "9445077377e191b9b419271d35e9e18256879cf41735a310367543513cedb3e0",
+            "fingerprint": "absent"
+          },
+          {
+            "role": "managed-source",
+            "pathId": "4ea3f1a0a61730f14037e541272e90bed275d79c64722f6272ef26161bfba95f",
+            "fingerprint": "absent"
+          }
+        ],
+        "limitations": [
+          "cloud-refresh",
+          "filesystem-check-to-launch-race",
+          "host-read-visibility",
+          "native-auth-and-state-writes",
+          "provider-context",
+          "descendant-processes"
+        ]
+      },
+      "generatedProfileCommandApplied": true
+    }
+  }
+}

@@ -1,0 +1,1706 @@
+{
+  "artifactVersion": 1,
+  "binarySha256": "9b7c1c7abdc26fc3c4f47c77656a8e9121def5483dbae830ef1ee561758448a9",
+  "collaborationModes": {
+    "result": {
+      "data": [
+        {
+          "mode": "plan",
+          "model": null,
+          "name": "Plan",
+          "reasoning_effort": "medium"
+        },
+        {
+          "mode": "default",
+          "model": null,
+          "name": "Default",
+          "reasoning_effort": null
+        }
+      ]
+    }
+  },
+  "dynamicToolRegistration": {
+    "canonicalFunction": {
+      "result": {
+        "activePermissionProfile": null,
+        "approvalPolicy": "never",
+        "approvalsReviewer": "user",
+        "cwd": "<probe>/work",
+        "instructionSources": [],
+        "model": "nema-no-model",
+        "modelProvider": "nema_probe",
+        "multiAgentMode": "explicitRequestOnly",
+        "reasoningEffort": null,
+        "runtimeWorkspaceRoots": [],
+        "sandbox": {
+          "networkAccess": false,
+          "type": "readOnly"
+        },
+        "serviceTier": null,
+        "thread": {
+          "agentNickname": null,
+          "agentRole": null,
+          "canAcceptDirectInput": true,
+          "cliVersion": "0.154.0",
+          "createdAt": 1791911052,
+          "cwd": "<probe>/work",
+          "daybreakEnabled": null,
+          "environments": [],
+          "ephemeral": true,
+          "extra": null,
+          "forkedFromId": null,
+          "gitInfo": null,
+          "historyMode": "legacy",
+          "id": "01a13638-c34e-7fb2-afa7-8bcb6a2066e1",
+          "model": "nema-no-model",
+          "modelProvider": "nema_probe",
+          "name": null,
+          "originator": "eidos",
+          "parentThreadId": null,
+          "path": null,
+          "preview": "",
+          "projectId": null,
+          "reasoningEffort": null,
+          "recencyAt": 1791911052,
+          "section": null,
+          "sectionEnteredAt": null,
+          "sessionId": "01a13638-c34e-7fb2-afa7-8bcb6a2066e1",
+          "source": "vscode",
+          "status": {
+            "type": "idle"
+          },
+          "threadSource": null,
+          "turns": [],
+          "updatedAt": 1791911052
+        }
+      }
+    },
+    "canonicalNamespace": {
+      "result": {
+        "activePermissionProfile": null,
+        "approvalPolicy": "never",
+        "approvalsReviewer": "user",
+        "cwd": "<probe>/work",
+        "instructionSources": [],
+        "model": "nema-no-model",
+        "modelProvider": "nema_probe",
+        "multiAgentMode": "explicitRequestOnly",
+        "reasoningEffort": null,
+        "runtimeWorkspaceRoots": [],
+        "sandbox": {
+          "networkAccess": false,
+          "type": "readOnly"
+        },
+        "serviceTier": null,
+        "thread": {
+          "agentNickname": null,
+          "agentRole": null,
+          "canAcceptDirectInput": true,
+          "cliVersion": "0.154.0",
+          "createdAt": 1791911052,
+          "cwd": "<probe>/work",
+          "daybreakEnabled": null,
+          "environments": [],
+          "ephemeral": true,
+          "extra": null,
+          "forkedFromId": null,
+          "gitInfo": null,
+          "historyMode": "legacy",
+          "id": "01a13638-c35f-7621-be7e-265191b50032",
+          "model": "nema-no-model",
+          "modelProvider": "nema_probe",
+          "name": null,
+          "originator": "eidos",
+          "parentThreadId": null,
+          "path": null,
+          "preview": "",
+          "projectId": null,
+          "reasoningEffort": null,
+          "recencyAt": 1791911052,
+          "section": null,
+          "sectionEnteredAt": null,
+          "sessionId": "01a13638-c35f-7621-be7e-265191b50032",
+          "source": "vscode",
+          "status": {
+            "type": "idle"
+          },
+          "threadSource": null,
+          "turns": [],
+          "updatedAt": 1791911052
+        }
+      }
+    },
+    "duplicateName": {
+      "error": {
+        "code": -32600,
+        "message": "duplicate dynamic tool name: nema_request_evidence"
+      }
+    },
+    "invalidName": {
+      "error": {
+        "code": -32600,
+        "message": "dynamic tool name must match ^[a-zA-Z0-9_-]+$ to match Responses API: name with spaces"
+      }
+    },
+    "legacyMissingType": {
+      "result": {
+        "activePermissionProfile": null,
+        "approvalPolicy": "never",
+        "approvalsReviewer": "user",
+        "cwd": "<probe>/work",
+        "instructionSources": [],
+        "model": "nema-no-model",
+        "modelProvider": "nema_probe",
+        "multiAgentMode": "explicitRequestOnly",
+        "reasoningEffort": null,
+        "runtimeWorkspaceRoots": [],
+        "sandbox": {
+          "networkAccess": false,
+          "type": "readOnly"
+        },
+        "serviceTier": null,
+        "thread": {
+          "agentNickname": null,
+          "agentRole": null,
+          "canAcceptDirectInput": true,
+          "cliVersion": "0.154.0",
+          "createdAt": 1791911052,
+          "cwd": "<probe>/work",
+          "daybreakEnabled": null,
+          "environments": [],
+          "ephemeral": true,
+          "extra": null,
+          "forkedFromId": null,
+          "gitInfo": null,
+          "historyMode": "legacy",
+          "id": "01a13638-c355-7243-b50d-6f755d20a8b0",
+          "model": "nema-no-model",
+          "modelProvider": "nema_probe",
+          "name": null,
+          "originator": "eidos",
+          "parentThreadId": null,
+          "path": null,
+          "preview": "",
+          "projectId": null,
+          "reasoningEffort": null,
+          "recencyAt": 1791911052,
+          "section": null,
+          "sectionEnteredAt": null,
+          "sessionId": "01a13638-c355-7243-b50d-6f755d20a8b0",
+          "source": "vscode",
+          "status": {
+            "type": "idle"
+          },
+          "threadSource": null,
+          "turns": [],
+          "updatedAt": 1791911052
+        }
+      }
+    },
+    "nonObjectInputSchema": {
+      "result": {
+        "activePermissionProfile": null,
+        "approvalPolicy": "never",
+        "approvalsReviewer": "user",
+        "cwd": "<probe>/work",
+        "instructionSources": [],
+        "model": "nema-no-model",
+        "modelProvider": "nema_probe",
+        "multiAgentMode": "explicitRequestOnly",
+        "reasoningEffort": null,
+        "runtimeWorkspaceRoots": [],
+        "sandbox": {
+          "networkAccess": false,
+          "type": "readOnly"
+        },
+        "serviceTier": null,
+        "thread": {
+          "agentNickname": null,
+          "agentRole": null,
+          "canAcceptDirectInput": true,
+          "cliVersion": "0.154.0",
+          "createdAt": 1791911052,
+          "cwd": "<probe>/work",
+          "daybreakEnabled": null,
+          "environments": [],
+          "ephemeral": true,
+          "extra": null,
+          "forkedFromId": null,
+          "gitInfo": null,
+          "historyMode": "legacy",
+          "id": "01a13638-c35a-71f1-ae7c-29f13c9454f7",
+          "model": "nema-no-model",
+          "modelProvider": "nema_probe",
+          "name": null,
+          "originator": "eidos",
+          "parentThreadId": null,
+          "path": null,
+          "preview": "",
+          "projectId": null,
+          "reasoningEffort": null,
+          "recencyAt": 1791911052,
+          "section": null,
+          "sectionEnteredAt": null,
+          "sessionId": "01a13638-c35a-71f1-ae7c-29f13c9454f7",
+          "source": "vscode",
+          "status": {
+            "type": "idle"
+          },
+          "threadSource": null,
+          "turns": [],
+          "updatedAt": 1791911052
+        }
+      }
+    }
+  },
+  "dynamicToolSpecs": {
+    "canonicalFunction": [
+      {
+        "description": "Ask the controller for synthetic evidence",
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {
+            "question": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "question"
+          ],
+          "type": "object"
+        },
+        "name": "nema_request_evidence",
+        "type": "function"
+      }
+    ],
+    "canonicalNamespace": [
+      {
+        "description": "Synthetic evidence",
+        "name": "nema",
+        "tools": [
+          {
+            "description": "Ask the controller for synthetic evidence",
+            "inputSchema": {
+              "additionalProperties": false,
+              "properties": {
+                "question": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "question"
+              ],
+              "type": "object"
+            },
+            "name": "nema_request_evidence",
+            "type": "function"
+          }
+        ],
+        "type": "namespace"
+      }
+    ],
+    "duplicateName": [
+      {
+        "description": "Ask the controller for synthetic evidence",
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {
+            "question": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "question"
+          ],
+          "type": "object"
+        },
+        "name": "nema_request_evidence",
+        "type": "function"
+      },
+      {
+        "description": "Ask the controller for synthetic evidence",
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {
+            "question": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "question"
+          ],
+          "type": "object"
+        },
+        "name": "nema_request_evidence",
+        "type": "function"
+      }
+    ],
+    "invalidName": [
+      {
+        "description": "Ask the controller for synthetic evidence",
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {
+            "question": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "question"
+          ],
+          "type": "object"
+        },
+        "name": "name with spaces",
+        "type": "function"
+      }
+    ],
+    "legacyMissingType": [
+      {
+        "description": "Ask the controller for synthetic evidence",
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {
+            "question": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "question"
+          ],
+          "type": "object"
+        },
+        "name": "nema_request_evidence"
+      }
+    ],
+    "nonObjectInputSchema": [
+      {
+        "description": "Ask the controller for synthetic evidence",
+        "inputSchema": {
+          "type": "string"
+        },
+        "name": "nema_request_evidence",
+        "type": "function"
+      }
+    ]
+  },
+  "emptyThreadControls": {
+    "decrement": {
+      "result": {
+        "count": 0,
+        "paused": false
+      }
+    },
+    "increment": {
+      "result": {
+        "count": 1,
+        "paused": true
+      }
+    },
+    "interruptAbsentTurn": {
+      "error": {
+        "code": -32600,
+        "message": "no active turn to interrupt"
+      }
+    },
+    "readWhileIncremented": {
+      "result": {
+        "thread": {
+          "agentNickname": null,
+          "agentRole": null,
+          "canAcceptDirectInput": true,
+          "cliVersion": "0.154.0",
+          "createdAt": 1791911052,
+          "cwd": "<probe>/work",
+          "daybreakEnabled": null,
+          "environments": [],
+          "ephemeral": true,
+          "extra": null,
+          "forkedFromId": null,
+          "gitInfo": null,
+          "historyMode": "legacy",
+          "id": "01a13638-c34e-7fb2-afa7-8bcb6a2066e1",
+          "model": "nema-no-model",
+          "modelProvider": "nema_probe",
+          "name": null,
+          "originator": "eidos",
+          "parentThreadId": null,
+          "path": null,
+          "preview": "",
+          "projectId": null,
+          "reasoningEffort": null,
+          "recencyAt": 1791911052,
+          "section": null,
+          "sectionEnteredAt": null,
+          "sessionId": "01a13638-c34e-7fb2-afa7-8bcb6a2066e1",
+          "source": "vscode",
+          "status": {
+            "type": "idle"
+          },
+          "threadSource": null,
+          "turns": [],
+          "updatedAt": 1791911052
+        }
+      }
+    }
+  },
+  "eventsAfterCounter": [],
+  "eventsBeforeCounter": [
+    {
+      "emittedAtMs": 1791911052106,
+      "method": "remoteControl/status/changed",
+      "params": {
+        "environmentId": null,
+        "installationId": "8984bd63-8dd6-4af2-badf-3652ca88d966",
+        "serverName": "lima-default",
+        "status": "disabled"
+      }
+    },
+    {
+      "emittedAtMs": 1791911052114,
+      "method": "thread/started",
+      "params": {
+        "thread": {
+          "agentNickname": null,
+          "agentRole": null,
+          "canAcceptDirectInput": true,
+          "cliVersion": "0.154.0",
+          "createdAt": 1791911052,
+          "cwd": "<probe>/work",
+          "daybreakEnabled": null,
+          "environments": [],
+          "ephemeral": true,
+          "extra": null,
+          "forkedFromId": null,
+          "gitInfo": null,
+          "historyMode": "legacy",
+          "id": "01a13638-c34e-7fb2-afa7-8bcb6a2066e1",
+          "model": "nema-no-model",
+          "modelProvider": "nema_probe",
+          "name": null,
+          "originator": "eidos",
+          "parentThreadId": null,
+          "path": null,
+          "preview": "",
+          "projectId": null,
+          "reasoningEffort": null,
+          "recencyAt": 1791911052,
+          "section": null,
+          "sectionEnteredAt": null,
+          "sessionId": "01a13638-c34e-7fb2-afa7-8bcb6a2066e1",
+          "source": "vscode",
+          "status": {
+            "type": "idle"
+          },
+          "threadSource": null,
+          "turns": [],
+          "updatedAt": 1791911052
+        }
+      }
+    },
+    {
+      "emittedAtMs": 1791911052118,
+      "method": "thread/started",
+      "params": {
+        "thread": {
+          "agentNickname": null,
+          "agentRole": null,
+          "canAcceptDirectInput": true,
+          "cliVersion": "0.154.0",
+          "createdAt": 1791911052,
+          "cwd": "<probe>/work",
+          "daybreakEnabled": null,
+          "environments": [],
+          "ephemeral": true,
+          "extra": null,
+          "forkedFromId": null,
+          "gitInfo": null,
+          "historyMode": "legacy",
+          "id": "01a13638-c355-7243-b50d-6f755d20a8b0",
+          "model": "nema-no-model",
+          "modelProvider": "nema_probe",
+          "name": null,
+          "originator": "eidos",
+          "parentThreadId": null,
+          "path": null,
+          "preview": "",
+          "projectId": null,
+          "reasoningEffort": null,
+          "recencyAt": 1791911052,
+          "section": null,
+          "sectionEnteredAt": null,
+          "sessionId": "01a13638-c355-7243-b50d-6f755d20a8b0",
+          "source": "vscode",
+          "status": {
+            "type": "idle"
+          },
+          "threadSource": null,
+          "turns": [],
+          "updatedAt": 1791911052
+        }
+      }
+    },
+    {
+      "emittedAtMs": 1791911052123,
+      "method": "thread/started",
+      "params": {
+        "thread": {
+          "agentNickname": null,
+          "agentRole": null,
+          "canAcceptDirectInput": true,
+          "cliVersion": "0.154.0",
+          "createdAt": 1791911052,
+          "cwd": "<probe>/work",
+          "daybreakEnabled": null,
+          "environments": [],
+          "ephemeral": true,
+          "extra": null,
+          "forkedFromId": null,
+          "gitInfo": null,
+          "historyMode": "legacy",
+          "id": "01a13638-c35a-71f1-ae7c-29f13c9454f7",
+          "model": "nema-no-model",
+          "modelProvider": "nema_probe",
+          "name": null,
+          "originator": "eidos",
+          "parentThreadId": null,
+          "path": null,
+          "preview": "",
+          "projectId": null,
+          "reasoningEffort": null,
+          "recencyAt": 1791911052,
+          "section": null,
+          "sectionEnteredAt": null,
+          "sessionId": "01a13638-c35a-71f1-ae7c-29f13c9454f7",
+          "source": "vscode",
+          "status": {
+            "type": "idle"
+          },
+          "threadSource": null,
+          "turns": [],
+          "updatedAt": 1791911052
+        }
+      }
+    },
+    {
+      "emittedAtMs": 1791911052128,
+      "method": "thread/started",
+      "params": {
+        "thread": {
+          "agentNickname": null,
+          "agentRole": null,
+          "canAcceptDirectInput": true,
+          "cliVersion": "0.154.0",
+          "createdAt": 1791911052,
+          "cwd": "<probe>/work",
+          "daybreakEnabled": null,
+          "environments": [],
+          "ephemeral": true,
+          "extra": null,
+          "forkedFromId": null,
+          "gitInfo": null,
+          "historyMode": "legacy",
+          "id": "01a13638-c35f-7621-be7e-265191b50032",
+          "model": "nema-no-model",
+          "modelProvider": "nema_probe",
+          "name": null,
+          "originator": "eidos",
+          "parentThreadId": null,
+          "path": null,
+          "preview": "",
+          "projectId": null,
+          "reasoningEffort": null,
+          "recencyAt": 1791911052,
+          "section": null,
+          "sectionEnteredAt": null,
+          "sessionId": "01a13638-c35f-7621-be7e-265191b50032",
+          "source": "vscode",
+          "status": {
+            "type": "idle"
+          },
+          "threadSource": null,
+          "turns": [],
+          "updatedAt": 1791911052
+        }
+      }
+    }
+  ],
+  "initialize": {
+    "codexHome": "<probe>/codex",
+    "platformFamily": "unix",
+    "platformOs": "linux",
+    "userAgent": "eidos/0.154.0 (Arch Linux Unknown; aarch64) unknown (eidos; 0.1.0)"
+  },
+  "liveInteractionGate": "UNVERIFIED",
+  "modelTurns": 0,
+  "platform": {
+    "machine": "aarch64",
+    "system": "Linux"
+  },
+  "rpcMethods": [
+    "initialize",
+    "collaborationMode/list",
+    "thread/start",
+    "thread/start",
+    "thread/start",
+    "thread/start",
+    "thread/start",
+    "thread/start",
+    "thread/increment_elicitation",
+    "thread/read",
+    "thread/decrement_elicitation",
+    "turn/interrupt"
+  ],
+  "schema": {
+    "ClientRequest": {
+      "methods": [
+        "initialize",
+        "server/diagnostics",
+        "userVerification/status",
+        "userVerification/enroll",
+        "userVerification/delete",
+        "userVerification/verify",
+        "thread/start",
+        "thread/resume",
+        "thread/fork",
+        "thread/archive",
+        "thread/delete",
+        "thread/unsubscribe",
+        "thread/increment_elicitation",
+        "thread/decrement_elicitation",
+        "thread/name/set",
+        "thread/goal/set",
+        "thread/goal/get",
+        "thread/goal/clear",
+        "thread/queue/add",
+        "thread/queue/list",
+        "thread/queue/update",
+        "thread/queue/delete",
+        "thread/queue/reorder",
+        "thread/queue/start",
+        "thread/metadata/update",
+        "thread/section/move",
+        "thread/settings/update",
+        "thread/memoryMode/set",
+        "memory/reset",
+        "thread/unarchive",
+        "thread/compact/start",
+        "thread/shellCommand",
+        "thread/approveGuardianDeniedAction",
+        "thread/backgroundTerminals/clean",
+        "thread/backgroundTerminals/list",
+        "thread/backgroundTerminals/terminate",
+        "thread/rollback",
+        "thread/revert",
+        "thread/list",
+        "project/list",
+        "project/read",
+        "project/create",
+        "project/import",
+        "project/update",
+        "project/move",
+        "project/delete",
+        "threadSection/list",
+        "threadSection/create",
+        "threadSection/update",
+        "threadSection/delete",
+        "thread/search",
+        "thread/searchOccurrences",
+        "thread/loaded/list",
+        "thread/read",
+        "thread/turns/list",
+        "thread/items/list",
+        "thread/inject_items",
+        "skills/list",
+        "skills/extraRoots/set",
+        "hooks/list",
+        "marketplace/add",
+        "marketplace/remove",
+        "marketplace/upgrade",
+        "plugin/list",
+        "plugin/search",
+        "plugin/installed",
+        "plugin/reconcile",
+        "plugin/read",
+        "plugin/skill/read",
+        "plugin/share/save",
+        "plugin/share/updateTargets",
+        "plugin/share/list",
+        "plugin/share/checkout",
+        "plugin/share/delete",
+        "app/read",
+        "app/list",
+        "app/installed",
+        "fs/readFile",
+        "fs/writeFile",
+        "fs/createDirectory",
+        "fs/getMetadata",
+        "fs/readDirectory",
+        "fs/remove",
+        "fs/copy",
+        "fs/watch",
+        "fs/unwatch",
+        "skills/config/write",
+        "plugin/install",
+        "plugin/uninstall",
+        "turn/start",
+        "turn/settings/update",
+        "turn/steer",
+        "turn/interrupt",
+        "thread/realtime/start",
+        "thread/realtime/appendAudio",
+        "thread/realtime/appendText",
+        "thread/realtime/appendSpeech",
+        "thread/realtime/stop",
+        "thread/timeline/list",
+        "thread/realtime/listVoices",
+        "review/start",
+        "model/list",
+        "modelProvider/capabilities/read",
+        "experimentalFeature/list",
+        "permissionProfile/list",
+        "experimentalFeature/enablement/set",
+        "remoteControl/enable",
+        "remoteControl/disable",
+        "remoteControl/status/read",
+        "remoteControl/pairing/start",
+        "remoteControl/pairing/status",
+        "remoteControl/client/list",
+        "remoteControl/client/revoke",
+        "collaborationMode/list",
+        "mock/experimentalMethod",
+        "environment/add",
+        "environment/info",
+        "environment/status",
+        "mcpServer/oauth/login",
+        "config/mcpServer/reload",
+        "mcpServerStatus/list",
+        "mcpServer/resource/read",
+        "mcpServer/event/stream/start",
+        "mcpServer/event/stream/stop",
+        "mcpServer/tool/call",
+        "windowsSandbox/setupStart",
+        "windowsSandbox/readiness",
+        "account/login/start",
+        "account/bedrock/discover",
+        "account/bedrock/setup",
+        "account/login/cancel",
+        "account/logout",
+        "account/rateLimits/read",
+        "account/rateLimitResetCredit/consume",
+        "account/usage/read",
+        "account/workspaceMessages/read",
+        "account/sendAddCreditsNudgeEmail",
+        "feedback/upload",
+        "command/exec",
+        "command/exec/write",
+        "command/exec/terminate",
+        "command/exec/resize",
+        "process/spawn",
+        "process/writeStdin",
+        "process/kill",
+        "process/resizePty",
+        "config/read",
+        "externalAgentConfig/detect",
+        "externalAgentConfig/import",
+        "externalAgentConfig/import/recordHistory",
+        "externalAgentConfig/import/readHistories",
+        "config/value/write",
+        "config/batchWrite",
+        "configRequirements/read",
+        "account/read",
+        "fuzzyFileSearch",
+        "fuzzyFileSearch/sessionStart",
+        "fuzzyFileSearch/sessionUpdate",
+        "fuzzyFileSearch/sessionStop"
+      ],
+      "sha256": "4b1ea47e8a389402556b23451b5a690944e498dc31557b1bca3525631655f1f4"
+    },
+    "DynamicToolCallParams": {
+      "definitions": {},
+      "properties": {
+        "arguments": true,
+        "callId": {
+          "type": "string"
+        },
+        "namespace": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "threadId": {
+          "type": "string"
+        },
+        "tool": {
+          "type": "string"
+        },
+        "turnId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "arguments",
+        "callId",
+        "threadId",
+        "tool",
+        "turnId"
+      ],
+      "sha256": "401bba20cfbd95762bef0467d840430c46be53369093ad9f26425ba757e34efc"
+    },
+    "DynamicToolCallResponse": {
+      "definitions": {
+        "DynamicToolCallOutputContentItem": {
+          "oneOf": [
+            {
+              "properties": {
+                "text": {
+                  "type": "string"
+                },
+                "type": {
+                  "enum": [
+                    "inputText"
+                  ],
+                  "title": "InputTextDynamicToolCallOutputContentItemType",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "text",
+                "type"
+              ],
+              "title": "InputTextDynamicToolCallOutputContentItem",
+              "type": "object"
+            },
+            {
+              "properties": {
+                "imageUrl": {
+                  "type": "string"
+                },
+                "type": {
+                  "enum": [
+                    "inputImage"
+                  ],
+                  "title": "InputImageDynamicToolCallOutputContentItemType",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "imageUrl",
+                "type"
+              ],
+              "title": "InputImageDynamicToolCallOutputContentItem",
+              "type": "object"
+            },
+            {
+              "properties": {
+                "audioUrl": {
+                  "type": "string"
+                },
+                "type": {
+                  "enum": [
+                    "inputAudio"
+                  ],
+                  "title": "InputAudioDynamicToolCallOutputContentItemType",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "audioUrl",
+                "type"
+              ],
+              "title": "InputAudioDynamicToolCallOutputContentItem",
+              "type": "object"
+            }
+          ]
+        }
+      },
+      "properties": {
+        "contentItems": {
+          "items": {
+            "$ref": "#/definitions/DynamicToolCallOutputContentItem"
+          },
+          "type": "array"
+        },
+        "success": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "contentItems",
+        "success"
+      ],
+      "sha256": "abb082cad67f11fcc98ba75f2eff75d7d1723af0c657655329b83ff160451a02"
+    },
+    "McpServerElicitationRequestParams": {
+      "definitions": {},
+      "properties": {
+        "serverName": {
+          "type": "string"
+        },
+        "threadId": {
+          "type": "string"
+        },
+        "turnId": {
+          "description": "Active Codex turn when this elicitation was observed, if app-server could correlate one.\n\nThis is nullable because MCP models elicitation as a standalone server-to-client request identified by the MCP server request id. It may be triggered during a turn, but turn context is app-server correlation rather than part of the protocol identity of the elicitation itself.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "serverName",
+        "threadId"
+      ],
+      "sha256": "2de50247be60fd8afe1136d90e4fe1cf129b3df695d700824a05960f460f8e14"
+    },
+    "McpServerElicitationRequestResponse": {
+      "definitions": {},
+      "properties": {
+        "_meta": {
+          "description": "Optional client metadata for form-mode action handling."
+        },
+        "action": {
+          "$ref": "#/definitions/McpServerElicitationAction"
+        },
+        "content": {
+          "description": "Structured user input for accepted elicitations, mirroring RMCP `CreateElicitationResult`.\n\nThis is nullable because decline/cancel responses have no content."
+        }
+      },
+      "required": [
+        "action"
+      ],
+      "sha256": "792a012fdfe53ac211575a6c37ffbd492be848d15cb313d1bb4b534ade1f54ac"
+    },
+    "ServerNotification": {
+      "methods": [
+        "error",
+        "thread/started",
+        "thread/status/changed",
+        "thread/archived",
+        "thread/deleted",
+        "thread/unarchived",
+        "thread/closed",
+        "thread/reverted",
+        "skills/changed",
+        "thread/name/updated",
+        "thread/goal/updated",
+        "thread/goal/cleared",
+        "thread/queue/changed",
+        "project/changed",
+        "thread/project/updated",
+        "thread/environment/connected",
+        "thread/environment/disconnected",
+        "thread/settings/updated",
+        "thread/tokenUsage/updated",
+        "turn/started",
+        "hook/started",
+        "turn/completed",
+        "hook/completed",
+        "turn/diff/updated",
+        "turn/plan/updated",
+        "item/started",
+        "item/autoApprovalReview/started",
+        "item/autoApprovalReview/completed",
+        "autoApprovalReview/strictReviewRequired",
+        "item/completed",
+        "item/agentMessage/delta",
+        "item/plan/delta",
+        "command/exec/outputDelta",
+        "process/outputDelta",
+        "process/exited",
+        "item/commandExecution/outputDelta",
+        "item/commandExecution/terminalInteraction",
+        "item/fileChange/outputDelta",
+        "item/fileChange/patchUpdated",
+        "serverRequest/resolved",
+        "item/mcpToolCall/progress",
+        "mcpServer/oauthLogin/completed",
+        "mcpServer/startupStatus/updated",
+        "mcpServer/event/stream/notification",
+        "account/updated",
+        "account/rateLimits/updated",
+        "app/list/updated",
+        "remoteControl/status/changed",
+        "externalAgentConfig/import/progress",
+        "externalAgentConfig/import/completed",
+        "fs/changed",
+        "item/reasoning/summaryTextDelta",
+        "item/reasoning/summaryPartAdded",
+        "item/reasoning/textDelta",
+        "thread/compacted",
+        "model/rerouted",
+        "model/verification",
+        "modelProvider/authRecoveryStarted",
+        "modelProvider/authRecoveryCompleted",
+        "turn/moderationMetadata",
+        "model/safetyBuffering/updated",
+        "warning",
+        "guardianWarning",
+        "deprecationNotice",
+        "configWarning",
+        "fuzzyFileSearch/sessionUpdated",
+        "fuzzyFileSearch/sessionCompleted",
+        "thread/realtime/started",
+        "thread/realtime/itemAdded",
+        "thread/realtime/item/started",
+        "thread/realtime/item/transcript/delta",
+        "thread/realtime/item/completed",
+        "thread/realtime/transcript/delta",
+        "thread/realtime/transcript/done",
+        "thread/realtime/outputAudio/delta",
+        "thread/realtime/sdp",
+        "thread/realtime/error",
+        "thread/realtime/closed",
+        "windows/worldWritableWarning",
+        "windowsSandbox/setupCompleted",
+        "account/login/completed"
+      ],
+      "sha256": "eb4317b57ce7cad32d6ab8a5b7d39eb765c8fb8f67acbc808dd6e55959411c93"
+    },
+    "ServerRequest": {
+      "methods": [
+        "item/commandExecution/requestApproval",
+        "item/fileChange/requestApproval",
+        "item/tool/requestUserInput",
+        "mcpServer/elicitation/request",
+        "item/permissions/requestApproval",
+        "item/tool/call",
+        "account/chatgptAuthTokens/refresh",
+        "attestation/generate",
+        "currentTime/read",
+        "applyPatchApproval",
+        "execCommandApproval"
+      ],
+      "sha256": "97149b290b077be5d970e7b1ade1e936d1152520b6c0187ce8745cb3d639b2cb"
+    },
+    "ToolRequestUserInputParams": {
+      "definitions": {
+        "ToolRequestUserInputOption": {
+          "description": "EXPERIMENTAL. Defines a single selectable option for request_user_input.",
+          "properties": {
+            "description": {
+              "type": "string"
+            },
+            "label": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "description",
+            "label"
+          ],
+          "type": "object"
+        },
+        "ToolRequestUserInputQuestion": {
+          "description": "EXPERIMENTAL. Represents one request_user_input question and its required options.",
+          "properties": {
+            "header": {
+              "type": "string"
+            },
+            "id": {
+              "type": "string"
+            },
+            "isOther": {
+              "default": false,
+              "type": "boolean"
+            },
+            "isSecret": {
+              "default": false,
+              "type": "boolean"
+            },
+            "options": {
+              "items": {
+                "$ref": "#/definitions/ToolRequestUserInputOption"
+              },
+              "type": [
+                "array",
+                "null"
+              ]
+            },
+            "question": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "header",
+            "id",
+            "question"
+          ],
+          "type": "object"
+        }
+      },
+      "properties": {
+        "autoResolutionMs": {
+          "default": null,
+          "description": "@deprecated Use `isBlocking` to decide whether the request should block.",
+          "format": "uint64",
+          "minimum": 0.0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "isBlocking": {
+          "type": "boolean"
+        },
+        "itemId": {
+          "type": "string"
+        },
+        "questions": {
+          "items": {
+            "$ref": "#/definitions/ToolRequestUserInputQuestion"
+          },
+          "type": "array"
+        },
+        "threadId": {
+          "type": "string"
+        },
+        "turnId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "isBlocking",
+        "itemId",
+        "questions",
+        "threadId",
+        "turnId"
+      ],
+      "sha256": "fda15b62e7446105b59c8ed85c908abed2a47db70653e57c92c47a2f204fa77a"
+    },
+    "ToolRequestUserInputResponse": {
+      "definitions": {
+        "ToolRequestUserInputAnswer": {
+          "description": "EXPERIMENTAL. Captures a user's answer to a request_user_input question.",
+          "properties": {
+            "answers": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "answers"
+          ],
+          "type": "object"
+        }
+      },
+      "properties": {
+        "answers": {
+          "additionalProperties": {
+            "$ref": "#/definitions/ToolRequestUserInputAnswer"
+          },
+          "type": "object"
+        }
+      },
+      "required": [
+        "answers"
+      ],
+      "sha256": "5073b245f741fa8ce62ec52e4dd1809b7831f9c4284c279a78abc9b171f8e3f2"
+    },
+    "v2/ServerRequestResolvedNotification": {
+      "definitions": {
+        "RequestId": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "format": "int64",
+              "type": "integer"
+            }
+          ]
+        }
+      },
+      "properties": {
+        "requestId": {
+          "$ref": "#/definitions/RequestId"
+        },
+        "threadId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "requestId",
+        "threadId"
+      ],
+      "sha256": "4f03d586a5af04edd912cad08cc97eceb658e7e06744565e6d41a93e04a55966"
+    },
+    "v2/ThreadStartParams": {
+      "definitions": {
+        "DynamicToolNamespaceTool": {
+          "oneOf": [
+            {
+              "properties": {
+                "deferLoading": {
+                  "type": "boolean"
+                },
+                "description": {
+                  "type": "string"
+                },
+                "inputSchema": true,
+                "name": {
+                  "type": "string"
+                },
+                "type": {
+                  "enum": [
+                    "function"
+                  ],
+                  "title": "FunctionDynamicToolNamespaceToolType",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "description",
+                "inputSchema",
+                "name",
+                "type"
+              ],
+              "title": "FunctionDynamicToolNamespaceTool",
+              "type": "object"
+            }
+          ]
+        },
+        "DynamicToolSpec": {
+          "oneOf": [
+            {
+              "properties": {
+                "deferLoading": {
+                  "type": "boolean"
+                },
+                "description": {
+                  "type": "string"
+                },
+                "inputSchema": true,
+                "name": {
+                  "type": "string"
+                },
+                "type": {
+                  "enum": [
+                    "function"
+                  ],
+                  "title": "FunctionDynamicToolSpecType",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "description",
+                "inputSchema",
+                "name",
+                "type"
+              ],
+              "title": "FunctionDynamicToolSpec",
+              "type": "object"
+            },
+            {
+              "properties": {
+                "description": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "tools": {
+                  "items": {
+                    "$ref": "#/definitions/DynamicToolNamespaceTool"
+                  },
+                  "type": "array"
+                },
+                "type": {
+                  "enum": [
+                    "namespace"
+                  ],
+                  "title": "NamespaceDynamicToolSpecType",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "description",
+                "name",
+                "tools",
+                "type"
+              ],
+              "title": "NamespaceDynamicToolSpec",
+              "type": "object"
+            }
+          ]
+        }
+      },
+      "properties": {
+        "allowProviderModelFallback": {
+          "description": "Allow a provider with an authoritative static model catalog to replace an unavailable requested model with its default.",
+          "type": "boolean"
+        },
+        "approvalPolicy": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/AskForApproval"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "approvalsReviewer": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/ApprovalsReviewer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Override where approval requests are routed for review on this thread and subsequent turns."
+        },
+        "baseInstructions": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "config": {
+          "additionalProperties": true,
+          "type": [
+            "object",
+            "null"
+          ]
+        },
+        "cwd": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "developerInstructions": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "dynamicTools": {
+          "default": null,
+          "items": {
+            "$ref": "#/definitions/DynamicToolSpec"
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "environments": {
+          "description": "Optional sticky environments for this thread.\n\nOmitted selects the default environment when environment access is enabled. Empty disables environment access for turns that do not provide a turn override. Non-empty selects the first environment as the current turn environment.",
+          "items": {
+            "$ref": "#/definitions/TurnEnvironmentParams"
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "ephemeral": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "experimentalRawEvents": {
+          "description": "If true, opt into emitting raw Responses API items on the event stream. This is for internal use only (e.g. Codex Cloud).",
+          "type": "boolean"
+        },
+        "historyMode": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/ThreadHistoryMode"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Persisted thread history contract to use for this new thread."
+        },
+        "mockExperimentalField": {
+          "description": "Test-only experimental field used to validate experimental gating and schema filtering behavior in a stable way.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "model": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "modelProvider": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "multiAgentMode": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/MultiAgentMode"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "@deprecated Ignored. Use Ultra reasoning effort for proactive multi-agent behavior."
+        },
+        "permissions": {
+          "description": "Named profile id for this thread. Cannot be combined with `sandbox`.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "personality": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Personality"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "projectId": {
+          "description": "Optional project identity for this new thread. Durable threads persist the assignment; ephemeral threads expose it only in live responses.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "runtimeWorkspaceRoots": {
+          "description": "Replace the thread's runtime workspace roots. Paths must be absolute.",
+          "items": {
+            "$ref": "#/definitions/AbsolutePathBuf"
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "sandbox": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/SandboxMode"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "selectedCapabilityRoots": {
+          "description": "Capability roots selected for this thread by the hosting platform.",
+          "items": {
+            "$ref": "#/definitions/SelectedCapabilityRoot"
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "serviceName": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "serviceTier": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "sessionStartSource": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/ThreadStartSource"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "threadSource": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/ThreadSource"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Optional client-supplied analytics source classification for this thread."
+        }
+      },
+      "required": [],
+      "sha256": "25f490368ec6df52a2a3b82a5469d2413307eb93439121b309f415b5648eee7a"
+    },
+    "v2/TurnCompletedNotification": {
+      "definitions": {
+        "DynamicToolCallOutputContentItem": {
+          "oneOf": [
+            {
+              "properties": {
+                "text": {
+                  "type": "string"
+                },
+                "type": {
+                  "enum": [
+                    "inputText"
+                  ],
+                  "title": "InputTextDynamicToolCallOutputContentItemType",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "text",
+                "type"
+              ],
+              "title": "InputTextDynamicToolCallOutputContentItem",
+              "type": "object"
+            },
+            {
+              "properties": {
+                "imageUrl": {
+                  "type": "string"
+                },
+                "type": {
+                  "enum": [
+                    "inputImage"
+                  ],
+                  "title": "InputImageDynamicToolCallOutputContentItemType",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "imageUrl",
+                "type"
+              ],
+              "title": "InputImageDynamicToolCallOutputContentItem",
+              "type": "object"
+            },
+            {
+              "properties": {
+                "audioUrl": {
+                  "type": "string"
+                },
+                "type": {
+                  "enum": [
+                    "inputAudio"
+                  ],
+                  "title": "InputAudioDynamicToolCallOutputContentItemType",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "audioUrl",
+                "type"
+              ],
+              "title": "InputAudioDynamicToolCallOutputContentItem",
+              "type": "object"
+            }
+          ]
+        },
+        "TurnStatus": {
+          "enum": [
+            "completed",
+            "interrupted",
+            "failed",
+            "inProgress"
+          ],
+          "type": "string"
+        }
+      },
+      "properties": {
+        "threadId": {
+          "type": "string"
+        },
+        "turn": {
+          "$ref": "#/definitions/Turn"
+        }
+      },
+      "required": [
+        "threadId",
+        "turn"
+      ],
+      "sha256": "78af2a37391e8e669a4020cb58593e4d3e378756ced79d5fec72374fa69fb94b"
+    },
+    "v2/TurnInterruptParams": {
+      "definitions": {},
+      "properties": {
+        "threadId": {
+          "type": "string"
+        },
+        "turnId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "threadId",
+        "turnId"
+      ],
+      "sha256": "6dff382dae73d1dbc58406ed045605f647e7a49660e2540fbd2c6c24d60c5f2b"
+    },
+    "v2/TurnSteerParams": {
+      "definitions": {},
+      "properties": {
+        "additionalContext": {
+          "additionalProperties": {
+            "$ref": "#/definitions/AdditionalContextEntry"
+          },
+          "description": "Optional client-provided context fragments keyed by an opaque source identifier.",
+          "type": [
+            "object",
+            "null"
+          ]
+        },
+        "clientUserMessageId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "expectedTurnId": {
+          "description": "Required active turn id precondition. The request fails when it does not match the currently active turn.",
+          "type": "string"
+        },
+        "input": {
+          "items": {
+            "$ref": "#/definitions/UserInput"
+          },
+          "type": "array"
+        },
+        "responsesapiClientMetadata": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Optional metadata to enrich Codex's ResponsesAPI turn metadata.\n\nEntries are flattened into the JSON string sent as `client_metadata[\"x-codex-turn-metadata\"]` on ResponsesAPI HTTP and websocket requests.\n\nThey are not sent as top-level ResponsesAPI `client_metadata` keys, and reserved keys such as `session_id`, `thread_id`, `turn_id`, and `window_id` cannot be overridden.",
+          "type": [
+            "object",
+            "null"
+          ]
+        },
+        "threadId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "expectedTurnId",
+        "input",
+        "threadId"
+      ],
+      "sha256": "2e0cdcea6a90d6c8bc584fdc2ff838e824754b1eef0d2d16aa71bec4276fef44"
+    }
+  },
+  "scope": "disposable unauthenticated state; no model turns or native request responses",
+  "stderr": [
+    "WARNING: proceeding, even though we could not create PATH aliases: Refusing to create helper binaries under temporary dir \"/tmp\" (codex_home: AbsolutePathBuf(\"<probe>/codex\"))"
+  ],
+  "version": "codex-cli 0.154.0"
+}
