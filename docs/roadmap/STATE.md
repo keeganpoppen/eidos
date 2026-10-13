@@ -6,6 +6,25 @@ The baseline GitHub Actions run `38240774514` completed successfully: pytest and
 
 Refresh this file when implementation claims materially change. Keep historical audit IDs instead of quietly relabelling old evidence as current.
 
+## Pre-turn tool control challenge — 2026-10-13
+
+Integration base `579af9d`; [raw evidence and source review](../evidence/NATIVE_TOOL_BOUNDARY_EXPERIMENT.md)
+record three guarded native turns and six local synthetic provider requests. An
+empty per-server tool allowlist still permits the built-in resource reader.
+Disabling the fixture MCP server removes its resource handlers; the same authored
+call is rejected before access, with zero MCP HTTP contact. Grouped user-input and
+skills controls remove their wire schemas, but their handlers were not dynamically
+challenged. This uses fallback model metadata, not an authenticated account catalog.
+
+Parent combined native opt-in: **71 passed**, covering the prior text-only probe
+and all three new cases. Combined default suite: **849 passed, 38 skipped**.
+Independent source/default-test review accepted the narrow result. The shared
+bounded HTTP parser is reused without changing the earlier fake-provider behavior.
+No real model, credentials, upstream request, authentication claim or production
+profile/admission change. Transport stdout/event/trace totals and aggregate CPU,
+memory/disk limits remain separate obligations; the consumed-event counter is not
+a recorder quota. The recorded-experiment UI loop proceeds independently.
+
 ## Durable comparison snapshots and synthetic native transport — 2026-10-13
 
 Integration base `b9f75ea`; [current handoff](../agents/CURRENT_HANDOFF.md) identifies

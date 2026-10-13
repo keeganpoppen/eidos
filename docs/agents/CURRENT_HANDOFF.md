@@ -1,11 +1,32 @@
-# Current handoff — durable named comparisons
+# Current handoff — saved comparisons and native tool controls
 
-**NEMA-SEED-1 · 2026-10-13 · integration base `b9f75ea` on main.**
+**NEMA-SEED-1 · 2026-10-13 · latest integration base `579af9d` on main.**
 The commit containing this handoff identifies the completed integration. The continuing mission
 remains active; [PROGRAM](PROGRAM.md) owns conjectures and opportunity ordering.
 The [previous scale integration](history/SAVED_WORK_SCALE_INTEGRATED.md) is pushed;
 its [public CI](https://github.com/keeganpoppen/eidos/actions/runs/38455597139) passed.
 Neither a green suite nor this milestone completes the mission or V1.
+
+## Active successor checkpoint
+
+`579af9d475045936ccfc24d53104990e6064e56b` was committed and pushed with a clean
+tree; public CI passed [run 38458842177](https://github.com/keeganpoppen/eidos/actions/runs/38458842177).
+The next [recorded-experiment contract](RECORDED_EXPERIMENT_COMPOSITION_TASK.md) is
+active from that revision. UI owns `/tmp/nema-recorded-experiment-ui`; independent
+acceptance owns `/tmp/nema-recorded-experiment-acceptance`. Root's read-only backend
+review found existing exact experiment GET/immutable targets adequate; no new route
+or mutation is planned. Acceptance will label later attempt/result state as authored
+trusted-host fixtures because public draft revision freezes after dispatch.
+
+Native tool-control contributions `22009db` + `7afd982` are inspected and integrated
+in this successor integration. Independent default review passed **64 passed / 7 skipped**; parent
+combined native opt-in passed **71**, including earlier text-only probes. The final
+metadata fix distinguishes two accepted provider requests from the 24 total HTTP
+request bound. Combined default suite: **849 passed, 38 skipped**.
+[Native evidence](../evidence/NATIVE_TOOL_BOUNDARY_EXPERIMENT.md). No production admission changes.
+Native lane is now a read-only scout ranking the next discriminator: known model
+metadata, resource bounds, and the explicit trusted-client/caller-auth boundary.
+The delivered status below belongs to `579af9d`.
 
 ## Implemented loop and contract
 
@@ -25,7 +46,7 @@ Browser drafts and their pending save identities remain local. Passage selectors
 carry the installed parser version; unknown versions retain artifact/record IDs
 without interpreting a passage under a different parser. [D29](../roadmap/DECISIONS.md).
 
-## Verification
+## Snapshot integration verification
 
 - Integrated `uv run pytest`: **821 passed, 34 skipped**, explicit native opt-ins.
 - Integrated final Bun: **67 tests / 344 assertions**;
@@ -70,9 +91,8 @@ from the new main revision into separate UI and acceptance worktrees. Root revie
 existing experiment HTTP/frozen-reference invariants while those lanes implement.
 No human decision blocks ordinary repository work.
 
-Native lane `/root/native_frontier` in `/tmp/nema-native-account-admission` now
-owns a separate tool-boundary probe: supported pre-turn configuration challenged
-by authored tool-call SSE. New script/tests/evidence plus approved extraction of
+Native lane `/root/native_frontier` in `/tmp/nema-native-account-admission` completed
+the tool-boundary probe above and now owns a read-only discriminator scout. New script/tests/evidence plus approved extraction of
 bounded HTTP parsing from its prior synthetic probe. Fresh disconnected namespace,
 noauth local fake provider, no private state, upstream, real models or production
 profile changes. Default checks launch no native. This work need not delay the

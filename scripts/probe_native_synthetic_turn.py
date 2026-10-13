@@ -107,6 +107,64 @@ def response_stream() -> bytes:
                    for event in response_events()).encode()
 
 
+class FixtureHttpError(ValueError):
+    def __init__(self, status: int, reason: str, record: dict[str, Any]) -> None:
+        super().__init__(reason)
+        self.status, self.reason, self.record = status, reason, record
+
+
+def read_fixture_http_request(connection: socket.socket, deadline: float) -> dict[str, Any]:
+    """Read one bounded message; shared by local-only fixture services."""
+    record: dict[str, Any] = {}
+    def receive(count: int) -> bytes:
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            raise TimeoutError
+        connection.settimeout(remaining)
+        value = connection.recv(count)
+        if not value:
+            raise ValueError("truncated")
+        return value
+
+    try:
+        data = bytearray()
+        while b"\r\n\r\n" not in data:
+            data.extend(receive(2048))
+            split = data.find(b"\r\n\r\n")
+            if split > MAX_HEADER or split == -1 and len(data) > MAX_HEADER:
+                raise FixtureHttpError(413, "header-limit", record)
+        head, body = bytes(data).split(b"\r\n\r\n", 1)
+        lines = head.decode("ascii").split("\r\n")
+        method, target, version = lines[0].split(" ")
+        if version != "HTTP/1.1":
+            raise ValueError("version")
+        headers: dict[str, str] = {}
+        for line in lines[1:]:
+            name, value = line.split(":", 1)
+            name = name.lower()
+            if name in headers:
+                raise ValueError("duplicate-header")
+            headers[name] = value.strip()
+        record.update(method=method, target=target, headers=headers)
+        if any(name in headers for name in ("authorization", "transfer-encoding", "content-encoding")):
+            raise FixtureHttpError(400, "unsupported-header", record)
+        length = int(headers.get("content-length", "0"))
+        if not 0 <= length <= MAX_BODY:
+            raise FixtureHttpError(413, "body-limit", record)
+        while len(body) < length:
+            body += receive(length - len(body))
+        if len(body) != length:
+            raise ValueError("trailing-bytes")
+        record.update(bodyRaw=body.decode("utf-8"), bodySha256=hashlib.sha256(body).hexdigest())
+        return record
+    except FixtureHttpError:
+        raise
+    except TimeoutError:
+        raise FixtureHttpError(408, "deadline", record) from None
+    except (ValueError, TypeError, UnicodeError):
+        raise FixtureHttpError(400, "malformed", record) from None
+
+
 class FixtureBroker:
     """Default-deny, single-use fake service. No outbound network client exists."""
     def __init__(self, prompt: str) -> None:
@@ -144,46 +202,9 @@ class FixtureBroker:
                 return self._http(status, response_stream(), "text/event-stream")
             return self._http(status, json.dumps({"synthetic": True, "reason": reason}).encode())
 
-        def receive(count: int) -> bytes:
-            remaining = deadline - time.monotonic()
-            if remaining <= 0:
-                raise TimeoutError
-            connection.settimeout(remaining)
-            value = connection.recv(count)
-            if not value:
-                raise ValueError("truncated")
-            return value
-
         try:
-            data = bytearray()
-            while b"\r\n\r\n" not in data:
-                data.extend(receive(2048))
-                split = data.find(b"\r\n\r\n")
-                if split > MAX_HEADER or split == -1 and len(data) > MAX_HEADER:
-                    return finish(413, "header-limit")
-            head, body = bytes(data).split(b"\r\n\r\n", 1)
-            lines = head.decode("ascii").split("\r\n")
-            method, target, version = lines[0].split(" ")
-            if version != "HTTP/1.1":
-                raise ValueError("version")
-            headers: dict[str, str] = {}
-            for line in lines[1:]:
-                name, value = line.split(":", 1)
-                name = name.lower()
-                if name in headers:
-                    raise ValueError("duplicate-header")
-                headers[name] = value.strip()
-            record.update(method=method, target=target, headers=headers)
-            if any(name in headers for name in ("authorization", "transfer-encoding", "content-encoding")):
-                return finish(400, "unsupported-header")
-            length = int(headers.get("content-length", "0"))
-            if not 0 <= length <= MAX_BODY:
-                return finish(413, "body-limit")
-            while len(body) < length:
-                body += receive(length - len(body))
-            if len(body) != length:
-                raise ValueError("trailing-bytes")
-            record.update(bodyRaw=body.decode("utf-8"), bodySha256=hashlib.sha256(body).hexdigest())
+            record.update(read_fixture_http_request(connection, deadline))
+            method, target, body = record["method"], record["target"], record["bodyRaw"]
             if method != "POST" or target != RESPONSE_PATH:
                 return finish(403, "route-refused")
             payload = json.loads(body)
@@ -204,8 +225,9 @@ class FixtureBroker:
                     return finish(409, "already-consumed")
                 self.consumed = True
                 return finish(200, "authored-synthetic-response")
-        except TimeoutError:
-            return finish(408, "deadline")
+        except FixtureHttpError as exc:
+            record.update(exc.record)
+            return finish(exc.status, exc.reason)
         except (ValueError, TypeError, UnicodeError, RecursionError):
             return finish(400, "malformed")
 

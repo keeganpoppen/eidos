@@ -1,7 +1,7 @@
 # Recorded experiments in durable comparison — next integration contract
 
-**2026-10-13 · planned after durable-snapshot integration · V1-08/10/11, C1/C5.**
-Parent owns the main integration and will fill its base revision before dispatch.
+**2026-10-13 · active from `579af9d` · V1-08/10/11, C1/C5.**
+Parent owns the main integration; snapshot integration is committed and pushed.
 This is an existing product seam, not a new evaluator or recipe activation.
 
 ## User loop and observed gap
@@ -44,14 +44,15 @@ existing RecordedExperiment. Show current review separately from immutable pins.
 Refresh that view on explicit reopen/manual Refresh; guard stale asynchronous
 responses by owner+experiment+request identity. No automatic adoption or activation.
 
-## Ownership after dispatch
+## Active ownership
 
 - Root: shared backend/API only if needed, independent invariants and final docs/
   integration. Avoid new backend routes unless existing projection cannot support
   the exact reference contract. Own task packet and acceptance reconciliation.
-- history_ui: new isolated worktree from the completed snapshot commit; UI/event/
+- history_ui: `/tmp/nema-recorded-experiment-ui`, branch `codex/recorded-experiment-ui`; UI/event/
   type/helper changes and unit tests, check/build, coordinate browser selectors.
-- independent acceptance: separate worktree; new fixture/check/evidence files,
+- independent acceptance: `/tmp/nema-recorded-experiment-acceptance`, branch
+  `codex/recorded-experiment-acceptance`; new fixture/check/evidence files,
   exact HTTP/browser/reopen challenges; no production UI ownership.
 - native_frontier: independent tool-control research, not a dependency of this loop.
 

@@ -34,13 +34,15 @@ These are hypotheses, not established invariants or additional release gates.
    rendered fixture verifies transfer, exact source recovery and lost-reply retry. Canonical source
    remains intact; projections are replaceable. First owner loads and dirty-index
    refresh are explicit remaining costs, not hidden behind a bounded-page claim.
-2. **Active native experiment: pre-turn tool controls (C6).** Real native turns
-   now complete against an authored disconnected provider under process denial;
-   parent opt-in reproduced 39 checks. The wire still offered built-in/MCP tools.
-   Test supported removal/constraining configuration using synthetic tool calls
-   and actual fixture effects. Text completion alone cannot establish this. No
-   real model, credentials, upstream or production admission is authorized by the
-   experiment; shared-relay caller binding remains an independent limitation.
+2. **Established native experiment: pre-turn tool controls (C6).** Parent
+   combined opt-in reproduced 71 checks. Under fresh disconnected configuration,
+   an empty server-tool list still allows resource reads; disabling the MCP server
+   rejects the authored resource call before access. Other absent tool schemas
+   were observed, not dynamically challenged. Fallback model metadata limits the
+   claim. No real model, credentials, upstream or production admission. The next
+   discriminators are actual known-model metadata and bounded native transport
+   recording; the trusted-client versus authenticated relay assumption also needs
+   an explicit decision. Do not infer a model-independent text-only boundary.
 3. **Established integration: durable named arrangements (C5, V1-01/10).**
    Create-only reference snapshots recover compiled comparison/focus pins in a
    fresh browser, with explicit preview/open and copy ancestry. Missing sources
