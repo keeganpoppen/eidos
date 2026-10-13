@@ -1,6 +1,6 @@
 # Continuing development frontier
 
-**Provisional strategic understanding · 2026-10-13 · inspected base `4b91892`.**
+**Provisional strategic understanding · 2026-10-13 · inspected base `63cd47f`.**
 The [current handoff](CURRENT_HANDOFF.md) owns verified status and runnable steps;
 this document owns revisable conjectures and opportunity ordering. It does not
 replace the [destination](../vision/DESTINATION.md) or [V1](../roadmap/V1.md).
@@ -56,9 +56,18 @@ These are hypotheses, not established invariants or additional release gates.
    The [owned-attempt integration](../evidence/OWNED_ATTEMPT_CONTROL_INTEGRATION.md)
    now connects preparation and cancellation to the existing pinned attempt, with
    authored API/browser proof of C0 preservation, lost-reply retry and no late
-   launch. Live ownership remains separate from recorded progress. Next run the
-   [bounded joining experiment](NATIVE_OWNED_WORKER_TASK.md): native managed login
-   through the actual private worker, without a parallel turn loop or reader.
+   launch. Live ownership remains separate from recorded progress. The
+   [bounded joining experiment](../evidence/NATIVE_OWNED_WORKER_EXPERIMENT.md)
+   now completes native managed login through the actual private worker, one
+   synthetic publication and exact reopen without a parallel turn loop or reader.
+   The first refusal exposed default goal tools; explicit worker-mode startup
+   disablement passed with the same empty-tool guard and unchanged bounds.
+   Next build one opt-in user-operated managed attempt: separate contained startup
+   from fresh attempt-scoped turn admission, expose an ephemeral sign-in challenge
+   only to the current owner and keep historical receipts non-executable. A shared
+   profile must never carry admission from cancelled attempt A into B. Real account
+   and model availability require a deliberate user-operated run after the concrete
+   implementation; further broad token matrices cannot answer those questions.
    Fresh Ephemeral login per attempt is a
    provisional isolation choice with unmeasured usability cost. Production
    admission stays closed; no real account/model calls are part of this contract.
@@ -115,9 +124,9 @@ not mature-world axioms.
 
 ## Current integration boundary and next contract
 
-The preceding owned-control integration is `4b91892` (public CI passed);
-the [handoff](CURRENT_HANDOFF.md) identifies result-discovery verification and the
-parallel native worker joining contract. See [D28–D30](../roadmap/DECISIONS.md)
+The preceding result-discovery integration is `63cd47f` (public CI passed);
+the [handoff](CURRENT_HANDOFF.md) identifies native worker joining verification and
+the next managed-attempt contract. See [D28–D30](../roadmap/DECISIONS.md)
 and linked evidence. The active
 read index is a derived performance adapter, not a second provenance authority.
 Native process/synthetic transport research is independent of production admission.

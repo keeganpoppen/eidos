@@ -1,100 +1,86 @@
-# Current handoff — exact result discovery and native worker join
+# Current handoff — owned native join and managed attempt frontier
 
-**2026-10-13 · main `4b9189232e12c83e12a87e94540fc6255b5337ce`, pushed.**
-Owned preparation/cancellation is integrated with
-[successful CI](https://github.com/keeganpoppen/eidos/actions/runs/38481196908).
-[Owned integration handoff](history/OWNED_ATTEMPT_CONTROL.md) and
-[evidence](../evidence/OWNED_ATTEMPT_CONTROL_INTEGRATION.md) retain verification.
-Continuing mission remains active; green does not end it. [PROGRAM](PROGRAM.md)
-owns revisable conjectures. No human decision blocks the current offline work.
+**2026-10-13 · integration base `63cd47f11fa699dc4a9960e67498456af7482dc8`.**
+Exact result discovery is pushed with [successful CI](https://github.com/keeganpoppen/eidos/actions/runs/38482966827).
+Its [archived handoff](history/EXACT_RESULT_DISCOVERY.md) and
+[evidence](../evidence/RESULT_DISCOVERY_INTEGRATION.md) preserve the actual browser,
+scale and historical-context results. The continuing mission remains active;
+green does not end it. [PROGRAM](PROGRAM.md) owns revisable conjectures.
 
-## Active product lane: exact result discovery
+## Ready integration: owned native preparation and publication
 
-[Accepted contract](RESULT_DISCOVERY_TASK.md). Artifact catalog was title-only;
-remembered question/result phrases returned nothing. Root baseline report
-`/tmp/nema-result-discovery-baseline.json` reproduces that failure. Search now uses
-only owner title, exact artifact-context question and published result text. Public
-raw records, prompts, nested inputs, unknown fields and private stores are excluded.
-Historical results keep their own context/attempt. Bounded labelled plain-text
-excerpts do not become interpretation or authority. No-result investigations remain
-explicitly title-searchable.
+[Contract](NATIVE_OWNED_WORKER_TASK.md),
+[evidence](../evidence/NATIVE_OWNED_WORKER_EXPERIMENT.md). The explicit offline
+managedWorkerText mode uses the actual PrivateInvestigationWorker,
+NativePreparation, native turn loop and private recorder. It retains the ordinary
+worker packets, mirrors only temporary cwd spelling into empty namespace tmpfs,
+and supplies an authored command classified synthetic. Production admission stays
+closed. No real account, model, subscription or upstream request was made.
 
-Root owns the current integration `investigation_reads.py`, new `test_result_discovery.py`, new
-`result_discovery_demo.py` and docs. Search uses a separate replaceable projection
-joined to existing artifact metadata; missing legacy rows dirty only those owners.
-Existing empty-query payloads stay unchanged. New searched-artifact cursor kind
-rejects old title-only membership. Unicode casefold offsets map back to original
-text, excerpts max240 code points including omission markers. Large folded matches
-may be honestly truncated. Root focused **26 checks passed** (11 new +15 existing).
+history_ui's worktree `/tmp/nema-native-owned-worker`, branch
+`codex/native-owned-worker`, owns the probe/tests/evidence. Commits `7b4e52b`,
+`90e8f79`, `9739cab`, `3b03aba`, `704a429`, `567e41b` are applied without commit on main.
+Root owns packet/state/program/handoff and final integration. API/store copies
+inside the agent worktree are uncommitted seams; do not integrate those.
 
-UI agent native_frontier owns `/tmp/nema-result-discovery-ui`, branch
-`codex/result-discovery-ui`; commit `2740be1` applied without commit in main. Existing
-picker shows field/excerpt, retained out-of-page selections are labelled separately,
-Inspect precedes Add and passes exact context, lineage shows Original question.
-Agent browser commit `de08df5` is also applied. Parent 99 Bun /499 assertions and
-check/build passed. Actual browser 65 captured responses (one injected 404, one
-ordinary 201 draft save), six discovery/reuse checkpoints, zero dispatch/native/model
-calls or JS exceptions. Root inspected desktop original-question/support and mobile
-frozen-input screenshots. Independent backend/UI review accepted; 26 checks rerun.
-Report `/tmp/nema-result-discovery-complete.json`; hashes and five screenshot paths
-in [discovery evidence](../evidence/RESULT_DISCOVERY_INTEGRATION.md).
+First native run rejected three default goal tools before SSE; it produced no
+terminal or publication. The raw failure is preserved separately with SHA256
+`0fa26b035cca90b1a1d5da4dcd6e5bea01149331ddc41beaf7d7b74bf6e23fe1`.
+Source review supported WORKER-only startup `features.goals=false`, checked in
+both config replies; missing/true controls refuse before thread. Worker packets,
+empty-tools provider refusal, routes, quotas and deadlines remain unchanged.
 
-Root full suite **1,287 passed /53 explicit native skips in25.60s**,
-`/tmp/nema-discovery-parent-suite.log`. UI **99 tests /499 assertions**, clean
-Svelte/build, Bun log `/tmp/nema-discovery-parent-bun.log`. Scale report `/tmp/nema-result-discovery-scale.json`:1000
-canonical authored results about128KiB each; cold projection0.562s, warm empty
-0.10–0.27ms/8724serialized bytes, rare tail130–194ms/844bytes, absent123–129ms/140bytes.
-No native/model calls. Query still scans text; only response/canonical parsing are
-bounded. Scale temporary DB was removed after the run.
+Second run passed **144 tests /3 other native skips in3.91s**. Raw report
+`/tmp/native_owned_worker_20261013_second.json`, SHA256
+`cd1cfb7ead4f2b4f72bedf376370a4cfd2b5ba49d32ebc3b649de33335cb68ca`.
+Parent independently reproduced **144/3 in3.87s**:
+`/tmp/native_owned_worker_parent_20261013.json`, SHA256
+`7f6bcfe1cc13438afe61432e5e8c2cc12556feb70ed974569f60a60a9871a744`.
+Script SHA256 `4b2dfd40abc83c42f2923eb80b175d391e04d7bac8158f5811cb2631425cf50a`.
+Native0.154.0 binary SHA256
+`9b7c1c7abdc26fc3c4f47c77656a8e9121def5483dbae830ef1ee561758448a9`.
 
-Accepted browser fixture API8767/Vite5181/Chromium9231 are now stopped. Exact root
-PythonPID351734 and VitePID351753 were verified and terminated; agent stopped
-Chromium351997. Synthetic DB `/tmp/nema-result-discovery-parent-20261013.db` and
-marker with matching .json stem remain. Earlier harness runs left draft-only saves;
-the accepted run captured every response, changed no historical artifact and used
-no navigation-retirement fallback. Do not infer active workers from prior PIDs.
+Both positives: six CONNECT/HTTP exchanges (three issuer, WS426, settings200,
+SSE200), one login/thread/turn, empty declared tools and2769B authored SSE.
+42 private records become two selected public inputs plus one typed publication
+at mainseq3. Private native outputseq38, exact proof/artifact and completed
+terminal survive close/reopen; reopened control is unowned/noncancellable. Ordinary
+conclusion correctly has no terminal inquiry. All workers joined; no gap,
+resource refusal, cleanup error, outer timeout or auth file. No after-turn account
+read is claimed. Independent reviewer checked raw correlations/publication.
 
-## Active independent lane: contained native worker join
+Full parent defaults **1,328 passed /54 explicit native skips in29.13s**,
+`/tmp/nema-native-owned-parent-default-suite.log`. Parent focused defaults143/4;
+earlier worker/private/seed regression264/4. No frontend change; previous browser
+evidence belongs to result discovery. Both probe runs closed their owned resources.
 
-[Accepted packet](NATIVE_OWNED_WORKER_TASK.md). history_ui owns
-`/tmp/nema-native-owned-worker`, branch `codex/native-owned-worker`, based on worker
-commits `3efcb2c` + `88c6da3` over7d3354a. New commits `7b4e52b` + `90e8f79` + `9739cab` are
-frozen but NOT applied to main. They own existing managed lifecycle probe/tests and
-new native-owned-worker evidence note only. Root API/store copies in that worktree
-are uncommitted seams and must not enter its commits.
+## Next coherent product slice
 
-New explicit managedWorkerText mode uses actual PrivateInvestigationWorker,
-NativePreparation, existing native turn loop and tracked private reader. A fixture
-wrapper uses `/usr/bin/python3 -I -S` then the existing namespace command, mirroring
-only cwd spelling into empty namespace tmpfs. No owner mount/packet rewrite.
-Preparation8s and ordinary stored turn120s remain beneath outer18s/process20s cap;
-report effective minimum, never claim120s admitted traffic. Existing controls,
-invalid synthetic credentials and capture/HTTP/CONNECT limits stay fixed.
+native_frontier is preparing the concrete containment promotion proposal for one
+default-off, user-operated managed attempt from a pinned investigation. It owns
+no production edits yet. Keep existing private recorder, preparation pump and
+turn loop. Separate permission to start a contained process from permission to
+start model work. Each attempt/source needs fresh disposable resources, sign-in,
+ordered account/config checks and a private pre-turn receipt. A cancelled A must
+never lend admission to B; copied receipts/reopen must restore no owner.
 
-Default probe checks at `9739cab` **126 passed /4 skipped**; earlier dependency run
-**213 passed /13 skipped** before final watchdog test. No native join run yet.
-Root read actual launcher/guard/preparation/run/assessor diff. Independent review
-then reproduced malformed terminal KeyError losing the failed report, identified
-host environment inheritance before namespace entry, and requested joined watchdog
-plus explicit cleanup-failure recording. `9739cab` fixes those. Re-review then found
-ordered account=null and inventory=[null] could still escape the assessor; history_ui
-is adding robust shape checks plus a final fail-closed assessment exception envelope
-that preserves raw rejected evidence. Await frozen followup/re-review before root
-accepts execution. No real auth/model/upstream call
-or production profile exemption is authorized. Prior manual managedText evidence
-remains unchanged. Final source hashes/raw failed and successful outcomes required.
+Expose a transient sign-in challenge only through current exact-attempt control;
+do not persist it in public history or browser storage. Real transport needs
+public certificate roots and fixed live destinations without fixture URLs/CA.
+Concrete scout found endpoint callbacks currently run under the broker lock and
+the fixture relay is serial; production must preserve cancellation across slow
+DNS/TCP and permit bounded concurrent WebSocket/settings traffic. Human-length
+budgets require an explicit reviewed choice, not a silent fixture quota increase.
 
-## Integration and next decisions
+Do not run another broad token matrix. Offline work cannot establish account/model
+availability, acceptable sign-in friction or answer usefulness. Build and review
+the concrete opt-in implementation before requesting a deliberate user-operated
+live attempt. No live call or owner credential access is currently admitted.
 
-Result discovery is ready for one coherent commit/nonforce push; checks, actual
-browser and independent review passed. Root is recording this integration now.
-Native probe may integrate separately after independent review, contained execution
-and root reproduction. Neither lane blocks the other's meaningful progress.
+## Immediate runnable steps
 
-Strategic scouts agree: finish the native join because it tests a real seam; further
-containment matrices need a concrete unresolved decision. Offline cases cannot prove
-real subscription/model availability or acceptable login friction. Result discovery
-advances owner recovery now. A recipe activation framework remains premature without
-observed repeated selection friction. Scripted discovery success cannot establish
-human reorientation speed or reasoning quality; do not access personal traces to
-manufacture that claim.
+Positive evidence is integrated; verify documentation links/diff, then
+commit/nonforce-push this native joining result and inspect CI.
+Accept a bounded managed-runtime task packet from native_frontier's concrete
+proposal and begin the next implementation cycle. The first loop is sufficiently
+verified; do not repeat native probes without a new code change or concern.

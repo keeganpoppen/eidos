@@ -8,6 +8,7 @@ from dataclasses import asdict
 import hashlib
 import importlib.util
 import json
+import os
 from pathlib import Path
 import socketserver
 import sys
@@ -20,6 +21,9 @@ from urllib.parse import parse_qsl
 from eidos.codex import AppServerClient
 from eidos.investigation import InvestigationStore
 from eidos.investigation_worker import NativeInvestigationWorker
+from eidos.investigation_context import THREAD_CONFIG, TURN_SANDBOX
+from eidos.investigation_inquiries import terminal_inquiry
+from eidos.private_investigation import PrivateEvidenceLimits, PrivateInvestigationWorker, validate_publication
 from eidos.trace import TraceStore
 
 _spec = importlib.util.spec_from_file_location("managed_tls_fixture", Path(__file__).with_name("probe_native_tls_connect.py"))
@@ -36,6 +40,7 @@ SETTINGS_PATH = "/backend-api/wham/settings/user"
 CLIENT_ID = "app_EMoamEEZ73f0CkXaXp7hrann"
 CASES = ("nearExpiry", "closedIssuer401")
 POSITIVE_CASE = "managedText"
+WORKER_CASE = "managedWorkerText"
 MAX_HTTP = 8
 HOLD_SECONDS = 1.5
 MAX_EVENTS = 100
@@ -103,19 +108,25 @@ def token_generation(generation: str, plan: str, expires: int) -> dict[str, str]
             "refresh_token": "nema-invalid-synthetic-refresh-" + generation}
 
 
-def fixture_config() -> str:
+def fixture_config(*, owned_worker: bool = False) -> str:
     config = derived.fixture_config(derived.MODEL)
     start = config.index(f"[model_providers.{transport.PROVIDER}]")
     end = config.index("[mcp_servers.fixture]", start)
     config = config[:start] + config[end:]
     config = config.replace(f'model_provider="{transport.PROVIDER}"', 'model_provider="openai"')
     config = config.replace("[features]\n", "[features]\nuse_agent_identity=false\nenable_request_compression=false\n")
+    if owned_worker:
+        # Stored native threads install the goal extension. Disable its default
+        # tools at startup; do not change the ordinary worker's thread packet.
+        config = config.replace("[features]\n", "[features]\ngoals=false\n")
     return (f'cli_auth_credentials_store="ephemeral"\nforced_login_method="chatgpt"\n'
             f'openai_base_url="{PROVIDER}"\nchatgpt_base_url="https://provider.fixture.invalid/backend-api"\n'
             + config + '\n[otel]\nexporter="none"\nmetrics_exporter="none"\n[analytics]\nenabled=false\n')
 
 
-def validate_config(reply: dict[str, Any]) -> None:
+def validate_config(reply: dict[str, Any], *, owned_worker: bool = False) -> None:
+    if not isinstance(reply, dict) or not isinstance(reply.get("config"), dict):
+        raise ValueError("managed fixture config is not an object")
     config = reply["config"]
     expected = {"model_provider": "openai", "model": derived.MODEL,
                 "model_catalog_json": "/fixture/models.json", "openai_base_url": PROVIDER,
@@ -132,11 +143,14 @@ def validate_config(reply: dict[str, Any]) -> None:
                 "shell_snapshot", "code_mode", "multi_agent", "multi_agent_v2", "sleep_tool", "current_time_reminder")
     if any(config.get("features", {}).get(key) is not False for key in disabled):
         raise ValueError("managed fixture feature controls differ")
+    if owned_worker and config.get("features", {}).get("goals") is not False:
+        raise ValueError("owned worker goal tools are not disabled")
     if config.get("agents", {}).get("enabled") is not False or config.get("mcp_servers", {}).get("fixture", {}).get("enabled") is not False:
         raise ValueError("agent/MCP controls differ")
 
 
 def account_plan(reply: dict[str, Any]) -> str:
+    if not isinstance(reply, dict): raise ValueError("managed fixture account reply is not an object")
     account = reply.get("account")
     if (reply.get("requiresOpenaiAuth") is not True or not isinstance(account, dict)
             or account.get("type") != "chatgpt" or account.get("email") != "fixture@example.invalid"):
@@ -190,7 +204,7 @@ class ManagedClient(AppServerClient):
 
 class Services:
     def __init__(self, variant: str, prompt: str, timeline: Timeline):
-        if variant not in (*CASES, POSITIVE_CASE): raise ValueError("unknown lifecycle case")
+        if variant not in (*CASES, POSITIVE_CASE, WORKER_CASE): raise ValueError("unknown lifecycle case")
         self.variant, self.prompt, self.timeline = variant, prompt, timeline
         now = int(time.time())
         self.tokens = {"A": token_generation("A", "plus", now + (60 if variant == "nearExpiry" else 3600)),
@@ -258,7 +272,7 @@ class Services:
             return 200, "authored-attribution-disabled", {"commit_attribution_enabled": False}
         if target != PROVIDER_PATH: raise ValueError("unknown provider route")
         if method == "GET" and headers.get("upgrade", "").lower() == "websocket" and raw == "":
-            if self.variant == POSITIVE_CASE and self.websocket_served:
+            if self.variant in (POSITIVE_CASE, WORKER_CASE) and self.websocket_served:
                 raise ValueError("positive fixture permits one WebSocket fallback")
             self.websocket_served = True
             return 426, "authored-websocket-http-fallback", {"synthetic": True}
@@ -268,7 +282,7 @@ class Services:
             raise ValueError("provider envelope differs")
         tools = [item for item in payload["input"] if item.get("type") == "additional_tools"]
         if tools[0]["tools"]: raise ValueError("unexpected tool declaration")
-        if self.variant == POSITIVE_CASE:
+        if self.variant in (POSITIVE_CASE, WORKER_CASE):
             if self.response_served or not self.websocket_served or not self.settings_served:
                 raise ValueError("positive response requires one fallback/settings prefix")
             if any(item.get("type") in ("function_call", "function_call_output") for item in payload["input"]):
@@ -306,7 +320,7 @@ class Services:
         payload = response if isinstance(response, bytes) else json.dumps(response, separators=(",", ":")).encode()
         if len(payload) > 8192: raise ValueError("authored endpoint response limit")
         record.update(status=status, reason=reason, responseRaw=payload.decode())
-        if self.variant == POSITIVE_CASE: record["responseContentType"] = content_type
+        if self.variant in (POSITIVE_CASE, WORKER_CASE): record["responseContentType"] = content_type
         self.events.append(record)
         self.timeline.add("fixtureHttpResponse", side=side, status=status, reason=reason)
         return transport.FixtureBroker._http(status, payload, content_type)
@@ -326,23 +340,333 @@ def stop_on_connect_exhaustion(services: Services, broker) -> None:
             services.abort.set()
 
 
+def prepare_case(root: Path, helper: Path, paths: dict[str, Path], *, owned_worker: bool = False) -> None:
+    """Shared contained fixture bytes, unchanged for the historical cases."""
+    boundary.prepare(root, helper)
+    original, _ = catalog.checked_catalog()
+    (root / "fixture/models.json").write_bytes(derived.derived_catalog(original))
+    (root / "fixture/ca.pem").write_bytes(paths["ca"].read_bytes())
+    (root / "state/codex/config.toml").write_text(fixture_config(owned_worker=owned_worker))
+    (root / "fixture/relay.py").write_text(transport.RELAY)
+    anchor = "os.execv('/fixture/guard'"
+    assert transport.LAUNCHER.count(anchor) == 1
+    environment = ("os.environ['HTTPS_PROXY']='http://127.0.0.1:'+port.read_text()\n"
+                   "os.environ['CODEX_CA_CERTIFICATE']='/fixture/ca.pem'\n"
+                   f"os.environ['CODEX_APP_SERVER_LOGIN_ISSUER']={ISSUER!r}\n"
+                   f"os.environ['CODEX_REFRESH_TOKEN_URL_OVERRIDE']={(ISSUER+'/oauth/token')!r}\n")
+    (root / "fixture/launcher.py").write_text(transport.LAUNCHER.replace(anchor, environment + anchor))
+
+
+def worker_launcher(root: Path) -> tuple[str, ...]:
+    """Mirror only the owned cwd spelling inside empty namespace tmpfs."""
+    command = boundary.namespace_command(root, Path("/usr/bin/bwrap"),
+                                         ["/usr/bin/python3", "/fixture/launcher.py"], broker=True)
+    script = root / "worker-launcher.py"
+    script.write_text("import os\nfrom pathlib import Path\n"
+        "cwd = Path.cwd()\n"
+        "if cwd.parent != Path('/tmp') or not cwd.name.startswith('nema-investigation-') or cwd.is_symlink():\n"
+        "    raise RuntimeError('worker cwd is outside the fixed temporary namespace')\n"
+        f"command = {command!r}\n"
+        "command[command.index('--chdir') + 1] = str(cwd)\n"
+        "index = command.index('--clearenv')\n"
+        "command[index:index] = ['--dir', str(cwd)]\n"
+        "os.execv(command[0], command)\n")
+    # Host-side adapter reads only its authored script and stdlib before exec;
+    # disable user site/PYTHON* startup hooks before namespace clearenv applies.
+    return ("/usr/bin/python3", "-I", "-S", str(script))
+
+
+class OwnedManagedWorker(PrivateInvestigationWorker):
+    """Probe-only before-send guard composed with the production private recorder."""
+
+    def __init__(self, trace, command, *, root: Path, services: Services, broker, timeline: Timeline):
+        self.probe_root, self.services, self.broker, self.timeline = root, services, broker, timeline
+        self.clients, self.events, self.methods, self.replies = [], [], [], {}
+        self.issuer_closed = False
+        self.cwd = None
+        super().__init__(trace, command, execution_evidence="synthetic",
+                         limits=PrivateEvidenceLimits(capture=derived.LIMITS),
+                         preparation=self.prepare_managed, preparation_timeout=8)
+
+    def _worker(self, store):
+        worker = super()._worker(store)
+        factory = worker._client_factory
+        def guarded_factory(*args, **kwargs):
+            client = factory(*args, **kwargs)  # Retains _PrivateClient and its tracked reader.
+            # Clear the host environment before even the authored Python/ELF
+            # launcher starts; bwrap's later clearenv alone is insufficient.
+            client.env, client.inherit_env = {}, False
+            self.clients.append(client)
+            self.cwd = str(kwargs["cwd"])
+            request, notify, receive = client.request, client.notify, client.recv_event
+            def checked_request(method, params=None, *, timeout=30):
+                try: self.check_request(method, params)
+                except Exception:
+                    self.services.abort.set()
+                    raise
+                result = request(method, params, timeout=timeout)
+                if method in {"initialize", "thread/start", "turn/start", "mcpServerStatus/list"}:
+                    self.replies[method] = result
+                return result
+            def checked_notify(method, params=None):
+                if method != "initialized": raise ValueError("fixture refuses notification")
+                return notify(method, params)
+            def checked_respond(*args, **kwargs):
+                self.services.abort.set()
+                raise ValueError("fixture refuses all native interactive requests")
+            def checked_receive(*, timeout=None):
+                event = receive(timeout=timeout)
+                if len(self.events) >= MAX_EVENTS: raise ValueError("fixture native event limit")
+                self.events.append(event)
+                self.timeline.add("nativeEvent", event=event)
+                try: transport.inspect_event(event)
+                except Exception:
+                    self.services.abort.set()
+                    raise
+                return event
+            client.request, client.notify, client.respond, client.recv_event = (
+                checked_request, checked_notify, checked_respond, checked_receive)
+            return client
+        worker._client_factory = guarded_factory
+        return worker
+
+    def check_request(self, method, params):
+        if self.services.abort.is_set(): raise ValueError("fixture stopped before next RPC")
+        order = ["initialize", "account/read", "config/read", "account/login/start",
+                 "account/read", "config/read", "thread/start", "mcpServerStatus/list", "turn/start"]
+        if len(self.methods) >= len(order) or method != order[len(self.methods)]:
+            raise ValueError("owned fixture RPC order differs")
+        expected = None
+        if method == "account/read": expected = {"refreshToken": False}
+        elif method == "config/read": expected = {"includeLayers": False}
+        elif method == "account/login/start": expected = {"type": "chatgptDeviceCode"}
+        elif method == "thread/start":
+            if not self.issuer_closed: raise ValueError("issuer must close before thread")
+            expected = {"cwd": self.cwd, "approvalPolicy": "never", "sandbox": "read-only", "environments": [],
+                        "ephemeral": False, "threadSource": "nema-investigation", "config": dict(THREAD_CONFIG)}
+            self.timeline.add("threadStartRequested")
+        elif method in {"mcpServerStatus/list", "turn/start"}:
+            thread_id = self.replies["thread/start"]["thread"]["id"]
+            expected = ({"threadId": thread_id, "cursor": None, "limit": 100, "detail": "toolsAndAuthOnly"}
+                        if method == "mcpServerStatus/list" else
+                        {"threadId": thread_id, "input": [{"type": "text", "text": self.services.prompt}],
+                         "sandboxPolicy": dict(TURN_SANDBOX), "environments": []})
+        if expected is not None and params != expected: raise ValueError("owned fixture RPC parameters differ")
+        self.methods.append(method)
+
+    def prepare_managed(self, preparation):
+        replies = self.replies
+        replies["initialAccount"] = preparation.request("account/read", {"refreshToken": False})
+        if replies["initialAccount"] != {"account": None, "requiresOpenaiAuth": True}:
+            raise ValueError("initial managed auth is not fresh/empty")
+        replies["initialConfig"] = preparation.request("config/read", {"includeLayers": False})
+        validate_config(replies["initialConfig"], owned_worker=True)
+        policy = json.loads((self.probe_root / "state/policy.json").read_text())
+        if not policy["installedBeforeInitialExec"] or not policy["allListenerCopiesClosed"]:
+            raise ValueError("recorded process filter absent")
+        replies["loginStart"] = preparation.request("account/login/start", {"type": "chatgptDeviceCode"})
+        preparation.phase("awaiting-sign-in")
+        for expected in (LOGIN_COMPLETED, "account/updated"):
+            while True:
+                event = preparation.recv_event()
+                validate_waited_event(event, expected)
+                if event.get("method") == expected: break
+            if expected == LOGIN_COMPLETED:
+                validate_login_completed(event, replies["loginStart"]["loginId"])
+            else:
+                replies["accountUpdated"] = event
+        preparation.phase("checking")
+        replies["orderedAccount"] = preparation.request("account/read", {"refreshToken": False})
+        replies["orderedConfig"] = preparation.request("config/read", {"includeLayers": False})
+        validate_config(replies["orderedConfig"], owned_worker=True)
+        plan = account_plan(replies["orderedAccount"])
+        updated = replies["accountUpdated"]["params"]
+        if plan != "plus" or updated.get("planType") != plan or updated.get("authMode") != "chatgpt":
+            raise ValueError("ordered synthetic Plus acknowledgement differs")
+        self.timeline.add("orderedConfigSucceeded")
+        self.broker.close_authority(ISSUER_AUTHORITY)
+        self.timeline.add("issuerClosed", connectCount=self.broker.connections,
+                          issuerHttpRequests=sum(e["side"] == "issuer" for e in self.services.events))
+        self.issuer_closed = True
+        self.services.provider_enabled = True
+
+
+def trace_rows(trace):
+    return [{"seq": row.seq, "source": row.source, "direction": row.direction, "rawText": row.raw_text}
+            for row in trace.records()]
+
+
+def terminal_turn(message):
+    params = message.get("params")
+    turn = params.get("turn") if isinstance(params, dict) else None
+    return turn if isinstance(turn, dict) else None
+
+
+def run_worker_case(helper: Path, paths: dict[str, Path]) -> dict[str, Any]:
+    with tempfile.TemporaryDirectory(prefix="nema-managed-worker-") as temporary:
+        root = Path(temporary)
+        prepare_case(root, helper, paths, owned_worker=True)
+        trace = TraceStore(root / "trace.db")
+        store, work = transport.fixture_work(trace)
+        context, attempt = work["contexts"][0], work["attempt"]
+        (root / "packet/context.json").write_text(json.dumps(context))
+        timeline = Timeline()
+        services = Services(WORKER_CASE, context["projectedPrompt"], timeline)
+        issuer_tls = tls.TlsFixture("", "valid", paths, endpoint=Endpoint(services, "issuer"), certificate="issuer")
+        provider_tls = tls.TlsFixture("", "valid", paths, endpoint=Endpoint(services, "provider"))
+        broker = tls.ConnectBroker(destinations={ISSUER_AUTHORITY: issuer_tls.open_endpoint,
+                                                tls.AUTHORITY: provider_tls.open_endpoint})
+        broker.admit()
+        command = worker_launcher(root)
+        owned = OwnedManagedWorker(trace, command, root=root, services=services, broker=broker, timeline=timeline)
+        owned.reserve(attempt["id"])
+        failure = artifact = final_work = proof = replay = reopened_artifact = None
+        recovery_failure = None
+        cleanup_errors = []
+        def cleanup(name, action):
+            try:
+                return action()
+            except Exception as exc:
+                detail = str(exc)
+                cleanup_errors.append({"operation": name, "type": type(exc).__name__,
+                                       "detail": detail[:16000], "detailComplete": len(detail) <= 16000})
+                return None
+        inquiry_before = inquiry_reopened = None
+        durable = False
+        progress = []
+        expired, observer_stop, server_stop = threading.Event(), threading.Event(), threading.Event()
+        def expire():
+            expired.set()
+            owned.cancel(attempt["id"])
+        def abort_native():
+            while not observer_stop.is_set():
+                if services.abort.wait(.05):
+                    if not observer_stop.is_set(): owned.cancel(attempt["id"])
+                    return
+        def update(**fields):
+            progress.append(fields)
+            store.update_attempt(work["id"], expected_attempt_id=attempt["id"], **fields)
+        class Handler(socketserver.BaseRequestHandler):
+            def handle(self):
+                try:
+                    response = broker.exchange(self.request)
+                    stop_on_connect_exhaustion(services, broker)
+                    self.request.sendall(response)
+                except OSError: pass
+        with socketserver.UnixStreamServer(str(root / "broker.sock"), Handler) as server:
+            server.timeout = .05
+            def serve():
+                while not server_stop.is_set(): server.handle_request()
+            server_worker = threading.Thread(target=serve, daemon=True)
+            abort_worker = threading.Thread(target=abort_native, daemon=True)
+            server_worker.start()
+            abort_worker.start()
+            watchdog = threading.Timer(transport.CASE_SECONDS, expire)
+            watchdog.daemon = True
+            watchdog.start()
+            try:
+                artifact = owned.run(attempt, context, update)
+                final_work = store.complete(work["id"], artifact, expected_attempt_id=attempt["id"])
+                resolved = owned.resolve_result_evidence(final_work["attempt"], context, final_work["artifact"])
+                proof = {key: value for key, value in resolved.items() if key != "trace"}
+                inquiry_before = terminal_inquiry(store, work["id"], owned)
+            except Exception as exc:
+                failure = {"type": type(exc).__name__, "message": str(exc)}
+            finally:
+                watchdog.cancel()
+                cleanup("watchdog.join", lambda: watchdog.join(1))
+                observer_stop.set()
+                services.abort.set()
+                services.release.set()
+                cleanup("abort_worker.join", lambda: abort_worker.join(1))
+                cleanup("owned.close", owned.close)
+                server_stop.set()
+                cleanup("broker.close", broker.close)
+                cleanup("issuer_tls.close", issuer_tls.close)
+                cleanup("provider_tls.close", provider_tls.close)
+                cleanup("server_worker.join", lambda: server_worker.join(3))
+        clients = owned.clients
+        private = list(owned._stores.values())
+        private_records = trace_rows(private[0]) if len(private) == 1 else []
+        public_records = trace_rows(trace)
+        binding = trace.db.execute("SELECT * FROM private_investigation_bindings WHERE attempt_id=?", (attempt["id"],)).fetchone()
+        ledger = trace.db.execute("SELECT * FROM private_investigation_publications WHERE attempt_id=?", (attempt["id"],)).fetchone()
+        saved_attempt = store.get(work["id"])["attempt"]
+        cleanup("owned.close_evidence", owned.close_evidence)
+        cleanup("trace.close", trace.close)
+        reopened_control = None
+        if final_work is not None:
+            reopened = TraceStore(root / "trace.db")
+            reader = PrivateInvestigationWorker(reopened, command=["/never-start-native"])
+            try:
+                saved = InvestigationStore(reopened).get(work["id"])
+                reopened_artifact = saved["artifact"]
+                replay = reader.recover(saved["attempt"], context)
+                resolved = reader.resolve_result_evidence(saved["attempt"], context, saved["artifact"])
+                reopened_proof = {key: value for key, value in resolved.items() if key != "trace"}
+                reopened_control = reader.inspect_owned(saved["attempt"]["id"])
+                inquiry_reopened = terminal_inquiry(InvestigationStore(reopened), work["id"], reader)
+                durable = (saved == final_work and replay == artifact and proof == reopened_proof
+                           and inquiry_before == inquiry_reopened)
+                if not durable: raise ValueError("private owned recovery differs after reopen")
+            except Exception as exc:
+                recovery_failure = {"type": type(exc).__name__, "message": str(exc)}
+            finally:
+                cleanup("reopened_worker.close", reader.close)
+                cleanup("reopened_worker.close_evidence", reader.close_evidence)
+                cleanup("reopened_trace.close", reopened.close)
+        terminals = [terminal_turn(json.loads(row["rawText"])) for row in private_records
+                     if json.loads(row["rawText"]).get("method") == "turn/completed"]
+        policy_path = root / "state/policy.json"
+        initialization = owned.replies.get("initialize")
+        report = {"case": WORKER_CASE, "classification": "NATIVE_MANAGED_AUTH_SYNTHETIC_FIXTURE", "failure": failure,
+            "command": command, "requestedConfigToml": fixture_config(owned_worker=True),
+            "policy": json.loads(policy_path.read_text()) if policy_path.exists() else None,
+            "nativeReplies": owned.replies, "nativeEvents": owned.events,
+            "nativeCapture": clients[0].capture_status if len(clients) == 1 else None,
+            "nativeStderr": clients[0].stderr_tail if len(clients) == 1 else [],
+            "traceRecords": public_records, "privateTraceRecords": private_records, "selectedContext": context,
+            "binding": dict(binding) if binding else None, "publicationLedger": dict(ledger) if ledger else None,
+            "nativeMethodsObserved": owned.methods, "nativeLoginRPCs": owned.methods.count("account/login/start"),
+            "nativeThreadRPCs": owned.methods.count("thread/start"), "nativeTurnRPCs": owned.methods.count("turn/start"),
+            "nativeTurnOutcome": terminals[-1] if terminals else None, "nativeTerminalRecovered": proof is not None,
+            "nativeUserAgent": initialization.get("userAgent") if isinstance(initialization, dict) else None,
+            "workerCwd": owned.cwd, "cwdMapping": "same-spelling-only; fresh namespace tmpfs directory; no host cwd mount",
+            "threadEphemeral": False, "credentialsStore": "ephemeral", "afterTurnAccountObserved": False,
+            "preparationTimeoutSeconds": 8, "declaredTurnTimeoutSeconds": attempt["timeoutSeconds"],
+            "effectiveOuterSeconds": transport.CASE_SECONDS, "outerDeadlineExpired": expired.is_set(),
+            "cleanupErrors": cleanup_errors,
+            "progress": progress, "resolvedEvidence": proof, "reopenedControl": reopened_control,
+            "terminalInquiryBefore": inquiry_before, "terminalInquiryReopened": inquiry_reopened,
+            "recoveredArtifact": artifact, "savedArtifact": final_work["artifact"] if final_work else None,
+            "savedAttempt": saved_attempt, "reopenedArtifact": reopened_artifact,
+            "replayRecoveredArtifact": replay, "durableReopenMatches": durable, "durableReopenFailure": recovery_failure,
+            "endpointEvents": services.events, "fixtureTokenGenerations": services.generations, "authoredTokens": services.tokens,
+            "issuerHttpRequests": sum(e["side"] == "issuer" for e in services.events),
+            "providerHttpRequests": sum(e["side"] == "provider" for e in services.events),
+            "fixtureViolations": services.violations, "timeline": timeline.events,
+            "connectEvents": broker.events, "connectAttempts": broker.attempts, "processedConnects": broker.connections,
+            "unrecordedConnectRefusals": broker.unrecorded_refusals, "closedAuthorities": sorted(broker.closed_authorities),
+            "mappedEndpointOpens": broker.opened, "remainingActiveTunnels": broker.active,
+            "tlsHandshakeEvents": {"issuer": issuer_tls.tls_events, "provider": provider_tls.tls_events},
+            "allWorkersJoined": not cleanup_errors and all(not thread.is_alive() for thread in [watchdog, server_worker, abort_worker,
+                *issuer_tls.workers, *provider_tls.workers, *[c._reader for c in clients if c._reader is not None]]),
+            "authFileExists": (root / "state/codex/auth.json").exists(),
+            "providerRequestAnalyses": [catalog.analyze_request(e, context["projectedPrompt"])
+                for e in services.events if e.get("reason") == "authored-managed-text"]}
+        # Public synthetic evidence, not an export path for real private accounts.
+        report = json.loads(json.dumps(report))
+        report["assessmentProblems"] = assess_worker_case(report)
+        report["positiveOwnedWorkerAccepted"] = not report["assessmentProblems"]
+        return report
+
+
 def run_case(helper: Path, paths: dict[str, Path], variant: str) -> dict[str, Any]:
+    if variant == WORKER_CASE:
+        return run_worker_case(helper, paths)
     with tempfile.TemporaryDirectory(prefix="nema-managed-case-") as temporary:
         root = Path(temporary)
-        boundary.prepare(root, helper)
-        original, _ = catalog.checked_catalog()
-        model_catalog = derived.derived_catalog(original)
-        (root / "fixture/models.json").write_bytes(model_catalog)
-        (root / "fixture/ca.pem").write_bytes(paths["ca"].read_bytes())
-        (root / "state/codex/config.toml").write_text(fixture_config())
-        (root / "fixture/relay.py").write_text(transport.RELAY)
-        anchor = "os.execv('/fixture/guard'"
-        assert transport.LAUNCHER.count(anchor) == 1
-        environment = ("os.environ['HTTPS_PROXY']='http://127.0.0.1:'+port.read_text()\n"
-                       "os.environ['CODEX_CA_CERTIFICATE']='/fixture/ca.pem'\n"
-                       f"os.environ['CODEX_APP_SERVER_LOGIN_ISSUER']={ISSUER!r}\n"
-                       f"os.environ['CODEX_REFRESH_TOKEN_URL_OVERRIDE']={(ISSUER+'/oauth/token')!r}\n")
-        (root / "fixture/launcher.py").write_text(transport.LAUNCHER.replace(anchor, environment + anchor))
+        prepare_case(root, helper, paths)
         trace = TraceStore(root / "trace.db")
         store, work = transport.fixture_work(trace)
         context = work["contexts"][0]
@@ -566,6 +890,8 @@ def run_case(helper: Path, paths: dict[str, Path], variant: str) -> dict[str, An
 
 def assess_case(case: dict[str, Any]) -> list[str]:
     """Post-effect synthetic evidence checks; this does not authorize a native process."""
+    if case["case"] == WORKER_CASE:
+        return assess_worker_case(case)
     problems = []
     resource_stop = (case["case"] == "closedIssuer401"
                      and case["fixtureViolations"] == ["connect-limit-exhausted"]
@@ -700,6 +1026,166 @@ def recover_recorded_positive(case: dict[str, Any]) -> dict[str, Any] | None:
     finally: trace.close()
 
 
+def recover_recorded_worker(case):
+    """Reconstruct exact private evidence and validate the reported host ledger."""
+    main = TraceStore(":memory:")
+    private = TraceStore(":memory:", role="private-control")
+    adapter = PrivateInvestigationWorker(main, command=["/never-start-native"])
+    try:
+        for target, rows in ((main, case["traceRecords"]), (private, case["privateTraceRecords"])):
+            for row in rows:
+                record = target.append_line(source=row["source"], direction=row["direction"], raw_text=row["rawText"])
+                if record.seq != row["seq"]: raise ValueError("reported record sequence differs")
+        binding, ledger = case["binding"], case["publicationLedger"]
+        main.db.execute("INSERT INTO private_investigation_bindings VALUES (?,?,?,?,?)", tuple(binding[k] for k in
+            ("attempt_id", "capsule_id", "context_id", "context_digest", "state_json")))
+        main.db.execute("INSERT INTO private_investigation_publications VALUES (?,?,?,?)", tuple(ledger[k] for k in
+            ("attempt_id", "capsule_id", "seq", "content_digest")))
+        main.db.commit()
+        validated = validate_publication(main, case["savedAttempt"], case["selectedContext"], case["savedArtifact"])
+        recovered = NativeInvestigationWorker(private, command=["/never-start-native"]).recover(
+            case["savedAttempt"], case["selectedContext"])
+        return validated, recovered
+    finally:
+        adapter.close_evidence()
+        main.close()
+        private.close()
+
+
+def assess_worker_case(case: dict[str, Any]) -> list[str]:
+    """Pure joining-case evidence assessment; never a native admission."""
+    try:
+        return _assess_worker_case(case)
+    except (KeyError, IndexError, AttributeError, TypeError, ValueError, RecursionError) as exc:
+        # The report already retains the exact bounded records. An unknown
+        # shape is failed evidence, never grounds to lose that report or accept.
+        return ["malformed-worker-evidence:" + type(exc).__name__]
+
+
+def _assess_worker_case(case: dict[str, Any]) -> list[str]:
+    problems = []
+    if case.get("failure") is not None: problems.append("worker-failed")
+    capture = case.get("nativeCapture") or {}
+    if (capture.get("failure") is not None or capture.get("diagnosticError") is not None
+            or capture.get("limits") != asdict(derived.LIMITS)):
+        problems.append("worker-capture-differs")
+    if (not case.get("allWorkersJoined") or case.get("remainingActiveTunnels") != 0
+            or case.get("outerDeadlineExpired") or case.get("authFileExists") or case.get("cleanupErrors")):
+        problems.append("worker-not-closed-cleanly")
+    if (case.get("preparationTimeoutSeconds") != 8 or case.get("declaredTurnTimeoutSeconds") != 120
+            or case.get("effectiveOuterSeconds") != transport.CASE_SECONDS):
+        problems.append("worker-deadlines-differ")
+    for name in ("initialConfig", "orderedConfig"):
+        try: validate_config(case["nativeReplies"][name], owned_worker=True)
+        except (KeyError, ValueError, TypeError): problems.append(name + "-controls-differ")
+    try:
+        if case["nativeReplies"]["initialAccount"] != {"account": None, "requiresOpenaiAuth": True}:
+            raise ValueError("not fresh")
+        if account_plan(case["nativeReplies"]["orderedAccount"]) != "plus": raise ValueError("not Plus")
+    except (KeyError, ValueError, TypeError): problems.append("worker-account-differs")
+    if case.get("afterTurnAccountObserved") is not False or "afterTurnAccount" in case["nativeReplies"]:
+        problems.append("invented-post-turn-observation")
+    policy = case.get("policy") or {}
+    if not policy.get("installedBeforeInitialExec") or not policy.get("allListenerCopiesClosed"):
+        problems.append("worker-process-filter-absent")
+    messages = [(row, json.loads(row["rawText"])) for row in case["privateTraceRecords"]]
+    source = case["savedAttempt"].get("source")
+    limits = [(row["source"], msg.get("params", {}).get("limits")) for row, msg in messages
+              if row["direction"] == "internal" and msg.get("method") == "$transport/limits"]
+    if limits != [(source, asdict(derived.LIMITS))] or any(msg.get("method") == "$transport/captureGap" for _, msg in messages):
+        problems.append("worker-source-capture-gap")
+    native = [msg for row, msg in messages if row["direction"] == "appserver_to_client" and row["source"] == source]
+    completed = [i for i, msg in enumerate(native) if msg.get("method") == LOGIN_COMPLETED]
+    updated = [i for i, msg in enumerate(native) if msg.get("method") == "account/updated"]
+    try:
+        if len(completed) != 1 or len(updated) != 1 or completed[0] >= updated[0]: raise ValueError("order")
+        validate_login_completed(native[completed[0]], case["nativeReplies"]["loginStart"]["loginId"])
+        if native[updated[0]]["params"].get("planType") != "plus": raise ValueError("plan")
+    except (KeyError, ValueError, TypeError): problems.append("worker-login-correlation-differs")
+    sent = [msg for row, msg in messages if row["direction"] == "client_to_appserver" and "id" in msg]
+    order = ["initialize", "account/read", "config/read", "account/login/start", "account/read", "config/read",
+             "thread/start", "mcpServerStatus/list", "turn/start"]
+    if ([msg.get("method") for msg in sent] != order or case["nativeMethodsObserved"] != order
+            or case["nativeLoginRPCs"] != 1 or case["nativeThreadRPCs"] != 1 or case["nativeTurnRPCs"] != 1):
+        problems.append("worker-rpc-sequence-differs")
+    try:
+        guard = object.__new__(OwnedManagedWorker)
+        guard.services = Services(WORKER_CASE, case["selectedContext"]["projectedPrompt"], Timeline())
+        guard.methods, guard.replies = [], case["nativeReplies"]
+        guard.cwd, guard.issuer_closed, guard.timeline = case["workerCwd"], True, Timeline()
+        reply_keys = ["initialize", "initialAccount", "initialConfig", "loginStart", "orderedAccount", "orderedConfig",
+                      "thread/start", "mcpServerStatus/list", "turn/start"]
+        for msg, reply_key in zip(sent, reply_keys, strict=True):
+            guard.check_request(msg["method"], msg.get("params"))
+            matches = [reply for reply in native if reply.get("id") == msg["id"] and "method" not in reply]
+            if len(matches) != 1 or "error" in matches[0]: raise ValueError("acknowledgement")
+            if matches[0].get("result") != case["nativeReplies"][reply_key]: raise ValueError("ack differs")
+        NativeInvestigationWorker._check_thread_policy(case["nativeReplies"]["thread/start"], case["workerCwd"])
+        inventory = case["nativeReplies"]["mcpServerStatus/list"]
+        if inventory.get("nextCursor") is not None or not isinstance(inventory.get("data"), list): raise ValueError("inventory")
+        if any(not isinstance(server, dict) or server.get("tools") != {} or server.get("runtimeStatus") != "disabled" or server.get("toolsError") is not None
+               for server in inventory["data"]): raise ValueError("enabled server")
+    except (KeyError, ValueError, TypeError): problems.append("worker-packet-or-ack-differs")
+    terminals = [terminal_turn(msg) for msg in native if msg.get("method") == "turn/completed"]
+    if (len(terminals) != 1 or not isinstance(terminals[0], dict) or terminals[0] != case.get("nativeTurnOutcome")
+            or terminals[0].get("status") != "completed" or not case.get("nativeTerminalRecovered")):
+        problems.append("worker-terminal-differs")
+    selected = case["selectedContext"]["records"]
+    public = case["traceRecords"]
+    if (len(public) != 3 or len(selected) != 2 or any(row["rawText"] != public[i]["rawText"]
+            or row["source"] != public[i]["source"] or row["seq"] != public[i]["seq"]
+            or row["sha256"] != hashlib.sha256(row["rawText"].encode()).hexdigest() for i, row in enumerate(selected))):
+        problems.append("worker-public-input-differs")
+    try:
+        published, original = recover_recorded_worker(case)
+        if (original is None or original["text"] != transport.OUTPUT_TEXT or original["executionEvidence"] != "synthetic"
+                or original["citations"] != [1, 2] or original["unsupportedCitations"] != []): raise ValueError("native result")
+        if any(published[k] != original[k] for k in ("text", "executionEvidence", "citations", "unsupportedCitations")):
+            raise ValueError("publication")
+        if published != case["recoveredArtifact"] or published != case["replayRecoveredArtifact"]:
+            raise ValueError("recovered publication")
+        proof = case["resolvedEvidence"]
+        if (proof["artifact"] != original or proof["kind"] != "private-capsule"
+                or proof["capsuleId"] != case["binding"]["capsule_id"]
+                or proof["attempt"] != json.loads(case["binding"]["state_json"])["attempt"]):
+            raise ValueError("private proof")
+    except Exception: problems.append("worker-exact-private-public-recovery-differs")
+    if (not case.get("durableReopenMatches") or case.get("durableReopenFailure") is not None
+            or case.get("savedArtifact") != case.get("reopenedArtifact") or case["savedAttempt"].get("status") != "completed"
+            or case.get("reopenedControl") != {"owned": False, "canCancel": False}):
+        problems.append("worker-durable-reopen-differs")
+    phases = [p["lifecycle"] for p in case.get("progress", []) if "lifecycle" in p]
+    if ([p.get("phase") for p in phases] != ["preparing", "awaiting-sign-in", "checking", "running", "closed"]
+            or phases[-1].get("stopReason") != "completed"
+            or case.get("terminalInquiryBefore") is not None or case.get("terminalInquiryReopened") is not None
+            or case.get("threadEphemeral") is not False or case.get("credentialsStore") != "ephemeral"):
+        problems.append("worker-lifecycle-or-inquiry-differs")
+    kinds = [e["kind"] for e in case["timeline"]]
+    try:
+        ordered, closed, thread = [kinds.index(k) for k in ("orderedConfigSucceeded", "issuerClosed", "threadStartRequested")]
+        if not ordered < closed < thread or case["timeline"][closed]["connectCount"] != 3: raise ValueError("closure order")
+    except (KeyError, ValueError): problems.append("worker-prethread-closure-differs")
+    expected_http = [("issuer", "POST", "/api/accounts/deviceauth/usercode", 200),
+        ("issuer", "POST", "/api/accounts/deviceauth/token", 200), ("issuer", "POST", "/oauth/token", 200),
+        ("provider", "GET", PROVIDER_PATH, 426), ("provider", "GET", SETTINGS_PATH, 200), ("provider", "POST", PROVIDER_PATH, 200)]
+    if ([(e["side"], e["method"], e["target"], e["status"]) for e in case["endpointEvents"]] != expected_http
+            or [(e.get("authority"), e["status"]) for e in case["connectEvents"]] != [(ISSUER_AUTHORITY, 200)] * 3 + [(tls.AUTHORITY, 200)] * 3
+            or any(case[k] != 6 for k in ("connectAttempts", "processedConnects", "mappedEndpointOpens"))
+            or case["fixtureViolations"] or case["unrecordedConnectRefusals"] or case["fixtureTokenGenerations"] != ["A"]):
+        problems.append("worker-endpoint-sequence-differs")
+    try:
+        event = case["endpointEvents"][-1]
+        payload = strict_json(event["bodyRaw"])
+        if (event["responseRaw"] != catalog.authored_stream(derived.MODEL, 2).decode()
+                or event["responseContentType"] != "text/event-stream"
+                or not catalog.provider_shape(payload, event["headers"], derived.MODEL, case["selectedContext"]["projectedPrompt"])
+                or any(i.get("tools") for i in payload["input"] if i.get("type") == "additional_tools")
+                or json.loads(case["endpointEvents"][-2]["responseRaw"]) != {"commit_attribution_enabled": False}):
+            raise ValueError("provider payload")
+    except (IndexError, KeyError, ValueError, TypeError): problems.append("worker-provider-evidence-differs")
+    return problems
+
+
 def assess_positive_artifact(case: dict[str, Any]) -> list[str]:
     problems = []
     originals = {row["seq"]: row for row in case["traceRecords"]}
@@ -745,15 +1231,15 @@ def assess_positive_artifact(case: dict[str, Any]) -> list[str]:
 
 
 def run_probe(*, mode: str | None = None):
-    if mode not in (None, POSITIVE_CASE): raise ValueError("unknown explicit managed probe mode")
+    if mode not in (None, POSITIVE_CASE, WORKER_CASE): raise ValueError("unknown explicit managed probe mode")
     binary_hash = checked_binary()
     with tempfile.TemporaryDirectory(prefix="nema-managed-host-") as temporary:
         directory = Path(temporary)
         paths = tls.make_certificates(directory, extra_fixed_hostnames={"issuer": "issuer.fixture.invalid"})
         helper = boundary.compile_helper(directory)
-        cases = {variant: run_case(helper, paths, variant) for variant in ((POSITIVE_CASE,) if mode else CASES)}
+        cases = {variant: run_case(helper, paths, variant) for variant in ((mode,) if mode else CASES)}
         ca_hash = hashlib.sha256(paths["ca"].read_bytes()).hexdigest()
-    return {"schemaVersion": "nema-native-managed-lifecycle/1", "implementationBase": "6ea405a" if mode else "13abac7", "cases": cases,
+    return {"schemaVersion": "nema-native-managed-lifecycle/1", "implementationBase": "4b91892" if mode == WORKER_CASE else "6ea405a" if mode else "13abac7", "cases": cases,
             "classification": "NATIVE_MANAGED_AUTH_SYNTHETIC_FIXTURE", "realAuthCalls": 0, "realModelCalls": 0,
             "realUpstreamRequests": 0, "subscriptionExecution": False, "liveAdmission": False,
             "nativeLoginRPCs": sum(case["nativeLoginRPCs"] for case in cases.values()),
@@ -768,13 +1254,16 @@ def run_probe(*, mode: str | None = None):
             "binarySha256": binary_hash,
             "sourceHashes": {path.name: hashlib.sha256(path.read_bytes()).hexdigest() for path in
                              (Path(__file__), Path(tls.__file__), Path(transport.__file__), Path(derived.__file__),
-                              Path(catalog.__file__), Path(boundary.__file__))}}
+                              Path(catalog.__file__), Path(boundary.__file__),
+                              *([Path(__file__).parents[1] / "src/eidos" / name for name in
+                                 ("codex.py", "private_investigation.py", "investigation_worker.py", "trace.py", "investigation.py")]
+                                if mode == WORKER_CASE else []))}}
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path)
-    parser.add_argument("--mode", choices=[POSITIVE_CASE], help="explicit single positive managed-text case; default retains the negative pair")
+    parser.add_argument("--mode", choices=[POSITIVE_CASE, WORKER_CASE], help="explicit positive fixture; default retains the negative pair")
     args = parser.parse_args()
     data = json.dumps(run_probe(mode=args.mode), indent=2) + "\n"
     if args.output: args.output.write_text(data)

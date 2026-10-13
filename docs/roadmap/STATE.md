@@ -6,6 +6,28 @@ The baseline GitHub Actions run `38240774514` completed successfully: pytest and
 
 Refresh this file when implementation claims materially change. Keep historical audit IDs instead of quietly relabelling old evidence as current.
 
+## Native preparation through the owned private worker — 2026-10-13
+
+Integration base `63cd47f`; [contract](../agents/NATIVE_OWNED_WORKER_TASK.md),
+[experiment](../evidence/NATIVE_OWNED_WORKER_EXPERIMENT.md). One contained native
+0.154.0 turn now traverses the actual private worker, preparation hook, native
+turn loop, publication and evidence-only reopen. First execution was refused when
+native declared its default goal tools; that raw failure remains separate. The
+reviewed worker-mode startup setting disables Goals, and missing/true config
+acknowledgements refuse before thread creation. No worker request, tool allowance,
+route, quota or deadline was loosened to obtain the positive result.
+
+Independent parent reproduction: **144 passed / 3 other native skips**, six
+CONNECT/HTTP exchanges, 42 private records and three public records (two selected
+inputs plus one synthetic publication). Exact artifact/private proof reopens with
+no owner, child, login or turn. No capture gap, resource refusal, cleanup failure
+or unjoined worker. Full parent defaults: **1,328 passed / 54 native skips**.
+No production or UI behavior changed; zero real auth/model/upstream calls.
+This closes the offline integration seam, not real account availability or human
+login usability. Next: a concrete opt-in managed attempt with separate contained
+startup and fresh per-attempt turn admission; keep the production gate closed
+until that implementation is reviewable and live resource use is authorized.
+
 ## Exact result discovery — 2026-10-13
 
 Integration base `4b91892`; [contract](../agents/RESULT_DISCOVERY_TASK.md),

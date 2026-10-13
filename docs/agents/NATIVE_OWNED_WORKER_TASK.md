@@ -34,6 +34,16 @@ native thread storage in disposable state, distinct from Ephemeral credentials.
 Native-added instructions/context may differ from the manual positive driver;
 preserve the actual provider request and fail closed if existing bounds reject it.
 
+**Reviewed follow-up after the first failure:** the unchanged worker exposed
+native `functions.get_goal`, `create_goal` and `update_goal` declarations, which
+the empty-tools provider guard refused. Preserve that raw failure separately.
+The tagged native source makes Goals enabled by default and its state-backed
+extension honors `features.goals`. A worker-mode-only startup
+`features.goals=false`, checked in both ordered configuration reads, is admitted
+for the next reviewed run. Keep the worker's thread/turn packets, provider guard,
+quotas and deadlines unchanged. Missing or true goal configuration must refuse
+before thread creation; historical manual modes retain their original controls.
+
 The independent RPC guard may admit the worker's exact
 `mcpServerStatus/list` request with threadId, null cursor, limit 100 and
 detail=toolsAndAuthOnly. Any pagination must be bounded and source-matched;

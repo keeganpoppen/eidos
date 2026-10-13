@@ -441,6 +441,322 @@ def test_positive_mode_is_explicit_and_defaults_keep_negative_pair(monkeypatch):
     with pytest.raises(ValueError, match="mode"): probe.run_probe(mode="unknown")
 
 
+def run_authored_worker(tmp_path, monkeypatch, *, terminal_params="valid", cleanup_failure=None, malformed_reply=None,
+                        goals_drift=None):
+    """Exercise the production join with a local authored stdio child, never native.
+
+    Transport expectations below are separate historical fixture data used for
+    assessor mutation tests; they are not observations of this authored child.
+    """
+    from types import SimpleNamespace
+    config = tomllib.loads(probe.fixture_config(owned_worker=True))
+    script = tmp_path / "authored.py"
+    script.write_text("import json, os, sys\n" + f"config = {config!r}\n" + r'''
+reads = 0
+def send(value): print(json.dumps(value), flush=True)
+for line in sys.stdin:
+    msg = json.loads(line)
+    ident, method = msg.get('id'), msg.get('method')
+    if method == 'initialize':
+        print('PRIVATE_AUTHORED_STDERR', file=sys.stderr, flush=True)
+        send({'id': ident, 'result': {'userAgent': 'authored-not-native', 'future': 'PRIVATE_INIT'}})
+    elif method == 'account/read':
+        reads += 1
+        send({'id': ident, 'result': {'account': None if reads == 1 else
+            {'type': 'chatgpt', 'email': 'fixture@example.invalid', 'planType': 'plus'}, 'requiresOpenaiAuth': True}})
+    elif method == 'config/read': send({'id': ident, 'result': {'config': config, 'future': 'PRIVATE_CONFIG'}})
+    elif method == 'account/login/start':
+        send({'id': ident, 'result': {'loginId': 'authored-login', 'userCode': 'PRIVATE_CODE'}})
+        send({'method': 'account/login/completed', 'params': {'loginId': 'authored-login', 'success': True, 'future': 'PRIVATE_LOGIN'}})
+        send({'method': 'account/updated', 'params': {'authMode': 'chatgpt', 'planType': 'plus'}})
+    elif method == 'thread/start':
+        send({'id': ident, 'result': {'thread': {'id': 'authored-thread', 'environments': []},
+             'cwd': msg['params']['cwd'], 'approvalPolicy': 'never', 'sandbox': {'type': 'readOnly', 'networkAccess': False}}})
+    elif method == 'mcpServerStatus/list': send({'id': ident, 'result': {'data': [], 'nextCursor': None}})
+    elif method == 'turn/start':
+        send({'id': ident, 'result': {'turn': {'id': 'authored-turn', 'status': 'inProgress', 'items': []}}})
+        send({'method': 'item/completed', 'params': {'threadId': 'authored-thread', 'turnId': 'authored-turn',
+             'item': {'id': 'result', 'type': 'agentMessage', 'phase': 'final',
+                      'text': 'SYNTHETIC FIXTURE: both selected records survived [evidence:1] [evidence:2].', 'future': 'PRIVATE_ITEM'}}})
+        send({'method': 'turn/completed', 'params': {'threadId': 'authored-thread', 'turn': {'id': 'authored-turn', 'status': 'completed'}}})
+''')
+    if goals_drift is not None:
+        stage, value = goals_drift
+        before = "    elif method == 'config/read': send({'id': ident, 'result': {'config': config, 'future': 'PRIVATE_CONFIG'}})"
+        mutation = "config['features'].pop('goals')" if value == 'missing' else "config['features']['goals'] = True"
+        after = ("    elif method == 'config/read':\n"
+                 f"        if reads == {stage}: {mutation}\n"
+                 "        send({'id': ident, 'result': {'config': config, 'future': 'PRIVATE_CONFIG'}})")
+        source = script.read_text()
+        assert source.count(before) == 1
+        script.write_text(source.replace(before, after))
+    if malformed_reply is not None:
+        replacements = {
+            "account": ("'result': {'account': None if reads == 1 else", "'result': None if reads == 2 else {'account': None if reads == 1 else"),
+            "inventory": ("'data': [], 'nextCursor': None", "'data': [None], 'nextCursor': None"),
+            "config": ("'config': config, 'future'", "'config': None, 'future'"),
+        }
+        before, after = replacements[malformed_reply]
+        source = script.read_text()
+        assert source.count(before) == 1
+        script.write_text(source.replace(before, after))
+    if terminal_params != "valid":
+        source = script.read_text()
+        terminal = "send({'method': 'turn/completed', 'params': {'threadId': 'authored-thread', 'turn': {'id': 'authored-turn', 'status': 'completed'}}})"
+        assert source.count(terminal) == 1
+        script.write_text(source.replace(terminal, f"send({{'method': 'turn/completed', 'params': {terminal_params!r}}})\n        break"))
+    if cleanup_failure is not None:
+        original = getattr(probe.OwnedManagedWorker, cleanup_failure)
+        def interrupted(self):
+            original(self)
+            raise OSError("authored cleanup failure: " + cleanup_failure)
+        monkeypatch.setattr(probe.OwnedManagedWorker, cleanup_failure, interrupted)
+    def prepare(root, helper, paths, *, owned_worker=False):
+        assert owned_worker is True
+        (root / "state/codex").mkdir(parents=True)
+        (root / "packet").mkdir()
+        (root / "state/policy.json").write_text(json.dumps({"installedBeforeInitialExec": True, "allListenerCopiesClosed": True}))
+    monkeypatch.setattr(probe, "prepare_case", prepare)
+    monkeypatch.setattr(probe, "worker_launcher", lambda root: [sys.executable, str(script)])
+    monkeypatch.setattr(probe.tls, "TlsFixture", lambda *args, **kwargs: SimpleNamespace(
+        workers=[], tls_events=[], open_endpoint=lambda: pytest.fail("network endpoint used"), close=lambda: None))
+    return probe.run_worker_case(tmp_path / "not-executed", {})
+
+
+def test_goals_disable_is_worker_only_and_other_startup_bytes_are_unchanged():
+    historical = probe.fixture_config()
+    worker = probe.fixture_config(owned_worker=True)
+    assert worker == historical.replace("[features]\n", "[features]\ngoals=false\n")
+    assert "goals" not in tomllib.loads(historical)["features"]
+    assert tomllib.loads(worker)["features"]["goals"] is False
+
+
+def test_first_native_worker_goal_payload_remains_rejected_without_publication():
+    path = Path(__file__).parents[1] / "docs/evidence/NATIVE_OWNED_WORKER_0_154_0_FIRST_FAILURE.json"
+    case = json.loads(path.read_bytes())["cases"][probe.WORKER_CASE]
+    assert case["positiveOwnedWorkerAccepted"] is False and case["publicationLedger"] is None
+    assert len(case["traceRecords"]) == 2 and case["allWorkersJoined"] is True
+    value = probe.Services(probe.WORKER_CASE, case["selectedContext"]["projectedPrompt"], probe.Timeline())
+    positive_prefix(value)
+    request = deepcopy(case["endpointEvents"][-1])
+    assert request["reason"] == "unexpected tool declaration"
+    request["headers"]["authorization"] = "Bearer " + value.tokens["A"]["access_token"]
+    with pytest.raises(ValueError, match="unexpected tool declaration"):
+        value.dispatch("provider", request)
+    assert value.response_served is False
+
+
+def test_recorded_native_worker_replays_exact_private_public_result_without_launch():
+    path = Path(__file__).parents[1] / "docs/evidence/NATIVE_OWNED_WORKER_0_154_0.json"
+    report = json.loads(path.read_bytes())
+    case = report["cases"][probe.WORKER_CASE]
+    assert report["liveAdmission"] is False and report["realModelCalls"] == 0
+    assert probe.assess_worker_case(case) == []
+    published, original = probe.recover_recorded_worker(case)
+    assert published == case["recoveredArtifact"] == case["replayRecoveredArtifact"]
+    assert case["savedArtifact"] == case["reopenedArtifact"]
+    assert original == case["resolvedEvidence"]["artifact"]
+    assert published["outputSeqs"] == [3] and original["outputSeqs"] != [3]
+    assert case["reopenedControl"] == {"owned": False, "canCancel": False}
+
+
+@pytest.mark.parametrize("stage", [1, 2])
+@pytest.mark.parametrize("value", ["missing", "true"])
+def test_goal_control_drift_stops_authored_worker_before_thread(tmp_path, monkeypatch, stage, value):
+    case = run_authored_worker(tmp_path, monkeypatch, goals_drift=(stage, value))
+    assert case["failure"] is not None and case["positiveOwnedWorkerAccepted"] is False
+    assert case["nativeLoginRPCs"] == stage - 1
+    assert case["nativeThreadRPCs"] == case["nativeTurnRPCs"] == 0
+    assert case["publicationLedger"] is None and len(case["traceRecords"]) == 2
+    name = "initialConfig" if stage == 1 else "orderedConfig"
+    assert name + "-controls-differ" in probe.assess_worker_case(case)
+    assert "owned worker goal tools are not disabled" in json.dumps(case["privateTraceRecords"])
+
+
+@pytest.fixture
+def authored_worker_case(tmp_path, monkeypatch):
+    case = run_authored_worker(tmp_path, monkeypatch)
+    assert case["failure"] is None, case["failure"]
+    assert case["durableReopenMatches"] and case["nativeUserAgent"] == "authored-not-native"
+    assert "PRIVATE_" not in json.dumps(case["traceRecords"]) + json.dumps(case["progress"])
+    assert "PRIVATE_CODE" in json.dumps(case["privateTraceRecords"])
+    # Build a wholly synthetic assessment example from actual local worker data
+    # plus explicitly historical endpoint expectations. Never save it as native evidence.
+    previous = json.loads(POSITIVE_RECORDED.read_bytes())["cases"][probe.POSITIVE_CASE]
+    for key in ("endpointEvents", "connectEvents", "connectAttempts", "processedConnects", "mappedEndpointOpens",
+                "fixtureTokenGenerations", "issuerHttpRequests", "providerHttpRequests"):
+        case[key] = deepcopy(previous[key])
+    response = case["endpointEvents"][-1]
+    response["bodyRaw"] = response["bodyRaw"].replace(
+        json.dumps(previous["selectedContext"]["projectedPrompt"])[1:-1], json.dumps(case["selectedContext"]["projectedPrompt"])[1:-1])
+    closure = next(e for e in case["timeline"] if e["kind"] == "issuerClosed")
+    closure.update(connectCount=3, issuerHttpRequests=3)
+    assert probe.assess_worker_case(case) == []
+    return case
+
+
+@pytest.mark.parametrize("params", [{}, None, [], {"turn": None}, {"turn": "scalar"}])
+def test_malformed_authored_terminal_retains_failure_report_and_raw_bytes(tmp_path, monkeypatch, params):
+    case = run_authored_worker(tmp_path, monkeypatch, terminal_params=params)
+    assert case["failure"] is not None
+    assert case["positiveOwnedWorkerAccepted"] is False
+    assert "worker-terminal-differs" in case["assessmentProblems"]
+    terminal = next(row for row in case["privateTraceRecords"] if json.loads(row["rawText"]).get("method") == "turn/completed")
+    assert terminal["rawText"] == json.dumps({"method": "turn/completed", "params": params})
+    assert case["nativeTurnOutcome"] is None
+    assert case["savedArtifact"] is None
+
+
+@pytest.mark.parametrize("operation", ["close", "close_evidence"])
+def test_cleanup_failure_keeps_report_and_does_not_claim_clean_shutdown(tmp_path, monkeypatch, operation):
+    case = run_authored_worker(tmp_path, monkeypatch, cleanup_failure=operation)
+    assert case["savedArtifact"] is not None  # Already accepted evidence stays inspectable.
+    assert case["allWorkersJoined"] is False
+    assert case["positiveOwnedWorkerAccepted"] is False
+    assert "worker-not-closed-cleanly" in case["assessmentProblems"]
+    assert any(item["operation"] == "owned." + operation and item["type"] == "OSError" for item in case["cleanupErrors"])
+    assert case["privateTraceRecords"] and case["remainingActiveTunnels"] == 0
+
+
+def test_owned_private_client_clears_host_environment_before_launcher(tmp_path, monkeypatch):
+    monkeypatch.setenv("NEMA_FIXTURE_PARENT_ONLY", "authored-env-canary")
+    start = probe.AppServerClient.start
+    checked = []
+    def audit(client):
+        checked.append(client.source)
+        assert client.env == {} and client.inherit_env is False
+        return start(client)
+    monkeypatch.setattr(probe.AppServerClient, "start", audit)
+    case = run_authored_worker(tmp_path, monkeypatch)
+    assert checked and len(set(checked)) == 1
+    assert case["failure"] is None
+
+
+def test_owned_outer_watchdog_is_joined_before_clean_shutdown_claim(tmp_path, monkeypatch):
+    original = threading.Timer
+    timers = []
+    class ObservedTimer(original):
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            self.join_timeouts = []
+            timers.append(self)
+        def join(self, timeout=None):
+            self.join_timeouts.append(timeout)
+            return super().join(timeout)
+    monkeypatch.setattr(threading, "Timer", ObservedTimer)
+    case = run_authored_worker(tmp_path, monkeypatch)
+    outer = [timer for timer in timers if timer.interval == probe.transport.CASE_SECONDS]
+    assert len(outer) == 1 and outer[0].join_timeouts == [1]
+    assert not outer[0].is_alive() and case["allWorkersJoined"] is True
+
+
+@pytest.mark.parametrize("key,value", [("orderedAccount", None), ("initialConfig", None),
+    ("orderedConfig", {"config": []}), ("mcpServerStatus/list", {"data": [None]}),
+    ("mcpServerStatus/list", None), ("thread/start", {"thread": None}), ("turn/start", [])])
+def test_malformed_reported_acknowledgements_remain_nonaccepted(authored_worker_case, key, value):
+    case = deepcopy(authored_worker_case)
+    case["nativeReplies"][key] = value
+    assert probe.assess_worker_case(case)
+
+
+def test_assessment_shape_failure_returns_rejected_report_instead_of_throwing(authored_worker_case):
+    case = deepcopy(authored_worker_case)
+    case["privateTraceRecords"][0]["rawText"] = "null"
+    assert probe.assess_worker_case(case) == ["malformed-worker-evidence:AttributeError"]
+
+
+@pytest.mark.parametrize("reply", ["account", "inventory", "config"])
+def test_malformed_authored_control_reply_retains_failed_report(tmp_path, monkeypatch, reply):
+    case = run_authored_worker(tmp_path, monkeypatch, malformed_reply=reply)
+    assert case["failure"] is not None
+    assert case["positiveOwnedWorkerAccepted"] is False
+    assert case["assessmentProblems"]
+    raw = [json.loads(row["rawText"]) for row in case["privateTraceRecords"]]
+    if reply == "account": assert any(msg.get("result", "absent") is None for msg in raw)
+    elif reply == "inventory": assert any(msg.get("result") == {"data": [None], "nextCursor": None} for msg in raw)
+    else: assert any(msg.get("result") == {"config": None, "future": "PRIVATE_CONFIG"} for msg in raw)
+    assert len(case["traceRecords"]) == 2 and case["savedArtifact"] is None
+
+
+def test_authored_worker_join_keeps_exact_private_proof_and_no_reopened_owner(authored_worker_case, monkeypatch):
+    monkeypatch.setattr(probe.AppServerClient, "start", lambda *a, **k: pytest.fail("process during evidence assessment"))
+    case = authored_worker_case
+    published, native = probe.recover_recorded_worker(case)
+    assert published["outputSeqs"] == [3]
+    assert native["outputSeqs"] != [3]
+    assert published["executionEvidence"] == native["executionEvidence"] == "synthetic"
+    assert case["reopenedControl"] == {"owned": False, "canCancel": False}
+    assert [p["lifecycle"]["phase"] for p in case["progress"] if "lifecycle" in p] == [
+        "preparing", "awaiting-sign-in", "checking", "running", "closed"]
+
+
+@pytest.mark.parametrize("mutation", ["terminal", "request", "ack", "classification", "source", "raw-public",
+    "ledger", "reopened-owner", "duplicate-provider", "capture", "limits", "post-turn", "inventory"])
+def test_owned_worker_assessment_rejects_boundary_mutations(authored_worker_case, mutation):
+    case = deepcopy(authored_worker_case)
+    if mutation in {"terminal", "request", "ack", "classification", "source"}:
+        for row in case["privateTraceRecords"]:
+            msg = json.loads(row["rawText"])
+            if mutation == "terminal" and msg.get("method") == "turn/completed":
+                msg["params"]["turn"]["id"] = "wrong-turn"
+            elif mutation == "request" and msg.get("method") == "turn/start":
+                msg["params"]["input"][0]["text"] = "wrong-context"
+            elif mutation == "ack" and msg.get("result", {}).get("turn", {}).get("id") == "authored-turn":
+                msg["id"] = "wrong-request"
+            elif mutation == "classification" and msg.get("method") == "$native/profile":
+                msg["params"]["executionEvidence"] = "unverified"
+            elif mutation == "source" and msg.get("method") == "$native/profile":
+                row["source"] = "copied-source"
+            row["rawText"] = json.dumps(msg)
+    elif mutation == "raw-public": case["traceRecords"].append(case["privateTraceRecords"][4])
+    elif mutation == "ledger": case["publicationLedger"]["content_digest"] = "copied"
+    elif mutation == "reopened-owner": case["reopenedControl"]["owned"] = True
+    elif mutation == "duplicate-provider": case["endpointEvents"].append(case["endpointEvents"][-1])
+    elif mutation == "capture": case["nativeCapture"]["diagnosticError"] = "failed"
+    elif mutation == "limits": case["nativeCapture"]["limits"]["max_received_bytes"] += 1
+    elif mutation == "post-turn": case["afterTurnAccountObserved"] = True
+    else: case["nativeReplies"]["mcpServerStatus/list"]["data"] = [{"tools": {"danger": {}}, "runtimeStatus": "ready"}]
+    assert probe.assess_worker_case(case)
+
+
+def test_worker_namespace_launcher_creates_cwd_spelling_without_host_mount(tmp_path, monkeypatch):
+    import tempfile
+    command = probe.worker_launcher(tmp_path)
+    captured = []
+    monkeypatch.setattr(os, "execv", lambda binary, argv: captured.append(argv))
+    with tempfile.TemporaryDirectory(prefix="nema-investigation-", dir="/tmp") as cwd:
+        monkeypatch.chdir(cwd)
+        assert command[1:3] == ("-I", "-S")
+        exec(Path(command[-1]).read_text(), {})
+    argv = captured[0]
+    assert argv[argv.index("--chdir") + 1] == cwd
+    assert argv[argv.index("--dir") + 1] == cwd
+    assert argv[argv.index("--tmpfs") + 1] == "/tmp"
+    for index, value in enumerate(argv):
+        if value in {"--bind", "--ro-bind"}: assert argv[index + 1] != cwd
+    assert "--unshare-all" in argv and "--clearenv" in argv and "--die-with-parent" in argv
+
+
+@pytest.fixture(scope="module")
+def owned_worker_observed():
+    if os.environ.get("NEMA_NATIVE_OWNED_WORKER_PROBE") != "1":
+        pytest.skip("explicit reviewed contained owned-worker opt-in required")
+    result = probe.run_probe(mode=probe.WORKER_CASE)
+    if output := os.environ.get("NEMA_NATIVE_OWNED_WORKER_OUTPUT"):
+        Path(output).write_text(json.dumps(result, indent=2) + "\n")
+    return result
+
+
+def test_contained_owned_worker_completes_private_public_recovery(owned_worker_observed):
+    report = owned_worker_observed
+    case = report["cases"][probe.WORKER_CASE]
+    assert probe.assess_worker_case(case) == [], json.dumps({"failure": case["failure"],
+        "assessment": case["assessmentProblems"], "stderr": case["nativeStderr"]})
+    assert case["positiveOwnedWorkerAccepted"] and case["nativeTerminalRecovered"]
+    assert report["realAuthCalls"] == report["realModelCalls"] == report["realUpstreamRequests"] == 0
+    assert not report["liveAdmission"] and not report["subscriptionExecution"]
+
+
 def test_positive_response_reuses_exact_bounded_text_sse_once():
     value = services(probe.POSITIVE_CASE)
     positive_prefix(value)
