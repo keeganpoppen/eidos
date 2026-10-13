@@ -43,6 +43,15 @@ class InvestigationReads:
                 );
                 CREATE INDEX IF NOT EXISTS investigation_read_artifact_order
                   ON investigation_read_artifacts(created_at_ms DESC,investigation_id,artifact_id);
+                CREATE TABLE IF NOT EXISTS investigation_read_result_search(
+                  investigation_id TEXT NOT NULL,
+                  artifact_id TEXT NOT NULL,
+                  question TEXT NOT NULL,
+                  result_text TEXT NOT NULL,
+                  search_question TEXT NOT NULL,
+                  search_result TEXT NOT NULL,
+                  PRIMARY KEY(investigation_id,artifact_id)
+                );
                 CREATE TABLE IF NOT EXISTS investigation_read_dirty(id TEXT PRIMARY KEY);
                 CREATE TRIGGER IF NOT EXISTS investigation_read_insert
                   AFTER INSERT ON investigations BEGIN
@@ -59,8 +68,16 @@ class InvestigationReads:
                     DELETE FROM investigation_read_artifacts WHERE investigation_id=OLD.id;
                     DELETE FROM investigation_read_dirty WHERE id=OLD.id;
                   END;
+                CREATE TRIGGER IF NOT EXISTS investigation_read_result_search_delete
+                  AFTER DELETE ON investigations BEGIN
+                    DELETE FROM investigation_read_result_search WHERE investigation_id=OLD.id;
+                  END;
                 INSERT OR IGNORE INTO investigation_read_dirty
                   SELECT id FROM investigations WHERE id NOT IN (SELECT id FROM investigation_read_catalog);
+                INSERT OR IGNORE INTO investigation_read_dirty
+                  SELECT DISTINCT investigation_id FROM investigation_read_artifacts AS a
+                  WHERE NOT EXISTS (SELECT 1 FROM investigation_read_result_search AS s
+                    WHERE s.investigation_id=a.investigation_id AND s.artifact_id=a.artifact_id);
             """)
 
     @contextmanager
@@ -98,6 +115,7 @@ class InvestigationReads:
             work = json.loads(row["state_json"])
             version = "iv1_" + hashlib.sha256(row["state_json"].encode()).hexdigest()
             artifacts = self._artifacts(work)
+            contexts = {context["id"]: context for context in work["contexts"]}
             summary = {
                 "id": work["id"], "title": work["title"], "status": work["status"],
                 "createdAtMs": work["createdAtMs"], "currentContextId": work["currentContextId"],
@@ -108,6 +126,7 @@ class InvestigationReads:
             self.trace.db.execute("INSERT OR REPLACE INTO investigation_read_catalog VALUES (?,?,?,?,?)",
                 (work["id"], work["createdAtMs"], work["title"].casefold(), version, _json(summary)))
             self.trace.db.execute("DELETE FROM investigation_read_artifacts WHERE investigation_id=?", (work["id"],))
+            self.trace.db.execute("DELETE FROM investigation_read_result_search WHERE investigation_id=?", (work["id"],))
             for artifact in artifacts:
                 item = {
                     "investigationId": work["id"], "investigationTitle": work["title"],
@@ -117,6 +136,12 @@ class InvestigationReads:
                 }
                 self.trace.db.execute("INSERT INTO investigation_read_artifacts VALUES (?,?,?,?,?)",
                     (work["id"], artifact["id"], work["createdAtMs"], work["title"].casefold(), _json(item)))
+                # Only the exact result and its own question are searchable.
+                # No raw records, inherited inputs or unknown fields enter here.
+                question = contexts.get(artifact["contextId"], {}).get("question", "")
+                text = artifact["text"]
+                self.trace.db.execute("INSERT INTO investigation_read_result_search VALUES (?,?,?,?,?,?)",
+                    (work["id"], artifact["id"], question, text, question.casefold(), text.casefold()))
             self.trace.db.execute("DELETE FROM investigation_read_dirty WHERE id=?", (row["id"],))
 
     def rebuild(self) -> None:
@@ -124,6 +149,7 @@ class InvestigationReads:
         with self._snapshot():
             self.trace.db.execute("DELETE FROM investigation_read_catalog")
             self.trace.db.execute("DELETE FROM investigation_read_artifacts")
+            self.trace.db.execute("DELETE FROM investigation_read_result_search")
             self.trace.db.execute("INSERT OR IGNORE INTO investigation_read_dirty SELECT id FROM investigations")
             self._refresh()
 
@@ -142,13 +168,37 @@ class InvestigationReads:
             after = decoded["after"]
             if (set(decoded) != {"v", "kind", "query", "after"} or type(decoded["v"]) is not int or decoded["v"] != 1
                     or decoded["kind"] != kind or decoded["query"] != query
-                    or not isinstance(after, list) or len(after) != (3 if kind == "artifacts" else 2)
+                    or not isinstance(after, list) or len(after) != (3 if kind in {"artifacts", "artifact-content/1"} else 2)
                     or type(after[0]) is not int or not 0 <= after[0] <= 2**63 - 1
                     or any(not isinstance(item, str) or not 1 <= len(item) <= 200 for item in after[1:])):
                 raise ValueError
         except (ValueError, TypeError, KeyError, UnicodeError):
             raise InvestigationError(400, "cursor does not match this catalog query") from None
         return after
+
+    @staticmethod
+    def _excerpt(value: str, term: str) -> str:
+        """Locate literal casefold text without treating folded offsets as originals."""
+        found = value.casefold().find(term)
+        if found < 0:
+            raise ValueError("search projection does not contain its matched term")
+        folded = 0
+        start = 0
+        end = len(value)
+        for index, character in enumerate(value):
+            following = folded + len(character.casefold())
+            if folded <= found < following:
+                start = index
+            if following >= found + len(term):
+                end = index + 1
+                break
+            folded = following
+        # Reserve two positions for omission markers. A casefold-expanded
+        # match may itself exceed this bound; show its beginning honestly.
+        left = max(0, start - max(0, 238 - (end - start)) // 2)
+        right = min(len(value), left + 238)
+        left = max(0, right - 238)
+        return ("…" if left else "") + value[left:right] + ("…" if right < len(value) else "")
 
     @staticmethod
     def _params(query: Mapping[str, list[str]], allowed: set[str]) -> dict[str, str]:
@@ -170,10 +220,16 @@ class InvestigationReads:
         if known is not None:
             _text(known, "knownVersion", 200)
         kind = "artifacts" if artifacts else "investigations"
-        after = self._after(params.get("cursor"), kind, term)
+        content_search = artifacts and bool(term)
+        cursor_kind = "artifact-content/1" if content_search else kind
+        after = self._after(params.get("cursor"), cursor_kind, term)
         owner = "investigation_id" if artifacts else "id"
         table = "investigation_read_artifacts" if artifacts else "investigation_read_catalog"
         clauses, arguments = ["instr(search_title, ?) > 0"], [term]
+        if content_search:
+            clauses = ["(instr(search_title, ?) > 0 OR instr(search_question, ?) > 0 OR instr(search_result, ?) > 0)"]
+            arguments = [term, term, term]
+            table += " JOIN investigation_read_result_search USING(investigation_id,artifact_id)"
         if after:
             if artifacts:
                 clauses.append(f"(created_at_ms < ? OR (created_at_ms = ? AND ({owner} > ? OR ({owner} = ? AND artifact_id > ?))))")
@@ -184,15 +240,26 @@ class InvestigationReads:
         with self._snapshot():
             self._refresh()
             rows = self.trace.db.execute(
-                f"SELECT * FROM {table} WHERE {' AND '.join(clauses)} ORDER BY created_at_ms DESC,{owner}"
+                f"SELECT created_at_ms,{owner},summary_json" + (",artifact_id" if artifacts else "")
+                + (",search_title,question,result_text,search_question" if content_search else "")
+                + f" FROM {table} WHERE {' AND '.join(clauses)} ORDER BY created_at_ms DESC,{owner}"
                 + (",artifact_id" if artifacts else "") + " LIMIT ?", (*arguments, limit + 1),
             ).fetchall()
             values = [json.loads(row["summary_json"]) for row in rows[:limit]]
+            if content_search:
+                for row, value in zip(rows, values):
+                    if term in row["search_title"]:
+                        field, text = "title", value["investigationTitle"]
+                    elif term in row["search_question"]:
+                        field, text = "question", row["question"]
+                    else:
+                        field, text = "result", row["result_text"]
+                    value["match"] = {"field": field, "excerpt": self._excerpt(text, term)}
             next_cursor = None
             if len(rows) > limit:
                 last = rows[limit - 1]
                 key = [last["created_at_ms"], last[owner]] + ([last["artifact_id"]] if artifacts else [])
-                next_cursor = self._cursor(kind, term, key)
+                next_cursor = self._cursor(cursor_kind, term, key)
             content = {kind: values, "nextCursor": next_cursor}
             version = "ic1_" + hashlib.sha256(_json({
                 "kind": kind, "query": term, "cursor": params.get("cursor"), "limit": limit, **content,

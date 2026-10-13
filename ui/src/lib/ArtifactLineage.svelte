@@ -76,6 +76,7 @@
     <div data-lineage-artifact-id={active.artifactId} data-lineage-context-id={context?.id}>
       {#if loading}<p role="status">Loading original source context…</p>{/if}
       {#if error}<p class="work-error" role="alert">{error}</p>{/if}
+      {#if context}<section class="original-question" aria-label="Original question"><h3>Original question</h3><p>{context.question}</p></section>{/if}
       {#if artifact}
         <ArtifactContent {artifact} {context} onArtifact={follow} />
         {#if adoption}
@@ -118,5 +119,6 @@
   summary { cursor:pointer; font-size:13px; margin-bottom:10px; }
   .object-ref { font:12px/1.6 monospace; overflow-wrap:anywhere; }
   .source-adoption { border-left:2px solid var(--accent); padding-left:12px; font-size:14px; }
+  .original-question p { white-space:pre-wrap; overflow-wrap:anywhere; }
   @media(max-width:600px) { .artifact-lineage { padding:16px; } header { flex-wrap:wrap; gap:6px; } }
 </style>

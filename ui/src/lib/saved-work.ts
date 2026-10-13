@@ -7,6 +7,7 @@ export type WorkSummary = Pick<Investigation, 'id' | 'title' | 'status' | 'creat
 export type ResultSummary = {
   investigationId: string; investigationTitle: string; artifactId: string; contextId: string; attemptId: string;
   kind?: string; executionEvidence?: string; continuedFrom?: unknown; createdAtMs: number;
+  match?: { field: 'title' | 'question' | 'result'; excerpt: string };
 };
 export type CatalogItem = WorkSummary | ResultSummary;
 export type CatalogKind = 'catalog' | 'artifacts';
@@ -24,6 +25,16 @@ export const catalogKey = (item: CatalogItem): string => 'artifactId' in item
 /** A selected reference remains selectable when it is outside the current search page. */
 export function catalogChoices(page: CatalogItem[], selected?: CatalogItem): CatalogItem[] {
   return selected && !page.some((item) => catalogKey(item) === catalogKey(selected)) ? [selected, ...page] : page;
+}
+
+/** A previous query's retained selection is not evidence of a current match.
+ * Preserve its original context pin if a later row reuses the same result key. */
+export function catalogSelection(page: CatalogItem[], value: string, selected?: CatalogItem): { item?: CatalogItem; onPage: boolean } {
+  const retained = selected && catalogKey(selected) === value ? selected : undefined;
+  const current = page.find((item) => catalogKey(item) === value);
+  const sameResult = !retained || !current || !('artifactId' in retained) || !('artifactId' in current)
+    || (retained.contextId === current.contextId && retained.attemptId === current.attemptId);
+  return current && sameResult ? { item: current, onPage: true } : { item: retained, onPage: false };
 }
 
 /** Shared read cache. It contains server views, never editable browser draft fields. */

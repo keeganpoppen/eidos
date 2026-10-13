@@ -335,6 +335,10 @@
     </ol>
     <div class="artifact-picker">
       <CatalogPicker id="context-artifact-picker" label="Include a saved result" kind="artifacts" value={artifactChoice} disabled={busy} emptyLabel="Choose an exact result version" onChoose={(value, item) => { artifactChoice = value; artifactChoiceSummary = item && 'artifactId' in item ? item : undefined; }} />
+      <button class="work-secondary" disabled={busy || !artifactChoiceSummary} onclick={() => {
+        if (artifactChoiceSummary) lineageTarget = { investigationId: artifactChoiceSummary.investigationId,
+          artifactId: artifactChoiceSummary.artifactId, contextId: artifactChoiceSummary.contextId };
+      }}>Inspect selected result</button>
       <button class="work-secondary" disabled={busy || !artifactChoice || inputCount >= 32} onclick={addArtifact}>Add selected result to context</button>
       <p class="work-muted">Each result keeps its original input and support links. The new packet contains that result; its underlying records are supplied only when separately selected.</p>
     </div>

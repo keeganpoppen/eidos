@@ -6,6 +6,23 @@ The baseline GitHub Actions run `38240774514` completed successfully: pytest and
 
 Refresh this file when implementation claims materially change. Keep historical audit IDs instead of quietly relabelling old evidence as current.
 
+## Exact result discovery — 2026-10-13
+
+Integration base `4b91892`; [contract](../agents/RESULT_DISCOVERY_TASK.md),
+[evidence](../evidence/RESULT_DISCOVERY_INTEGRATION.md). Artifact search now matches
+title, its exact original question and its public result text, with bounded labelled
+excerpts. Historical context/attempt pins remain exact; raw/private/inherited data
+is excluded. Existing source inspection precedes deliberate Add and frozen reuse.
+Title-only investigation search and empty artifact-query payloads remain compatible.
+
+Parent **1,287 Python passed / 53 explicit native skips**, **99 Bun / 499 assertions**,
+clean Svelte/build. Actual desktop/390px browser captured 65 responses and one draft
+save; search/inspection retained the dirty draft and pending save, while explicit
+reuse pinned old A1/C0 despite newer A2/C1. Independent review accepted. No native/
+model/account call. A 1,000-result corpus at about 128 KiB/result measured 130–194ms
+for rare tail search locally; substring scanning still scales with corpus text.
+Scripted success does not measure human reorientation speed or answer quality.
+
 ## Owned attempt preparation and cancellation — 2026-10-13
 
 Integration base `7d3354a`; [contract](../agents/OWNED_ATTEMPT_CONTROL_TASK.md),
@@ -426,7 +443,7 @@ Rendered Chromium acceptance and inspected screenshots cover provenance, compari
 deferral/reload/offer/adoption and preservation of the native baseline. Independent
 reviews attacked concurrency, abrupt crashes, copied authority and miscorrelation.
 
-This advances V1-03/04/07/08/09/10/12, with a local realization of the disclosure part
+This advances V1-03/ 04/ 07/ 08/ 09/10/12, with a local realization of the disclosure part
 of V1-06. It does **not** establish a specialist-originated native inquiry, a new model
 analysis after disclosure, or all V1 acceptance gates. The generic outer Elaborate
 correlation obligation is not universally solved by this fixed review program.

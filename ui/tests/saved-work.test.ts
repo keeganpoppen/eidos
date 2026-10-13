@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { SavedWorkClient, catalogChoices, catalogKey, type ArtifactSource, type ResultSummary, type WorkSummary } from '../src/lib/saved-work';
+import { SavedWorkClient, catalogChoices, catalogKey, catalogSelection, type ArtifactSource, type ResultSummary, type WorkSummary } from '../src/lib/saved-work';
 import { makeReflectionFixture } from '../src/lib/reflection-fixture';
 import { resolveTarget, artifacts } from '../src/lib/comparison';
 
@@ -45,6 +45,44 @@ describe('bounded saved-work reads', () => {
     expect(catalogChoices([result, newer], result)).toEqual([result, newer]);
     expect(catalogKey(result)).toBe(JSON.stringify(['old-owner', 'A1']));
     expect(catalogChoices([summary('recent')], summary('older'))[0].id).toBe('older');
+  });
+
+  test('retained result selection cannot turn an earlier excerpt into a current search match', () => {
+    const old: ResultSummary = { investigationId: 'owner', investigationTitle: 'Review', artifactId: 'A1', contextId: 'C0', attemptId: 'T0', createdAtMs: 1,
+      match: { field: 'question', excerpt: 'Why did cancelled preparation resume?' } };
+    const newer: ResultSummary = { ...old, artifactId: 'A2', contextId: 'C1', attemptId: 'T1', match: { field: 'result', excerpt: 'A different result.' } };
+    expect(catalogSelection([newer], catalogKey(old), old)).toEqual({ item: old, onPage: false });
+    expect(catalogSelection([], catalogKey(old), old)).toEqual({ item: old, onPage: false });
+    const currentMatch: ResultSummary = { ...old, match: { field: 'result', excerpt: 'The stopped claim must survive.' } };
+    expect(catalogSelection([currentMatch], catalogKey(old), old)).toEqual({ item: currentMatch, onPage: true });
+    expect(old.match?.field).toBe('question');
+  });
+
+  test('a reused result key cannot silently change a retained context or attempt pin', () => {
+    const old: ResultSummary = { investigationId: 'owner', investigationTitle: 'Review', artifactId: 'A1', contextId: 'C0', attemptId: 'T0', createdAtMs: 1 };
+    for (const changed of [{ ...old, contextId: 'C1' }, { ...old, attemptId: 'T1' }]) {
+      expect(catalogSelection([changed], catalogKey(old), old)).toEqual({ item: old, onPage: false });
+    }
+    expect(catalogSelection([old], '', old)).toEqual({ item: undefined, onPage: false });
+  });
+
+  test('artifact search preserves exact match envelopes and scopes cached excerpts to the query', async () => {
+    const historical: ResultSummary = { investigationId: 'owner', investigationTitle: 'Review', artifactId: 'A1', contextId: 'C0', attemptId: 'T0', createdAtMs: 1,
+      match: { field: 'result', excerpt: '<img src=x onerror=alert(1)> Straße %_ claim' } };
+    const paths: string[] = [];
+    const client = new SavedWorkClient(async (path) => {
+      paths.push(path);
+      if (path.includes('knownVersion')) return json({ version: 'matched-v1', unchanged: true });
+      if (path.includes('different')) return json({ version: 'empty-v1', unchanged: false, artifacts: [], nextCursor: null });
+      return json({ version: 'matched-v1', unchanged: false, artifacts: [historical], nextCursor: null });
+    });
+    const hit = await client.catalog('artifacts', 'STRASSE %_');
+    expect(hit.items).toEqual([historical]);
+    expect(await client.catalog('artifacts', 'STRASSE %_')).toBe(hit);
+    expect((await client.catalog('artifacts', 'different')).items).toEqual([]);
+    expect(paths[0]).toContain('q=STRASSE+%25_');
+    expect(paths[1]).toContain('knownVersion=matched-v1');
+    expect(paths[2]).not.toContain('knownVersion');
   });
 
   test('remembered owner is loaded directly and unchanged polls preserve object and historical pins', async () => {

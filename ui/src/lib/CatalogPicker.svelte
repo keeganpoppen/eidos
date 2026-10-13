@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { artifactKind } from './artifact-inputs';
-  import { savedWork, catalogKey, catalogChoices, type CatalogItem, type CatalogKind } from './saved-work';
+  import { savedWork, catalogKey, catalogChoices, catalogSelection, type CatalogItem, type CatalogKind } from './saved-work';
 
   let { id, label, kind = 'catalog', value = '', selectedLabel = '', emptyLabel = 'Choose saved investigation', disabled = false, active = true, extra = [], onChoose }: {
     id: string; label: string; kind?: CatalogKind; value?: string; selectedLabel?: string; emptyLabel?: string;
@@ -18,9 +18,10 @@
   let error = $state('');
   let generation = 0;
   const choices = $derived(catalogChoices([...items, ...extra.filter((item) => !items.some((other) => catalogKey(other) === catalogKey(item)))], selected && catalogKey(selected) === value ? selected : undefined));
+  const selection = $derived(catalogSelection(items, value, selected));
 
   function itemLabel(item: CatalogItem): string {
-    return 'artifactId' in item ? `${item.investigationTitle} · ${artifactKind(item)} · ${item.artifactId.slice(-12)}` : `${item.title} · ${item.status}`;
+    return 'artifactId' in item ? `${item.investigationTitle} · ${artifactKind(item)} · ${item.artifactId.slice(-12)}${items.includes(item) && item.match ? ` · matched ${item.match.field}` : ''}` : `${item.title} · ${item.status}`;
   }
   async function load(background = false) {
     const request = ++generation;
@@ -35,11 +36,12 @@
       if (request === generation) error = cause instanceof Error ? cause.message : String(cause);
     } finally { if (request === generation) loading = false; }
   }
-  function find() { query = search.trim(); cursor = ''; previous = []; next = null; void load(); }
+  function find() { query = search.trim(); cursor = ''; previous = []; next = null; items = []; void load(); }
   function move(forward: boolean) {
     if (forward && next) { previous = [...previous, cursor]; cursor = next; }
     else if (!forward && previous.length) { cursor = previous.at(-1)!; previous = previous.slice(0, -1); }
     else return;
+    items = [];
     void load();
   }
   onMount(() => {
@@ -51,8 +53,8 @@
 
 <div class="catalog-picker" data-catalog-kind={kind}>
   <form class="catalog-search" onsubmit={(event) => { event.preventDefault(); find(); }}>
-    <label for={`${id}-search`}>Search {kind === 'artifacts' ? 'results' : 'saved work'} by title</label>
-    <div><input id={`${id}-search`} type="search" bind:value={search} disabled={disabled} placeholder="All titles" /><button type="submit" disabled={disabled}>Search</button></div>
+    <label for={`${id}-search`}>{kind === 'artifacts' ? 'Search results by title, original question, or result text' : 'Search saved work by title'}</label>
+    <div><input id={`${id}-search`} type="search" bind:value={search} disabled={disabled} placeholder={kind === 'artifacts' ? 'Remembered words or phrase' : 'All titles'} /><button type="submit" disabled={disabled}>Search</button></div>
   </form>
   <label for={id}>{label}</label>
   <select {id} {value} disabled={disabled || loading} aria-busy={loading} onchange={(event) => {
@@ -63,6 +65,16 @@
     {#if value && !choices.some((item) => catalogKey(item) === value)}<option value={value}>{selectedLabel || value} · selected outside this page</option>{/if}
     {#each choices as item (catalogKey(item))}<option value={catalogKey(item)}>{itemLabel(item)}</option>{/each}
   </select>
+  {#if kind === 'artifacts' && selection.item && 'artifactId' in selection.item}
+    <div class="catalog-selection" data-selected-result={selection.item.artifactId}>
+      {#if selection.onPage && selection.item.match}
+        <p class="catalog-match" data-match-field={selection.item.match.field}><strong>Matched {selection.item.match.field}</strong><br />{selection.item.match.excerpt}</p>
+      {:else if !selection.onPage}
+        <p class="catalog-retained">Retained selection · outside this results page. Shown separately from this page’s search matches.</p>
+      {/if}
+      <p class="catalog-pin">Original input {selection.item.contextId}</p>
+    </div>
+  {/if}
   <nav aria-label={`${label} pages`}>
     <button type="button" disabled={disabled || loading || !previous.length} onclick={() => move(false)}>Previous page</button>
     <span role="status">{loading ? 'Loading…' : `Page ${previous.length + 1} · ${items.length} ${kind === 'artifacts' ? 'results' : 'investigations'}`}</span>
@@ -84,4 +96,7 @@
   nav { display:flex; align-items:center; flex-wrap:wrap; gap:6px; margin-top:6px; }
   nav span { flex:1; min-width:90px; color:var(--muted); font-size:12px; }
   p { overflow-wrap:anywhere; color:var(--uncertain, var(--ink)); }
+  .catalog-match { color:var(--ink); white-space:pre-wrap; }
+  .catalog-pin { color:var(--muted); font:11px/1.5 monospace; }
+  .catalog-retained { color:var(--muted); }
 </style>

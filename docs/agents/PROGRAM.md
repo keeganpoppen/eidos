@@ -1,6 +1,6 @@
 # Continuing development frontier
 
-**Provisional strategic understanding · 2026-10-13 · inspected base `7d3354a`.**
+**Provisional strategic understanding · 2026-10-13 · inspected base `4b91892`.**
 The [current handoff](CURRENT_HANDOFF.md) owns verified status and runnable steps;
 this document owns revisable conjectures and opportunity ordering. It does not
 replace the [destination](../vision/DESTINATION.md) or [V1](../roadmap/V1.md).
@@ -78,6 +78,15 @@ These are hypotheses, not established invariants or additional release gates.
    changed UI were exercised against the same saved fixture. Scripted availability,
    exact recovery and navigation are established; human benefit remains unmeasured.
 
+   [Exact result discovery](../evidence/RESULT_DISCOVERY_INTEGRATION.md) now lets a
+   remembered question or conclusion find its original result/context, inspect its
+   support before Add and freeze that result into new work. Search excludes raw and
+   private records; newer same-owner results cannot supply historical matches.
+   The actual browser preserves dirty draft/pending-save state across inspection.
+   This resolves a concrete title-only retrieval failure without account access.
+   More native containment matrices must name an unresolved decision; they cannot
+   replace actual account/model availability or human usability observations.
+
    **C2 scout outcome:** existing Discover/Await already supports two independent
    pending questions, out-of-order source decisions and local executor restart.
    The permanent regression preserves ordered incorporation, spent response
@@ -106,9 +115,9 @@ not mature-world axioms.
 
 ## Current integration boundary and next contract
 
-The preceding private-publication integration is `7d3354a` (public CI passed);
-the [handoff](CURRENT_HANDOFF.md) identifies owned-attempt verification and the
-next native worker joining contract. See [D28–D30](../roadmap/DECISIONS.md)
+The preceding owned-control integration is `4b91892` (public CI passed);
+the [handoff](CURRENT_HANDOFF.md) identifies result-discovery verification and the
+parallel native worker joining contract. See [D28–D30](../roadmap/DECISIONS.md)
 and linked evidence. The active
 read index is a derived performance adapter, not a second provenance authority.
 Native process/synthetic transport research is independent of production admission.
