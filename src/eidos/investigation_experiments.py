@@ -91,16 +91,18 @@ class InvestigationExperiments:
             if before["question"] != after["question"]:
                 raise InvestigationError(409, "controlled comparison requires the same question")
             seqs = sorted({r["seq"] for c in (before, after) for r in c["records"]})
+            artifact_inputs = [a for c in (before, after) for a in c.get("artifactInputs", [])]
+            method = "context-selection-comparison/v2" if artifact_inputs else "context-selection-comparison/v1"
             # Descriptive evidence remains recorded, even when a fixture made it.
             # Client input cannot select the synthetic entailment evaluator.
-            horizon = self.ledger.freeze_horizon(seqs, evidence_class="recorded",
+            horizon = self.ledger.freeze_horizon(seqs, artifact_inputs=artifact_inputs, evidence_class="recorded",
                 rationale="Exact union of the two selected frozen packets; no ambient retrieval.")
             versions = [self.ledger.version("context-selection", c["id"], {
                 "contextId": c["id"], "manifestId": c["manifestId"],
                 "meaning": "Proposed selection for this investigation; no global policy activation.",
             }) for c in (before, after)]
             proposal = self.ledger.propose(name + "/proposal", before_version=versions[0], after_version=versions[1],
-                criteria={"version": "context-selection-comparison/v1", "cases": {
+                criteria={"version": method, "cases": {
                     "selected-pair": {"question": before["question"],
                                       "meaning": "Measure retention and size; do not evaluate answer quality."}}},
                 rationale=body["rationale"])
@@ -114,14 +116,36 @@ class InvestigationExperiments:
                 outcomes.append(self.ledger.finish_attempt(name + "/" + variant + "/outcome", attempt=attempt.name,
                     answer="Local selection measurement; no model answer generated.", claims=[]))
             def metrics(context):
-                return {"recordIds": sorted(r["seq"] for r in context["records"]),
+                value = {"recordIds": sorted(r["seq"] for r in context["records"]),
                         "recordCount": len(context["records"]),
                         "promptBytes": len(context["projectedPrompt"].encode("utf-8"))}
+                if artifact_inputs:
+                    value.update(artifactIds=sorted(a["artifactId"] for a in context.get("artifactInputs", [])),
+                                 artifactCount=len(context.get("artifactInputs", [])))
+                return value
             left, right = metrics(before), metrics(after)
             removed = sorted(set(left["recordIds"]) - set(right["recordIds"]))
             checks = {"sameQuestion": True, "baselineEvidenceRetained": not removed,
                       "withinContextBound": right["recordCount"] <= MAX_RECORDS and right["promptBytes"] <= MAX_PROMPT_BYTES}
-            evaluation = {"id": name + "/evaluation", "method": "context-selection-comparison/v1",
+            artifact_changes = {}
+            if artifact_inputs:
+                removed_artifacts = sorted(set(left["artifactIds"]) - set(right["artifactIds"]))
+                def frozen_inputs(context):
+                    return {a["artifactId"]: {k: v for k, v in a.items() if k != "rationale"}
+                            for a in context.get("artifactInputs", [])}
+                left_inputs, right_inputs = frozen_inputs(before), frozen_inputs(after)
+                changed_artifacts = sorted(key for key in left_inputs.keys() & right_inputs.keys()
+                                           if left_inputs[key] != right_inputs[key])
+                # Same artifact name does not imply the same frozen input: a
+                # later adoption/rejection is separately attributable content.
+                checks["baselineArtifactsRetained"] = not (removed_artifacts or changed_artifacts)
+                artifact_changes = {
+                    "addedArtifactIds": sorted(set(right["artifactIds"]) - set(left["artifactIds"])),
+                    "removedArtifactIds": removed_artifacts,
+                    "changedArtifactIds": changed_artifacts,
+                }
+            evaluation = {"id": name + "/evaluation", "method": method,
+                **artifact_changes,
                 "baseline": left, "alternative": right,
                 "addedRecordIds": sorted(set(right["recordIds"]) - set(left["recordIds"])),
                 "removedRecordIds": removed, "additionalPromptBytes": right["promptBytes"] - left["promptBytes"],

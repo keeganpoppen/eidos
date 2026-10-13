@@ -42,11 +42,17 @@ class InvestigationContexts:
 
     def attach(self, context: dict[str, Any]) -> None:
         """Project frozen data, never re-read current source indexes or files."""
+        selection = {
+            "question": context["question"], "selections": context["selections"],
+            "coverage": context["coverage"], "builderVersion": "investigation-context-v1",
+        }
+        if context.get("artifactInputs"):
+            selection.update(builderVersion="investigation-context-v2", artifactInputs=[
+                {key: artifact[key] for key in ("investigationId", "artifactId", "rationale")}
+                for artifact in context["artifactInputs"]
+            ])
         entries = {
-            "builder/selection": self._slot("investigation.selection.v1", {
-                "question": context["question"], "selections": context["selections"],
-                "coverage": context["coverage"], "builderVersion": "investigation-context-v1",
-            }),
+            "builder/selection": self._slot("investigation.selection.v1", selection),
             "input/user": self._slot("investigation.user-input.v1", {
                 "text": context["projectedPrompt"],
             }, projected=True),
@@ -57,6 +63,9 @@ class InvestigationContexts:
         }
         for record in context["records"]:
             entries[f"evidence/{record['seq']}"] = self._slot("investigation.frozen-record.v1", record)
+        for artifact in context.get("artifactInputs", []):
+            entries[f"artifact/{artifact['investigationId']}/{artifact['artifactId']}"] = self._slot(
+                "investigation.frozen-artifact.v1", artifact)
         manifest = self.store.manifest(entries)
         if context.get("manifestId") not in (None, manifest.cid):
             raise ValueError("context manifest does not match its frozen packet")

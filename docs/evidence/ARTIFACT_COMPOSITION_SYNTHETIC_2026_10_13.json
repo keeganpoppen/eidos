@@ -1,0 +1,46 @@
+{
+  "schemaVersion": "nema-artifact-composition-demo/1",
+  "classification": "SYNTHETIC_AUTHORED_HOST_COMPLETIONS",
+  "nativeOrModelCalls": 0,
+  "nativeTurnStarts": 0,
+  "investigations": {
+    "A": "investigation_f1fc2ffc588f4b479d4603023948d691",
+    "B": "investigation_51f57d7fcfdd4b25a4acd74730ce2960",
+    "C": "investigation_00db101f443b4bd499c02c5b912f50c1"
+  },
+  "contexts": {
+    "A": "context_ae0d4423e66a96c6b98713c7141f485f4bf0d6483eadb595541c569c96ab3811",
+    "B": "context_5e3ce0602764cb70e0aae82ccc856879ac0ef6beb559e3f3ddb4f2b5bca677f3",
+    "C": "context_d6bbdb9c4ccdad92d66222cefbe008857c79e54a56a931cc4178f71e1c0af5dc"
+  },
+  "artifacts": {
+    "A": "artifact_bdd648ed83ed489f05b5ded954cc6bf7780a4820832b12e5b8dcb438b734aebb",
+    "B": "artifact_419348ae3d7a878f2b42b142a3e74bdaa6345a72ca2aad755a6593178c5cf505",
+    "C": "artifact_2cd86ba0bfbc7ef59f71ea8deffa6360a7c2c82cc40ae20f2602c7c9ac889805"
+  },
+  "promptBytes": {
+    "A": 2873,
+    "B": 3754,
+    "C": 3738
+  },
+  "recoveryPath": [
+    "investigation_00db101f443b4bd499c02c5b912f50c1",
+    "investigation_51f57d7fcfdd4b25a4acd74730ce2960",
+    "investigation_f1fc2ffc588f4b479d4603023948d691",
+    1
+  ],
+  "controllingSeq": 1,
+  "counterexampleSeq": 3,
+  "controllingRawRecord": {
+    "direction": "internal",
+    "method": "$history/item",
+    "rawText": "{\"method\":\"$history/item\",\"params\":{\"threadId\":\"fixture-artifact-origin\",\"turnId\":\"origin-0\",\"item\":{\"id\":\"origin-answer-0\",\"type\":\"agentMessage\",\"text\":\"Persist the dispatch identity before sending; recover recorded completion and retain unknown delivery.\",\"futureField\":{\"preserve\":true,\"fixture\":\"artifact-composition\"}}}}",
+    "seq": 1,
+    "sha256": "82e93b81c22b8571e63242e771d73925088b84956938faa2dd5eb1c0e1749082",
+    "source": "synthetic-artifact-composition-demo/v1",
+    "threadId": "fixture-artifact-origin"
+  },
+  "originalSupportRecovered": true,
+  "recursiveSourceTranscriptsCopied": false,
+  "providerContext": "unknown"
+}

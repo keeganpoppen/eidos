@@ -155,6 +155,36 @@ bound is on projected turn count, not bytes in one turn, outline size or all SQL
 aggregation work. Browser-local focus is still not a server-saved arrangement.
 See [current evidence](../evidence/PAGED_HISTORY_INTEGRATION.md).
 
+### D28 — Compose exact results as frozen inputs; inspect support separately
+
+**Accepted, 2026-10-13**, integration base `29a164a`. Investigation context may
+select exact artifacts alongside trace ranges. The store resolves each artifact
+within its source investigation, validates its context/attempt relationship, and
+freezes its complete recorded content, manifest references and matching adoption
+decision. The selection carries historical data, including unknown fields and
+typed inquiries/receipts; it grants no continuation, adoption or execution authority.
+
+Only directly supplied inputs support output citations in the recipient packet.
+An inherited evidence or artifact citation remains unsupported until that input
+is explicitly supplied. Original support stays separately addressable through the
+source context; composing A→B→C does not recursively insert A/B transcripts into C.
+Later source review cannot rewrite an already frozen input or manifest. A2 retains
+the original input snapshots. Legacy packets without artifacts retain their exact
+prompt, context ID and manifest IDs.
+
+A review counterexample sharpened comparison: the same artifact selected before
+and after rejection has different frozen input content. Dropping that rejection
+must not pass retention because the artifact name and count match. Version 2
+selection metrics compare the full frozen input except inclusion rationale and
+report changed inputs separately. These are retention/size measurements, not
+answer-quality evaluation. The synthetic entailment evaluator does not grade
+derived artifact inputs.
+
+This narrow adapter uses canonical Investigation/context/attempt/artifact identity;
+it adds no competing provenance store or new authority kernel. Local manifests
+describe supply, not truth, authentication or complete provider context. See the
+[composition evidence](../evidence/ARTIFACT_COMPOSITION_INTEGRATION.md).
+
 ## Deferred explorations, kept for their potential
 
 ### D22 — Names, routing, locality, and leases

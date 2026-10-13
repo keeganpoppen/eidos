@@ -155,10 +155,25 @@ export type InvestigationContext = {
   question: string;
   selections: EvidenceSelection[];
   records: ContextRecord[];
+  artifactInputs?: FrozenArtifactInput[];
   projectedPrompt: string;
   coverage: unknown;
   manifestId?: string | null;
   createdAtMs: number;
+};
+
+export type ArtifactInputSelection = {
+  investigationId: string;
+  artifactId: string;
+  rationale: string;
+};
+
+export type FrozenArtifactInput = ArtifactInputSelection & {
+  artifact: InvestigationArtifact;
+  sourceContextId: string;
+  sourceManifestId: string | null;
+  sourceAttemptManifestId: string | null;
+  sourceAdoption: Investigation['adoption'];
 };
 
 export type Investigation = {
@@ -207,6 +222,8 @@ export type InvestigationArtifact = {
   attemptId: string;
   citations: number[];
   unsupportedCitations: number[];
+  artifactCitations?: string[];
+  unsupportedArtifactCitations?: string[];
   kind?: string;
   executionEvidence?: 'synthetic' | 'native-observed' | 'unverified';
   nativeArtifactId?: string;
@@ -275,7 +292,7 @@ export type WorkbenchExperiment = {
   id: string; investigationId: string; proposalId: string; mode: 'reinterpretation'; evidenceClass: 'recorded' | 'synthetic' | 'unverified';
   baseline: { investigationId: string; contextId: string; artifactId: string; attemptId: string };
   alternative: { investigationId: string; contextId: string }; rationale: string;
-  evaluation: { id: string; method: 'context-selection-comparison/v1'; baseline: { recordIds: number[]; recordCount: number; promptBytes: number }; alternative: { recordIds: number[]; recordCount: number; promptBytes: number }; addedRecordIds: number[]; removedRecordIds: number[]; additionalPromptBytes: number; checks: { sameQuestion: boolean; baselineEvidenceRetained: boolean; withinContextBound: boolean }; passes: boolean; modelCalls: 0; measuredModelReasoningImprovement: false; limitations: string[] };
+  evaluation: { id: string; method: 'context-selection-comparison/v1' | 'context-selection-comparison/v2'; baseline: { recordIds: number[]; recordCount: number; promptBytes: number; artifactIds?: string[]; artifactCount?: number }; alternative: { recordIds: number[]; recordCount: number; promptBytes: number; artifactIds?: string[]; artifactCount?: number }; addedRecordIds: number[]; removedRecordIds: number[]; addedArtifactIds?: string[]; removedArtifactIds?: string[]; changedArtifactIds?: string[]; additionalPromptBytes: number; checks: { sameQuestion: boolean; baselineEvidenceRetained: boolean; baselineArtifactsRetained?: boolean; withinContextBound: boolean }; passes: boolean; modelCalls: 0; measuredModelReasoningImprovement: false; limitations: string[] };
   review: null | { id: string; decision: 'adopt' | 'reject'; rationale: string; actor: string; kind: 'human' | 'synthetic' };
   adoption: null | { id: string; activation: 'not-performed' }; rollback: null | { id: string; rationale: string };
   status: 'evaluated' | 'adopted' | 'rejected' | 'rolled-back';

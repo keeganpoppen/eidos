@@ -1,0 +1,124 @@
+<script lang="ts">
+  import { tick } from 'svelte';
+  import ArtifactContent from './ArtifactContent.svelte';
+  import ContextProvenance from './ContextProvenance.svelte';
+  import EvidenceRecord from './EvidenceRecord.svelte';
+  import { resolveArtifactSource, type ArtifactSourceTarget } from './artifact-inputs';
+  import type { FrozenArtifactInput, Investigation } from './types';
+
+  type Target = ArtifactSourceTarget & { snapshot?: FrozenArtifactInput; scrollTop?: number };
+  let { target, onClose }: { target: Target | null; onClose: () => void } = $props();
+  const headingId = $props.id();
+  let dialog: HTMLDialogElement;
+  let heading: HTMLHeadingElement;
+  let trail = $state<Target[]>([]);
+  let investigation = $state<Investigation | null>(null);
+  let loading = $state(false);
+  let error = $state('');
+  const active = $derived(trail.at(-1));
+  const resolved = $derived(investigation && active ? resolveArtifactSource(investigation, active) : null);
+  const artifact = $derived(active?.snapshot?.artifact ?? resolved?.artifact);
+  const context = $derived(resolved?.context);
+  const adoption = $derived(active?.snapshot ? active.snapshot.sourceAdoption : artifact && investigation?.adoption?.artifactId === artifact.id ? investigation?.adoption ?? null : null);
+
+  $effect(() => {
+    if (target) {
+      trail = [target];
+      if (dialog && !dialog.open) dialog.showModal();
+    } else {
+      trail = [];
+      if (dialog?.open) dialog.close();
+    }
+  });
+
+  $effect(() => {
+    const ref = active;
+    investigation = null;
+    error = '';
+    if (!ref) return;
+    const controller = new AbortController();
+    loading = true;
+    void (async () => {
+      try {
+        const response = await fetch(`/api/investigations/${encodeURIComponent(ref.investigationId)}`, { signal: controller.signal });
+        const value = await response.json();
+        if (!response.ok) throw new Error(value.error ?? 'Source investigation is unavailable.');
+        if (!resolveArtifactSource(value, ref)) throw new Error('This exact result, source context, or attempt is unavailable. No newer result has been substituted.');
+        if (controller.signal.aborted) return;
+        investigation = value;
+        await tick();
+        if (!controller.signal.aborted) {
+          dialog.scrollTop = ref.scrollTop ?? 0;
+          heading?.focus({ preventScroll: true });
+        }
+      } catch (cause) {
+        if (!controller.signal.aborted) error = cause instanceof Error ? cause.message : String(cause);
+      } finally { if (!controller.signal.aborted) loading = false; }
+    })();
+    return () => controller.abort();
+  });
+
+  function follow(input: FrozenArtifactInput) {
+    const previous = active ? [...trail.slice(0, -1), { ...active, scrollTop: dialog.scrollTop }] : trail;
+    trail = [...previous, { investigationId: input.investigationId, artifactId: input.artifactId, contextId: input.sourceContextId, snapshot: input }];
+  }
+</script>
+
+<dialog bind:this={dialog} class="artifact-lineage" aria-labelledby={headingId} onclose={onClose}>
+  <header>
+    <div><span class="eyebrow">Result / original support</span><h2 id={headingId} bind:this={heading} tabindex="-1">{investigation?.title ?? 'Result provenance'}</h2></div>
+    <button class="lineage-close" onclick={onClose}>Close result provenance</button>
+  </header>
+  <nav aria-label="Result lineage navigation">
+    <button disabled={trail.length < 2} onclick={() => trail = trail.slice(0, -1)}>Back to previous result</button>
+    <span>{trail.length > 1 ? `${trail.length - 1} source link${trail.length > 2 ? 's' : ''} from the selected result` : 'Selected result'}</span>
+  </nav>
+  {#if active}
+    <p class="object-ref">Investigation {active.investigationId}<br />Artifact {active.artifactId}<br />Context {active.contextId ?? artifact?.contextId ?? 'resolving'}</p>
+    <div data-lineage-artifact-id={active.artifactId} data-lineage-context-id={context?.id}>
+      {#if loading}<p role="status">Loading original source context…</p>{/if}
+      {#if error}<p class="work-error" role="alert">{error}</p>{/if}
+      {#if artifact}
+        <ArtifactContent {artifact} {context} onArtifact={follow} />
+        {#if adoption}
+          <p class="source-adoption">{active.snapshot ? 'Source review when this input was saved' : 'Recorded source review'}: {adoption.decision === 'adopt' ? 'adopted' : 'rejected'}. {adoption.note || 'No note recorded.'} This records a decision about the result, not proof of its claims.</p>
+        {:else}<p class="work-muted">{active.snapshot ? 'No matching adoption decision was included in this frozen input.' : 'No adoption decision is recorded for this exact result.'}</p>{/if}
+      {/if}
+      {#if context && artifact && resolved}
+        <section aria-label="Original result inputs">
+          <h3>Inputs supplied to this result</h3>
+          <p class="work-muted">These belong to the original context. Opening them does not add them to your draft.</p>
+          {#each context.artifactInputs ?? [] as input}
+            <button class="lineage-input" data-artifact-id={input.artifactId} onclick={() => follow(input)}>Inspect input result · {input.artifactId}<small>{input.rationale || 'No inclusion rationale recorded.'}</small></button>
+          {/each}
+          {#if !context.records.length && !context.artifactInputs?.length}<p>No selected inputs were recorded in this context.</p>{/if}
+          {#each context.records as record (record.seq)}
+            <details class="lineage-record"><summary>[evidence:{record.seq}] · {artifact.citations.includes(record.seq) ? 'cited by this result' : 'supplied input'} · {record.threadId}</summary><EvidenceRecord {record} /></details>
+          {/each}
+        </section>
+        {#if artifact.evidenceContextId}<p class="work-muted">This receipt separately names offered packet {artifact.evidenceContextId}. It does not establish that a native analysis used that offer.</p>{/if}
+        <ContextProvenance investigationId={active.investigationId} contextId={context.id} attemptId={resolved.attempt.id} attemptStatus={resolved.attempt.status} />
+      {/if}
+    </div>
+  {/if}
+</dialog>
+
+<style>
+  .artifact-lineage { width:min(900px,calc(100vw - 28px)); max-height:calc(100dvh - 36px); box-sizing:border-box; padding:24px; color:var(--ink); background:var(--paper); border:1px solid var(--line-dark); overflow:auto; font-size:15px; line-height:1.55; }
+  .artifact-lineage::backdrop { background:rgb(25 30 25 / .45); }
+  header { display:flex; gap:18px; align-items:flex-start; justify-content:space-between; }
+  h2 { margin:5px 0 12px; font-size:24px; font-weight:500; }
+  h3 { font-size:19px; font-weight:500; margin:22px 0 10px; }
+  nav { display:flex; gap:12px; align-items:center; flex-wrap:wrap; border-block:1px solid var(--line); padding:10px 0; }
+  nav span { font-size:13px; color:var(--muted); }
+  button { cursor:pointer; padding:7px 10px; font:inherit; font-size:13px; border:1px solid var(--line-dark); color:var(--accent); background:transparent; overflow-wrap:anywhere; }
+  button:disabled { opacity:.5; cursor:default; }
+  button:focus-visible,summary:focus-visible { outline:2px solid var(--accent); outline-offset:3px; }
+  .lineage-input { display:block; text-align:left; width:100%; margin:8px 0; }
+  .lineage-input small { display:block; color:var(--muted); margin-top:4px; }
+  .lineage-record { padding:10px 0; border-bottom:1px solid var(--line); }
+  summary { cursor:pointer; font-size:13px; margin-bottom:10px; }
+  .object-ref { font:12px/1.6 monospace; overflow-wrap:anywhere; }
+  .source-adoption { border-left:2px solid var(--accent); padding-left:12px; font-size:14px; }
+  @media(max-width:600px) { .artifact-lineage { padding:16px; } header { flex-wrap:wrap; gap:6px; } }
+</style>

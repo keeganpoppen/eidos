@@ -1,6 +1,6 @@
 # Continuing development frontier
 
-**Provisional strategic understanding · 2026-10-13 · inspected base `ad73408`.**
+**Provisional strategic understanding · 2026-10-13 · integration base `29a164a`.**
 The [current handoff](CURRENT_HANDOFF.md) owns verified status and runnable steps;
 this document owns revisable conjectures and opportunity ordering. It does not
 replace the [destination](../vision/DESTINATION.md) or [V1](../roadmap/V1.md).
@@ -18,7 +18,7 @@ These are hypotheses, not established invariants or additional release gates.
 
 | ID | Mature property and current evidence | Missing prerequisite / discriminating experiment |
 | --- | --- | --- |
-| C1 | Grounded artifacts compose into larger work without flattening provenance. Frozen packets and exact artifact/baseline IDs exist, but context inputs currently select trace ranges. | Build A→B→C investigations from exact artifact references, separately attributed adoption, and original support. Test whether C's controlling evidence can be recovered without reconstructing A/B transcripts or recursively including every source. Copied results must not copy continuation authority. |
+| C1 | Grounded artifacts compose into larger work without flattening provenance. Exact frozen result inputs now support a synthetic A→B→C chain, original-support recovery and separate adoption snapshots. | Test longer and conflicting chains in useful native work. A cited input proves supply, not its claims. The synthetic chain does not establish answer quality or practical reorientation speed. Copied results carry no continuation authority. |
 | C2 | A small continuation vocabulary supports useful delegation despite opaque native stacks. Named ProcessRuntime protocols exist; the investigation program is fixed Discover→AwaitDiscovery and A2 is a newly admitted attempt. | Two independent inquiries, refusal and executor restart should preserve one task identity and accepted results without hidden per-case host state. Failure challenges the vocabulary; it does not automatically justify a kernel rewrite. |
 | C3 | Explicit source relationships and attention limits outperform larger undirected context. Weighted hindsight trees and synthetic one-hop selection exist. | Held-out sanitized histories with irrelevant links, conflicting updates and dispersed support must improve controlling-decision recovery without increasing unsupported conclusions. Existing fixture scores are not this evidence. |
 | C4 | Reviewed interpretation changes improve future work while historical pins remain stable. Immutable manifests and experiment reviews exist; adoption currently activates nothing. | Activate a bounded context recipe for future drafts, inspect its actual next preview/request pin, then roll back. Historical pins must remain identical and the earlier future behavior must return without editing global instructions. |
@@ -27,19 +27,23 @@ These are hypotheses, not established invariants or additional release gates.
 
 ## Opportunity ordering and reversible decisions
 
-1. **Now: result→next investigation (C1).** Add a narrow artifact-input adapter
-   and lineage preview over the canonical investigation store. An A→B→C chain must
-   preserve exact artifact/context/attempt identity and recover original support
-   without recursively including every transcript. No copied result conveys live
-   authority. Preserve legacy prompts/manifests, A2 context reconstruction and
-   honest experiment retention metrics.
-2. **In parallel: native contained gateway experiment (C6, V1-05/12).** A fresh
-   real no-model outer namespace probe now contains the tested unexpected startup
-   MCP effects. Extend it with a synthetic one-broker transport and competing
-   descendant attacks before considering authenticated traffic. A shared relay or
-   copied header must not authenticate a caller. Keep credentials and model work
-   outside this experiment; retain the closed production gate until admission is
-   concretely established.
+1. **Current integration: result→next investigation (C1).** A narrow artifact-input
+   adapter and source-provenance view preserve exact artifact/context/attempt
+   identity without recursively including source transcripts. Legacy hashes and
+   A2 inputs remain stable. Independent review found that artifact IDs alone could
+   conceal a dropped rejection snapshot; comparison now checks the complete frozen
+   input except rationale. Combined rendered acceptance preserves dirty drafts and
+   exact support at desktop/mobile sizes. Next challenge conflicting/longer result
+   chains rather than adding more fixture conclusions.
+2. **Active native experiment: process separation before startup (C6, V1-05/12).**
+   The disconnected namespace contains tested unexpected MCP effects. A synthetic
+   gateway then falsified caller authentication through a shared relay: a sibling
+   submitting identical content first consumes the permit. That mechanism is
+   rejected. Test a tools-disabled native launch with kernel restrictions installed
+   before configuration loads: permit native threads, deny untrusted processes and
+   later executable transitions. Initialization must still work. No credentials,
+   model work or external forwarding belong in this experiment; the production
+   gate remains closed. A native compromise is outside this narrower distinction.
 3. **Established baseline: stable history recovery (C5, V1-01/02/03).** The
    integrated 1,200-turn persisted browser case recovers disjoint support, survives
    reload and append, and measures bounded turn transfer/unchanged responses.
@@ -57,11 +61,16 @@ not mature-world axioms.
 
 ## Current integration boundary and next contract
 
-The commit containing this update integrates history/account/native-probe lanes
-from base `ad73408`; [handoff](CURRENT_HANDOFF.md) owns commands, source commits and
-current worker ownership. The next artifact-input contract is being prepared by
-the parent integrator, with an independent UI scout complete. No new artifact-input
-capability is claimed yet. Native synthetic-gateway research is an independent lane.
+The commit containing this update integrates artifact-input work and the rejected
+gateway experiment from base `29a164a`; [handoff](CURRENT_HANDOFF.md) owns combined
+verification and worker status. See [D28](../roadmap/DECISIONS.md) and the
+[composition evidence](../evidence/ARTIFACT_COMPOSITION_INTEGRATION.md). Native
+process-separation research is an independent lane, not an admitted launcher.
+
+One scaling limit exposed by result composition: the catalog and source-provenance
+view still load whole owning investigations. Lazy chain traversal avoids recursive
+prompt copying but does not bound a large owner's context/history transfer. Measure
+that actual bottleneck before choosing a replacement index or pagination contract.
 
 Historical paging contract: `GET /api/threads/:id` returns at most 40 complete turns.
 `anchorSeq` follows a stable record; `aroundSeq` resolves exact membership in that

@@ -1,0 +1,826 @@
+{
+  "schemaVersion": "nema-native-synthetic-gateway-probe/1",
+  "classification": "OBSERVED_NO_MODEL_SYNTHETIC",
+  "nativeVersion": "codex-cli 0.154.0",
+  "binarySha256": "9b7c1c7abdc26fc3c4f47c77656a8e9121def5483dbae830ef1ee561758448a9",
+  "bwrapVersion": "bubblewrap 0.12.0",
+  "kernel": "7.2.4-1-aarch64-ARCH",
+  "architecture": "aarch64",
+  "allowedNativeMethods": [
+    "account/read",
+    "config/read",
+    "initialize",
+    "mcpServerStatus/list",
+    "thread/start"
+  ],
+  "limits": {
+    "headerBytes": 8192,
+    "bodyBytes": 4096,
+    "responseBytes": 4096,
+    "requestsPerCase": 24,
+    "requestSeconds": 2.0,
+    "caseSeconds": 20.0
+  },
+  "modelTurns": 0,
+  "existingCredentialsMounted": false,
+  "realUpstreamRequests": 0,
+  "cases": {
+    "intended": {
+      "firstActor": "intended",
+      "command": [
+        "/usr/bin/bwrap",
+        "--unshare-all",
+        "--unshare-user",
+        "--disable-userns",
+        "--die-with-parent",
+        "--new-session",
+        "--cap-drop",
+        "ALL",
+        "--ro-bind",
+        "/usr",
+        "/usr",
+        "--symlink",
+        "usr/bin",
+        "/bin",
+        "--symlink",
+        "usr/lib",
+        "/lib",
+        "--proc",
+        "/proc",
+        "--dev",
+        "/dev",
+        "--tmpfs",
+        "/tmp",
+        "--bind",
+        "<probe>/state",
+        "/state",
+        "--ro-bind",
+        "<probe>/fixture",
+        "/fixture",
+        "--ro-bind",
+        "<probe>/packet",
+        "/packet",
+        "--ro-bind",
+        "<probe>/broker.sock",
+        "/gateway/broker.sock",
+        "--clearenv",
+        "--setenv",
+        "HOME",
+        "/state/home",
+        "--setenv",
+        "CODEX_HOME",
+        "/state/codex",
+        "--setenv",
+        "PATH",
+        "/usr/bin:/bin",
+        "--setenv",
+        "LANG",
+        "C.UTF-8",
+        "--chdir",
+        "/state/workspace",
+        "--",
+        "/usr/bin/python3",
+        "/fixture/launcher.py",
+        "/usr/bin/codex"
+      ],
+      "initialized": {
+        "userAgent": "eidos/0.154.0 (Linux Unknown; aarch64) unknown (eidos; 0.1.0)",
+        "codexHome": "/state/codex",
+        "platformFamily": "unix",
+        "platformOs": "linux"
+      },
+      "account": {
+        "account": null,
+        "requiresOpenaiAuth": true
+      },
+      "effectiveProviderId": "synthetic_gateway",
+      "effectiveProvider": {
+        "name": "Synthetic ChatGPT gateway",
+        "base_url": "http://127.0.0.1:48047/backend-api/codex",
+        "env_key": null,
+        "env_key_instructions": null,
+        "experimental_bearer_token": null,
+        "auth": null,
+        "aws": null,
+        "wire_api": "responses",
+        "query_params": null,
+        "http_headers": null,
+        "env_http_headers": null,
+        "request_max_retries": null,
+        "stream_max_retries": null,
+        "stream_idle_timeout_ms": null,
+        "websocket_connect_timeout_ms": null,
+        "requires_openai_auth": true,
+        "supports_websockets": false,
+        "supports_standalone_web_search": false
+      },
+      "startupBeforeInventory": true,
+      "startup": {
+        "outsideRead": {
+          "blockedErrno": 2
+        },
+        "outsideWrite": {
+          "blockedErrno": 2
+        },
+        "symlinkRead": {
+          "blockedErrno": 2
+        },
+        "packetWrite": {
+          "blockedErrno": 30
+        },
+        "hostLoopback": {
+          "blockedErrno": 111
+        },
+        "externalRoute": {
+          "blockedErrno": 101
+        },
+        "parentRootRead": {
+          "blockedErrno": 2
+        },
+        "packetRead": true,
+        "effectiveCapabilities": "0000000000000000",
+        "nestedUserNamespaceRefused": true,
+        "packetRemountRefused": true
+      },
+      "earlyRequests": {
+        "unapprovedUrl": {
+          "status": 403,
+          "body": {
+            "synthetic": true,
+            "reason": "route-refused",
+            "brokerPeer": "peer-1"
+          },
+          "location": null
+        },
+        "redirect": {
+          "status": 502,
+          "body": {
+            "synthetic": true,
+            "reason": "synthetic-upstream-redirect-refused",
+            "brokerPeer": "peer-1"
+          },
+          "location": null
+        },
+        "models": {
+          "status": 200,
+          "body": {
+            "synthetic": true,
+            "reason": "synthetic-models",
+            "brokerPeer": "peer-1"
+          },
+          "location": null
+        },
+        "early": {
+          "status": 403,
+          "body": {
+            "synthetic": true,
+            "reason": "not-admitted",
+            "brokerPeer": "peer-1"
+          },
+          "location": null
+        },
+        "wrongContent": {
+          "status": 422,
+          "body": {
+            "synthetic": true,
+            "reason": "content-refused",
+            "brokerPeer": "peer-1"
+          },
+          "location": null
+        },
+        "oversizedBody": {
+          "status": 413,
+          "body": {
+            "synthetic": true,
+            "reason": "body-limit",
+            "brokerPeer": "peer-1"
+          },
+          "location": null
+        },
+        "directUnixEarly": {
+          "status": 403,
+          "body": {
+            "synthetic": true,
+            "reason": "not-admitted",
+            "brokerPeer": "peer-2"
+          }
+        }
+      },
+      "inventory": {
+        "data": [
+          {
+            "name": "unexpected",
+            "runtimeStatus": "connected",
+            "pluginId": null,
+            "serverInfo": {
+              "name": "unexpected-startup-fixture",
+              "title": null,
+              "version": "1",
+              "description": null,
+              "icons": null,
+              "websiteUrl": null
+            },
+            "tools": {},
+            "toolsError": null,
+            "resources": [],
+            "resourceTemplates": [],
+            "authStatus": "unsupported"
+          }
+        ],
+        "nextCursor": null
+      },
+      "actors": {
+        "intended": {
+          "attempt": {
+            "status": 200,
+            "body": {
+              "synthetic": true,
+              "reason": "synthetic-response",
+              "brokerPeer": "peer-1"
+            },
+            "location": null
+          },
+          "duplicate": {
+            "status": 409,
+            "body": {
+              "synthetic": true,
+              "reason": "already-consumed",
+              "brokerPeer": "peer-1"
+            },
+            "location": null
+          }
+        },
+        "rival": {
+          "unapprovedUrl": {
+            "status": 403,
+            "body": {
+              "synthetic": true,
+              "reason": "route-refused",
+              "brokerPeer": "peer-1"
+            },
+            "location": null
+          },
+          "redirect": {
+            "status": 502,
+            "body": {
+              "synthetic": true,
+              "reason": "synthetic-upstream-redirect-refused",
+              "brokerPeer": "peer-1"
+            },
+            "location": null
+          },
+          "models": {
+            "status": 200,
+            "body": {
+              "synthetic": true,
+              "reason": "synthetic-models",
+              "brokerPeer": "peer-1"
+            },
+            "location": null
+          },
+          "early": {
+            "status": 403,
+            "body": {
+              "synthetic": true,
+              "reason": "not-admitted",
+              "brokerPeer": "peer-1"
+            },
+            "location": null
+          },
+          "wrongContent": {
+            "status": 422,
+            "body": {
+              "synthetic": true,
+              "reason": "content-refused",
+              "brokerPeer": "peer-1"
+            },
+            "location": null
+          },
+          "oversizedBody": {
+            "status": 413,
+            "body": {
+              "synthetic": true,
+              "reason": "body-limit",
+              "brokerPeer": "peer-1"
+            },
+            "location": null
+          },
+          "directUnixEarly": {
+            "status": 403,
+            "body": {
+              "synthetic": true,
+              "reason": "not-admitted",
+              "brokerPeer": "peer-2"
+            }
+          },
+          "attempt": {
+            "status": 409,
+            "body": {
+              "synthetic": true,
+              "reason": "already-consumed",
+              "brokerPeer": "peer-1"
+            },
+            "location": null
+          },
+          "duplicate": {
+            "status": 409,
+            "body": {
+              "synthetic": true,
+              "reason": "already-consumed",
+              "brokerPeer": "peer-1"
+            },
+            "location": null
+          }
+        }
+      },
+      "brokerEvents": [
+        {
+          "status": 403,
+          "reason": "route-refused",
+          "brokerPeer": "peer-1",
+          "target": "https://unapproved.invalid/action"
+        },
+        {
+          "status": 502,
+          "reason": "synthetic-upstream-redirect-refused",
+          "brokerPeer": "peer-1",
+          "target": "/backend-api/codex/models",
+          "syntheticUpstreamStatus": 307
+        },
+        {
+          "status": 200,
+          "reason": "synthetic-models",
+          "brokerPeer": "peer-1",
+          "target": "/backend-api/codex/models"
+        },
+        {
+          "status": 403,
+          "reason": "not-admitted",
+          "brokerPeer": "peer-1",
+          "target": "/backend-api/codex/responses"
+        },
+        {
+          "status": 422,
+          "reason": "content-refused",
+          "brokerPeer": "peer-1",
+          "target": "/backend-api/codex/responses"
+        },
+        {
+          "status": 413,
+          "reason": "body-limit",
+          "brokerPeer": "peer-1"
+        },
+        {
+          "status": 403,
+          "reason": "not-admitted",
+          "brokerPeer": "peer-2",
+          "target": "/backend-api/codex/responses"
+        },
+        {
+          "status": 200,
+          "reason": "synthetic-response",
+          "brokerPeer": "peer-1",
+          "target": "/backend-api/codex/responses",
+          "digest": "edf3a3d81964a3e1873836eced0186475745cafc42567b062f879919f0a8c139",
+          "claimedCaller": "owned-native-attempt"
+        },
+        {
+          "status": 409,
+          "reason": "already-consumed",
+          "brokerPeer": "peer-1",
+          "target": "/backend-api/codex/responses"
+        },
+        {
+          "status": 409,
+          "reason": "already-consumed",
+          "brokerPeer": "peer-1",
+          "target": "/backend-api/codex/responses"
+        },
+        {
+          "status": 409,
+          "reason": "already-consumed",
+          "brokerPeer": "peer-1",
+          "target": "/backend-api/codex/responses"
+        }
+      ],
+      "requestsObserved": 11,
+      "sameRelayPeerForBothActorAttempts": true,
+      "directUnixPeerDiffersFromRelay": true,
+      "syntheticResponsesAdmitted": 1,
+      "nativeModelRequests": 0,
+      "realUpstreamRequests": 0,
+      "nativeMethodsObserved": [
+        "initialize",
+        "account/read",
+        "config/read",
+        "thread/start",
+        "mcpServerStatus/list"
+      ],
+      "hostCanaryUnchanged": true,
+      "packetUnchanged": true,
+      "hostListenerUntouched": true,
+      "descendantHeartbeatChangedBeforeClose": true,
+      "descendantHeartbeatStoppedAfterClose": true
+    },
+    "rival": {
+      "firstActor": "rival",
+      "command": [
+        "/usr/bin/bwrap",
+        "--unshare-all",
+        "--unshare-user",
+        "--disable-userns",
+        "--die-with-parent",
+        "--new-session",
+        "--cap-drop",
+        "ALL",
+        "--ro-bind",
+        "/usr",
+        "/usr",
+        "--symlink",
+        "usr/bin",
+        "/bin",
+        "--symlink",
+        "usr/lib",
+        "/lib",
+        "--proc",
+        "/proc",
+        "--dev",
+        "/dev",
+        "--tmpfs",
+        "/tmp",
+        "--bind",
+        "<probe>/state",
+        "/state",
+        "--ro-bind",
+        "<probe>/fixture",
+        "/fixture",
+        "--ro-bind",
+        "<probe>/packet",
+        "/packet",
+        "--ro-bind",
+        "<probe>/broker.sock",
+        "/gateway/broker.sock",
+        "--clearenv",
+        "--setenv",
+        "HOME",
+        "/state/home",
+        "--setenv",
+        "CODEX_HOME",
+        "/state/codex",
+        "--setenv",
+        "PATH",
+        "/usr/bin:/bin",
+        "--setenv",
+        "LANG",
+        "C.UTF-8",
+        "--chdir",
+        "/state/workspace",
+        "--",
+        "/usr/bin/python3",
+        "/fixture/launcher.py",
+        "/usr/bin/codex"
+      ],
+      "initialized": {
+        "userAgent": "eidos/0.154.0 (Linux Unknown; aarch64) unknown (eidos; 0.1.0)",
+        "codexHome": "/state/codex",
+        "platformFamily": "unix",
+        "platformOs": "linux"
+      },
+      "account": {
+        "account": null,
+        "requiresOpenaiAuth": true
+      },
+      "effectiveProviderId": "synthetic_gateway",
+      "effectiveProvider": {
+        "name": "Synthetic ChatGPT gateway",
+        "base_url": "http://127.0.0.1:39891/backend-api/codex",
+        "env_key": null,
+        "env_key_instructions": null,
+        "experimental_bearer_token": null,
+        "auth": null,
+        "aws": null,
+        "wire_api": "responses",
+        "query_params": null,
+        "http_headers": null,
+        "env_http_headers": null,
+        "request_max_retries": null,
+        "stream_max_retries": null,
+        "stream_idle_timeout_ms": null,
+        "websocket_connect_timeout_ms": null,
+        "requires_openai_auth": true,
+        "supports_websockets": false,
+        "supports_standalone_web_search": false
+      },
+      "startupBeforeInventory": true,
+      "startup": {
+        "outsideRead": {
+          "blockedErrno": 2
+        },
+        "outsideWrite": {
+          "blockedErrno": 2
+        },
+        "symlinkRead": {
+          "blockedErrno": 2
+        },
+        "packetWrite": {
+          "blockedErrno": 30
+        },
+        "hostLoopback": {
+          "blockedErrno": 111
+        },
+        "externalRoute": {
+          "blockedErrno": 101
+        },
+        "parentRootRead": {
+          "blockedErrno": 2
+        },
+        "packetRead": true,
+        "effectiveCapabilities": "0000000000000000",
+        "nestedUserNamespaceRefused": true,
+        "packetRemountRefused": true
+      },
+      "earlyRequests": {
+        "unapprovedUrl": {
+          "status": 403,
+          "body": {
+            "synthetic": true,
+            "reason": "route-refused",
+            "brokerPeer": "peer-1"
+          },
+          "location": null
+        },
+        "redirect": {
+          "status": 502,
+          "body": {
+            "synthetic": true,
+            "reason": "synthetic-upstream-redirect-refused",
+            "brokerPeer": "peer-1"
+          },
+          "location": null
+        },
+        "models": {
+          "status": 200,
+          "body": {
+            "synthetic": true,
+            "reason": "synthetic-models",
+            "brokerPeer": "peer-1"
+          },
+          "location": null
+        },
+        "early": {
+          "status": 403,
+          "body": {
+            "synthetic": true,
+            "reason": "not-admitted",
+            "brokerPeer": "peer-1"
+          },
+          "location": null
+        },
+        "wrongContent": {
+          "status": 422,
+          "body": {
+            "synthetic": true,
+            "reason": "content-refused",
+            "brokerPeer": "peer-1"
+          },
+          "location": null
+        },
+        "oversizedBody": {
+          "status": 413,
+          "body": {
+            "synthetic": true,
+            "reason": "body-limit",
+            "brokerPeer": "peer-1"
+          },
+          "location": null
+        },
+        "directUnixEarly": {
+          "status": 403,
+          "body": {
+            "synthetic": true,
+            "reason": "not-admitted",
+            "brokerPeer": "peer-2"
+          }
+        }
+      },
+      "inventory": {
+        "data": [
+          {
+            "name": "unexpected",
+            "runtimeStatus": "connected",
+            "pluginId": null,
+            "serverInfo": {
+              "name": "unexpected-startup-fixture",
+              "title": null,
+              "version": "1",
+              "description": null,
+              "icons": null,
+              "websiteUrl": null
+            },
+            "tools": {},
+            "toolsError": null,
+            "resources": [],
+            "resourceTemplates": [],
+            "authStatus": "unsupported"
+          }
+        ],
+        "nextCursor": null
+      },
+      "actors": {
+        "rival": {
+          "unapprovedUrl": {
+            "status": 403,
+            "body": {
+              "synthetic": true,
+              "reason": "route-refused",
+              "brokerPeer": "peer-1"
+            },
+            "location": null
+          },
+          "redirect": {
+            "status": 502,
+            "body": {
+              "synthetic": true,
+              "reason": "synthetic-upstream-redirect-refused",
+              "brokerPeer": "peer-1"
+            },
+            "location": null
+          },
+          "models": {
+            "status": 200,
+            "body": {
+              "synthetic": true,
+              "reason": "synthetic-models",
+              "brokerPeer": "peer-1"
+            },
+            "location": null
+          },
+          "early": {
+            "status": 403,
+            "body": {
+              "synthetic": true,
+              "reason": "not-admitted",
+              "brokerPeer": "peer-1"
+            },
+            "location": null
+          },
+          "wrongContent": {
+            "status": 422,
+            "body": {
+              "synthetic": true,
+              "reason": "content-refused",
+              "brokerPeer": "peer-1"
+            },
+            "location": null
+          },
+          "oversizedBody": {
+            "status": 413,
+            "body": {
+              "synthetic": true,
+              "reason": "body-limit",
+              "brokerPeer": "peer-1"
+            },
+            "location": null
+          },
+          "directUnixEarly": {
+            "status": 403,
+            "body": {
+              "synthetic": true,
+              "reason": "not-admitted",
+              "brokerPeer": "peer-2"
+            }
+          },
+          "attempt": {
+            "status": 200,
+            "body": {
+              "synthetic": true,
+              "reason": "synthetic-response",
+              "brokerPeer": "peer-1"
+            },
+            "location": null
+          },
+          "duplicate": {
+            "status": 409,
+            "body": {
+              "synthetic": true,
+              "reason": "already-consumed",
+              "brokerPeer": "peer-1"
+            },
+            "location": null
+          }
+        },
+        "intended": {
+          "attempt": {
+            "status": 409,
+            "body": {
+              "synthetic": true,
+              "reason": "already-consumed",
+              "brokerPeer": "peer-1"
+            },
+            "location": null
+          },
+          "duplicate": {
+            "status": 409,
+            "body": {
+              "synthetic": true,
+              "reason": "already-consumed",
+              "brokerPeer": "peer-1"
+            },
+            "location": null
+          }
+        }
+      },
+      "brokerEvents": [
+        {
+          "status": 403,
+          "reason": "route-refused",
+          "brokerPeer": "peer-1",
+          "target": "https://unapproved.invalid/action"
+        },
+        {
+          "status": 502,
+          "reason": "synthetic-upstream-redirect-refused",
+          "brokerPeer": "peer-1",
+          "target": "/backend-api/codex/models",
+          "syntheticUpstreamStatus": 307
+        },
+        {
+          "status": 200,
+          "reason": "synthetic-models",
+          "brokerPeer": "peer-1",
+          "target": "/backend-api/codex/models"
+        },
+        {
+          "status": 403,
+          "reason": "not-admitted",
+          "brokerPeer": "peer-1",
+          "target": "/backend-api/codex/responses"
+        },
+        {
+          "status": 422,
+          "reason": "content-refused",
+          "brokerPeer": "peer-1",
+          "target": "/backend-api/codex/responses"
+        },
+        {
+          "status": 413,
+          "reason": "body-limit",
+          "brokerPeer": "peer-1"
+        },
+        {
+          "status": 403,
+          "reason": "not-admitted",
+          "brokerPeer": "peer-2",
+          "target": "/backend-api/codex/responses"
+        },
+        {
+          "status": 200,
+          "reason": "synthetic-response",
+          "brokerPeer": "peer-1",
+          "target": "/backend-api/codex/responses",
+          "digest": "edf3a3d81964a3e1873836eced0186475745cafc42567b062f879919f0a8c139",
+          "claimedCaller": "owned-native-attempt"
+        },
+        {
+          "status": 409,
+          "reason": "already-consumed",
+          "brokerPeer": "peer-1",
+          "target": "/backend-api/codex/responses"
+        },
+        {
+          "status": 409,
+          "reason": "already-consumed",
+          "brokerPeer": "peer-1",
+          "target": "/backend-api/codex/responses"
+        },
+        {
+          "status": 409,
+          "reason": "already-consumed",
+          "brokerPeer": "peer-1",
+          "target": "/backend-api/codex/responses"
+        }
+      ],
+      "requestsObserved": 11,
+      "sameRelayPeerForBothActorAttempts": true,
+      "directUnixPeerDiffersFromRelay": true,
+      "syntheticResponsesAdmitted": 1,
+      "nativeModelRequests": 0,
+      "realUpstreamRequests": 0,
+      "nativeMethodsObserved": [
+        "initialize",
+        "account/read",
+        "config/read",
+        "thread/start",
+        "mcpServerStatus/list"
+      ],
+      "hostCanaryUnchanged": true,
+      "packetUnchanged": true,
+      "hostListenerUntouched": true,
+      "descendantHeartbeatChangedBeforeClose": true,
+      "descendantHeartbeatStoppedAfterClose": true
+    }
+  },
+  "callerAuthenticationEstablished": false,
+  "mechanismDisposition": "REJECTED: exact content and shared-relay identity do not authenticate the intended caller",
+  "liveAdmission": false
+}

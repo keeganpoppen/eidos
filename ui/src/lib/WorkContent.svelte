@@ -44,8 +44,8 @@
       {#if onFocus && !['heading', 'hr'].includes(block.kind)}
         <div class="block-support">
           <button class="support-action" aria-pressed={block.id === focusedBlockId} onclick={() => onFocus?.(block)}>Inspect support</button>
-          {#if block.citations.length}
-            <span>{block.citations.map((seq) => `[evidence:${seq}]`).join(' · ')}</span>
+          {#if block.citations.length || block.artifactCitations.length}
+            <span>{[...block.citations.map((seq) => `[evidence:${seq}]`), ...block.artifactCitations.map((id) => `[artifact:${id}]`)].join(' · ')}</span>
           {:else if block.id === focusedBlockId}
             <span class="support-unknown">No evidence citations in this block. Support is unverified.</span>
           {/if}

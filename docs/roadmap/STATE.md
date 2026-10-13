@@ -6,6 +6,37 @@ The baseline GitHub Actions run `38240774514` completed successfully: pytest and
 
 Refresh this file when implementation claims materially change. Keep historical audit IDs instead of quietly relabelling old evidence as current.
 
+## Exact result composition and rejected gateway — 2026-10-13
+
+Integration base `29a164a`; [composition evidence](../evidence/ARTIFACT_COMPOSITION_INTEGRATION.md)
+and [current handoff](../agents/CURRENT_HANDOFF.md) own final verification. Contexts
+can now select exact stored results alongside raw ranges. The server freezes complete
+artifact content and separate adoption, validates source context/attempt identity,
+and retains source-manifest references. Derived citations support only direct inputs;
+original evidence remains separately inspectable. The UI connects result reuse,
+frozen preview and C→B→A provenance. Selection and inspection start no native work.
+
+Combined verification: **697 Python tests passed, 6 native opt-ins skipped**;
+**52 Bun tests / 259 assertions**, Svelte **0 errors / 0 warnings**, build passed.
+Rendered synthetic acceptance covers exact support recovery, artifact-only creation
+and revision, and dirty draft preservation through navigation/reload at desktop and
+390px mobile widths. This is not a claim of human speed or answer-quality improvement.
+
+Compatibility tests preserve legacy hashes and A2 frozen inputs. A review
+counterexample exposed dropped rejection snapshots behind equal artifact IDs;
+comparison now checks complete frozen inputs except rationale and reports changed
+inputs. These measurements grade neither answer quality nor entailment. A synthetic
+persist/reopen chain recovers exact controlling evidence without recursively adding
+source transcripts to recipient prompts. See [D28](DECISIONS.md).
+
+The parent reproduced the real no-model
+[gateway experiment](../evidence/NATIVE_GATEWAY_ADMISSION_EXPERIMENT.md): **26 tests
+passed**, including the expected falsification of caller authentication through a
+shared relay. A startup sibling can consume the intended request's permit. No
+credentials, model turns or external forwarding were used; the production gate
+remains closed. The next independent experiment tests process restrictions before
+native startup. It is not yet an admitted execution profile.
+
 ## Paged history and native startup experiment — 2026-10-13
 
 Integration base `ad73408`; see [verification](../evidence/PAGED_HISTORY_INTEGRATION.md)

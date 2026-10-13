@@ -12,6 +12,7 @@ export type ContentBlock = {
   id: string;
   text: string;
   citations: number[];
+  artifactCitations: string[];
   kind: string;
   diff?: string;
 };
@@ -29,6 +30,7 @@ export function contentBlocks(source: string): ContentBlock[] {
       id: `block-${start}`,
       text: token.raw,
       citations,
+      artifactCitations: [...new Set([...token.raw.matchAll(/\[artifact:([A-Za-z0-9_:-]+)\]/g)].map((match) => match[1]))],
       kind: token.type,
       ...(token.type === 'code' && /^(diff|patch)$/i.test(token.lang ?? '')
         ? { diff: token.text } : {})

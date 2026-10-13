@@ -685,6 +685,7 @@ code, pre, .mono {
   padding: 0 0 16px;
   margin-bottom: 16px;
   border-bottom: 1px solid var(--line-dark);
+  overflow-wrap: anywhere;
 }
 
 .thread-header h2 {

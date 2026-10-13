@@ -5,12 +5,14 @@
   import EvidenceRecord from './EvidenceRecord.svelte';
   import LineDiff from './LineDiff.svelte';
   import InquirySurface from './InquirySurface.svelte';
+  import ArtifactLineage from './ArtifactLineage.svelte';
+  import type { ArtifactSourceTarget } from './artifact-inputs';
   import ImprovementReview from './ImprovementReview.svelte';
   import { makeReflectionFixture } from './reflection-fixture';
   import { contentBlocks } from './semantic';
   import { applyArrangement, compositionKey, compileAttentionRequest, contextText, emptyComposition, evidenceChain, matchesExperiment, readComposition, resolveAttention, resolveTarget, artifacts, outputEvidence, sameArrangement, undoArrangement, validateEvidenceChain } from './comparison';
   import type { ApertureTarget, Arrangement } from './comparison';
-  import type { Investigation, InvestigationContext, ContextRecord, InvestigationArtifact, EvidenceSelection } from './types';
+  import type { FrozenArtifactInput, Investigation, InvestigationContext, ContextRecord, InvestigationArtifact, EvidenceSelection } from './types';
 
   let { open = $bindable(false), initialId = '', requestId = 0, requestIntent = 'comparison', selections = [] }: { open: boolean; initialId?: string; requestId?: number; requestIntent?: 'comparison' | 'evidence-chain'; selections?: EvidenceSelection[] } = $props();
   let composition = $state(emptyComposition());
@@ -36,6 +38,11 @@
   let editButton: HTMLButtonElement;
   let evidenceHeading: HTMLHeadingElement;
   let recordPage = $state({ left: 0, right: 0 });
+  let lineageTarget = $state<(ArtifactSourceTarget & { snapshot?: FrozenArtifactInput }) | null>(null);
+
+  function inspectArtifact(input: FrozenArtifactInput) {
+    lineageTarget = { investigationId: input.investigationId, artifactId: input.artifactId, contextId: input.sourceContextId, snapshot: input };
+  }
 
   const arranged = $derived(composition.arrangement);
   const left = $derived(resolveTarget(investigations, arranged?.left));
@@ -342,7 +349,7 @@
       {#each sides as item (item.side)}
         <article class="comparison-aperture" data-aperture={item.side} data-investigation-id={arranged[item.side].investigationId} data-context-id={arranged[item.side].contextId} data-artifact-id={arranged[item.side].artifactId ?? ''} aria-label={item.label}>
           <header class="aperture-heading"><span class="eyebrow">{item.label}</span><span class="state-label">{item.investigation?.status ?? 'unavailable'}</span><h3>{item.investigation?.title ?? 'Saved investigation unavailable'}</h3>
-            {#if item.investigation && item.context}<p>Revision {item.investigation.contexts.indexOf(item.context) + 1} · {item.context.records.length} frozen records · {new Set(item.context.records.map((r) => r.threadId)).size} threads</p>{/if}
+            {#if item.investigation && item.context}<p>Revision {item.investigation.contexts.indexOf(item.context) + 1} · {item.context.records.length} frozen records · {item.context.artifactInputs?.length ?? 0} result inputs · {new Set(item.context.records.map((r) => r.threadId)).size} threads</p>{/if}
           </header>
           {#if !item.investigation || !item.context}
             <p class="work-notice">This saved reference cannot be resolved by the current server. It has not been rebound. Edit the arrangement to choose an available target.</p>
@@ -351,6 +358,7 @@
             <div class="context-question"><span class="aperture-caption">Question supplied</span><Markdown source={item.context.question} /></div>
             <div class="context-ranges">
               {#each item.context.selections as selection}<p><strong>{selection.threadId} · {selection.startSeq}–{selection.endSeq}</strong><br />{selection.rationale || 'No inclusion rationale recorded.'}</p>{/each}
+              {#each item.context.artifactInputs ?? [] as input}<p><button onclick={() => inspectArtifact(input)}>Inspect result input · {input.artifactId}</button><br />{input.rationale || 'No inclusion rationale recorded.'}</p>{/each}
             </div>
             <h4>Frozen evidence / inspect in place</h4>
             <div class="record-index">
@@ -364,7 +372,9 @@
             {@const artifact = item.artifact}
             <p class="aperture-caption">{artifactLabel(item.investigation, artifact)} · citations establish supplied input, not proof</p>
             <WorkContent source={artifact.text} focusedBlockId={composition.focus?.artifactId === artifact.id ? composition.focus.blockId : undefined} onFocus={(block) => focusBlock(item.investigation!, artifact, block)} />
+            <button onclick={() => lineageTarget = { investigationId: item.investigation!.id, artifactId: artifact.id, contextId: artifact.contextId }}>Inspect result provenance</button>
             {#if artifact.unsupportedCitations.length}<p class="work-notice">Outside the supplied packet: {artifact.unsupportedCitations.map((seq) => `[evidence:${seq}]`).join(', ')}. Support is unverified.</p>{/if}
+            {#if artifact.unsupportedArtifactCitations?.length}<p class="work-notice">Results outside the supplied packet: {artifact.unsupportedArtifactCitations.map((id) => `[artifact:${id}]`).join(', ')}. Support is unverified.</p>{/if}
             {#if item.investigation.adoption?.artifactId === artifact.id}<p class="comparison-adoption">Conclusion {item.investigation.adoption.decision === 'adopt' ? 'adopted' : 'rejected'} · {item.investigation.adoption.note || 'No note recorded.'}</p>{/if}
             <details class="aperture-details"><summary>Inspect binding & provenance</summary><p class="object-ref">Artifact {artifact.id}<br />Context {artifact.contextId}<br />Attempt {artifact.attemptId}</p><p>Recorded output: {artifact.outputSeqs.join(', ') || 'No output sequence recorded'}</p><p>Provider context, native instructions, tools and configuration are not fully observed.</p></details>
           {:else}
@@ -410,18 +420,24 @@
               {@const valid = focused.context.records.some((r) => r.seq === seq) && (!focusedArtifact || focusedArtifact.citations.includes(seq))}
               <button data-evidence-seq={seq} disabled={!valid} aria-pressed={composition.focus.seq === seq} onclick={() => chooseEvidence(seq)}>[evidence:{seq}] {valid ? '' : '· outside packet'}</button>
             {/each}
-            {#if !support.length}<p>No evidence cited by this passage. Its support is unverified.</p>{/if}
+            {#each focusedBlock?.artifactCitations ?? [] as id}
+              {@const input = focusedArtifact?.artifactCitations?.includes(id) ? focused.context.artifactInputs?.find((value) => value.artifactId === id) : undefined}
+              <button disabled={!input} onclick={() => input && inspectArtifact(input)}>[artifact:{id}] {input ? '· inspect source result' : '· outside packet'}</button>
+            {/each}
+            {#if !support.length && !focusedBlock?.artifactCitations.length}<p>No evidence cited by this passage. Its support is unverified.</p>{/if}
             {#if focusedBlock}<details><summary>Focused passage</summary><Markdown source={focusedBlock.text} /></details>{/if}
           </div>
           <div class="evidence-record">
             {#if focusedRecord}<EvidenceRecord record={focusedRecord} />
             {:else if support.length}<p class="work-notice">No supplied record selected. References outside this packet cannot be resolved here.</p>
+            {:else if focusedBlock?.artifactCitations.length}<p class="work-muted">Open a cited result to inspect its original input and evidence. Those records were not directly supplied to this packet.</p>
             {:else}<p class="work-muted">Uncited interpretation remains visible above. No source has been inferred for it.</p>{/if}
           </div>
         </div>
       {/if}
     {:else}<p>Select “Inspect support” beside a returned passage, or inspect a frozen context record. Evidence opens here without replacing either aperture.</p>{/if}
   </section>
+  <ArtifactLineage target={lineageTarget} onClose={() => lineageTarget = null} />
 </section>
 
 <style>

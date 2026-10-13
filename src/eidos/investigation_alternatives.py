@@ -125,22 +125,29 @@ class ExperimentStore:
         return record
 
     def freeze_horizon(self, seqs: Sequence[int], *, evidence_class: str = "synthetic",
-                       rationale: str) -> str:
+                       rationale: str, artifact_inputs: Sequence[Mapping[str, Any]] = ()) -> str:
         """Freeze an explicit local availability set, not a universal historical clock."""
         if evidence_class not in {"synthetic", "recorded"}:
             raise ValueError("evidence class must be synthetic or recorded")
-        if not seqs or any(type(seq) is not int or seq < 1 for seq in seqs):
+        if (not seqs and not artifact_inputs) or any(type(seq) is not int or seq < 1 for seq in seqs):
             raise ValueError("horizon requires positive trace sequence IDs")
         if len(set(seqs)) != len(seqs):
             raise ValueError("duplicate horizon records")
         with self.objects._transaction():
             refs = {f"record/{seq}": self.objects.freeze_trace(seq) for seq in sorted(seqs)}
             ceiling = self.trace.db.execute("SELECT MAX(seq) FROM trace_records").fetchone()[0]
-            return self._put("horizon", {
+            data = {
                 "recordIds": sorted(seqs), "localCeiling": ceiling,
                 "evidenceClass": evidence_class, "rationale": _text(rationale, "horizon rationale"),
                 "meaning": "Explicit locally available records; not proof of an actor's complete knowledge.",
-            }, refs)
+            }
+            if artifact_inputs:
+                ids = {self._put("artifact-input", {k: v for k, v in artifact.items() if k != "rationale"})
+                       for artifact in artifact_inputs}
+                refs.update({"artifact/" + cid: cid for cid in ids})
+                data["artifactInputIds"] = sorted(ids)
+                data["meaning"] = "Explicit frozen records and derived artifacts; no implicit underlying evidence or authority."
+            return self._put("horizon", data, refs)
 
     def snapshot_context(self, investigation_id: str, context_id: str) -> str:
         with self.objects._transaction():
@@ -218,6 +225,11 @@ class ExperimentStore:
             if (frozen.data["raw_text"] != record["rawText"] or frozen.data["sha256"] != record["sha256"]
                     or hashlib.sha256(record["rawText"].encode()).hexdigest() != record["sha256"]):
                 raise ValueError("context evidence differs from the frozen horizon")
+        allowed_artifacts = [self._content(horizon.ref("artifact/" + cid), "artifact-input").data
+                             for cid in horizon.data.get("artifactInputIds", [])]
+        for artifact in context.get("artifactInputs", []):
+            if {k: v for k, v in artifact.items() if k != "rationale"} not in allowed_artifacts:
+                raise ValueError("context artifact differs from or is outside the frozen horizon")
         return context
 
     def experiment(self, name: str, *, proposal: str, baseline: str, alternative_context: str,
@@ -316,6 +328,8 @@ class ExperimentStore:
             horizon = self._content(exp.content.ref("horizon"), "horizon")
             if horizon.data["evidenceClass"] != "synthetic":
                 raise ValueError("fixture evaluator cannot establish entailment for recorded real-world evidence")
+            if horizon.data.get("artifactInputIds"):
+                raise ValueError("fixture evaluator does not grade derived artifact inputs")
             criteria = self._content(exp.content.ref("criteria"), "criteria").data["cases"][exp.data["caseId"]]
             evidence = [{"seq": seq, "rawText": self.objects.get(horizon.ref(f"record/{seq}")).data["raw_text"],
                          "sha256": self.objects.get(horizon.ref(f"record/{seq}")).data["sha256"]}

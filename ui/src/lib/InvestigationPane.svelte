@@ -1,12 +1,15 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, tick } from 'svelte';
   import Markdown from './Markdown.svelte';
   import ContextProvenance from './ContextProvenance.svelte';
   import RecordedExperiment from './RecordedExperiment.svelte';
   import { artifacts, attempts, outputEvidence } from './comparison';
   import EvidenceReview from './EvidenceReview.svelte';
+  import ArtifactContent from './ArtifactContent.svelte';
+  import ArtifactLineage from './ArtifactLineage.svelte';
+  import { artifactInputDiff, artifactInputKey, artifactKind, changedFrozenArtifactInputs, readArtifactInputs, sameArtifactInputs, type ArtifactSourceTarget } from './artifact-inputs';
   import { sameSelections } from './semantic';
-  import type { EvidenceSelection, Investigation, InvestigationContext, InvestigationCapabilities } from './types';
+  import type { ArtifactInputSelection, FrozenArtifactInput, EvidenceSelection, Investigation, InvestigationArtifact, InvestigationContext, InvestigationCapabilities } from './types';
 
   let { selections = $bindable([]), onSource, onCompare }: {
     selections: EvidenceSelection[];
@@ -29,6 +32,10 @@
   let previewId = $state('');
   let poll: ReturnType<typeof setInterval> | undefined;
   let pendingRequest = $state<{ body: string; id: string } | null>(null);
+  let artifactInputs = $state<ArtifactInputSelection[]>([]);
+  let artifactChoice = $state('');
+  let lineageTarget = $state<(ArtifactSourceTarget & { snapshot?: FrozenArtifactInput }) | null>(null);
+  const artifactOptions = $derived(investigations.flatMap((investigation) => artifacts(investigation).map((artifact) => ({ investigation, artifact }))));
 
   const activeContext = $derived(current?.contexts.find((context) => context.id === current?.currentContextId));
   const preview = $derived(current?.contexts.find((context) => context.id === previewId) ?? activeContext);
@@ -38,9 +45,10 @@
   const displayedAttempt = $derived(attempts(current ?? undefined).find((item) => item.id === displayedArtifact?.attemptId));
   const artifactContext = $derived(current?.contexts.find((context) => context.id === displayedArtifact?.contextId));
   const dirty = $derived(!!activeContext && (
-    activeContext.question !== question || !sameSelections(activeContext.selections, selections)
+    activeContext.question !== question || !sameSelections(activeContext.selections, selections) || !sameArtifactInputs(activeContext.artifactInputs, artifactInputs)
   ));
-  const canSave = $derived(title.trim().length > 0 && question.trim().length > 0 && selections.length > 0 && !busy);
+  const inputCount = $derived(selections.length + artifactInputs.length);
+  const canSave = $derived(title.trim().length > 0 && question.trim().length > 0 && inputCount > 0 && inputCount <= 32 && !busy);
   const threadCount = $derived(new Set(selections.map((selection) => selection.threadId)).size);
 
   function jumpTo(selector: string) {
@@ -79,6 +87,7 @@
       title = investigation.title;
       question = context?.question ?? '';
       selections = context?.selections.map((selection) => ({ ...selection })) ?? [];
+      artifactInputs = readArtifactInputs(context?.artifactInputs);
       note = investigation.adoption?.note ?? '';
     }
     investigations = [investigation, ...investigations.filter((item) => item.id !== investigation.id)];
@@ -108,6 +117,7 @@
     if (!keepContext) {
       question = '';
       selections = [];
+      artifactInputs = [];
     }
     note = '';
     notice = '';
@@ -115,14 +125,37 @@
     pendingRequest = null;
   }
 
+  function addArtifact() {
+    const selected = artifactOptions.find(({ investigation, artifact }) => artifactInputKey({ investigationId: investigation.id, artifactId: artifact.id }) === artifactChoice);
+    if (!selected || busy || inputCount >= 32) return;
+    const input = { investigationId: selected.investigation.id, artifactId: selected.artifact.id, rationale: '' };
+    if (!artifactInputs.some((existing) => artifactInputKey(existing) === artifactInputKey(input))) artifactInputs = [...artifactInputs, input];
+  }
+
+  function inspectArtifact(input: ArtifactInputSelection | FrozenArtifactInput) {
+    lineageTarget = { investigationId: input.investigationId, artifactId: input.artifactId,
+      ...('artifact' in input ? { contextId: input.sourceContextId, snapshot: input } : {}) };
+  }
+
+  async function useResult(investigation: Investigation, artifact: InvestigationArtifact) {
+    const input = { investigationId: investigation.id, artifactId: artifact.id, rationale: '' };
+    const sourceTitle = investigation.title;
+    newDraft();
+    title = `Follow-up: ${sourceTitle}`.slice(0, 200);
+    artifactInputs = [input];
+    await tick();
+    document.querySelector<HTMLTextAreaElement>('#investigation-question')?.focus();
+  }
+
   async function save() {
     if (!canSave || (current && current.status !== 'draft')) return;
     busy = true;
     error = '';
     try {
-      const body = current
+      const original = current
         ? { parentContextId: current.currentContextId, question, selections }
         : { title, question, selections };
+      const body = { ...original, ...(artifactInputs.length ? { artifactInputs: readArtifactInputs(artifactInputs) } : {}) };
       const serialized = JSON.stringify({ id: current?.id ?? null, ...body });
       if (!pendingRequest || pendingRequest.body !== serialized) {
         pendingRequest = { body: serialized, id: crypto.randomUUID() };
@@ -189,6 +222,7 @@
         selections = Array.isArray(stored.selections) ? stored.selections.filter((item: EvidenceSelection) =>
           item && typeof item.threadId === 'string' && Number.isInteger(item.startSeq) && Number.isInteger(item.endSeq) && typeof item.rationale === 'string'
         ) : [];
+        artifactInputs = readArtifactInputs(stored.artifactInputs);
       }
     } catch { /* Browser storage is a convenience; saved contexts remain on the server. */ }
     void (async () => {
@@ -209,7 +243,7 @@
 
   $effect(() => {
     if (!ready) return;
-    const draft = JSON.stringify({ selectedId, title, question, selections, note, pendingRequest });
+    const draft = JSON.stringify({ selectedId, title, question, selections, artifactInputs: readArtifactInputs(artifactInputs), note, pendingRequest });
     try { localStorage.setItem(storageKey, draft); } catch { /* Private browsing may disable storage. */ }
   });
 </script>
@@ -241,8 +275,8 @@
     <label for="investigation-question">Bounded question</label>
     <textarea id="investigation-question" bind:value={question} disabled={busy} rows="4" placeholder="Compare the approaches using this evidence. Explain what remains unknown."></textarea>
 
-    <div class="context-count">{selections.length} ranges from {threadCount} {threadCount === 1 ? 'thread' : 'threads'}</div>
-    {#if !selections.length}
+    <div class="context-count">{selections.length} ranges from {threadCount} {threadCount === 1 ? 'thread' : 'threads'} · {artifactInputs.length} exact result{artifactInputs.length === 1 ? '' : 's'}</div>
+    {#if !inputCount}
       <p class="work-empty">Use “Add to context” on messages, or select an outline entry and add its evidence. Switch threads to collect another source.</p>
     {/if}
     <ol class="source-list">
@@ -256,6 +290,32 @@
         </li>
       {/each}
     </ol>
+    <div class="artifact-picker">
+      <label for="context-artifact-picker">Include a saved result</label>
+      <select id="context-artifact-picker" bind:value={artifactChoice} disabled={busy}>
+        <option value="">Choose an exact result version</option>
+        {#each artifactOptions as option (artifactInputKey({ investigationId: option.investigation.id, artifactId: option.artifact.id }))}
+          <option value={artifactInputKey({ investigationId: option.investigation.id, artifactId: option.artifact.id })}>{option.investigation.title} · {artifactKind(option.artifact)} · {option.artifact.id.slice(-12)}</option>
+        {/each}
+      </select>
+      <button class="work-secondary" disabled={busy || !artifactChoice || inputCount >= 32} onclick={addArtifact}>Add selected result to context</button>
+      <p class="work-muted">Each result keeps its original input and support links. The new packet contains that result; its underlying records are supplied only when separately selected.</p>
+    </div>
+    <ol class="source-list artifact-input-list">
+      {#each artifactInputs as input, index (artifactInputKey(input))}
+        {@const source = artifactOptions.find(({ investigation, artifact }) => investigation.id === input.investigationId && artifact.id === input.artifactId)}
+        <li data-selected-artifact-id={input.artifactId}>
+          <div class="source-row">
+            <button class="source-link" onclick={() => inspectArtifact(input)}>{source?.investigation.title ?? input.investigationId} · {source ? artifactKind(source.artifact) : 'exact result unavailable'}</button>
+            <button class="source-remove" aria-label={`Remove result ${input.artifactId}`} disabled={busy} onclick={() => artifactInputs = artifactInputs.filter((_, position) => position !== index)}>Remove</button>
+          </div>
+          {#if source}<p class="work-muted">{outputEvidence(source.artifact)}</p>{/if}
+          <p class="object-ref">{input.artifactId}</p>
+          <input aria-label={`Why include result ${index + 1}`} value={input.rationale} maxlength="2000" disabled={busy} placeholder="Why this result matters" oninput={(event) => artifactInputs = artifactInputs.map((value, position) => position === index ? { ...value, rationale: event.currentTarget.value } : value)} />
+        </li>
+      {/each}
+    </ol>
+    {#if inputCount > 32}<p class="work-error">Select at most 32 evidence ranges and results in total.</p>{/if}
     {#if !current || current.status === 'draft'}
       <button class="work-primary" disabled={!canSave || (!!current && !dirty)} onclick={save}>
         {busy ? 'Saving…' : current ? 'Save context revision' : 'Save and preview context'}
@@ -279,15 +339,22 @@
       </select>
       <p class="object-ref">{preview.id}</p>
       <div class="saved-question"><Markdown source={preview.question} /></div>
-      <p>{preview.records.length} frozen evidence records from {new Set(preview.selections.map((selection) => selection.threadId)).size} threads.</p>
-      <p class="coverage-note">This packet captures selected app-server evidence and the input below. Provider context, native instructions, tools, and configuration are not fully observed.</p>
+      <p>{preview.records.length} frozen evidence records from {new Set(preview.selections.map((selection) => selection.threadId)).size} threads · {preview.artifactInputs?.length ?? 0} frozen result inputs.</p>
+      <p class="coverage-note">This packet captures selected evidence, exact result inputs and the input below. Provider context, native instructions, tools, and configuration are not fully observed.</p>
       {#if baseline}
+        {@const resultDiff = artifactInputDiff(baseline.artifactInputs, preview.artifactInputs)}
+        {@const changedResults = changedFrozenArtifactInputs(baseline.artifactInputs, preview.artifactInputs)}
         <details class="context-diff" open>
           <summary>Changes from previous revision</summary>
-          <p>{removed(baseline, preview).length} removed · {removed(preview, baseline).length} added · {updated(baseline, preview).length} rationale changes</p>
+          <p>Evidence ranges: {removed(baseline, preview).length} removed · {removed(preview, baseline).length} added · {updated(baseline, preview).length} rationale changes</p>
+          {#if baseline.artifactInputs?.length || preview.artifactInputs?.length}<p>Result inputs: {resultDiff.removed.length} removed · {resultDiff.added.length} added · {resultDiff.updated.length} rationale changes · {changedResults.length} frozen snapshots changed</p>{/if}
           {#each removed(baseline, preview) as selection}<p class="diff-removed">− {selection.threadId} · {selection.startSeq}–{selection.endSeq}</p>{/each}
           {#each removed(preview, baseline) as selection}<p class="diff-added">+ {selection.threadId} · {selection.startSeq}–{selection.endSeq}</p>{/each}
           {#each updated(baseline, preview) as selection}<p>Rationale: {selection.rationale}</p>{/each}
+          {#each resultDiff.removed as input}<p class="diff-removed">− Result {input.artifactId}</p>{/each}
+          {#each resultDiff.added as input}<p class="diff-added">+ Result {input.artifactId}</p>{/each}
+          {#each resultDiff.updated as input}<p>Result rationale · {input.artifactId}: {input.rationale}</p>{/each}
+          {#each changedResults as input}<p>Frozen source snapshot changed · {input.artifactId}. Compare the saved source review and pins in each revision.</p>{/each}
           {#if baseline.question !== preview.question}
             <p class="diff-removed">Previous question: {baseline.question}</p>
             <p class="diff-added">Current question: {preview.question}</p>
@@ -299,6 +366,17 @@
         <summary>Exact specialist input · {preview.projectedPrompt.length.toLocaleString()} characters</summary>
         <pre>{preview.projectedPrompt}</pre>
       </details>
+      {#each preview.artifactInputs ?? [] as input (artifactInputKey(input))}
+        <section class="frozen-artifact-input" data-frozen-artifact-id={input.artifactId} aria-label="Frozen result input">
+          <h4>{artifactKind(input.artifact)}</h4>
+          <p>{input.rationale || 'No inclusion rationale recorded.'}</p>
+          <p class="object-ref">{input.artifactId}<br />Original input {input.sourceContextId}</p>
+          <button class="source-link" onclick={() => inspectArtifact(input)}>Inspect result provenance</button>
+          <details><summary>Read frozen result · {outputEvidence(input.artifact)}</summary><ArtifactContent artifact={input.artifact} /></details>
+          {#if input.sourceAdoption}<p class="source-review">Source review when selected: {input.sourceAdoption.decision === 'adopt' ? 'adopted' : 'rejected'}. {input.sourceAdoption.note} This records a decision, not proof of the result.</p>{:else}<p class="work-muted">No matching source adoption decision was recorded when this input was selected.</p>{/if}
+          <details><summary>Source context and attempt pins</summary><p class="object-ref">Context manifest {input.sourceManifestId ?? 'not recorded'}<br />Attempt manifest {input.sourceAttemptManifestId ?? 'not recorded'}</p></details>
+        </section>
+      {/each}
       <details class="frozen-evidence">
         <summary>Inspect frozen source evidence</summary>
         {#each preview.records as record (record.seq)}
@@ -341,10 +419,11 @@
     </section>
 
     {#if displayedArtifact}
-      <section class="investigation-result" aria-label="Specialist result">
+      <section class="investigation-result" aria-label="Specialist result" data-result-artifact-id={displayedArtifact.id}>
         <h3>{displayedArtifact.continuedFrom ? 'Follow-up specialist result' : displayedArtifact.kind === 'native-needs-evidence' ? 'Specialist evidence request' : current.nativeArtifact ? 'Original specialist result' : 'Specialist result'}</h3>
-        <p class="work-muted">{outputEvidence(displayedArtifact)} · input {displayedArtifact.contextId}</p>
-        <Markdown source={displayedArtifact.text} />
+        <ArtifactContent artifact={displayedArtifact} context={artifactContext} onArtifact={inspectArtifact} />
+        <button class="work-secondary" disabled={busy} onclick={() => useResult(current!, displayedArtifact!)}>New investigation using this result</button>
+        <button class="source-link" onclick={() => lineageTarget = { investigationId: current!.id, artifactId: displayedArtifact!.id, contextId: displayedArtifact!.contextId }}>Inspect result provenance</button>
         {#if displayedAttempt?.threadId && displayedArtifact.outputSeqs.length}
           <button class="source-link" onclick={() => onSource({ threadId: displayedAttempt!.threadId!, startSeq: displayedArtifact!.outputSeqs[0], endSeq: displayedArtifact!.outputSeqs.at(-1)!, rationale: '' })}>Inspect recorded native output</button>
         {/if}
@@ -358,12 +437,9 @@
             {/if}
           {/each}
         </div>
-        {#if !displayedArtifact.citations.length}<p class="work-notice">No selected-evidence citations were returned.</p>{/if}
-        {#if displayedArtifact.unsupportedCitations.length}
-          <p class="work-error">References outside this packet: {displayedArtifact.unsupportedCitations.map((seq) => `[evidence:${seq}]`).join(', ')}. Their support is unverified.</p>
-        {/if}
+        {#if !displayedArtifact.citations.length && !displayedArtifact.artifactCitations?.length}<p class="work-notice">No supplied-input citations were returned.</p>{/if}
         {#each artifacts(current).filter((artifact) => artifact.id !== displayedArtifact.id) as historical (historical.id)}
-          <details class="reviewed-artifact"><summary>{outputEvidence(historical)} · retained version</summary><Markdown source={historical.text} /><p class="object-ref">{historical.id}<br />Input {historical.contextId}</p></details>
+          <details class="reviewed-artifact" data-result-artifact-id={historical.id}><summary>{artifactKind(historical)} · {outputEvidence(historical)} · retained version</summary><ArtifactContent artifact={historical} context={current.contexts.find((context) => context.id === historical.contextId)} onArtifact={inspectArtifact} /><p class="object-ref">{historical.id}<br />Input {historical.contextId}</p><button class="work-secondary" disabled={busy} onclick={() => useResult(current!, historical)}>New investigation using this result</button><button class="source-link" onclick={() => lineageTarget = { investigationId: current!.id, artifactId: historical.id, contextId: historical.contextId }}>Inspect result provenance</button></details>
         {/each}
         {#if current.adoption}
           <div class="adoption-receipt"><strong>{current.adoption.decision === 'adopt' ? 'Conclusion adopted' : 'Conclusion rejected'}</strong><p>{current.adoption.note || 'No note added.'}</p><p class="work-muted">Source history and files remain unchanged.</p></div>
@@ -384,4 +460,14 @@
 
   {#if error}<p class="work-error" role="alert">{error}</p>{/if}
   {#if notice}<p class="work-notice" role="status">{notice}</p>{/if}
+  <ArtifactLineage target={lineageTarget} onClose={() => lineageTarget = null} />
 </aside>
+
+<style>
+  .artifact-picker { margin:18px 0; padding:14px 0; border-block:1px solid var(--line); }
+  .artifact-picker select { width:100%; max-width:100%; min-width:0; padding:8px; margin:6px 0 10px; background:var(--paper); border:1px solid var(--line-dark); font:inherit; font-size:13px; }
+  .frozen-artifact-input { margin:18px 0; border-left:2px solid var(--accent); padding:6px 12px; background:var(--selection); }
+  .frozen-artifact-input h4 { font-size:16px; margin:6px 0; }
+  .source-review { font-size:13px; line-height:1.5; }
+  .context-diff p { overflow-wrap:anywhere; }
+</style>

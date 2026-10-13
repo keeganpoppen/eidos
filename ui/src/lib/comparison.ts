@@ -184,6 +184,7 @@ export function contextText(context: InvestigationContext | undefined): string {
   return [
     `Question: ${context.question}`,
     ...context.selections.map((s) => `${s.threadId} · ${s.startSeq}–${s.endSeq}\nWhy: ${s.rationale || '(no rationale)'}`),
+    ...(context.artifactInputs ?? []).map((input) => `[artifact:${input.artifactId}] ${input.investigationId}\nWhy: ${input.rationale || '(no rationale)'}\nSource context: ${input.sourceContextId}\nSource manifest: ${input.sourceManifestId ?? '(not recorded)'}\nSource attempt manifest: ${input.sourceAttemptManifestId ?? '(not recorded)'}\nSource review when selected: ${input.sourceAdoption ? `${input.sourceAdoption.decision} at ${input.sourceAdoption.createdAtMs} · ${input.sourceAdoption.note}` : '(none recorded)'}`),
     ...context.records.map((r) => `[evidence:${r.seq}] ${r.threadId} · SHA-256 ${r.sha256}`)
   ].join('\n\n');
 }

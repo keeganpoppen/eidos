@@ -77,7 +77,7 @@
     </select>
     <label for="experiment-alternative">Alternative context</label>
     <select id="experiment-alternative" bind:value={alternativeContextId} onchange={() => staged = false} disabled={busy || !!pending}>
-      {#each investigation.contexts as context, index (context.id)}<option value={context.id}>Input {index + 1} · {context.records.length} records · {context.id.slice(-12)}</option>{/each}
+      {#each investigation.contexts as context, index (context.id)}<option value={context.id}>Input {index + 1} · {context.records.length} records · {context.artifactInputs?.length ?? 0} results · {context.id.slice(-12)}</option>{/each}
     </select>
     <label for="experiment-rationale">Proposed selection improvement</label>
     <textarea id="experiment-rationale" bind:value={rationale} oninput={() => staged = false} placeholder="What should this alternative improve, and what could regress?" rows="3" disabled={busy || !!pending}></textarea>
@@ -93,7 +93,12 @@
       <details><summary>Inspect experiment bindings</summary><p class="object-ref">Experiment {experiment.id}<br />Proposal {experiment.proposalId}<br />Baseline {experiment.baseline.artifactId}<br />Alternative {experiment.alternative.contextId}</p></details>
       <p>Observed selection measurement: {experiment.evaluation.baseline.recordCount} → {experiment.evaluation.alternative.recordCount} records; {experiment.evaluation.baseline.promptBytes} → {experiment.evaluation.alternative.promptBytes} input bytes.</p>
       <p>Added records: {experiment.evaluation.addedRecordIds.join(', ') || 'none'}. Removed records: {experiment.evaluation.removedRecordIds.join(', ') || 'none'}.</p>
-      <ul><li>Question retained: {experiment.evaluation.checks.sameQuestion ? 'yes' : 'no'}</li><li>Baseline evidence retained: {experiment.evaluation.checks.baselineEvidenceRetained ? 'yes' : 'no'}</li><li>Within context bound: {experiment.evaluation.checks.withinContextBound ? 'yes' : 'no'}</li></ul>
+      {#if experiment.evaluation.method === 'context-selection-comparison/v2'}
+        <p>Exact result inputs: {experiment.evaluation.baseline.artifactCount ?? 0} → {experiment.evaluation.alternative.artifactCount ?? 0}.</p>
+        <p class="artifact-measurement">Added results: {experiment.evaluation.addedArtifactIds?.join(', ') || 'none'}. Removed results: {experiment.evaluation.removedArtifactIds?.join(', ') || 'none'}.</p>
+        <p class="artifact-measurement">Changed frozen result inputs: {experiment.evaluation.changedArtifactIds?.join(', ') || 'none'}.</p>
+      {/if}
+      <ul><li>Question retained: {experiment.evaluation.checks.sameQuestion ? 'yes' : 'no'}</li><li>Baseline evidence retained: {experiment.evaluation.checks.baselineEvidenceRetained ? 'yes' : 'no'}</li>{#if experiment.evaluation.checks.baselineArtifactsRetained !== undefined}<li>Frozen result inputs retained: {experiment.evaluation.checks.baselineArtifactsRetained ? 'yes' : 'no'}</li>{/if}<li>Within context bound: {experiment.evaluation.checks.withinContextBound ? 'yes' : 'no'}</li></ul>
       <p class="work-notice">{experiment.evaluation.passes ? 'Structural checks passed.' : 'Structural checks did not all pass.'} Model calls: 0. Better reasoning or user benefit is unmeasured.</p>
       <details><summary>Evaluation identity and limits</summary><p class="object-ref">{experiment.evaluation.id} · {experiment.evaluation.method}</p><ul>{#each experiment.evaluation.limitations as limit}<li>{limit}</li>{/each}</ul></details>
       {#if experiment.review}

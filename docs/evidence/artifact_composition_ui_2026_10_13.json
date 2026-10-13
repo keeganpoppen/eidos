@@ -1,0 +1,104 @@
+{
+  "schemaVersion": "nema-artifact-composition-browser/1",
+  "classification": "RENDERED_SYNTHETIC_AUTHORED_RESULTS",
+  "viewport": {
+    "width": 1600,
+    "height": 1100
+  },
+  "sourceNavigation": [
+    {
+      "investigationId": "investigation_00db101f443b4bd499c02c5b912f50c1",
+      "artifactId": "artifact_2cd86ba0bfbc7ef59f71ea8deffa6360a7c2c82cc40ae20f2602c7c9ac889805",
+      "contextId": "context_d6bbdb9c4ccdad92d66222cefbe008857c79e54a56a931cc4178f71e1c0af5dc"
+    },
+    {
+      "investigationId": "investigation_51f57d7fcfdd4b25a4acd74730ce2960",
+      "artifactId": "artifact_419348ae3d7a878f2b42b142a3e74bdaa6345a72ca2aad755a6593178c5cf505",
+      "contextId": "context_5e3ce0602764cb70e0aae82ccc856879ac0ef6beb559e3f3ddb4f2b5bca677f3"
+    },
+    {
+      "investigationId": "investigation_f1fc2ffc588f4b479d4603023948d691",
+      "artifactId": "artifact_bdd648ed83ed489f05b5ded954cc6bf7780a4820832b12e5b8dcb438b734aebb",
+      "contextId": "context_ae0d4423e66a96c6b98713c7141f485f4bf0d6483eadb595541c569c96ab3811"
+    }
+  ],
+  "controllingSeq": 1,
+  "rawSourceExactlyRecovered": true,
+  "unknownFieldsPreserved": true,
+  "sourceAdoptionSeparatelyDisplayed": true,
+  "inspectionPreservedDraft": true,
+  "draftId": "investigation_6367d762c74347d7be5a13cc53864a07",
+  "firstContextId": "context_bb156948a9bbe1bdae70c6f0c75283c94318163e6ff7027c96a101b87ff2b421",
+  "secondContextId": "context_1570ca4b9237957ba5bcc9fd366467e9b4b51bcabe34ca83767d2f4c928861e1",
+  "artifactOnlyContextCreated": true,
+  "reloadPreservedExactPacket": true,
+  "oldContextAndSourceInvestigationsUnchanged": true,
+  "dirtyQuestionRationaleAndSelectionPreservedThroughLineageAndReload": true,
+  "mobile": {
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "pickerBounds": {
+      "left": 18,
+      "right": 371,
+      "top": 404.265625,
+      "bottom": 440.265625,
+      "viewportWidth": 390,
+      "viewportHeight": 844,
+      "hit": true,
+      "disabled": false
+    },
+    "addBounds": {
+      "left": 18,
+      "right": 219.734375,
+      "top": 402.265625,
+      "bottom": 441.15625,
+      "viewportWidth": 390,
+      "viewportHeight": 844,
+      "hit": true,
+      "disabled": false
+    },
+    "lineageBounds": {
+      "left": 35,
+      "right": 199.296875,
+      "top": 145.5625,
+      "bottom": 181.703125,
+      "viewportWidth": 390,
+      "viewportHeight": 844,
+      "hit": true,
+      "disabled": false
+    },
+    "overflow": {
+      "dialog": 0,
+      "workbench": 0,
+      "document": 0
+    }
+  },
+  "nativeDispatchRequests": 0,
+  "nativeOrModelCalls": 0,
+  "mutations": [
+    {
+      "method": "POST",
+      "path": "/api/investigations",
+      "body": "{\"requestId\":\"a463031e-1bbb-47f6-b60e-7e49a6a2fca3\",\"title\":\"D · Browser-composed follow-up\",\"question\":\"Which original decision supports C, and what remains inferred?\",\"selections\":[],\"artifactInputs\":[{\"investigationId\":\"investigation_00db101f443b4bd499c02c5b912f50c1\",\"artifactId\":\"artifact_2cd86ba0bfbc7ef59f71ea8deffa6360a7c2c82cc40ae20f2602c7c9ac889805\",\"rationale\":\"\"}]}"
+    },
+    {
+      "method": "POST",
+      "path": "/api/investigations/investigation_6367d762c74347d7be5a13cc53864a07/contexts",
+      "body": "{\"requestId\":\"e942cd18-3876-482b-a5f9-df23d73ee2ab\",\"parentContextId\":\"context_bb156948a9bbe1bdae70c6f0c75283c94318163e6ff7027c96a101b87ff2b421\",\"question\":\"Which original decision supports C, and what remains inferred?\",\"selections\":[],\"artifactInputs\":[{\"investigationId\":\"investigation_00db101f443b4bd499c02c5b912f50c1\",\"artifactId\":\"artifact_2cd86ba0bfbc7ef59f71ea8deffa6360a7c2c82cc40ae20f2602c7c9ac889805\",\"rationale\":\"\"},{\"investigationId\":\"investigation_51f57d7fcfdd4b25a4acd74730ce2960\",\"artifactId\":\"artifact_419348ae3d7a878f2b42b142a3e74bdaa6345a72ca2aad755a6593178c5cf505\",\"rationale\":\"Compare B directly with C while keeping their separate attribution.\"}]}"
+    }
+  ],
+  "javascriptExceptions": [],
+  "screenshots": [
+    "docs/evidence/artifact_composition_ui_2026_10_13_lineage.png",
+    "docs/evidence/artifact_composition_ui_2026_10_13_preview.png",
+    "docs/evidence/artifact_composition_ui_2026_10_13_mobile_picker.png",
+    "docs/evidence/artifact_composition_ui_2026_10_13_mobile_lineage.png"
+  ],
+  "limits": [
+    "authored synthetic completions",
+    "no native transport or provider execution",
+    "scripted browser, not a human usability measure"
+  ]
+}

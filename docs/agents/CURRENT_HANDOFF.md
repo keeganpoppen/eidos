@@ -1,93 +1,97 @@
-# Current handoff — stable history and native startup boundary
+# Current handoff — exact result composition
 
-**NEMA-SEED-1 · 2026-10-13 · integration base `ad73408` on main.** The commit
-containing this handoff is the tested integration. The continuing program is in
-[PROGRAM](PROGRAM.md); the [previous Round 3 handoff](history/ROUND3_INTEGRATED.md)
-retains earlier decisions and their evidence.
+**NEMA-SEED-1 · 2026-10-13 · integration base `29a164a` on main.** The commit
+containing this handoff identifies the integration. [PROGRAM](PROGRAM.md) owns the
+continuing mission and revisable conjectures. The
+[previous history integration](history/HISTORY_PAGING_INTEGRATED.md) retains its
+commands and measured limits. Neither this integration nor a green suite completes
+the mission or V1.
 
 ## Delivered loop
 
-Recover a decision and distant rejected alternative from 1,200 persisted turns;
-follow each exact source; preserve a selected map and page through reload; build a
-frozen two-record context; retain focus while an independent writer adds a new
-turn and late old-turn evidence. Actual source membership, not min/max interval
-overlap, controls highlights and navigation. Narrow layouts expose selected source
-links in the transcript header. Idle polling keeps existing evidence objects.
+Use an exact earlier result as context for new work, inspect its original packet,
+and follow a synthetic C→B→A chain to the controlling raw evidence. Source adoption
+is a separate frozen decision. Derived claims and inherited citations do not become
+direct evidence, and copied inquiries/receipts grant no continuation authority.
+The UI offers current and historical result versions, artifact-only drafts, frozen
+preview, revision differences and a read-only provenance view with a backstack.
 
-This advances V1-01/02/03. It does not establish human reorientation speed, a byte
-bound on a huge turn, or all V1 acceptance. Source-only records without a turn
-remain outside the conversation projection. Browser arrangements are still local.
+This advances V1-03/04/07 and conjecture C1. Canonical Investigation/context/attempt/
+artifact identities remain the source; no competing controller or provenance store
+was added. Legacy prompt/context/manifest hashes are unchanged without artifact
+inputs. A2 keeps the original frozen inputs. Context-selection comparisons use v2
+only when artifacts occur and compare complete frozen input content except rationale.
+Review found and fixed a counterexample where unchanged artifact IDs hid a dropped
+rejection snapshot. See [D28](../roadmap/DECISIONS.md) and the
+[integration evidence](../evidence/ARTIFACT_COMPOSITION_INTEGRATION.md).
 
-Backend: new `history.py`, additive `(thread_id,turn_id,seq)` index, snapshot-bound
-paging in `api.py`, and `project_records` in `view.py`. API accepts `anchorSeq`,
-`aroundSeq`, `limit` (1–40), and `knownVersion`; full pages include `window`,
-`version`, and exact `recordSeqs` per turn/item. An unchanged envelope contains no
-turns or outline. Raw evidence and historical semantic revisions remain unchanged.
-See [D27](../roadmap/DECISIONS.md) and the
-[integration evidence](../evidence/PAGED_HISTORY_INTEGRATION.md).
+## Verification
 
-## Native progress and remaining boundary
+- Combined `uv run pytest`: **697 passed, 6 skipped** (explicit native opt-ins).
+- Combined Bun: **52 tests / 259 assertions**; Svelte **0 errors / 0 warnings**;
+  production build passed, including the final mobile wrapping fix.
+- Parent independently generated and reopened the A→B→C SQLite demo; reports were
+  byte-identical. Independent API acceptance covers wrong owner, forged snapshots,
+  citation laundering, unknown fields, limits and no-startup selection/inspection.
+- Actual Chromium at 1600×1100 and 390×844 recovered original raw bytes and source
+  adoption, created/revised an artifact-only draft, and preserved dirty unsaved
+  question/rationale/selection through navigation and reload. Two POSTs only
+  (create/revision), zero dispatch; actual mobile width 390 with no horizontal
+  overflow in the workbench/dialog/document. Report and screenshots are linked
+  from the integration evidence. Parent independently reran this complete browser
+  check against integrated main; it passed with the same frozen context IDs.
+- `NEMA_NATIVE_GATEWAY_PROBE=1 uv run pytest tests/test_native_gateway_probe.py`:
+  **26 passed**, independently reproduced by parent on the integrated tree.
 
-The worker now validates a recorded `account/read` acknowledgement before creating
-a native thread. Default live startup remains unadmitted. A real Codex 0.154.0
-no-model experiment under bubblewrap 0.12.0 established tested startup isolation:
-an enabled synthetic MCP ran before inventory but failed outside reads/writes,
-network connections, packet remount and nested-namespace attempts; its detached
-child stopped on closure. The parent independently reran the experiment.
-[Report, exact command and next test](../evidence/NATIVE_OUTER_ADMISSION_EXPERIMENT.md).
+All artifact completions and HTTP gateway actors are authored synthetic fixtures.
+No native model call, credential mount, private trace or paid API usage occurred.
+No claim of answer-quality, human-speed or complete provider-context improvement.
 
-No existing credentials, private native configuration, model turns or paid API
-usage occurred. The probe is not a production launcher or general security proof.
-Authenticated egress, real policy/auth lifecycle and aggregate resource admission
-remain open. Unknown outcomes, host privilege and provider-context gaps from Round
-3 remain explicit; no gate was weakened to obtain a green test.
+## Native finding and active work
 
-## Verification and integration
+The shared synthetic gateway **failed caller authentication**: an unexpected MCP
+sibling submits identical approved content first and consumes the intended permit;
+the relay makes both attempts appear as the same peer. Transport restrictions and
+outer namespace controls survive the tested attacks. The mechanism is rejected;
+production startup remains closed. See the
+[report](../evidence/NATIVE_GATEWAY_ADMISSION_EXPERIMENT.md).
 
-- `uv sync`; CLI help; `git diff --check`: passed.
-- `uv run pytest`: **653 passed, 5 skipped** (explicit native opt-ins).
-- `NEMA_NATIVE_OUTER_PROBE=1 uv run pytest tests/test_native_outer_boundary_probe.py`:
-  **8 passed**, including actual disconnected no-model native startup.
-- `cd ui && bun install && bun test tests && bun run check && bun run build`:
-  **46 tests / 225 assertions**, **0 errors / 0 warnings**, build passed.
-- Actual Chromium: persisted HTTP history, exact wrong-thread rejection, complete
-  tool turn, disjoint support/reload, unchanged polls, writer append, and preserved
-  keyboard focus/scroll. First page: **42,835 decoded bytes**; unchanged responses
-  **at most 297 bytes**. These measure this fixture, not general bounds or speed.
-- Supplementary browser review challenges delayed response races and narrow source
-  navigation; linked artifacts and reproduction are in the integration report.
+The next independent lane is active in `/tmp/nema-native-account-admission`, base
+`711c3d1`. It owns only a new process-boundary probe/tests/evidence. It tests kernel
+process/exec restrictions installed before native configuration loads while allowing
+native threads. All state is disposable and disconnected; no credentials or models.
+This distinguishes the trusted native service from attempted children, not native
+service compromise. Check actual worker status before assuming it continues.
 
-Accepted lane content: UI `dc906cb`, `f2dff07`, `76afb59`; acceptance `8183ac6`,
-`afaae8a`, `bdabf82` plus final evidence; native `86b3767`, `dc9767c`. Parent owns
-backend and combined integration. Branches/worktrees preserve recoverable history.
-No personal trace, credential, auth directory or private export was committed.
+## Integration ownership and limits
 
-## Continuing program and next actions
+Accepted source commits: UI `4bc4de4`, `6befeb2`; independent API/demo `61a0740` and
+browser acceptance `0de5146`; native gateway `711c3d1`. Parent owns backend,
+compatibility tests, review fixes, shared docs and main commit. Worktrees remain
+recoverable at `/tmp/nema-artifact-context-ui` and
+`/tmp/nema-artifact-context-acceptance`.
 
-Next semantic integration: use exact investigation artifacts as bounded context
-inputs. Preserve canonical artifact/context/attempt identity, source classifications,
-unsupported citations and original support without recursively copying transcripts
-or importing authority. A→B→C must recover A's controlling evidence from C. Preserve
-legacy prompt/manifests; propagate inputs through follow-up reconstruction and make
-experiment retention metrics account for artifacts. The UI scout identified those
-compatibility obligations; implementation has not yet been claimed.
+Whole investigation catalogs/source owners still load as complete objects; lazy
+lineage traversal does not bound a large owner's history transfer. Browser drafts
+persist references/rationale locally; modal navigation itself is not persisted.
+Unsupported claims remain inspectable. Generic TM/Python host APIs remain trusted,
+not arbitrary-caller security boundaries. Native authenticated egress, policy/auth
+lifecycle, resource admission and useful live execution remain open.
 
-In parallel, the native lane continues a synthetic gateway experiment in
-`/tmp/nema-native-account-admission` from `dc9767c`. It owns new probe/tests/evidence
-only. A namespace-local relay will be challenged by a competing startup descendant;
-identical headers or a shared relay are not proof of caller identity. No credentials
-or real forwarding are authorized by the probe contract. Parent owns all production
-interfaces and the final integration. Confirm actual agent/process status before
-assuming this lane is still running in a later session.
+## Next runnable steps
 
-Reproduce source acceptance with a fresh disposable database:
+Assess the active native process experiment and choose the next integrated
+capability from PROGRAM. Do not reopen the failed shared-relay mechanism with
+another copied token. Preserve this tested composition loop as the baseline.
+
+Reproduce it using a new disposable path:
 
 ```sh
-uv run python scripts/investigation_demo.py --db /tmp/nema-history-next.db --long-history --serve
-# Start Vite on 5173 and isolated Chromium debugging on 9222.
-NEMA_UI_DEMO_DB=/tmp/nema-history-next.db NEMA_UI_EVIDENCE_PREFIX=/tmp/nema-history-next node scripts/check_investigation_ui.mjs
+uv run python scripts/artifact_composition_demo.py --db /tmp/nema-artifact-next.db
+uv run python scripts/artifact_composition_demo.py --db /tmp/nema-artifact-next.db --resume --serve
 ```
 
-The full check appends fixture records once; use a new database for another full
-run. All execution within it is synthetic. The mission continues beyond this
-integration; neither the vision nor V1 is declared complete.
+The demo marks synthetic host completions and rejects unrelated resume databases.
+Use its report with `scripts/check_artifact_composition_ui.mjs`, Vite and isolated
+Chromium as described in the integration evidence. No human decision currently
+blocks ordinary development.
