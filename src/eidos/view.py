@@ -32,7 +32,11 @@ class ThreadView:
 
 
 def project_thread(store: TraceStore, thread_id: str) -> ThreadView:
-    records = store.records(thread_id=thread_id)
+    return project_records(thread_id, store.records(thread_id=thread_id))
+
+
+def project_records(thread_id: str, records: list[TraceRecord]) -> ThreadView:
+    """Project an explicitly selected evidence set without fetching history."""
     turns: dict[str, TurnView] = {}
     turn_order: list[str] = []
     unscoped: list[TraceRecord] = []
@@ -53,6 +57,8 @@ def project_thread(store: TraceStore, thread_id: str) -> ThreadView:
             if isinstance(inputs, list):
                 turn.inputs.extend(x for x in inputs if isinstance(x, dict))
         if record.turn_id is None:
+            if record.method == "turn/start" and isinstance(params, dict):
+                turn.events.append(record)
             unscoped.append(record)
             continue
         turn = ensure_turn(record.turn_id)

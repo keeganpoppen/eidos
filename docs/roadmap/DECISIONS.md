@@ -131,6 +131,30 @@ Native resource authorization is separate from the prior no-model probes. See th
 and alternatives list within the documented one-inquiry/one-follow-up scope; the
 V1 destination and language commitments remain unchanged.
 
+### D27 — Page by stable evidence; resolve membership from constituent records
+
+**Accepted, 2026-10-13**, integration base `ad73408`. The old browser window
+limited rendering but fetched and projected the entire thread on every poll.
+Server retrieval now projects at most 40 complete turns, addressed by their first
+record rather than array positions. Exact source jumps validate thread membership;
+saved anchors follow the original record through delayed native acknowledgement.
+A read snapshot binds page, interpretation metadata and version. Unchanged polls
+return a compact envelope and preserve the browser's existing evidence objects.
+
+A concrete counterexample sharpened the reference contract: a late tool event or
+interleaved turn can make an item's min/max extent cover records it never contained.
+Projected turns and items therefore carry their constituent record sequences.
+Highlights, support indicators and source navigation use those sequences; range
+labels remain extents. Context range selection still means all selected-thread
+records in that range and exposes them in preview. It is not implicit item-only
+selection.
+
+The additive SQLite index is replaceable. Raw evidence and immutable semantic
+revisions remain authoritative; pages and conditional versions are derived. The
+bound is on projected turn count, not bytes in one turn, outline size or all SQL
+aggregation work. Browser-local focus is still not a server-saved arrangement.
+See [current evidence](../evidence/PAGED_HISTORY_INTEGRATION.md).
+
 ## Deferred explorations, kept for their potential
 
 ### D22 — Names, routing, locality, and leases

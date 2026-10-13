@@ -1,0 +1,441 @@
+{
+  "schemaVersion": 2,
+  "turns": 1200,
+  "renderedTurnLimit": 40,
+  "source": "Actual HTTP responses over persisted synthetic TraceStore records; no history interception",
+  "byteMeasure": "UTF-8 response body bytes returned by fetch/CDP, after content decoding; not wire bytes",
+  "firstResponseBodyBytes": 42835,
+  "observedPageResponses": 16,
+  "largestPageTurns": 40,
+  "idleUnchangedResponses": 2,
+  "largestUnchangedBodyBytes": 297,
+  "totalObservedResponseBodyBytes": 676569,
+  "navigation": {
+    "rejectionSeq": 138,
+    "decisionSeq": 2397,
+    "neighborSeq": 1348,
+    "sourceContextId": "context_13ff05f5dff8a6a743db1cdcc10d603e8e4e7e0c88dcc8233a506a83825e8f2a",
+    "selectedRecordIds": [
+      138,
+      2397
+    ],
+    "disjointFocusSurvivesReload": true,
+    "wrongThreadRejected": true,
+    "completeToolTurn": true,
+    "unchangedPreservesFocusAndScroll": true,
+    "appendPreservesOldPageAndFocus": true,
+    "appendSurvivesReload": true,
+    "turnSourceWithoutItemResolves": true,
+    "lateRecordDoesNotMislabelDistantSupport": true,
+    "appended": {
+      "lateSeq": 2644,
+      "appendedTurnSeq": 2645,
+      "appendedSeq": 2646,
+      "totalTurns": 1201
+    }
+  },
+  "responses": [
+    {
+      "url": "http://127.0.0.1:5173/api/threads/fixture-long-history",
+      "status": 200,
+      "responseBodyBytes": 42835,
+      "knownVersionRequested": false,
+      "unchanged": false,
+      "version": "50ad2dc068de1acb1ad95cb1e8536fe9043a29799b4504bd8b137afa0c3eae34",
+      "window": {
+        "anchorSeq": 97,
+        "startSeq": 97,
+        "endSeq": 176,
+        "startIndex": 0,
+        "totalTurns": 1200,
+        "hasEarlier": false,
+        "hasLater": true,
+        "previousAnchorSeq": null,
+        "nextAnchorSeq": 177
+      },
+      "hasTurns": true,
+      "turnCount": 40
+    },
+    {
+      "url": "http://127.0.0.1:5173/api/threads/fixture-long-history?revision=synthetic-long-history-recovery-v1&aroundSeq=138",
+      "status": 200,
+      "responseBodyBytes": 42835,
+      "knownVersionRequested": false,
+      "unchanged": false,
+      "version": "7f9c2f296aa24ae886ec2e6cec3bbb95a782abc2ecdd7310970fb27977337236",
+      "window": {
+        "anchorSeq": 97,
+        "startSeq": 97,
+        "endSeq": 176,
+        "startIndex": 0,
+        "totalTurns": 1200,
+        "hasEarlier": false,
+        "hasLater": true,
+        "previousAnchorSeq": null,
+        "nextAnchorSeq": 177
+      },
+      "hasTurns": true,
+      "turnCount": 40
+    },
+    {
+      "url": "http://127.0.0.1:5173/api/threads/fixture-long-history?revision=synthetic-long-history-recovery-v1&aroundSeq=2397",
+      "status": 200,
+      "responseBodyBytes": 44384,
+      "knownVersionRequested": false,
+      "unchanged": false,
+      "version": "cfc4aeb57a5380ab69401f66f11ec4f5f9eea48b71620622b53b33a490310ea3",
+      "window": {
+        "anchorSeq": 2356,
+        "startSeq": 2356,
+        "endSeq": 2435,
+        "startIndex": 1080,
+        "totalTurns": 1200,
+        "hasEarlier": true,
+        "hasLater": true,
+        "previousAnchorSeq": 2276,
+        "nextAnchorSeq": 2436
+      },
+      "hasTurns": true,
+      "turnCount": 40
+    },
+    {
+      "url": "http://127.0.0.1:5173/api/threads/fixture-long-history?revision=synthetic-long-history-recovery-v1&anchorSeq=2356",
+      "status": 200,
+      "responseBodyBytes": 44384,
+      "knownVersionRequested": false,
+      "unchanged": false,
+      "version": "cfc4aeb57a5380ab69401f66f11ec4f5f9eea48b71620622b53b33a490310ea3",
+      "window": {
+        "anchorSeq": 2356,
+        "startSeq": 2356,
+        "endSeq": 2435,
+        "startIndex": 1080,
+        "totalTurns": 1200,
+        "hasEarlier": true,
+        "hasLater": true,
+        "previousAnchorSeq": 2276,
+        "nextAnchorSeq": 2436
+      },
+      "hasTurns": true,
+      "turnCount": 40
+    },
+    {
+      "url": "http://127.0.0.1:5173/api/threads/fixture-long-history?revision=synthetic-long-history-recovery-v1&aroundSeq=138",
+      "status": 200,
+      "responseBodyBytes": 42835,
+      "knownVersionRequested": false,
+      "unchanged": false,
+      "version": "7f9c2f296aa24ae886ec2e6cec3bbb95a782abc2ecdd7310970fb27977337236",
+      "window": {
+        "anchorSeq": 97,
+        "startSeq": 97,
+        "endSeq": 176,
+        "startIndex": 0,
+        "totalTurns": 1200,
+        "hasEarlier": false,
+        "hasLater": true,
+        "previousAnchorSeq": null,
+        "nextAnchorSeq": 177
+      },
+      "hasTurns": true,
+      "turnCount": 40
+    },
+    {
+      "url": "http://127.0.0.1:5173/api/threads/fixture-long-history?revision=synthetic-long-history-recovery-v1&aroundSeq=2595",
+      "status": 200,
+      "responseBodyBytes": 44033,
+      "knownVersionRequested": false,
+      "unchanged": false,
+      "version": "dad18c53a03c8bc1b5d4d2ce745166fe05cb20e007e87649815a4becaed2324a",
+      "window": {
+        "anchorSeq": 2516,
+        "startSeq": 2516,
+        "endSeq": 2595,
+        "startIndex": 1160,
+        "totalTurns": 1200,
+        "hasEarlier": true,
+        "hasLater": false,
+        "previousAnchorSeq": 2436,
+        "nextAnchorSeq": null
+      },
+      "hasTurns": true,
+      "turnCount": 40
+    },
+    {
+      "url": "http://127.0.0.1:5173/api/threads/fixture-long-history?revision=synthetic-long-history-recovery-v1&anchorSeq=2436",
+      "status": 200,
+      "responseBodyBytes": 44032,
+      "knownVersionRequested": false,
+      "unchanged": false,
+      "version": "42591fa822da7807edc96c14d4d158aec200a61985205b1d66803f7399f0f800",
+      "window": {
+        "anchorSeq": 2436,
+        "startSeq": 2436,
+        "endSeq": 2515,
+        "startIndex": 1120,
+        "totalTurns": 1200,
+        "hasEarlier": true,
+        "hasLater": true,
+        "previousAnchorSeq": 2356,
+        "nextAnchorSeq": 2516
+      },
+      "hasTurns": true,
+      "turnCount": 40
+    },
+    {
+      "url": "http://127.0.0.1:5173/api/threads/fixture-long-history?revision=synthetic-long-history-recovery-v1&anchorSeq=2516",
+      "status": 200,
+      "responseBodyBytes": 44033,
+      "knownVersionRequested": false,
+      "unchanged": false,
+      "version": "dad18c53a03c8bc1b5d4d2ce745166fe05cb20e007e87649815a4becaed2324a",
+      "window": {
+        "anchorSeq": 2516,
+        "startSeq": 2516,
+        "endSeq": 2595,
+        "startIndex": 1160,
+        "totalTurns": 1200,
+        "hasEarlier": true,
+        "hasLater": false,
+        "previousAnchorSeq": 2436,
+        "nextAnchorSeq": null
+      },
+      "hasTurns": true,
+      "turnCount": 40
+    },
+    {
+      "url": "http://127.0.0.1:5173/api/threads/fixture-long-history?revision=synthetic-long-history-recovery-v1&aroundSeq=1347",
+      "status": 200,
+      "responseBodyBytes": 60686,
+      "knownVersionRequested": false,
+      "unchanged": false,
+      "version": "c54996225399a4b46b375e9e535a628775a473bc1b3e1d0b26ef70f03fecf84b",
+      "window": {
+        "anchorSeq": 1297,
+        "startSeq": 1297,
+        "endSeq": 1475,
+        "startIndex": 600,
+        "totalTurns": 1200,
+        "hasEarlier": true,
+        "hasLater": true,
+        "previousAnchorSeq": 1217,
+        "nextAnchorSeq": 1476
+      },
+      "hasTurns": true,
+      "turnCount": 40
+    },
+    {
+      "url": "http://127.0.0.1:5173/api/threads/fixture-long-history?revision=synthetic-long-history-recovery-v1&aroundSeq=1348",
+      "status": 404,
+      "responseBodyBytes": 62,
+      "knownVersionRequested": false,
+      "unchanged": false,
+      "version": null,
+      "window": null,
+      "hasTurns": false,
+      "turnCount": 0
+    },
+    {
+      "url": "http://127.0.0.1:5173/api/threads/fixture-long-history?revision=synthetic-long-history-recovery-v1&aroundSeq=138",
+      "status": 200,
+      "responseBodyBytes": 42835,
+      "knownVersionRequested": false,
+      "unchanged": false,
+      "version": "7f9c2f296aa24ae886ec2e6cec3bbb95a782abc2ecdd7310970fb27977337236",
+      "window": {
+        "anchorSeq": 97,
+        "startSeq": 97,
+        "endSeq": 176,
+        "startIndex": 0,
+        "totalTurns": 1200,
+        "hasEarlier": false,
+        "hasLater": true,
+        "previousAnchorSeq": null,
+        "nextAnchorSeq": 177
+      },
+      "hasTurns": true,
+      "turnCount": 40
+    },
+    {
+      "url": "http://127.0.0.1:5173/api/threads/fixture-long-history?revision=synthetic-long-history-recovery-v1&aroundSeq=2397",
+      "status": 200,
+      "responseBodyBytes": 44384,
+      "knownVersionRequested": false,
+      "unchanged": false,
+      "version": "cfc4aeb57a5380ab69401f66f11ec4f5f9eea48b71620622b53b33a490310ea3",
+      "window": {
+        "anchorSeq": 2356,
+        "startSeq": 2356,
+        "endSeq": 2435,
+        "startIndex": 1080,
+        "totalTurns": 1200,
+        "hasEarlier": true,
+        "hasLater": true,
+        "previousAnchorSeq": 2276,
+        "nextAnchorSeq": 2436
+      },
+      "hasTurns": true,
+      "turnCount": 40
+    },
+    {
+      "url": "http://127.0.0.1:5173/api/threads/fixture-long-history?revision=synthetic-long-history-recovery-v1&anchorSeq=2356&knownVersion=cfc4aeb57a5380ab69401f66f11ec4f5f9eea48b71620622b53b33a490310ea3",
+      "status": 200,
+      "responseBodyBytes": 297,
+      "knownVersionRequested": true,
+      "unchanged": true,
+      "version": "cfc4aeb57a5380ab69401f66f11ec4f5f9eea48b71620622b53b33a490310ea3",
+      "window": {
+        "anchorSeq": 2356,
+        "startSeq": 2356,
+        "endSeq": 2435,
+        "startIndex": 1080,
+        "totalTurns": 1200,
+        "hasEarlier": true,
+        "hasLater": true,
+        "previousAnchorSeq": 2276,
+        "nextAnchorSeq": 2436
+      },
+      "hasTurns": false,
+      "turnCount": 0
+    },
+    {
+      "url": "http://127.0.0.1:5173/api/threads/fixture-long-history?revision=synthetic-long-history-recovery-v1&anchorSeq=2356&knownVersion=cfc4aeb57a5380ab69401f66f11ec4f5f9eea48b71620622b53b33a490310ea3",
+      "status": 200,
+      "responseBodyBytes": 297,
+      "knownVersionRequested": true,
+      "unchanged": true,
+      "version": "cfc4aeb57a5380ab69401f66f11ec4f5f9eea48b71620622b53b33a490310ea3",
+      "window": {
+        "anchorSeq": 2356,
+        "startSeq": 2356,
+        "endSeq": 2435,
+        "startIndex": 1080,
+        "totalTurns": 1200,
+        "hasEarlier": true,
+        "hasLater": true,
+        "previousAnchorSeq": 2276,
+        "nextAnchorSeq": 2436
+      },
+      "hasTurns": false,
+      "turnCount": 0
+    },
+    {
+      "url": "http://127.0.0.1:5173/api/threads/fixture-long-history?revision=synthetic-long-history-recovery-v1&anchorSeq=2356&knownVersion=cfc4aeb57a5380ab69401f66f11ec4f5f9eea48b71620622b53b33a490310ea3",
+      "status": 200,
+      "responseBodyBytes": 44384,
+      "knownVersionRequested": true,
+      "unchanged": false,
+      "version": "c9a790636f392d818400207c533f397e6df5cc3d5e0ad150342add0a8c48f5cd",
+      "window": {
+        "anchorSeq": 2356,
+        "startSeq": 2356,
+        "endSeq": 2435,
+        "startIndex": 1080,
+        "totalTurns": 1201,
+        "hasEarlier": true,
+        "hasLater": true,
+        "previousAnchorSeq": 2276,
+        "nextAnchorSeq": 2436
+      },
+      "hasTurns": true,
+      "turnCount": 40
+    },
+    {
+      "url": "http://127.0.0.1:5173/api/threads/fixture-long-history?revision=synthetic-long-history-recovery-v1&anchorSeq=2356",
+      "status": 200,
+      "responseBodyBytes": 44384,
+      "knownVersionRequested": false,
+      "unchanged": false,
+      "version": "c9a790636f392d818400207c533f397e6df5cc3d5e0ad150342add0a8c48f5cd",
+      "window": {
+        "anchorSeq": 2356,
+        "startSeq": 2356,
+        "endSeq": 2435,
+        "startIndex": 1080,
+        "totalTurns": 1201,
+        "hasEarlier": true,
+        "hasLater": true,
+        "previousAnchorSeq": 2276,
+        "nextAnchorSeq": 2436
+      },
+      "hasTurns": true,
+      "turnCount": 40
+    },
+    {
+      "url": "http://127.0.0.1:5173/api/threads/fixture-long-history?revision=synthetic-long-history-recovery-v1&aroundSeq=2645",
+      "status": 200,
+      "responseBodyBytes": 2206,
+      "knownVersionRequested": false,
+      "unchanged": false,
+      "version": "a9cbef6b55c4203dbb65ad6857adbf4cc1d85e7c4b21babd808f14ddf2330632",
+      "window": {
+        "anchorSeq": 2645,
+        "startSeq": 2645,
+        "endSeq": 2646,
+        "startIndex": 1200,
+        "totalTurns": 1201,
+        "hasEarlier": true,
+        "hasLater": false,
+        "previousAnchorSeq": 2516,
+        "nextAnchorSeq": null
+      },
+      "hasTurns": true,
+      "turnCount": 1
+    },
+    {
+      "url": "http://127.0.0.1:5173/api/threads/fixture-long-history?revision=synthetic-long-history-recovery-v1&aroundSeq=138",
+      "status": 200,
+      "responseBodyBytes": 43279,
+      "knownVersionRequested": false,
+      "unchanged": false,
+      "version": "4477af7107591917de58ce1b4a418b6aa86f043e76be560c4a43ea77b6626daa",
+      "window": {
+        "anchorSeq": 97,
+        "startSeq": 97,
+        "endSeq": 2644,
+        "startIndex": 0,
+        "totalTurns": 1201,
+        "hasEarlier": false,
+        "hasLater": true,
+        "previousAnchorSeq": null,
+        "nextAnchorSeq": 177
+      },
+      "hasTurns": true,
+      "turnCount": 40
+    },
+    {
+      "url": "http://127.0.0.1:5173/api/threads/fixture-long-history?revision=synthetic-long-history-recovery-v1&aroundSeq=2397",
+      "status": 200,
+      "responseBodyBytes": 44384,
+      "knownVersionRequested": false,
+      "unchanged": false,
+      "version": "c9a790636f392d818400207c533f397e6df5cc3d5e0ad150342add0a8c48f5cd",
+      "window": {
+        "anchorSeq": 2356,
+        "startSeq": 2356,
+        "endSeq": 2435,
+        "startIndex": 1080,
+        "totalTurns": 1201,
+        "hasEarlier": true,
+        "hasLater": true,
+        "previousAnchorSeq": 2276,
+        "nextAnchorSeq": 2436
+      },
+      "hasTurns": true,
+      "turnCount": 40
+    }
+  ],
+  "browserHeapBefore": {
+    "usedSize": 29936572,
+    "totalSize": 39354368,
+    "embedderHeapUsedSize": 17942960,
+    "backingStorageSize": 4860884
+  },
+  "browserHeapAfter": {
+    "usedSize": 10442644,
+    "totalSize": 57966592,
+    "embedderHeapUsedSize": 3499168,
+    "backingStorageSize": 4686593
+  },
+  "limitation": "Forty complete turns bound turn count, not bytes in an arbitrarily large turn. Heap samples include unrelated browser activity and establish no memory bound or human reorientation speedup."
+}

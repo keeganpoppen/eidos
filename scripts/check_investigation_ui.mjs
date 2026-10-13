@@ -1,12 +1,17 @@
 // Rendered acceptance against the synthetic demo API, never a native account.
-// Requires scripts/investigation_demo.py --serve on :8765, Vite :5173, and
-// isolated Chromium --remote-debugging-port=9222. No npm dependencies/model calls.
+// Requires scripts/investigation_demo.py --long-history --serve on :8765, Vite :5173, and
+// isolated Chromium --remote-debugging-port=9222. Set NEMA_UI_DEMO_DB to the
+// disposable demo database so the append check can add authored fixture records.
+// No npm dependencies/model calls.
 import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
 import fs from 'node:fs/promises';
-import { extendSyntheticHistory } from './fixtures/reflective_history.mjs';
+import { persistedHistory } from './fixtures/reflective_history.mjs';
 import { competingInterpretation } from './fixtures/reflective_interpretation.mjs';
 
 const evidencePrefix = process.env.NEMA_UI_EVIDENCE_PREFIX ?? 'docs/evidence/reflective';
+const demoDatabase = process.env.NEMA_UI_DEMO_DB;
+assert(demoDatabase, 'Set NEMA_UI_DEMO_DB to the disposable long-history demo database');
 
 const target = await (await fetch('http://127.0.0.1:9222/json/new?http://127.0.0.1:5173', { method: 'PUT' })).json();
 const socket = new WebSocket(target.webSocketDebuggerUrl);
@@ -15,7 +20,9 @@ let sequence = 0;
 let documentLoads = 0;
 const pending = new Map();
 const apiRequests = [];
-const fixtureTransfers = [];
+const serverHistoryTransfers = [];
+const historyResponses = new Map();
+const historyResponseErrors = [];
 let requestFixture = null;
 socket.addEventListener('message', (event) => {
   const message = JSON.parse(event.data);
@@ -25,12 +32,30 @@ socket.addEventListener('message', (event) => {
     const path = new URL(request.url).pathname;
     if (path.startsWith('/api/')) apiRequests.push({ path, method: request.method });
   }
+  if (message.method === 'Network.responseReceived') {
+    const response = message.params.response;
+    if (new URL(response.url).pathname === `/api/threads/${persistedHistory.threadId}`) {
+      historyResponses.set(message.params.requestId, { url: response.url, status: response.status });
+    }
+  }
+  if (message.method === 'Network.loadingFinished' && historyResponses.has(message.params.requestId)) {
+    const response = historyResponses.get(message.params.requestId);
+    historyResponses.delete(message.params.requestId);
+    void rpc('Network.getResponseBody', { requestId: message.params.requestId }).then((body) => {
+      const bytes = Buffer.from(body.body, body.base64Encoded ? 'base64' : 'utf8');
+      const value = JSON.parse(bytes.toString('utf8'));
+      serverHistoryTransfers.push({ ...response, responseBodyBytes: bytes.length,
+        knownVersionRequested: new URL(response.url).searchParams.has('knownVersion'),
+        unchanged: value.unchanged === true, version: value.version ?? null,
+        window: value.window ?? null, hasTurns: Object.hasOwn(value, 'turns'),
+        turnCount: value.turns?.length ?? 0 });
+    }).catch((error) => historyResponseErrors.push(String(error)));
+  }
   if (message.method === 'Fetch.requestPaused') {
     void (async () => {
       const body = requestFixture?.(message.params.request.url);
       if (body) {
         const json = JSON.stringify(body);
-        fixtureTransfers.push({ path: new URL(message.params.request.url).pathname, decodedJSONBytes: Buffer.byteLength(json) });
         await rpc('Fetch.fulfillRequest', {
           requestId: message.params.requestId, responseCode: 200,
           responseHeaders: [{ name: 'Content-Type', value: 'application/json' }],
@@ -128,7 +153,7 @@ try {
   await clickText('Evidence map', '.aperture-switch button');
   await wait(`document.querySelector('.semantic-node') !== null`);
   await evaluate(`document.querySelector('.semantic-node').click()`);
-  await wait(`document.querySelector('.source-focus-notice')?.textContent.includes('12–12, 38–38')`);
+  await wait(`document.querySelector('.source-focus-notice [data-support-start="12"]') !== null && document.querySelector('.source-focus-notice [data-support-start="38"]') !== null`);
   await clickText('Add selected evidence to context');
   await wait(`document.querySelector('.context-count')?.textContent.includes('2 ranges from 1 thread')`);
   // An exact native item in the second thread joins the same packet.
@@ -305,56 +330,168 @@ try {
   assert(await evaluate(`document.querySelector('.comparison-surface').scrollWidth <= document.querySelector('.comparison-surface').clientWidth + 1`), 'comparison must not overflow horizontally');
   await screenshot(`${evidencePrefix}-server-comparison.png`);
 
-  // Stress only rendering through an explicitly labelled browser-only fixture.
-  // The saved source records still come from the unchanged synthetic API.
-  const originalHistory = await (await fetch('http://127.0.0.1:8765/api/threads/fixture-design')).json();
-  const longHistory = extendSyntheticHistory(originalHistory);
-  await clickText('Investigation', '.aperture-switch button');
+  // Exercise the actual persisted long history and HTTP paging contract. No
+  // request interception or browser-created evidence is used for this section.
+  const historyResponse = await fetch(`http://127.0.0.1:8765/api/threads/${persistedHistory.threadId}`);
+  assert(historyResponse.ok, 'the persisted long-history fixture must exist');
+  const firstBody = Buffer.from(await historyResponse.arrayBuffer());
+  const longHistory = JSON.parse(firstBody.toString('utf8'));
+  assert.equal(longHistory.window.totalTurns, persistedHistory.totalTurns);
+  assert(longHistory.turns.length <= 40 && longHistory.turns.length > 0);
+  assert(longHistory.version);
+  const node = longHistory.outline.nodes.find((item) => item.node_id === persistedHistory.semanticNodeId);
+  assert.equal(node.support.length, 2);
+  const [rejectionSeq, decisionSeq] = node.support.map((span) => span.start);
+  assert(decisionSeq - rejectionSeq > 2000, 'decision support must span distant server pages');
+  const neighbor = await (await fetch(`http://127.0.0.1:8765/api/threads/${persistedHistory.neighborThreadId}`)).json();
+  const neighborSeq = neighbor.turns[0].items.find((item) => item.id === persistedHistory.neighborItemId).startSeq;
+  const sourceWork = await post('', {
+    requestId: crypto.randomUUID(), title: 'Persisted long-history source selection',
+    question: 'How does the dispatch decision address the earlier rejected retry?',
+    selections: node.support.map((span) => ({ threadId: persistedHistory.threadId,
+      startSeq: span.start, endSeq: span.end, rationale: span.label }))
+  });
+  assert.deepEqual(sourceWork.contexts[0].records.map((record) => record.seq), [rejectionSeq, decisionSeq]);
+  assert(!sourceWork.contexts[0].projectedPrompt.includes('synthetic recovery case'));
+  const historyTransferStart = serverHistoryTransfers.length;
   const heapBeforeHistory = await rpc('Runtime.getHeapUsage');
-  const historyTransferStart = fixtureTransfers.length;
-  requestFixture = (url) => new URL(url).pathname === '/api/threads/fixture-design' ? longHistory : null;
-  await rpc('Fetch.enable', { patterns: [{ urlPattern: '*/api/threads/fixture-design*', requestStage: 'Request' }] });
-  await wait(`document.querySelector('.thread-header')?.textContent.includes('1,200 turns')`);
-  assert(await evaluate(`document.querySelectorAll('.workspace .turn').length <= 40`), 'large history must bound rendered turns');
-  const lastRecord = longHistory.turns.at(-1).endSeq;
-  await fill('input[aria-label="Find source record"]', String(lastRecord));
+  await clickText('Investigation', '.aperture-switch button');
+  await evaluate(`[...document.querySelectorAll('.thread-button')].find(e => e.textContent.includes(${JSON.stringify(persistedHistory.title)})).click()`);
+  await wait(`document.querySelector('.thread-header')?.textContent.includes(${JSON.stringify(persistedHistory.threadId)})`);
+  await wait(`document.querySelector('.history-navigation')?.textContent.replaceAll(',', '').includes('1200')`);
+  assert(await evaluate(`document.querySelectorAll('.workspace .turn').length <= 40`), 'server page must bound rendered turns');
+  await clickText('Evidence map', '.aperture-switch button');
+  await wait(`document.querySelector('.semantic-node')?.textContent.includes('Recovery decision')`);
+  await evaluate(`document.querySelector('.semantic-node').click()`);
+  await wait(`document.querySelector('.workspace [data-item-id="${persistedHistory.rejectionItemId}"]')?.classList.contains('highlighted')`);
+  await wait(`document.querySelectorAll('[aria-label="Supporting source ranges"] button').length === 2`);
+  await evaluate(`document.querySelector('[data-support-start="${decisionSeq}"]').click()`);
+  await wait(`document.querySelector('.workspace [data-item-id="${persistedHistory.decisionItemId}"]')?.classList.contains('highlighted')`);
+  assert(await evaluate(`document.querySelector('.source-focus-notice').textContent.includes('${rejectionSeq}–${rejectionSeq}') && document.querySelector('.source-focus-notice').textContent.includes('${decisionSeq}–${decisionSeq}')`));
+  const decisionAnchor = await evaluate(`document.querySelector('[data-testid="history-window"]').dataset.anchorSeq`);
+  await reload();
+  await wait(`document.querySelector('.workspace [data-item-id="${persistedHistory.decisionItemId}"]')?.classList.contains('highlighted')`);
+  assert.equal(await evaluate(`document.querySelector('[data-testid="history-window"]').dataset.anchorSeq`), decisionAnchor, 'reload retains the server page anchor');
+  assert.equal(await evaluate(`document.querySelectorAll('[aria-label="Supporting source ranges"] button').length`), 2, 'reload retains the disjoint semantic selection');
+  await evaluate(`document.querySelector('[data-support-start="${rejectionSeq}"]').click()`);
+  await wait(`document.querySelector('.workspace [data-item-id="${persistedHistory.rejectionItemId}"]')?.classList.contains('highlighted')`);
+  await fill('input[aria-label="Find source record"]', String(longHistory.lastSeq));
   await clickText('Go to record');
-  await wait(`document.querySelector('[data-item-id="browser-fixture-turn-1199-answer"]') !== null`);
-  assert(await evaluate(`document.querySelectorAll('.workspace .turn').length <= 40`));
+  await wait(`document.querySelector('.workspace [data-item-id="${persistedHistory.lastItemId}"]')?.classList.contains('highlighted')`);
   await clickText('Earlier turns');
-  await wait(`document.querySelector('[data-item-id="browser-fixture-turn-1159-answer"]') !== null`);
+  await wait(`document.querySelector('.workspace [data-item-id="fixture-long-history-turn-1159-answer"]') !== null`);
   await clickText('Later turns');
-  await wait(`document.querySelector('[data-item-id="browser-fixture-turn-1199-answer"]') !== null`);
-  await evaluate(`document.querySelector('.citation-links button').click()`);
-  await wait(`document.querySelector('[data-item-id="fixture-design-turn-5-answer"]')?.classList.contains('highlighted')`);
-  assert.equal(await compositionIdentity(), resultArrangement, 'off-page source navigation must preserve apertures');
+  await wait(`document.querySelector('.workspace [data-item-id="${persistedHistory.lastItemId}"]') !== null`);
   assert(await evaluate(`document.querySelectorAll('.workspace .turn').length <= 40`));
-  // Measure what the browser actually receives. A small DOM window must not
-  // conceal complete repeated JSON deliveries or imply bounded memory use.
-  const deliveriesBeforeIdle = fixtureTransfers.slice(historyTransferStart).filter((item) => item.path === '/api/threads/fixture-design').length;
-  for (let attempt = 0; attempt < 40; attempt++) {
-    if (fixtureTransfers.slice(historyTransferStart).filter((item) => item.path === '/api/threads/fixture-design').length > deliveriesBeforeIdle) break;
+
+  // A complete tool turn may contain many records, but a global sequence gap
+  // occupied by another thread is never an exact source match in this one.
+  await fill('input[aria-label="Find source record"]', String(neighborSeq - 1));
+  await clickText('Go to record');
+  await wait(`document.querySelector('.workspace [data-item-id="${persistedHistory.toolItemId}"]')?.classList.contains('highlighted')`);
+  assert(await evaluate(`document.querySelector('.workspace [data-item-id="${persistedHistory.toolItemId}"]').textContent.includes('synthetic recovery case 000') && document.querySelector('.workspace [data-item-id="${persistedHistory.toolItemId}"]').textContent.includes('synthetic recovery case 095')`), 'a page must contain the complete persisted tool turn');
+  const toolAnchor = await evaluate(`document.querySelector('[data-testid="history-window"]').dataset.anchorSeq`);
+  await fill('input[aria-label="Find source record"]', String(neighborSeq));
+  await clickText('Go to record');
+  await wait(`document.querySelector('.history-navigation p[role="status"]')?.textContent.includes('does not belong to this thread')`);
+  assert.equal(await evaluate(`document.querySelector('[data-testid="history-window"]').dataset.anchorSeq`), toolAnchor, 'failed source lookup retains the previous page');
+  assert(await evaluate(`document.querySelector('.workspace [data-item-id="${persistedHistory.toolItemId}"]').classList.contains('highlighted')`), 'failed lookup retains existing focus');
+  assert.equal(await evaluate(`document.querySelector('.workspace [data-item-id="${persistedHistory.neighborItemId}"]')`), null);
+
+  await evaluate(`document.querySelector('.semantic-node').click()`);
+  await wait(`document.querySelector('[data-support-start="${decisionSeq}"]') !== null`);
+  await evaluate(`document.querySelector('[data-support-start="${decisionSeq}"]').click()`);
+  await wait(`document.querySelector('.workspace [data-item-id="${persistedHistory.decisionItemId}"]')?.classList.contains('highlighted')`);
+  await new Promise((resolve) => setTimeout(resolve, 500)); // Let the requested smooth source reveal settle.
+  await evaluate(`document.querySelector('input[aria-label="Find source record"]').focus(); document.querySelector('.workspace').scrollTop = 120`);
+  const historyFocus = () => evaluate(`JSON.stringify({ anchor: document.querySelector('[data-testid="history-window"]').dataset.anchorSeq, version: document.querySelector('[data-testid="history-window"]').dataset.version, focus: document.querySelector('.source-focus-notice').textContent, active: document.activeElement.getAttribute('aria-label'), scrollTop: document.querySelector('.workspace').scrollTop })`);
+  const focusBeforeIdle = await historyFocus();
+  const idleStart = serverHistoryTransfers.length;
+  for (let attempt = 0; attempt < 80; attempt++) {
+    if (serverHistoryTransfers.slice(idleStart).filter((item) => item.unchanged).length >= 2) break;
     await new Promise((resolve) => setTimeout(resolve, 100));
   }
-  const historyTransfers = fixtureTransfers.slice(historyTransferStart).filter((item) => item.path === '/api/threads/fixture-design');
-  const fullHistoryBytes = Buffer.byteLength(JSON.stringify(longHistory));
-  const windowProjectionBytes = Buffer.byteLength(JSON.stringify({ ...longHistory, turns: longHistory.turns.slice(0, 40) }));
-  assert(historyTransfers.length > deliveriesBeforeIdle, 'an idle browser must still expose the repeated full-payload poll');
-  assert(historyTransfers.every((item) => item.decodedJSONBytes === fullHistoryBytes), 'each fixture poll currently transfers the entire history');
-  assert(fullHistoryBytes > windowProjectionBytes * 5, 'the fixture must distinguish DOM bounds from complete payload size');
+  const idleResponses = serverHistoryTransfers.slice(idleStart);
+  const unchanged = idleResponses.filter((item) => item.unchanged);
+  assert(unchanged.length >= 2, 'idle browser polls must receive actual unchanged server envelopes');
+  assert(unchanged.every((item) => item.knownVersionRequested && !item.hasTurns && item.turnCount === 0));
+  assert.equal(await historyFocus(), focusBeforeIdle, 'unchanged polling retains page, source focus, keyboard focus and scroll');
+
+  // The independent writer appends actual persisted records while the browser
+  // remains on the old decision page. No response body is manufactured here.
+  const pageLabels = () => evaluate(`JSON.stringify([...document.querySelectorAll('.workspace .turn-label')].map(e => e.textContent))`);
+  const labelsBeforeAppend = await pageLabels();
+  const stateBeforeAppend = JSON.parse(await historyFocus());
+  const appended = JSON.parse(execFileSync('uv', ['run', 'python', 'scripts/investigation_demo.py',
+    '--db', demoDatabase, '--append-history'], { encoding: 'utf8', timeout: 30000 }));
+  await wait(`document.querySelector('.history-navigation')?.textContent.replaceAll(',', '').includes('1201')`);
+  const stateAfterAppend = JSON.parse(await historyFocus());
+  assert.notEqual(stateAfterAppend.version, stateBeforeAppend.version, 'new persisted evidence invalidates the old version');
+  assert.deepEqual({ ...stateAfterAppend, version: null }, { ...stateBeforeAppend, version: null },
+    'changed polling retains old page, source focus, keyboard focus and scroll');
+  assert.equal(await pageLabels(), labelsBeforeAppend, 'new turns and late evidence do not move the old page');
+  assert(await evaluate(`document.querySelector('.workspace [data-item-id="${persistedHistory.decisionItemId}"]').classList.contains('highlighted')`));
+  await reload();
+  await wait(`document.querySelector('.workspace [data-item-id="${persistedHistory.decisionItemId}"]')?.classList.contains('highlighted')`);
+  assert.equal(await evaluate(`document.querySelector('[data-testid="history-window"]').dataset.anchorSeq`), decisionAnchor);
+  assert.equal(await pageLabels(), labelsBeforeAppend, 'reload retains the same old page after append');
+
+  // A source can belong to the turn itself, without a direct item. It must still
+  // resolve and reveal the containing turn rather than silently lose the jump.
+  await fill('input[aria-label="Find source record"]', String(appended.appendedTurnSeq));
+  await clickText('Go to record');
+  await wait(`document.querySelector('.turn[data-start="${appended.appendedTurnSeq}"]')?.classList.contains('highlighted')`);
+  assert(await evaluate(`document.querySelector('.workspace [data-item-id="fixture-long-history-appended-answer"]') !== null`));
+  const appendedPage = await (await fetch(`http://127.0.0.1:8765/api/threads/${persistedHistory.threadId}?aroundSeq=${appended.appendedTurnSeq}`)).json();
+  assert.equal(appendedPage.turns[0].startSeq, appended.appendedTurnSeq);
+  assert.equal(appendedPage.turns[0].items[0].startSeq, appended.appendedSeq);
+
+  // The late record widens the first page's min/max across the distant decision;
+  // the support chooser must identify the requested source, not that interval.
+  await evaluate(`document.querySelector('.semantic-node').click()`);
+  await wait(`document.querySelector('.workspace [data-item-id="${persistedHistory.rejectionItemId}"]')?.classList.contains('highlighted')`);
+  assert(await evaluate(`document.querySelector('.workspace [data-item-id="fixture-long-history-late-note"]') !== null`));
+  assert.equal(await evaluate(`document.querySelector('[data-support-start="${decisionSeq}"]').getAttribute('aria-current')`), null,
+    'a late record never makes unrelated support current');
+  await evaluate(`document.querySelector('[data-support-start="${decisionSeq}"]').click()`);
+  await wait(`document.querySelector('.workspace [data-item-id="${persistedHistory.decisionItemId}"]')?.classList.contains('highlighted')`);
+  assert.equal(await evaluate(`document.querySelector('[data-testid="history-window"]').dataset.anchorSeq`), decisionAnchor);
+  assert.deepEqual((await getWork(sourceWork.id)).contexts[0].records.map((record) => record.seq), [rejectionSeq, decisionSeq]);
+  assert.deepEqual(historyResponseErrors, [], 'all observed history response bodies must remain inspectable');
+  const historyTransfers = serverHistoryTransfers.slice(historyTransferStart);
+  const fullPages = historyTransfers.filter((item) => item.status === 200 && !item.unchanged);
+  assert(fullPages.length >= 5, 'browser must retrieve real pages while navigating');
+  assert(fullPages.every((item) => item.hasTurns && item.turnCount <= 40 && [persistedHistory.totalTurns, appended.totalTurns].includes(item.window.totalTurns)));
+  assert(historyTransfers.some((item) => item.status === 404 && new URL(item.url).searchParams.get('aroundSeq') === String(neighborSeq)), 'wrong-thread lookup must reach exact server membership validation');
+  assert(unchanged.every((item) => item.responseBodyBytes < Math.min(...fullPages.map((page) => page.responseBodyBytes))));
   const heapAfterHistory = await rpc('Runtime.getHeapUsage');
   const historyRetrieval = {
-    source: 'CDP-intercepted synthetic responses; decoded JSON, not compressed wire bytes',
-    fullPayloadBytes: fullHistoryBytes, fortyTurnProjectionBytes: windowProjectionBytes,
-    observedFullDeliveries: historyTransfers.length,
-    totalDecodedBytes: historyTransfers.reduce((total, item) => total + item.decodedJSONBytes, 0),
+    source: 'Actual HTTP responses over persisted synthetic TraceStore records; no history interception',
+    byteMeasure: 'UTF-8 response body bytes returned by fetch/CDP, after content decoding; not wire bytes',
+    firstResponseBodyBytes: firstBody.length,
+    observedPageResponses: fullPages.length,
+    largestPageTurns: Math.max(...fullPages.map((item) => item.turnCount)),
+    idleUnchangedResponses: unchanged.length,
+    largestUnchangedBodyBytes: Math.max(...unchanged.map((item) => item.responseBodyBytes)),
+    totalObservedResponseBodyBytes: historyTransfers.reduce((total, item) => total + item.responseBodyBytes, 0),
+    navigation: { rejectionSeq, decisionSeq, neighborSeq, sourceContextId: sourceWork.currentContextId,
+      selectedRecordIds: sourceWork.contexts[0].records.map((record) => record.seq),
+      disjointFocusSurvivesReload: true, wrongThreadRejected: true, completeToolTurn: true,
+      unchangedPreservesFocusAndScroll: true, appendPreservesOldPageAndFocus: true,
+      appendSurvivesReload: true, turnSourceWithoutItemResolves: true,
+      lateRecordDoesNotMislabelDistantSupport: true, appended },
+    responses: historyTransfers,
     browserHeapBefore: heapBeforeHistory, browserHeapAfter: heapAfterHistory,
-    limitation: 'Whole-history retrieval and retention remain unbounded. Heap snapshots include browser application activity; this is not a memory bound or leak test.'
+    limitation: 'Forty complete turns bound turn count, not bytes in an arbitrarily large turn. Heap samples include unrelated browser activity and establish no memory bound or human reorientation speedup.'
   };
-  await fs.writeFile(`${evidencePrefix}-retrieval.json`, `${JSON.stringify({ schemaVersion: 1, turns: longHistory.turns.length, renderedTurnLimit: 40, ...historyRetrieval }, null, 2)}\n`);
-  await rpc('Fetch.disable');
-  requestFixture = null;
-  assert.equal(JSON.stringify([await getWork(identifier), await getWork(alternative.id)]), unchangedWorks, 'presentation changes must not mutate saved investigations');
+  await fs.writeFile(`${evidencePrefix}-retrieval.json`, `${JSON.stringify({ schemaVersion: 2, turns: persistedHistory.totalTurns, renderedTurnLimit: 40, ...historyRetrieval }, null, 2)}\n`);
+  await evaluate(`document.querySelector('.workspace [data-item-id="${persistedHistory.decisionItemId}"]').scrollIntoView({block:'center'})`);
+  await screenshot(`${evidencePrefix}-paged-history.png`);
+  await evaluate(`document.querySelector('.citation-links button').click()`);
+  await wait(`document.querySelector('.thread-header')?.textContent.includes('fixture-design')`);
+  await wait(`document.querySelector('.workspace [data-item-id="fixture-design-turn-5-answer"]')?.classList.contains('highlighted')`);
+  assert.equal(await compositionIdentity(), resultArrangement, 'off-page source navigation must preserve comparison apertures');
+  assert.equal(JSON.stringify([await getWork(identifier), await getWork(alternative.id)]), unchangedWorks, 'source navigation must not mutate saved investigations');
 
   // Supplementary semantic rendering example. The real synthetic worker returns
   // the same conclusion each time; this separately labelled projection exercises
@@ -740,10 +877,10 @@ try {
     records: 3, sourceThreads: 2, revisions: 2, status: final.status,
     adoption: final.adoption.decision, compared: ['saved investigations', 'context revisions', 'returned artifacts'],
     verified: ['review/cancel/apply/undo', 'keyboard support navigation', 'cross-aperture focus', 'reload', 'presentation does not mutate server work', 'context manifest and immutable request pin', 'defer/reload/offer/adopt', 'native artifact version survives local review', 'recorded original/offered/result attention arrangement', 'explicit pending/supplied inquiry fixture', 'named counterfactual and exact context diff', 'unsupported intent rejected without dispatch', 'inspectable improvement and reversible evidence-first browser preview', 'unsupported durable adoption disabled', 'all attention workflows issue zero API mutations', 'durable specialist inquiry with deferral and separately offered evidence', 'separately admitted synthetic A2 preserves A1 and receipt', 'controlled saved-input evaluation with adoption, rollback and rejection', 'A2 exact context/artifact chain survives reload'],
-    history: { source: 'browser-only synthetic projection', turns: longHistory.turns.length, renderedTurnLimit: 40, retrieval: historyRetrieval },
+    history: { source: 'persisted synthetic history through actual HTTP paging', turns: persistedHistory.totalTurns, renderedTurnLimit: 40, retrieval: historyRetrieval },
     retrievalEvidence: `${evidencePrefix}-retrieval.json`,
     supplementary: 'Browser-only competing artifact with outputSeqs cleared; native diff, unavailable citation, unknown question and 900/390px overflow verified; no API mutation',
-    screenshots: ['workbench', 'server-comparison', 'context-diff', 'context-provenance', 'local-review', 'review-comparison', 'recorded-evidence-chain', 'pending-inquiry', 'supplied-evidence-chain', 'named-alternative', 'improvement-review', 'specialist-inquiry', 'followup-admission', 'evaluated-alternative', 'preserved-decisions', 'integrated-evidence-chain'].map((name) => `${evidencePrefix}-${name}.png`)
+    screenshots: ['workbench', 'paged-history', 'server-comparison', 'context-diff', 'context-provenance', 'local-review', 'review-comparison', 'recorded-evidence-chain', 'pending-inquiry', 'supplied-evidence-chain', 'named-alternative', 'improvement-review', 'specialist-inquiry', 'followup-admission', 'evaluated-alternative', 'preserved-decisions', 'integrated-evidence-chain'].map((name) => `${evidencePrefix}-${name}.png`)
   }, null, 2));
 } catch (error) {
   await screenshot('/tmp/nema-reflective-acceptance-failure.png').catch(() => {});

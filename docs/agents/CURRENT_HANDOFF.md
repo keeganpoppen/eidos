@@ -1,109 +1,93 @@
-# Current handoff — Round 3 integrated investigation
+# Current handoff — stable history and native startup boundary
 
-**NEMA-SEED-1 · 2026-10-13 · base `50d1bc91870b9118a84706606d6a06008dffcdf7`,
-clean main.** The commit containing this handoff is the combined implementation.
-The [previous handoff](history/INVESTIGATION_CYCLE_B_INTEGRATED.md) remains archived.
+**NEMA-SEED-1 · 2026-10-13 · integration base `ad73408` on main.** The commit
+containing this handoff is the tested integration. The continuing program is in
+[PROGRAM](PROGRAM.md); the [previous Round 3 handoff](history/ROUND3_INTEGRATED.md)
+retains earlier decisions and their evidence.
 
-## Delivered loop and judgment
+## Delivered loop
 
-Two-thread evidence → immutable context/pin → terminal specialist inquiry →
-defer/reload/offer or refusal/cancellation → separate recipient incorporation →
-review expanded packet → explicitly admit A2 → retain A1, receipt and A2 → compare
-saved inputs → evaluate selection/bytes → preserve adoption/rejection/rollback.
-The actual UI now operates on this saved lifecycle. The original pre-send native
-admission remains intact; recovery and retries never create another send.
+Recover a decision and distant rejected alternative from 1,200 persisted turns;
+follow each exact source; preserve a selected map and page through reload; build a
+frozen two-record context; retain focus while an independent writer adds a new
+turn and late old-turn evidence. Actual source membership, not min/max interval
+overlap, controls highlights and navigation. Narrow layouts expose selected source
+links in the transcript header. Idle polling keeps existing evidence objects.
 
-All execution acceptance was synthetic. Default live startup is unavailable:
-account-backed cloud configuration remains uncontained. No native probe or model
-turn ran in this integration. Previous no-model permission is not permission for
-model turns. Native interactive requests are observed but unsupported; terminal
-JSON inquiry uses a new admitted attempt, never a resumed hidden native stack.
+This advances V1-01/02/03. It does not establish human reorientation speed, a byte
+bound on a huge turn, or all V1 acceptance. Source-only records without a turn
+remain outside the conversation projection. Browser arrangements are still local.
 
-This materially advances V1-03/04/06/07/08/09/10/11/12 while leaving real-native
-V1-05 and complete V1 acceptance open. It adds no ontology or TM/runtime rewrite.
+Backend: new `history.py`, additive `(thread_id,turn_id,seq)` index, snapshot-bound
+paging in `api.py`, and `project_records` in `view.py`. API accepts `anchorSeq`,
+`aroundSeq`, `limit` (1–40), and `knownVersion`; full pages include `window`,
+`version`, and exact `recordSeqs` per turn/item. An unchanged envelope contains no
+turns or outline. Raw evidence and historical semantic revisions remain unchanged.
+See [D27](../roadmap/DECISIONS.md) and the
+[integration evidence](../evidence/PAGED_HISTORY_INTEGRATION.md).
 
-## Accepted branches and integration changes
+## Native progress and remaining boundary
 
-A `18f25c1` native profile/event evidence; B `f3d7228` durable terminal inquiry and
-follow-up; C `c8b701e` counterfactual records/evaluator; D `6e491b5` reflective views.
-Source branches/worktrees remain unchanged. Details and deferred claims are in
-[the integration report](../evidence/INTEGRATION_ROUND3.md) and
-[shared contract/task packet](ROUND3_INTEGRATION.md).
+The worker now validates a recorded `account/read` acknowledgement before creating
+a native thread. Default live startup remains unadmitted. A real Codex 0.154.0
+no-model experiment under bubblewrap 0.12.0 established tested startup isolation:
+an enabled synthetic MCP ran before inventory but failed outside reads/writes,
+network connections, packet remount and nested-namespace attempts; its detached
+child stopped on closure. The parent independently reran the experiment.
+[Report, exact command and next test](../evidence/NATIVE_OUTER_ADMISSION_EXPERIMENT.md).
 
-- Canonical `InvestigationStore` still owns contexts, attempts, artifacts and
-  adoption. B retains exact attempt/artifact history and private successor admission.
-- C baseline lookup now resolves A1 and historical receipts after A2. The new
-  `investigation_experiments.py` adapter exposes only bounded owner-scoped creation,
-  measurement and review/rollback over C's existing immutable store.
-- Native recovery rejects completion-shaped RPC requests. Historical host profile
-  evidence supplies `executionEvidence`; model text and later metadata cannot upgrade
-  it. Missing legacy labels stay unknown without changing old artifact IDs.
-- UI preserves A1/offered/A2 input and original/receipt/result identities, historical
-  request pins, review-before-follow-up, retry IDs and visible capability refusal.
-  Experiments persist on the server; arrangements remain reference-only browser data.
-- Legacy HTTP chat creation/messages/model indexing are blocked until separately
-  authorized and admitted, preventing a resource-gate bypass outside investigations.
-  Direct Python host APIs remain privileged; this is not arbitrary-caller security.
+No existing credentials, private native configuration, model turns or paid API
+usage occurred. The probe is not a production launcher or general security proof.
+Authenticated egress, real policy/auth lifecycle and aggregate resource admission
+remain open. Unknown outcomes, host privilege and provider-context gaps from Round
+3 remain explicit; no gate was weakened to obtain a green test.
 
-Persistence is additive in the same trace SQLite database: B's native-continuation
-admission and C's `exp_records` beside existing investigation, manifest and TM tables.
-Back up the whole database. Historical packets/pins/artifacts are not relabelled.
-No credentials, personal trace, auth directory or private export was committed.
+## Verification and integration
 
-## Verification and review
-
-- `uv sync`; `uv run eidos --help`; `git diff --check`: passed.
-- Full `uv run pytest`: **607 passed, 4 skipped** (explicit native probe opt-ins).
+- `uv sync`; CLI help; `git diff --check`: passed.
+- `uv run pytest`: **653 passed, 5 skipped** (explicit native opt-ins).
+- `NEMA_NATIVE_OUTER_PROBE=1 uv run pytest tests/test_native_outer_boundary_probe.py`:
+  **8 passed**, including actual disconnected no-model native startup.
 - `cd ui && bun install && bun test tests && bun run check && bun run build`:
-  **38 tests / 193 assertions**, **0 errors / 0 warnings**, production build passed.
-- `round3_demo.py` fresh/reopen: identical reports, two fixture sends/pins, one
-  inquiry, separate source/recipient outcomes, three artifact versions, preserved
-  rejection/rollback, no native model calls. [Report](../evidence/ROUND3_DEMONSTRATION.json).
-- C's six-case demo and reopen passed; three cases improve fixture coverage, all
-  six meet nonregression checks. Three unchanged guardrails fail the stricter
-  improvement predicate; relevant over-budget evidence remains omitted.
-- Extended Chromium acceptance passed against actual synthetic API state with the
-  meaningful missing acknowledgement/completion record; 16 captures regenerated.
-  [Browser report](../evidence/ROUND3_UI_ACCEPTANCE.json) and
-  [joined evidence chain](../evidence/round3-integrated-evidence-chain.png).
-- Independent native, crash/authority and UI reviews ran. Actual `os._exit` and
-  multi-process races verify atomic A2 pin/admission, unknown post-commit recovery,
-  and disclosure-before-incorporation. Generic TM escalation remains a documented
-  privileged-host counterexample; it is not exposed through owner routes.
+  **46 tests / 225 assertions**, **0 errors / 0 warnings**, build passed.
+- Actual Chromium: persisted HTTP history, exact wrong-thread rejection, complete
+  tool turn, disjoint support/reload, unchanged polls, writer append, and preserved
+  keyboard focus/scroll. First page: **42,835 decoded bytes**; unchanged responses
+  **at most 297 bytes**. These measure this fixture, not general bounds or speed.
+- Supplementary browser review challenges delayed response races and narrow source
+  navigation; linked artifacts and reproduction are in the integration report.
 
-Packet measurements are real measurements of synthetic saved inputs. The observed
-2→3 records and 3,080→6,535 prompt bytes are not evidence of better model reasoning.
-The six-case annotation evaluator measures fixture grounding only; real-world
-quality, cost and human usability improvements remain unmeasured. Scripted browser
-owner actions are not the real owner's endorsement of a context change.
+Accepted lane content: UI `dc906cb`, `f2dff07`, `76afb59`; acceptance `8183ac6`,
+`afaae8a`, `bdabf82` plus final evidence; native `86b3767`, `dc9767c`. Parent owns
+backend and combined integration. Branches/worktrees preserve recoverable history.
+No personal trace, credential, auth directory or private export was committed.
 
-## Limits and next runnable action
+## Continuing program and next actions
 
-One specialist inquiry plus one explicit follow-up is supported. Unknown outcomes
-stay visible. No full provider context, live entitlement, cloud startup containment,
-interactive reply delivery, token/cost cap, universal workspace isolation or
-exactly-once external effect is established. Trusted loopback is not authenticated
-multiuser isolation. Nested scrolling, unbounded server history retrieval and
-browser-local arrangements remain product debt.
+Next semantic integration: use exact investigation artifacts as bounded context
+inputs. Preserve canonical artifact/context/attempt identity, source classifications,
+unsupported citations and original support without recursively copying transcripts
+or importing authority. A→B→C must recover A's controlling evidence from C. Preserve
+legacy prompt/manifests; propagate inputs through follow-up reconstruction and make
+experiment retention metrics account for artifacts. The UI scout identified those
+compatibility obligations; implementation has not yet been claimed.
 
-The next consequential task is supported pre-launch containment/admission for all
-native configuration sources; then separately authorized subscription-backed smoke.
-Do not weaken the gate, wrap the binary to bypass it, copy credentials, rewrite
-Codex state or substitute a paid API to obtain a green result.
+In parallel, the native lane continues a synthetic gateway experiment in
+`/tmp/nema-native-account-admission` from `dc9767c`. It owns new probe/tests/evidence
+only. A namespace-local relay will be challenged by a competing startup descendant;
+identical headers or a shared relay are not proof of caller identity. No credentials
+or real forwarding are authorized by the probe contract. Parent owns all production
+interfaces and the final integration. Confirm actual agent/process status before
+assuming this lane is still running in a later session.
 
-Reproduce the integrated synthetic loop using a fresh path:
+Reproduce source acceptance with a fresh disposable database:
 
-```bash
-uv run python scripts/round3_demo.py --db /tmp/nema-round3-next.db
-uv run python scripts/round3_demo.py --db /tmp/nema-round3-next.db --resume
+```sh
+uv run python scripts/investigation_demo.py --db /tmp/nema-history-next.db --long-history --serve
+# Start Vite on 5173 and isolated Chromium debugging on 9222.
+NEMA_UI_DEMO_DB=/tmp/nema-history-next.db NEMA_UI_EVIDENCE_PREFIX=/tmp/nema-history-next node scripts/check_investigation_ui.mjs
 ```
 
-For actual UI acceptance, run `scripts/investigation_demo.py --db <fresh-path> --serve`,
-Vite on 5173, and isolated Chromium with remote debugging on 9222, then:
-
-```bash
-NEMA_UI_EVIDENCE_PREFIX=docs/evidence/round3 node scripts/check_investigation_ui.mjs
-```
-
-All three services were stopped and ports verified closed. All review/implementation
-agents completed; no background, scheduled work or live resource authorization is implied.
+The full check appends fixture records once; use a new database for another full
+run. All execution within it is synthetic. The mission continues beyond this
+integration; neither the vision nor V1 is declared complete.

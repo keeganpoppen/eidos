@@ -1,0 +1,12 @@
+{
+  "passed": true,
+  "source": "Persisted synthetic history in actual Chromium; real HTTP bodies unmodified",
+  "delayedWrongThreadRejectionCannotReplaceNewerFocus": true,
+  "clearFocusCancelsDelayedSourceReveal": true,
+  "restoredDisjointSourcesNavigableAtWidths": [
+    900,
+    390
+  ],
+  "horizontalDocumentOverflow": false,
+  "limitation": "Supplementary race requests are intentionally delayed; these are separate from the unintercepted retrieval byte measurements."
+}

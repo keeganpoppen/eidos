@@ -6,6 +6,7 @@
   import Markdown from '#lib/Markdown.svelte';
   import SemanticRail from '#lib/SemanticRail.svelte';
   import ThreadItemCard from '#lib/ThreadItem.svelte';
+  import { createHistoryRequests, hasSourceEvidence, historyQuery, readSourceFocus, retainThread, sourceTarget } from '#lib/history.ts';
   import type {
     EvidenceSelection,
     InvestigationCapabilities,
@@ -15,6 +16,7 @@
     SupportSpan,
     ThreadItem,
     ThreadPayload,
+    ThreadResponse,
     ThreadSummary
   } from '#lib/types.ts';
 
@@ -28,19 +30,19 @@
   let comparisonSeed = $state('');
   let comparisonRequest = $state(0);
   let comparisonIntent = $state<'comparison' | 'evidence-chain'>('comparison');
-  let historyStart = $state(0);
-  const historyWindow = 40;
+  let historyAnchorSeq = $state<number | null>(null);
   let recordQuery = $state('');
   let historyNotice = $state('');
   let workspaceReady = $state(false);
-  let threadRequest = 0;
+  const historyRequests = createHistoryRequests();
   let threadLoads = 0;
   let selectedThread = $state('');
   let thread = $state<ThreadPayload | null>(null);
   let composer = $state('');
   let cwd = $state('');
   let selectedRevision = $state('');
-  let selectedSemanticNode = $state<SemanticNode | null>(null);
+  let selectedNodeId = $state<string | null>(null);
+  const selectedSemanticNode = $derived(thread?.outline?.nodes?.find((node) => node.node_id === selectedNodeId) ?? null);
   let focusSpans = $state<SupportSpan[]>([]);
   let sending = $state(false);
   let startingThread = $state(false);
@@ -52,7 +54,7 @@
 
   let threadPoll: ReturnType<typeof setInterval> | undefined;
   let listPoll: ReturnType<typeof setInterval> | undefined;
-  const visibleTurns = $derived(thread?.turns.slice(historyStart, historyStart + historyWindow) ?? []);
+  const visibleTurns = $derived(thread?.turns ?? []);
 
   function hasSemanticChildren(node: SemanticNode | null): boolean {
     if (!node || !thread?.outline?.nodes) return false;
@@ -66,9 +68,7 @@
       ? thread.turns
           .flatMap((turn) => turn.items)
           .filter((item) =>
-            selectedSemanticNode?.support.some((span) =>
-              item.startSeq <= span.end && span.start <= item.endSeq
-            )
+            selectedSemanticNode?.support.some((span) => hasSourceEvidence(item, span))
           )
       : []
   );
@@ -101,41 +101,46 @@
     }
   }
 
-  async function loadThread() {
+  async function loadThread(options: { anchorSeq?: number | null; aroundSeq?: number; conditional?: boolean } = {}): Promise<boolean> {
     if (!selectedThread) {
       thread = null;
-      return;
+      return false;
     }
     const id = selectedThread;
     const revision = selectedRevision;
-    const request = ++threadRequest;
+    const isCurrent = historyRequests.request();
+    const anchorSeq = options.anchorSeq === undefined ? historyAnchorSeq : options.anchorSeq;
+    const knownVersion = options.conditional && thread?.id === id && thread.window.anchorSeq === anchorSeq ? thread.version : undefined;
     threadLoads += 1;
     try {
-      const query = revision ? `?revision=${encodeURIComponent(revision)}` : '';
-      const result = await api<ThreadPayload>(
+      const query = historyQuery(revision, anchorSeq, options.aroundSeq, knownVersion);
+      const result = await api<ThreadResponse>(
         `/api/threads/${encodeURIComponent(id)}${query}`
       );
-      if (id === selectedThread && revision === selectedRevision && request === threadRequest) {
-        thread = result;
-        if (historyStart >= result.turns.length) historyStart = Math.max(0, Math.floor((result.turns.length - 1) / historyWindow) * historyWindow);
+      if (id === selectedThread && revision === selectedRevision && isCurrent()) {
+        thread = retainThread(thread, result);
+        historyAnchorSeq = result.window.anchorSeq;
         error = '';
+        return true;
       }
     } catch (cause) {
-      if (request === threadRequest) error = cause instanceof Error ? cause.message : String(cause);
+      if (isCurrent()) error = cause instanceof Error ? cause.message : String(cause);
     } finally {
       threadLoads -= 1;
     }
+    return false;
   }
 
-  async function chooseThread(id: string) {
+  async function chooseThread(id: string, aroundSeq?: number): Promise<(() => boolean) | null> {
+    const isCurrent = historyRequests.navigate();
     selectedThread = id;
     thread = null;
     selectedRevision = '';
-    selectedSemanticNode = null;
+    selectedNodeId = null;
     focusSpans = [];
-    historyStart = 0;
+    historyAnchorSeq = null;
     historyNotice = '';
-    await loadThread();
+    return await loadThread({ aroundSeq }) && isCurrent() ? isCurrent : null;
   }
 
   async function newThread() {
@@ -147,10 +152,13 @@
         method: 'POST',
         body: JSON.stringify({ cwd: cwd.trim() || undefined })
       });
+      historyRequests.navigate();
       selectedThread = result.threadId;
+      thread = null;
       selectedRevision = '';
-      selectedSemanticNode = null;
+      selectedNodeId = null;
       focusSpans = [];
+      historyAnchorSeq = null;
       status = 'new Codex thread started';
       await loadThreads();
       await loadThread();
@@ -192,50 +200,70 @@
     }
   }
 
-  function overlaps(start: number, end: number, span: SupportSpan) {
-    return start <= span.end && span.start <= end;
+  function isDimmed(source: { startSeq: number; endSeq: number; recordSeqs?: number[] }) {
+    return focusSpans.length > 0 && !focusSpans.some((span) => hasSourceEvidence(source, span));
   }
 
-  function isDimmed(start: number, end: number) {
-    return focusSpans.length > 0 && !focusSpans.some((span) => overlaps(start, end, span));
+  function isHighlighted(source: { startSeq: number; endSeq: number; recordSeqs?: number[] }) {
+    return focusSpans.length > 0 && focusSpans.some((span) => hasSourceEvidence(source, span));
   }
 
-  function isHighlighted(start: number, end: number) {
-    return focusSpans.length > 0 && focusSpans.some((span) => overlaps(start, end, span));
+  function clearFocus() {
+    historyRequests.navigate();
+    focusSpans = [];
+    selectedNodeId = null;
+    historyNotice = '';
   }
 
-  function selectSemanticNode(node: SemanticNode | null) {
-    selectedSemanticNode = node;
+  function sourceElement(span: SupportSpan): HTMLElement | null {
+    const target = sourceTarget(thread?.turns ?? [], span);
+    if (!target) return null;
+    const turnSelector = `.workspace [data-turn-id="${CSS.escape(target.turnId)}"]`;
+    return document.querySelector<HTMLElement>(target.itemId === undefined ? turnSelector : `${turnSelector} [data-item-id="${CSS.escape(target.itemId)}"]`);
+  }
+
+  async function focusSource(span: SupportSpan, isCurrent: () => boolean) {
+    await tick();
+    if (!isCurrent()) return;
+    const target = sourceElement(span);
+    target?.scrollIntoView({ block: 'center' });
+    target?.focus({ preventScroll: true });
+  }
+
+  async function selectSemanticNode(node: SemanticNode | null) {
+    historyRequests.navigate();
+    historyNotice = '';
+    selectedNodeId = node?.node_id ?? null;
+    // A node belongs to an immutable interpretation, not whichever map is latest.
+    if (node && thread?.outline) selectedRevision = thread.outline.revision_id;
 
     // Aggregate tree nodes are navigation, not giant raw-trace selections.
     // Only leaves project their tight support back onto transcript items.
     focusSpans = node && !hasSemanticChildren(node) ? node.support : [];
     if (!focusSpans.length) return;
-    revealSpan(focusSpans[0].start, focusSpans[0].end);
+    await revealSupport(focusSpans[0]);
+  }
 
-    requestAnimationFrame(() => {
-      const regions = [
-        ...document.querySelectorAll<HTMLElement>('.workspace [data-start][data-end]')
-      ];
-      const first = regions.find((element) => {
-        const start = Number(element.dataset.start ?? 0);
-        const end = Number(element.dataset.end ?? start);
-        return focusSpans.some((span) => overlaps(start, end, span));
-      });
-      first?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    });
+  async function revealSupport(span: SupportSpan) {
+    const isCurrent = historyRequests.navigate();
+    if (!await loadThread({ aroundSeq: span.start }) || !isCurrent()) return;
+    historyNotice = '';
+    await focusSource(span, isCurrent);
   }
 
   async function selectRevision(revision: string) {
+    historyRequests.navigate();
     selectedRevision = revision;
-    selectedSemanticNode = null;
+    selectedNodeId = null;
     focusSpans = [];
     await loadThread();
   }
 
   async function jumpToItem(item: ThreadItem) {
-    revealSpan(item.startSeq, item.endSeq);
+    const isCurrent = historyRequests.navigate();
+    if (!await loadThread({ aroundSeq: item.startSeq }) || !isCurrent()) return;
     await tick();
+    if (!isCurrent()) return;
     const selector = `.workspace [data-item-id="${CSS.escape(item.id)}"]`;
     document.querySelector<HTMLElement>(selector)?.scrollIntoView({
       behavior: 'smooth',
@@ -326,43 +354,41 @@
   }
 
   async function returnToSource(selection: EvidenceSelection) {
-    await chooseThread(selection.threadId);
-    if (selectedThread !== selection.threadId) return;
-    focusSpans = [{ start: selection.startSeq, end: selection.endSeq, weight: 1 }];
-    revealSpan(selection.startSeq, selection.endSeq);
-    await tick();
-    requestAnimationFrame(() => {
-      const regions = [...document.querySelectorAll<HTMLElement>('.workspace .item-card[data-start][data-end], .workspace .turn[data-start][data-end]')];
-      const matches = regions.filter((element) => overlaps(Number(element.dataset.start), Number(element.dataset.end), focusSpans[0]));
-      const target = matches.find((element) => element.classList.contains('item-card')) ?? matches[0];
-      target?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      target?.focus({ preventScroll: true });
-    });
-  }
-
-  function revealSpan(start: number, end: number): boolean {
-    const index = thread?.turns.findIndex((turn) => overlaps(turn.startSeq, turn.endSeq, { start, end, weight: 1 })) ?? -1;
-    if (index < 0) return false;
-    historyStart = Math.floor(index / historyWindow) * historyWindow;
-    return true;
+    const isCurrent = await chooseThread(selection.threadId, selection.startSeq);
+    if (!isCurrent?.()) return;
+    const span = { start: selection.startSeq, end: selection.endSeq, weight: 1 };
+    focusSpans = [span];
+    await focusSource(span, isCurrent);
   }
 
   async function goToRecord() {
+    const isCurrent = historyRequests.navigate();
     const seq = Number(recordQuery);
-    if (!Number.isSafeInteger(seq) || seq < 1 || !revealSpan(seq, seq)) {
-      historyNotice = 'That record is not in the loaded thread.';
+    if (!Number.isSafeInteger(seq) || seq < 1) {
+      historyNotice = 'Enter a positive record sequence.';
       return;
     }
-    focusSpans = [{ start: seq, end: seq, weight: 1 }];
-    selectedSemanticNode = null;
-    historyNotice = `Showing the turn range containing sequence ${seq}. Interleaved records may belong to another thread.`;
-    await tick();
-    document.querySelector<HTMLElement>('.workspace .item-card.highlighted')?.scrollIntoView({ block: 'center' });
+    const loaded = await loadThread({ aroundSeq: seq });
+    if (!isCurrent()) return;
+    if (!loaded) {
+      historyNotice = error || 'That record is unavailable in this thread.';
+      return;
+    }
+    const span = { start: seq, end: seq, weight: 1 };
+    focusSpans = [span];
+    selectedNodeId = null;
+    historyNotice = `Showing the source page containing record ${seq}.`;
+    await focusSource(span, isCurrent);
   }
 
   async function moveHistory(delta: number) {
-    historyStart = Math.max(0, Math.min(historyStart + delta * historyWindow, Math.floor(Math.max(0, (thread?.turns.length ?? 1) - 1) / historyWindow) * historyWindow));
+    const anchorSeq = delta < 0 ? thread?.window.previousAnchorSeq : thread?.window.nextAnchorSeq;
+    if (anchorSeq == null) return;
+    const isCurrent = historyRequests.navigate();
+    if (!await loadThread({ anchorSeq }) || !isCurrent()) return;
+    historyNotice = '';
     await tick();
+    if (!isCurrent()) return;
     document.querySelector('.history-navigation')?.scrollIntoView({ block: 'start' });
   }
 
@@ -381,22 +407,31 @@
   onMount(() => {
     void api<InvestigationCapabilities>('/api/investigations/capabilities').then((value) => capabilities = value).catch(() => {});
     try {
-      const saved = JSON.parse(localStorage.getItem('nema.source-focus.v1') ?? 'null');
-      if (saved && typeof saved.threadId === 'string') {
+      const saved = readSourceFocus(localStorage.getItem('nema.source-focus.v1'));
+      if (saved) {
         selectedThread = saved.threadId;
-        selectedRevision = typeof saved.revision === 'string' ? saved.revision : '';
-        focusSpans = Array.isArray(saved.spans) ? saved.spans.filter((span: SupportSpan) => Number.isInteger(span.start) && Number.isInteger(span.end)) : [];
-        workMode = saved.workMode !== false;
-        historyStart = Number.isSafeInteger(saved.historyStart) && saved.historyStart >= 0 ? saved.historyStart : 0;
+        selectedRevision = saved.revision;
+        focusSpans = saved.spans;
+        selectedNodeId = saved.selectedNodeId;
+        workMode = saved.workMode;
+        historyAnchorSeq = saved.anchorSeq;
       }
     } catch { /* The trace remains available when browser storage is disabled. */ }
     workspaceReady = true;
     void loadThreads();
-    if (selectedThread) void loadThread();
-    threadPoll = setInterval(() => { if (!threadLoads && !comparisonOpen) void loadThread(); }, 1500);
+    if (selectedThread) {
+      const isCurrent = historyRequests.navigate();
+      void loadThread({ aroundSeq: historyAnchorSeq === null ? focusSpans[0]?.start : undefined }).then((loaded) => {
+        if (!loaded || !isCurrent()) return;
+        const span = focusSpans.find((candidate) => sourceTarget(thread?.turns ?? [], candidate));
+        if (span) void focusSource(span, isCurrent);
+      });
+    }
+    threadPoll = setInterval(() => { if (!threadLoads && !comparisonOpen) void loadThread({ conditional: true }); }, 1500);
     listPoll = setInterval(() => void loadThreads(), 4000);
 
     return () => {
+      historyRequests.navigate();
       if (threadPoll) clearInterval(threadPoll);
       if (listPoll) clearInterval(listPoll);
     };
@@ -404,7 +439,7 @@
 
   $effect(() => {
     if (!workspaceReady) return;
-    const state = JSON.stringify({ threadId: selectedThread, revision: selectedRevision, spans: focusSpans, workMode, historyStart });
+    const state = JSON.stringify({ threadId: selectedThread, revision: selectedRevision, spans: focusSpans, workMode, anchorSeq: historyAnchorSeq, selectedNodeId });
     try { localStorage.setItem('nema.source-focus.v1', state); } catch { /* Optional browser focus memory. */ }
   });
 </script>
@@ -479,7 +514,9 @@
       node={selectedSemanticNode}
       outline={thread?.outline ?? null}
       items={focusedItems}
+      sourceTurns={thread?.turns ?? []}
       onSelectNode={selectSemanticNode}
+      onSupport={revealSupport}
       onJump={jumpToItem}
     />
   {/if}
@@ -495,27 +532,38 @@
         </div>
         {#if focusSpans.length}
           <div class="source-focus-notice">
-            <span>Source focus: {focusSpans.map((span) => `${span.start}–${span.end}`).join(', ')}</span>
-            <button class="inline-control" onclick={() => { focusSpans = []; selectedSemanticNode = null; }}>Clear focus</button>
+            <span>Source focus:</span>
+            {#each focusSpans as span}
+              <button
+                class="inline-control source-range"
+                data-support-start={span.start}
+                aria-label={`Open source records ${span.start} to ${span.end}${span.label ? `: ${span.label}` : ''}`}
+                aria-current={thread.turns.some((turn) => hasSourceEvidence(turn, span)) ? 'location' : undefined}
+                onclick={() => revealSupport(span)}
+              >{span.start}–{span.end}{#if span.label} · {span.label}{/if}</button>
+            {/each}
+            <button class="inline-control" onclick={clearFocus}>Clear focus</button>
             {#if selectedSemanticNode}<button class="inline-control" onclick={addSemanticEvidence}>Add selected evidence to context</button>{/if}
           </div>
         {/if}
       </header>
 
       <nav class="history-navigation" aria-label="History navigation">
-        <div><button disabled={historyStart === 0} onclick={() => moveHistory(-1)}>Earlier turns</button><span>Turns {thread.turns.length ? historyStart + 1 : 0}–{Math.min(historyStart + historyWindow, thread.turns.length)} of {thread.turns.length}</span><button disabled={historyStart + historyWindow >= thread.turns.length} onclick={() => moveHistory(1)}>Later turns</button></div>
+        <div><button disabled={!thread.window.hasEarlier} onclick={() => moveHistory(-1)}>Earlier turns</button><span>Turns {thread.turns.length ? thread.window.startIndex + 1 : 0}–{thread.window.startIndex + thread.turns.length} of {thread.window.totalTurns}</span><button disabled={!thread.window.hasLater} onclick={() => moveHistory(1)}>Later turns</button></div>
         <form onsubmit={(event) => { event.preventDefault(); void goToRecord(); }}><input aria-label="Find source record" type="number" min="1" bind:value={recordQuery} placeholder="Record sequence" /><button type="submit">Go to record</button></form>
         {#if historyNotice}<p role="status">{historyNotice}</p>{/if}
       </nav>
 
-      <div data-testid="history-window">
+      <div data-testid="history-window" data-anchor-seq={thread.window.anchorSeq} data-version={thread.version}>
       {#each visibleTurns as turn (turn.id)}
         <section
-          class:dimmed={isDimmed(turn.startSeq, turn.endSeq)}
-          class:highlighted={isHighlighted(turn.startSeq, turn.endSeq)}
+          class:dimmed={isDimmed(turn)}
+          class:highlighted={isHighlighted(turn)}
           class="turn"
+          data-turn-id={turn.id}
           data-start={turn.startSeq}
           data-end={turn.endSeq}
+          tabindex="-1"
         >
           <span class="turn-label">{turn.id} · {turn.eventCount} events</span>
 
@@ -535,8 +583,8 @@
           {#each turn.items as item (item.id)}
             <ThreadItemCard
               {item}
-              dimmed={isDimmed(item.startSeq, item.endSeq)}
-              highlighted={isHighlighted(item.startSeq, item.endSeq)}
+              dimmed={isDimmed(item)}
+              highlighted={isHighlighted(item)}
               semanticFocus={selectedSemanticNode !== null}
               selected={itemSelected(item)}
               onSelect={addItem}

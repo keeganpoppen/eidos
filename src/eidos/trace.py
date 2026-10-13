@@ -126,6 +126,7 @@ class TraceStore:
               raw_text TEXT NOT NULL
             );
             CREATE INDEX IF NOT EXISTS trace_thread_seq ON trace_records(thread_id, seq);
+            CREATE INDEX IF NOT EXISTS trace_thread_turn_seq ON trace_records(thread_id, turn_id, seq);
             CREATE INDEX IF NOT EXISTS trace_turn_seq ON trace_records(turn_id, seq);
             CREATE INDEX IF NOT EXISTS trace_item_seq ON trace_records(item_id, seq);
             CREATE INDEX IF NOT EXISTS trace_rpc ON trace_records(rpc_id, seq);

@@ -44,6 +44,7 @@ export type ThreadItem = {
   type: string;
   startSeq: number;
   endSeq: number;
+  recordSeqs?: number[];
   complete: boolean;
   raw: Record<string, unknown>;
   text?: string;
@@ -64,17 +65,39 @@ export type Turn = {
   items: ThreadItem[];
   startSeq: number;
   endSeq: number;
+  recordSeqs?: number[];
   eventCount: number;
+};
+
+export type ThreadWindow = {
+  anchorSeq: number | null;
+  startSeq: number | null;
+  endSeq: number | null;
+  startIndex: number;
+  totalTurns: number;
+  hasEarlier: boolean;
+  hasLater: boolean;
+  nextAnchorSeq: number | null;
+  previousAnchorSeq: number | null;
 };
 
 export type ThreadPayload = {
   id: string;
+  version: string;
+  window: ThreadWindow;
   preview: string;
   turns: Turn[];
   outline: SemanticRevision | null;
   revisions: SemanticRevision[];
   recordCount: number;
   lastSeq: number;
+};
+
+export type ThreadResponse = ThreadPayload | {
+  id: string;
+  unchanged: true;
+  version: string;
+  window: ThreadWindow;
 };
 
 export type ObserverJobEvent = {

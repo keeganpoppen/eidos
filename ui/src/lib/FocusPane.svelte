@@ -1,18 +1,23 @@
 <script lang="ts">
   import ThreadItemCard from './ThreadItem.svelte';
-  import type { SemanticNode, SemanticRevision, SupportSpan, ThreadItem } from './types';
+  import { hasSourceEvidence } from './history';
+  import type { SemanticNode, SemanticRevision, SupportSpan, ThreadItem, Turn } from './types';
 
   let {
     node,
     outline,
     items,
+    sourceTurns,
     onSelectNode,
+    onSupport,
     onJump
   }: {
     node: SemanticNode;
     outline: SemanticRevision | null;
     items: ThreadItem[];
+    sourceTurns: Turn[];
     onSelectNode: (node: SemanticNode) => void;
+    onSupport: (span: SupportSpan) => void;
     onJump: (item: ThreadItem) => void;
   } = $props();
 
@@ -56,6 +61,7 @@
     const right = Math.max(left, Math.min(100, (span.end / horizon) * 100));
     return `left:${left}%;width:${Math.max(0.8, right - left)}%`;
   }
+
 </script>
 
 <aside class="focus-pane">
@@ -74,7 +80,7 @@
       {#if directChildren.length}
         {directChildren.length} part{directChildren.length === 1 ? '' : 's'}
       {:else}
-        {items.length} matching item{items.length === 1 ? '' : 's'}
+        {items.length} matching item{items.length === 1 ? '' : 's'} on this source page
       {/if}
     </small>
   </div>
@@ -105,6 +111,18 @@
         Choose a child to get closer to the conversation.
       </div>
     {:else}
+      {#if node.support.length}
+        <nav class="support-ranges" aria-label="Supporting source ranges">
+          <span class="eyebrow">source ranges</span>
+          <p>Each range opens its source page. Other support remains linked below.</p>
+          {#each node.support as span, index}
+            <button data-support-start={span.start} aria-current={sourceTurns.some((turn) => hasSourceEvidence(turn, span)) ? 'location' : undefined} onclick={() => onSupport(span)}>
+              <span>{index + 1}. Records {span.start}–{span.end}</span>
+              {#if span.label}<small>{span.label}</small>{/if}
+            </button>
+          {/each}
+        </nav>
+      {/if}
       <span class="eyebrow">conversation</span>
       {#if conversationItems.length}
         {#each conversationItems as item (item.id)}
@@ -115,7 +133,7 @@
         {/each}
       {:else}
         <div class="empty-focus">
-          This memory is supported mostly by implementation evidence.
+          No matching conversation items on this source page. Open another support range or inspect implementation evidence below.
         </div>
       {/if}
 
@@ -137,3 +155,11 @@
     {/if}
   </section>
 </aside>
+
+<style>
+  .support-ranges { margin-bottom: 24px; }
+  .support-ranges p { color: var(--muted); font-size: 13px; line-height: 1.5; }
+  .support-ranges button { display: block; width: 100%; padding: 9px 11px; margin: 6px 0; border: 1px solid var(--line-dark); background: transparent; text-align: left; font-size: 13px; }
+  .support-ranges button[aria-current] { background: var(--selection); border-color: var(--accent); }
+  .support-ranges button small { display: block; margin-top: 3px; }
+</style>

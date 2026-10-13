@@ -579,6 +579,19 @@ class NativeInvestigationWorker:
                 reader = threading.Thread(target=pump, daemon=True, name="nema-investigation-events")
                 reader.start()
                 client.initialize(timeout=min(10.0, self._remaining(deadline)))
+                if self.execution_profile is not None:
+                    # The configured provider/login preference is not an
+                    # acknowledgement of the account this process is using.
+                    # Keep this before thread creation as well as model work.
+                    try:
+                        account = client.request("account/read", {
+                            "refreshToken": False,
+                        }, timeout=min(10.0, self._remaining(deadline)))
+                        self.execution_profile.check_account(account)
+                    except Exception as exc:
+                        raise NativeInvestigationError(
+                            f"native subscription admission failed: {exc}", status="failed",
+                        ) from exc
                 result = client.request("thread/start", {
                     "cwd": cwd,
                     "approvalPolicy": "never",

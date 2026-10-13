@@ -1,0 +1,147 @@
+{
+  "schemaVersion": "nema-native-outer-boundary-probe/1",
+  "classification": "OBSERVED_NO_MODEL_SYNTHETIC",
+  "modelTurns": 0,
+  "existingCredentialsMounted": false,
+  "nativeVersion": "codex-cli 0.154.0",
+  "binarySha256": "9b7c1c7abdc26fc3c4f47c77656a8e9121def5483dbae830ef1ee561758448a9",
+  "bwrapVersion": "bubblewrap 0.12.0",
+  "kernel": "7.2.4-1-aarch64-ARCH",
+  "architecture": "aarch64",
+  "allowedMethods": [
+    "account/read",
+    "initialize",
+    "mcpServerStatus/list",
+    "thread/start"
+  ],
+  "command": [
+    "/usr/bin/bwrap",
+    "--unshare-all",
+    "--unshare-user",
+    "--disable-userns",
+    "--die-with-parent",
+    "--new-session",
+    "--cap-drop",
+    "ALL",
+    "--ro-bind",
+    "/usr",
+    "/usr",
+    "--symlink",
+    "usr/bin",
+    "/bin",
+    "--symlink",
+    "usr/lib",
+    "/lib",
+    "--proc",
+    "/proc",
+    "--dev",
+    "/dev",
+    "--tmpfs",
+    "/tmp",
+    "--bind",
+    "<probe>/state",
+    "/state",
+    "--ro-bind",
+    "<probe>/fixture",
+    "/fixture",
+    "--ro-bind",
+    "<probe>/packet",
+    "/packet",
+    "--clearenv",
+    "--setenv",
+    "HOME",
+    "/state/home",
+    "--setenv",
+    "CODEX_HOME",
+    "/state/codex",
+    "--setenv",
+    "PATH",
+    "/usr/bin:/bin",
+    "--setenv",
+    "LANG",
+    "C.UTF-8",
+    "--chdir",
+    "/state/workspace",
+    "--",
+    "/usr/bin/codex",
+    "app-server",
+    "--listen",
+    "stdio://",
+    "--strict-config"
+  ],
+  "initialized": {
+    "userAgent": "eidos/0.154.0 (Linux Unknown; aarch64) unknown (eidos; 0.1.0)",
+    "codexHome": "/state/codex",
+    "platformFamily": "unix",
+    "platformOs": "linux"
+  },
+  "account": {
+    "account": null,
+    "requiresOpenaiAuth": true
+  },
+  "startupBeforeInventory": true,
+  "startup": {
+    "outsideRead": {
+      "blockedErrno": 2
+    },
+    "outsideWrite": {
+      "blockedErrno": 2
+    },
+    "symlinkRead": {
+      "blockedErrno": 2
+    },
+    "packetWrite": {
+      "blockedErrno": 30
+    },
+    "hostLoopback": {
+      "blockedErrno": 111
+    },
+    "externalRoute": {
+      "blockedErrno": 101
+    },
+    "parentRootRead": {
+      "blockedErrno": 2
+    },
+    "packetRead": true,
+    "effectiveCapabilities": "0000000000000000",
+    "nestedUserNamespaceRefused": true,
+    "packetRemountRefused": true
+  },
+  "inventory": {
+    "data": [
+      {
+        "name": "unexpected",
+        "runtimeStatus": "connected",
+        "pluginId": null,
+        "serverInfo": {
+          "name": "unexpected-startup-fixture",
+          "title": null,
+          "version": "1",
+          "description": null,
+          "icons": null,
+          "websiteUrl": null
+        },
+        "tools": {},
+        "toolsError": null,
+        "resources": [],
+        "resourceTemplates": [],
+        "authStatus": "unsupported"
+      }
+    ],
+    "nextCursor": null
+  },
+  "hostCanaryUnchanged": true,
+  "packetUnchanged": true,
+  "hostListenerUntouched": true,
+  "descendantHeartbeatChangedBeforeClose": true,
+  "descendantHeartbeatStoppedAfterClose": true,
+  "liveAdmission": false,
+  "limitations": [
+    "no-authentication",
+    "no-cloud-load",
+    "no-inference-egress",
+    "no-model",
+    "not-a-production-profile",
+    "no-aggregate-resource-cap"
+  ]
+}

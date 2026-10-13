@@ -28,6 +28,7 @@ Then load only relevant depth:
 | How should many agents collaborate? | [ORCHESTRATION](docs/agents/ORCHESTRATION.md) |
 | What can I paste into a new session? | [BOOTSTRAP](docs/agents/BOOTSTRAP.md) |
 | How do we keep this seed alive? | [CONTINUITY](docs/agents/CONTINUITY.md) |
+| What is the continuing program learning? | [PROGRAM](docs/agents/PROGRAM.md) |
 | Where did these commitments come from? | [SOURCES](docs/agents/SOURCES.md) |
 
 ## The recognition test

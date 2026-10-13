@@ -1114,6 +1114,7 @@ button:disabled { cursor: default; opacity: .45; }
 .source-select { margin-left: auto; border: 1px solid var(--line-dark); background: transparent; padding: 5px 7px; font-size: 11px; text-transform: none; }
 .source-select.selected { color: var(--accent); border-color: var(--accent); background: var(--accent-soft); }
 .source-focus-notice { margin-top: 14px; display: flex; gap: 9px; flex-wrap: wrap; align-items: center; font-size: 12px; color: var(--accent); }
+.source-focus-notice .source-range[aria-current] { background: var(--selection); border-color: var(--accent); }
 .object-ref { font: 10px/1.5 "SFMono-Regular", monospace; color: #77746b; overflow-wrap: anywhere; }
 .saved-question { border-left: 2px solid var(--accent); padding-left: 12px; margin-top: 16px; }
 .investigation-pane details { border-top: 1px solid var(--line); padding: 10px 0; }

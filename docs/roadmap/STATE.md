@@ -6,6 +6,39 @@ The baseline GitHub Actions run `38240774514` completed successfully: pytest and
 
 Refresh this file when implementation claims materially change. Keep historical audit IDs instead of quietly relabelling old evidence as current.
 
+## Paged history and native startup experiment — 2026-10-13
+
+Integration base `ad73408`; see [verification](../evidence/PAGED_HISTORY_INTEGRATION.md)
+and [current handoff](../agents/CURRENT_HANDOFF.md). Source retrieval now returns at
+most 40 complete turns using stable record anchors. Exact thread/turn/item evidence
+membership controls navigation and highlighting; late events cannot impersonate
+intervening support. Snapshot-bound versions permit compact unchanged polls, and
+selected semantic revisions/focus survive page changes and reload. Selected source
+ranges also have direct header links when the support pane is hidden at narrow widths.
+
+Combined verification: **653 Python tests passed, 5 explicit native probes skipped**;
+**46 Bun tests / 225 assertions**, Svelte **0 errors / 0 warnings**, production build
+passed. Actual Chromium navigated a persisted 1,200-turn fixture, preserved distant
+support through reload, rejected a wrong-thread record, and kept an old page/focus
+stable when an independent writer extended history. These are scripted synthetic
+observations, not measured human speed or full V1 acceptance.
+
+A profiled worker now requires an `account/read` acknowledgement before thread
+creation. The default native startup gate remains closed. A fresh real no-model
+[outer namespace experiment](../evidence/NATIVE_OUTER_ADMISSION_EXPERIMENT.md)
+passed independently in the lane and integrated tree (**8 tests**, Codex 0.154.0,
+bubblewrap 0.12.0): an unexpected fixture MCP's tested startup effects remained
+within a disconnected, disposable Linux boundary before inventory admission.
+No credentials, private configuration or authenticated model calls were involved.
+Authenticated egress, account/managed-policy lifecycle and aggregate resources
+remain unverified; the probe does not itself admit production execution.
+
+History limits bound projected turn count, not individual-turn/outline bytes or
+all SQL work. Browser arrangements remain local. Exact result-as-context composition
+is the next semantic integration; a synthetic restricted gateway is the next native
+experiment. The [program](../agents/PROGRAM.md) records the revisable destination
+conjectures and current decomposition.
+
 ## Round 3 integrated investigation — 2026-10-13
 
 The commit containing this update integrates actual branches A `18f25c1`, B

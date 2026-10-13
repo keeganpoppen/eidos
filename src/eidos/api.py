@@ -16,9 +16,13 @@ from .investigation_continuations import InvestigationContinuations
 from .investigation_inquiries import terminal_inquiry
 from .investigation_experiments import InvestigationExperiments
 from .investigation_worker import NativeInvestigationWorker
+from .history import (
+    PAGE_SIZE, SourceRecordNotFound, history_snapshot, history_version,
+    history_window, thread_preview, window_records,
+)
 from .semantic_tree import SemanticTreeBuilder
 from .trace import TraceStore
-from .view import ItemView, project_thread
+from .view import ItemView, project_records
 
 
 def _json_body(handler: Any) -> dict[str, Any]:
@@ -83,6 +87,7 @@ def _project_item(item: ItemView) -> dict[str, Any] | None:
         "type": kind,
         "startSeq": start,
         "endSeq": end,
+        "recordSeqs": [event.seq for event in item.events],
         "complete": any(event.method in {"item/completed", "$history/item"} for event in item.events),
         "raw": raw,
     }
@@ -118,24 +123,27 @@ def _project_item(item: ItemView) -> dict[str, Any] | None:
 
 
 def _thread_preview(store: TraceStore, thread_id: str) -> str:
-    for record in store.records(thread_id=thread_id):
-        message = record.message
-        params = message.get("params")
-        if record.method == "turn/start" and isinstance(params, Mapping):
-            for value in params.get("input") or []:
-                if isinstance(value, Mapping) and value.get("type") == "text" and value.get("text"):
-                    return str(value["text"])[:100]
-        if record.method in {"item/completed", "$history/item"} and isinstance(params, Mapping):
-            item = params.get("item")
-            if isinstance(item, Mapping) and item.get("type") == "userMessage":
-                for value in item.get("content") or []:
-                    if isinstance(value, Mapping) and value.get("type") == "text" and value.get("text"):
-                        return str(value["text"])[:100]
-    return thread_id
+    return thread_preview(store, thread_id)
 
 
-def thread_payload(store: TraceStore, thread_id: str, *, revision_id: str | None = None) -> dict[str, Any]:
-    view = project_thread(store, thread_id)
+def thread_payload(
+    store: TraceStore, thread_id: str, *, revision_id: str | None = None,
+    anchor_seq: int | None = None, around_seq: int | None = None,
+    limit: int = PAGE_SIZE, known_version: str | None = None,
+) -> dict[str, Any]:
+    with history_snapshot(store):
+        selected, window, summary = history_window(
+            store, thread_id, anchor_seq=anchor_seq, around_seq=around_seq, limit=limit,
+        )
+        revisions = store.semantic_revisions(thread_id, lens="thread")
+        if revision_id is not None and not any(row["revision_id"] == revision_id for row in revisions):
+            raise SourceRecordNotFound("That semantic revision does not belong to this thread's history map.")
+        version = history_version(thread_id, revision_id, summary, revisions, window, selected)
+        if known_version == version:
+            return {"id": thread_id, "unchanged": True, "version": version, "window": window}
+        view = project_records(thread_id, window_records(store, thread_id, selected))
+        outline = store.semantic_outline(thread_id, revision_id=revision_id)
+        preview = _thread_preview(store, thread_id)
     turns: list[dict[str, Any]] = []
     for turn in view.turns:
         seqs = [event.seq for event in turn.events]
@@ -150,20 +158,19 @@ def thread_payload(store: TraceStore, thread_id: str, *, revision_id: str | None
                 ],
                 "startSeq": min(seqs) if seqs else 0,
                 "endSeq": max(seqs) if seqs else 0,
+                "recordSeqs": seqs,
                 "eventCount": len(turn.events),
             }
         )
-    records = store.records(thread_id=thread_id)
-    outline = store.semantic_outline(thread_id, revision_id=revision_id)
-    revisions = store.semantic_revisions(thread_id, lens="thread")
     return {
         "id": thread_id,
-        "preview": _thread_preview(store, thread_id),
+        "preview": preview,
         "turns": turns,
         "outline": outline,
         "revisions": revisions,
-        "recordCount": len(records),
-        "lastSeq": records[-1].seq if records else 0,
+        **summary,
+        "version": version,
+        "window": window,
     }
 
 
@@ -378,7 +385,27 @@ class EidosAPI:
             thread_id = parts[2]
             if len(parts) == 3 and method == "GET":
                 revision = query.get("revision", [None])[0]
-                return 200, thread_payload(self.store, thread_id, revision_id=revision)
+                try:
+                    def integer(name: str, default: int | None = None) -> int | None:
+                        values = query.get(name)
+                        if values is None:
+                            return default
+                        if len(values) != 1 or not values[0].isascii() or not values[0].isdecimal():
+                            raise ValueError(f"{name} must be one positive integer")
+                        value = int(values[0])
+                        if not 1 <= value <= 2**53 - 1:
+                            raise ValueError(f"{name} must be a positive safe integer")
+                        return value
+                    return 200, thread_payload(
+                        self.store, thread_id, revision_id=revision,
+                        anchor_seq=integer("anchorSeq"), around_seq=integer("aroundSeq"),
+                        limit=integer("limit", PAGE_SIZE),  # type: ignore[arg-type]
+                        known_version=query.get("knownVersion", [None])[0],
+                    )
+                except SourceRecordNotFound as exc:
+                    return 404, {"error": str(exc)}
+                except ValueError as exc:
+                    return 400, {"error": str(exc)}
             if len(parts) == 4 and parts[3] == "messages" and method == "POST":
                 body = _json_body(handler)
                 text = body.get("text")
