@@ -1,0 +1,523 @@
+{
+  "schemaVersion": "nema-saved-work-rendered/1",
+  "classification": "SYNTHETIC_REAL_BROWSER",
+  "nativeOrModelCalls": 0,
+  "outOfPageExactResultComposed": "artifact_8530fe29f5e430874813e3455db9fc8e4cf8e29e1db2bc475f78fff7711ed910",
+  "composedInvestigationId": "investigation_2d786dd17b8347509e62a74a57516586",
+  "lostSaveResponseRetriedSameRequestId": "eb2898ea-56c7-4c60-bfae-17b4ec9ac422",
+  "duplicateSavedOwners": 0,
+  "dirtyDraftPreservedThroughLineageComparisonReload": true,
+  "historicalPreviewPreserved": "context_44836c943e7df2570ba98beb0f2e5979378da50398768dbbb36153f7cb2557e0",
+  "comparisonPins": {
+    "left": {
+      "investigationId": "investigation_e67f6d2103c547fc88de691677ad1f21",
+      "contextId": "context_6e55e6f4ff394d2eff3dfa1702813fcb0153841610e6d1ec3b905b1e99e03234",
+      "artifactId": "artifact_8530fe29f5e430874813e3455db9fc8e4cf8e29e1db2bc475f78fff7711ed910"
+    },
+    "right": {
+      "investigationId": "investigation_14dede3c7e994e33bb0f9acd56052fd3",
+      "contextId": "context_8ac40bef0bb23a1d53089d933ef23f9ea47fd0d4422b74f3780e4567de2759c6",
+      "artifactId": "artifact_69f6f22f395835627b3b588d29e8784c7834400ec5a74fa7832b6704110717a4"
+    },
+    "lens": "result",
+    "layout": "beside"
+  },
+  "failedSelectionRetriedExactOwner": "investigation_407c43caee474fcb9afdfcd0ceb0b49a",
+  "missingComparisonOwnersRepairedByExplicitSelection": true,
+  "originalRawEvidenceRecovered": true,
+  "lineage": [
+    {
+      "name": "C",
+      "investigationId": "investigation_14dede3c7e994e33bb0f9acd56052fd3",
+      "artifactId": "artifact_69f6f22f395835627b3b588d29e8784c7834400ec5a74fa7832b6704110717a4",
+      "contextId": "context_8ac40bef0bb23a1d53089d933ef23f9ea47fd0d4422b74f3780e4567de2759c6"
+    },
+    {
+      "name": "B",
+      "investigationId": "investigation_407c43caee474fcb9afdfcd0ceb0b49a",
+      "artifactId": "artifact_0064fd58069f53612071d31760745779b2b34144754758b9227feec82967e30b",
+      "contextId": "context_0058fe83c8469036360738503a057c93b9a76e3e2dcd1ef0722339bcbfa2ab00"
+    },
+    {
+      "name": "A",
+      "investigationId": "investigation_e67f6d2103c547fc88de691677ad1f21",
+      "artifactId": "artifact_8530fe29f5e430874813e3455db9fc8e4cf8e29e1db2bc475f78fff7711ed910",
+      "contextId": "context_6e55e6f4ff394d2eff3dfa1702813fcb0153841610e6d1ec3b905b1e99e03234"
+    }
+  ],
+  "fullCatalogGets": 0,
+  "legacyOwnerGets": 0,
+  "mobilePickerBounds": {
+    "left": 18,
+    "right": 371,
+    "top": 404.578125,
+    "bottom": 438.578125,
+    "viewportWidth": 390,
+    "viewportHeight": 844,
+    "hit": true,
+    "disabled": false
+  },
+  "mobilePickerOverflow": {
+    "width": 390,
+    "document": 0,
+    "dialogs": [],
+    "pickers": [
+      0,
+      0
+    ]
+  },
+  "mobileDialogOverflow": {
+    "width": 390,
+    "document": 0,
+    "dialogs": [
+      0
+    ],
+    "pickers": [
+      0,
+      0
+    ]
+  },
+  "sourceResponses": [
+    {
+      "path": "/api/investigations/investigation_e67f6d2103c547fc88de691677ad1f21/artifacts/artifact_8530fe29f5e430874813e3455db9fc8e4cf8e29e1db2bc475f78fff7711ed910/source",
+      "query": "",
+      "bodyBytes": 6501
+    },
+    {
+      "path": "/api/investigations/investigation_14dede3c7e994e33bb0f9acd56052fd3/artifacts/artifact_69f6f22f395835627b3b588d29e8784c7834400ec5a74fa7832b6704110717a4/source",
+      "query": "",
+      "bodyBytes": 7278
+    },
+    {
+      "path": "/api/investigations/investigation_407c43caee474fcb9afdfcd0ceb0b49a/artifacts/artifact_0064fd58069f53612071d31760745779b2b34144754758b9227feec82967e30b/source",
+      "query": "?contextId=context_0058fe83c8469036360738503a057c93b9a76e3e2dcd1ef0722339bcbfa2ab00",
+      "bodyBytes": 7372
+    },
+    {
+      "path": "/api/investigations/investigation_e67f6d2103c547fc88de691677ad1f21/artifacts/artifact_8530fe29f5e430874813e3455db9fc8e4cf8e29e1db2bc475f78fff7711ed910/source",
+      "query": "?contextId=context_6e55e6f4ff394d2eff3dfa1702813fcb0153841610e6d1ec3b905b1e99e03234",
+      "bodyBytes": 6501
+    },
+    {
+      "path": "/api/investigations/investigation_407c43caee474fcb9afdfcd0ceb0b49a/artifacts/artifact_0064fd58069f53612071d31760745779b2b34144754758b9227feec82967e30b/source",
+      "query": "?contextId=context_0058fe83c8469036360738503a057c93b9a76e3e2dcd1ef0722339bcbfa2ab00",
+      "bodyBytes": 7372
+    },
+    {
+      "path": "/api/investigations/investigation_14dede3c7e994e33bb0f9acd56052fd3/artifacts/artifact_69f6f22f395835627b3b588d29e8784c7834400ec5a74fa7832b6704110717a4/source",
+      "query": "",
+      "bodyBytes": 7278
+    },
+    {
+      "path": "/api/investigations/investigation_407c43caee474fcb9afdfcd0ceb0b49a/artifacts/artifact_0064fd58069f53612071d31760745779b2b34144754758b9227feec82967e30b/source",
+      "query": "?contextId=context_0058fe83c8469036360738503a057c93b9a76e3e2dcd1ef0722339bcbfa2ab00",
+      "bodyBytes": 7372
+    },
+    {
+      "path": "/api/investigations/investigation_e67f6d2103c547fc88de691677ad1f21/artifacts/artifact_8530fe29f5e430874813e3455db9fc8e4cf8e29e1db2bc475f78fff7711ed910/source",
+      "query": "?contextId=context_6e55e6f4ff394d2eff3dfa1702813fcb0153841610e6d1ec3b905b1e99e03234",
+      "bodyBytes": 6501
+    }
+  ],
+  "selectedViewResponses": [
+    {
+      "path": "/api/investigations/investigation_2d786dd17b8347509e62a74a57516586/view",
+      "query": "",
+      "status": 200,
+      "bodyBytes": 14474,
+      "unchanged": false
+    },
+    {
+      "path": "/api/investigations/investigation_e67f6d2103c547fc88de691677ad1f21/view",
+      "query": "",
+      "status": 200,
+      "bodyBytes": 417697,
+      "unchanged": false
+    },
+    {
+      "path": "/api/investigations/investigation_2d786dd17b8347509e62a74a57516586/view",
+      "query": "?knownVersion=iv1_c843b1e6587cc9394f5532ed7ea660db4fcab3a0736dc384f6496d450f765566",
+      "status": 200,
+      "bodyBytes": 99,
+      "unchanged": true
+    },
+    {
+      "path": "/api/investigations/investigation_14dede3c7e994e33bb0f9acd56052fd3/view",
+      "query": "",
+      "status": 200,
+      "bodyBytes": 7452,
+      "unchanged": false
+    },
+    {
+      "path": "/api/investigations/investigation_e67f6d2103c547fc88de691677ad1f21/view",
+      "query": "?knownVersion=iv1_d51b9f562a59be16af5a5c2cf9f4b3bc86edb73d09eeb15a5045677884e8b3c9",
+      "status": 200,
+      "bodyBytes": 99,
+      "unchanged": true
+    },
+    {
+      "path": "/api/investigations/investigation_2d786dd17b8347509e62a74a57516586/view",
+      "query": "?knownVersion=iv1_c843b1e6587cc9394f5532ed7ea660db4fcab3a0736dc384f6496d450f765566",
+      "status": 200,
+      "bodyBytes": 99,
+      "unchanged": true
+    },
+    {
+      "path": "/api/investigations/investigation_2d786dd17b8347509e62a74a57516586/view",
+      "query": "?knownVersion=iv1_c843b1e6587cc9394f5532ed7ea660db4fcab3a0736dc384f6496d450f765566",
+      "status": 200,
+      "bodyBytes": 99,
+      "unchanged": true
+    },
+    {
+      "path": "/api/investigations/investigation_2d786dd17b8347509e62a74a57516586/view",
+      "query": "",
+      "status": 200,
+      "bodyBytes": 14474,
+      "unchanged": false
+    },
+    {
+      "path": "/api/investigations/investigation_2d786dd17b8347509e62a74a57516586/view",
+      "query": "",
+      "status": 200,
+      "bodyBytes": 14474,
+      "unchanged": false
+    },
+    {
+      "path": "/api/investigations/investigation_407c43caee474fcb9afdfcd0ceb0b49a/view",
+      "query": "",
+      "status": 200,
+      "bodyBytes": 7546,
+      "unchanged": false
+    },
+    {
+      "path": "/api/investigations/investigation_missing_saved_work_left/view",
+      "query": "",
+      "status": 404,
+      "bodyBytes": 35
+    },
+    {
+      "path": "/api/investigations/investigation_missing_saved_work_right/view",
+      "query": "",
+      "status": 404,
+      "bodyBytes": 35
+    },
+    {
+      "path": "/api/investigations/investigation_407c43caee474fcb9afdfcd0ceb0b49a/view",
+      "query": "",
+      "status": 200,
+      "bodyBytes": 7546,
+      "unchanged": false
+    },
+    {
+      "path": "/api/investigations/investigation_missing_saved_work_left/view",
+      "query": "",
+      "status": 404,
+      "bodyBytes": 35
+    },
+    {
+      "path": "/api/investigations/investigation_missing_saved_work_right/view",
+      "query": "",
+      "status": 404,
+      "bodyBytes": 35
+    },
+    {
+      "path": "/api/investigations/investigation_e67f6d2103c547fc88de691677ad1f21/view",
+      "query": "",
+      "status": 200,
+      "bodyBytes": 417697,
+      "unchanged": false
+    },
+    {
+      "path": "/api/investigations/investigation_missing_saved_work_left/view",
+      "query": "",
+      "status": 404,
+      "bodyBytes": 35
+    },
+    {
+      "path": "/api/investigations/investigation_missing_saved_work_right/view",
+      "query": "",
+      "status": 404,
+      "bodyBytes": 35
+    },
+    {
+      "path": "/api/investigations/investigation_14dede3c7e994e33bb0f9acd56052fd3/view",
+      "query": "",
+      "status": 200,
+      "bodyBytes": 7452,
+      "unchanged": false
+    },
+    {
+      "path": "/api/investigations/investigation_missing_saved_work_left/view",
+      "query": "",
+      "status": 404,
+      "bodyBytes": 35
+    },
+    {
+      "path": "/api/investigations/investigation_missing_saved_work_right/view",
+      "query": "",
+      "status": 404,
+      "bodyBytes": 35
+    },
+    {
+      "path": "/api/investigations/investigation_e67f6d2103c547fc88de691677ad1f21/view",
+      "query": "?knownVersion=iv1_d51b9f562a59be16af5a5c2cf9f4b3bc86edb73d09eeb15a5045677884e8b3c9",
+      "status": 200,
+      "bodyBytes": 99,
+      "unchanged": true
+    },
+    {
+      "path": "/api/investigations/investigation_e67f6d2103c547fc88de691677ad1f21/view",
+      "query": "?knownVersion=iv1_d51b9f562a59be16af5a5c2cf9f4b3bc86edb73d09eeb15a5045677884e8b3c9",
+      "status": 200,
+      "bodyBytes": 99,
+      "unchanged": true
+    },
+    {
+      "path": "/api/investigations/investigation_14dede3c7e994e33bb0f9acd56052fd3/view",
+      "query": "?knownVersion=iv1_a821fc034cdf93fa16cee3e3fbcfc3fd5bea1c1f73b62bbb2b8dec506839344b",
+      "status": 200,
+      "bodyBytes": 99,
+      "unchanged": true
+    },
+    {
+      "path": "/api/investigations/investigation_407c43caee474fcb9afdfcd0ceb0b49a/view",
+      "query": "?knownVersion=iv1_8301fafb0f0151c940d854b08fc102f83b9c019703b461d1b611112f6aea5bd6",
+      "status": 200,
+      "bodyBytes": 99,
+      "unchanged": true
+    }
+  ],
+  "unchangedViewReplies": [
+    {
+      "path": "/api/investigations/investigation_2d786dd17b8347509e62a74a57516586/view",
+      "bodyBytes": 99
+    },
+    {
+      "path": "/api/investigations/investigation_e67f6d2103c547fc88de691677ad1f21/view",
+      "bodyBytes": 99
+    },
+    {
+      "path": "/api/investigations/investigation_2d786dd17b8347509e62a74a57516586/view",
+      "bodyBytes": 99
+    },
+    {
+      "path": "/api/investigations/investigation_2d786dd17b8347509e62a74a57516586/view",
+      "bodyBytes": 99
+    },
+    {
+      "path": "/api/investigations/investigation_e67f6d2103c547fc88de691677ad1f21/view",
+      "bodyBytes": 99
+    },
+    {
+      "path": "/api/investigations/investigation_e67f6d2103c547fc88de691677ad1f21/view",
+      "bodyBytes": 99
+    },
+    {
+      "path": "/api/investigations/investigation_14dede3c7e994e33bb0f9acd56052fd3/view",
+      "bodyBytes": 99
+    },
+    {
+      "path": "/api/investigations/investigation_407c43caee474fcb9afdfcd0ceb0b49a/view",
+      "bodyBytes": 99
+    }
+  ],
+  "catalogResponses": [
+    {
+      "path": "/api/investigations/catalog",
+      "query": "?limit=20&q=",
+      "bodyBytes": 8213,
+      "items": 20,
+      "unchanged": false
+    },
+    {
+      "path": "/api/investigations/artifacts",
+      "query": "?limit=20&q=",
+      "bodyBytes": 8498,
+      "items": 20,
+      "unchanged": false
+    },
+    {
+      "path": "/api/investigations/catalog",
+      "query": "?limit=20&q=&cursor=eyJhZnRlciI6WzE3OTE5MDA5ODEwMDAsImludmVzdGlnYXRpb25fMDY1ZWY3MmEyYTk4NGEyZThiOGE1YmVjNmUxYjQ5MzIiXSwia2luZCI6ImludmVzdGlnYXRpb25zIiwicXVlcnkiOiIiLCJ2IjoxfQ",
+      "bodyBytes": 8189,
+      "items": 20,
+      "unchanged": false
+    },
+    {
+      "path": "/api/investigations/catalog",
+      "query": "?limit=20&q=&knownVersion=ic1_f30db6f994bb5ac5f5c3cfe425c6bde497c61114b52618cd28be590e121d6dd7",
+      "bodyBytes": 99,
+      "unchanged": true
+    },
+    {
+      "path": "/api/investigations/artifacts",
+      "query": "?limit=20&q=STRASSE",
+      "bodyBytes": 555,
+      "items": 1,
+      "unchanged": false
+    },
+    {
+      "path": "/api/investigations/artifacts",
+      "query": "?limit=20&q=Synthetic+archive",
+      "bodyBytes": 8521,
+      "items": 20,
+      "unchanged": false
+    },
+    {
+      "path": "/api/investigations/catalog",
+      "query": "?limit=20&q=",
+      "bodyBytes": 8237,
+      "items": 20,
+      "unchanged": false
+    },
+    {
+      "path": "/api/investigations/artifacts",
+      "query": "?limit=20&q=",
+      "bodyBytes": 8498,
+      "items": 20,
+      "unchanged": false
+    },
+    {
+      "path": "/api/investigations/artifacts",
+      "query": "?limit=20&q=Old+chain+%C2%B7+C",
+      "bodyBytes": 555,
+      "items": 1,
+      "unchanged": false
+    },
+    {
+      "path": "/api/investigations/catalog",
+      "query": "?limit=20&q=STRASSE",
+      "bodyBytes": 550,
+      "items": 1,
+      "unchanged": false
+    },
+    {
+      "path": "/api/investigations/catalog",
+      "query": "?limit=20&q=Old+chain+%C2%B7+C",
+      "bodyBytes": 549,
+      "items": 1,
+      "unchanged": false
+    },
+    {
+      "path": "/api/investigations/catalog",
+      "query": "?limit=20&q=&knownVersion=ic1_801cf96f8679eb36c55085cc7ddd5329dc9c0c61c9aa3fa444eaade5b31d24bd",
+      "bodyBytes": 8237,
+      "items": 20,
+      "unchanged": false
+    },
+    {
+      "path": "/api/investigations/catalog",
+      "query": "?limit=20&q=Synthetic+archive",
+      "bodyBytes": 8211,
+      "items": 20,
+      "unchanged": false
+    },
+    {
+      "path": "/api/investigations/catalog",
+      "query": "?limit=20&q=Synthetic+archive&cursor=eyJhZnRlciI6WzE3OTE5MDA5ODAwMDAsImludmVzdGlnYXRpb25fNzFiYTcxZGEzZDQ5NGYxNDlhMzVmMTAyZDliNmZiZjQiXSwia2luZCI6ImludmVzdGlnYXRpb25zIiwicXVlcnkiOiJzeW50aGV0aWMgYXJjaGl2ZSIsInYiOjF9",
+      "bodyBytes": 8211,
+      "items": 20,
+      "unchanged": false
+    },
+    {
+      "path": "/api/investigations/catalog",
+      "query": "?limit=20&q=",
+      "bodyBytes": 8237,
+      "items": 20,
+      "unchanged": false
+    },
+    {
+      "path": "/api/investigations/artifacts",
+      "query": "?limit=20&q=",
+      "bodyBytes": 8498,
+      "items": 20,
+      "unchanged": false
+    },
+    {
+      "path": "/api/investigations/artifacts",
+      "query": "?limit=20&q=STRASSE",
+      "bodyBytes": 555,
+      "items": 1,
+      "unchanged": false
+    },
+    {
+      "path": "/api/investigations/catalog",
+      "query": "?limit=20&q=",
+      "bodyBytes": 8237,
+      "items": 20,
+      "unchanged": false
+    },
+    {
+      "path": "/api/investigations/artifacts",
+      "query": "?limit=20&q=",
+      "bodyBytes": 8498,
+      "items": 20,
+      "unchanged": false
+    },
+    {
+      "path": "/api/investigations/catalog",
+      "query": "?limit=20&q=Old+chain+%C2%B7+B",
+      "bodyBytes": 553,
+      "items": 1,
+      "unchanged": false
+    },
+    {
+      "path": "/api/investigations/catalog",
+      "query": "?limit=20&q=",
+      "bodyBytes": 8237,
+      "items": 20,
+      "unchanged": false
+    },
+    {
+      "path": "/api/investigations/artifacts",
+      "query": "?limit=20&q=",
+      "bodyBytes": 8498,
+      "items": 20,
+      "unchanged": false
+    },
+    {
+      "path": "/api/investigations/catalog",
+      "query": "?limit=20&q=&knownVersion=ic1_8c27eaa3d905d64e26b0c0330dd63cf37d30abc22a32e67afea33b452db9eb45",
+      "bodyBytes": 99,
+      "unchanged": true
+    },
+    {
+      "path": "/api/investigations/catalog",
+      "query": "?limit=20&q=STRASSE",
+      "bodyBytes": 550,
+      "items": 1,
+      "unchanged": false
+    },
+    {
+      "path": "/api/investigations/catalog",
+      "query": "?limit=20&q=Old+chain+%C2%B7+C",
+      "bodyBytes": 549,
+      "items": 1,
+      "unchanged": false
+    }
+  ],
+  "mutationRequests": [
+    {
+      "path": "/api/investigations",
+      "requestId": "eb2898ea-56c7-4c60-bfae-17b4ec9ac422"
+    },
+    {
+      "path": "/api/investigations",
+      "requestId": "eb2898ea-56c7-4c60-bfae-17b4ec9ac422"
+    },
+    {
+      "path": "/api/investigations/investigation_2d786dd17b8347509e62a74a57516586/contexts",
+      "requestId": "560f0691-74da-4b4f-a35b-3d64987e92c1"
+    }
+  ],
+  "javascriptExceptions": [],
+  "screenshots": [
+    "docs/evidence/saved_work_ui_2026_10_13_desktop_lineage.png",
+    "docs/evidence/saved_work_ui_2026_10_13_desktop_comparison.png",
+    "docs/evidence/saved_work_ui_2026_10_13_mobile_picker.png",
+    "docs/evidence/saved_work_ui_2026_10_13_mobile_lineage.png"
+  ],
+  "limits": "Scripted synthetic recovery; no human-speed, native execution, aggregate SQL-work, or maximum individual packet-size claim.",
+  "seededOwners": 1000
+}

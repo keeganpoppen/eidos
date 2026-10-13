@@ -15,6 +15,7 @@ from .investigation import InvestigationError, InvestigationStore
 from .investigation_continuations import InvestigationContinuations
 from .investigation_inquiries import terminal_inquiry
 from .investigation_experiments import InvestigationExperiments
+from .investigation_reads import InvestigationReads
 from .investigation_worker import NativeInvestigationWorker
 from .history import (
     PAGE_SIZE, SourceRecordNotFound, history_snapshot, history_version,
@@ -303,6 +304,7 @@ class EidosAPI:
         self._jobs: dict[str, dict[str, Any]] = {}
         self._jobs_lock = threading.RLock()
         self.investigations = InvestigationStore(store)
+        self.investigation_reads = InvestigationReads(self.investigations)
         self.investigation_experiments = InvestigationExperiments(self.investigations)
         self.investigation_continuations = InvestigationContinuations(self.investigations)
         self.investigation_runtime = self.investigation_continuations.runtime
@@ -348,7 +350,7 @@ class EidosAPI:
         parts = [unquote(part) for part in path.split("/") if part]
         if parts[:2] == ["api", "investigations"]:
             try:
-                return self._dispatch_investigation(handler, method, parts)
+                return self._dispatch_investigation(handler, method, parts, query)
             except InvestigationError as exc:
                 return exc.status, {"error": exc.message}
             except (ValueError, TypeError) as exc:
@@ -430,9 +432,11 @@ class EidosAPI:
 
         return 404, {"error": "not found"}
 
-    def _dispatch_investigation(self, handler: Any, method: str, parts: list[str]) -> tuple[int, Any]:
+    def _dispatch_investigation(self, handler: Any, method: str, parts: list[str], query: dict[str, list[str]]) -> tuple[int, Any]:
         if parts == ["api", "investigations", "capabilities"] and method == "GET":
             return 200, self.investigation_capabilities()
+        if len(parts) == 3 and parts[2] in {"catalog", "artifacts"} and method == "GET":
+            return 200, self.investigation_reads.catalog(query, artifacts=parts[2] == "artifacts")
         if len(parts) == 2:
             if method == "GET":
                 return 200, {"investigations": self.investigations.list()}
@@ -440,6 +444,10 @@ class EidosAPI:
                 return 201, self.investigations.create(_json_body(handler))
         if len(parts) == 3 and method == "GET":
             return 200, self.investigations.get(parts[2])
+        if len(parts) == 4 and parts[3] == "view" and method == "GET":
+            return 200, self.investigation_reads.view(parts[2], query)
+        if len(parts) == 6 and parts[3] == "artifacts" and parts[5] == "source" and method == "GET":
+            return 200, self.investigation_reads.source(parts[2], parts[4], query)
         if len(parts) == 4 and parts[3] == "experiments":
             if method == "GET":
                 return 200, self.investigation_experiments.list(parts[2])

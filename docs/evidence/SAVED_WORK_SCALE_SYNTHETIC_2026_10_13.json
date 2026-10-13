@@ -1,0 +1,97 @@
+{
+  "schemaVersion": "synthetic-saved-work-scale/v1",
+  "classification": "SYNTHETIC_AUTHORED_HOST_COMPLETIONS",
+  "owners": 1000,
+  "sourceContextCount": 32,
+  "nativeOrModelCalls": 0,
+  "investigations": {
+    "A": "investigation_e67f6d2103c547fc88de691677ad1f21",
+    "B": "investigation_407c43caee474fcb9afdfcd0ceb0b49a",
+    "C": "investigation_14dede3c7e994e33bb0f9acd56052fd3"
+  },
+  "artifacts": {
+    "A": "artifact_8530fe29f5e430874813e3455db9fc8e4cf8e29e1db2bc475f78fff7711ed910",
+    "B": "artifact_0064fd58069f53612071d31760745779b2b34144754758b9227feec82967e30b",
+    "C": "artifact_69f6f22f395835627b3b588d29e8784c7834400ec5a74fa7832b6704110717a4"
+  },
+  "contexts": {
+    "A": "context_6e55e6f4ff394d2eff3dfa1702813fcb0153841610e6d1ec3b905b1e99e03234",
+    "B": "context_0058fe83c8469036360738503a057c93b9a76e3e2dcd1ef0722339bcbfa2ab00",
+    "C": "context_8ac40bef0bb23a1d53089d933ef23f9ea47fd0d4422b74f3780e4567de2759c6"
+  },
+  "controllingSeq": 1,
+  "controllingRawRecord": {
+    "direction": "internal",
+    "method": "$history/item",
+    "rawText": "{\"method\":\"$history/item\",\"params\":{\"threadId\":\"saved-work-origin\",\"turnId\":\"decision-0\",\"item\":{\"id\":\"support-0\",\"type\":\"agentMessage\",\"text\":\"Persist the dispatch identity before sending; recover recorded completion and retain unknown delivery.\",\"futureField\":{\"preserved\":true,\"classification\":\"synthetic\"}}}}",
+    "seq": 1,
+    "sha256": "aab443705db4a1f09ae098ac668ae899d133fa8ab6d93dc436aa3b8ad033bf5f",
+    "source": "synthetic-saved-work-scale/v1",
+    "threadId": "saved-work-origin"
+  },
+  "measurementScope": "actual loopback HTTP bodies; hot read paths after initial API recovery; no model or dispatch",
+  "firstCatalogRead": {
+    "bodyBytes": 8189,
+    "canonicalParseCount": 1000,
+    "distinctCanonicalOwners": 1000,
+    "canonicalReadStatementCount": 1000,
+    "canonicalReadStatementExamples": [
+      "SELECT id,state_json FROM investigations WHERE id='investigation_e67f6d2103c547fc88de691677ad1f21'",
+      "SELECT id,state_json FROM investigations WHERE id='investigation_407c43caee474fcb9afdfcd0ceb0b49a'",
+      "SELECT id,state_json FROM investigations WHERE id='investigation_14dede3c7e994e33bb0f9acd56052fd3'"
+    ]
+  },
+  "hotCatalogAndSearch": {
+    "catalogBytes": 8189,
+    "unchangedBytes": 99,
+    "searchBytes": 555,
+    "canonicalParses": [],
+    "canonicalReadStatements": []
+  },
+  "unchangedSelectedView": {
+    "bodyBytes": 99,
+    "canonicalParses": [],
+    "canonicalReadStatements": []
+  },
+  "sourceHops": [
+    {
+      "name": "C",
+      "bodyBytes": 7278,
+      "canonicalParses": [
+        "investigation_14dede3c7e994e33bb0f9acd56052fd3"
+      ],
+      "canonicalReadStatements": [
+        "SELECT state_json FROM investigations WHERE id='investigation_14dede3c7e994e33bb0f9acd56052fd3'"
+      ]
+    },
+    {
+      "name": "B",
+      "bodyBytes": 7372,
+      "canonicalParses": [
+        "investigation_407c43caee474fcb9afdfcd0ceb0b49a"
+      ],
+      "canonicalReadStatements": [
+        "SELECT state_json FROM investigations WHERE id='investigation_407c43caee474fcb9afdfcd0ceb0b49a'"
+      ]
+    },
+    {
+      "name": "A",
+      "bodyBytes": 6501,
+      "canonicalParses": [
+        "investigation_e67f6d2103c547fc88de691677ad1f21"
+      ],
+      "canonicalReadStatements": [
+        "SELECT state_json FROM investigations WHERE id='investigation_e67f6d2103c547fc88de691677ad1f21'"
+      ]
+    }
+  ],
+  "fullSourceOwnerViewBytes": 417697,
+  "originalSupportRecovered": true,
+  "outOfFirstPageResultFound": true,
+  "limitations": "Cold/dirty projection refresh can parse all changed owners; exact source parses one full owner; no aggregate SQL or single-context byte bound is claimed.",
+  "reopenedHotCatalog": {
+    "bodyBytes": 99,
+    "canonicalParses": [],
+    "canonicalReadStatements": []
+  }
+}

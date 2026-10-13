@@ -1,11 +1,13 @@
 <script lang="ts">
-  import { onMount, tick } from 'svelte';
+  import { onMount, tick, untrack } from 'svelte';
   import Markdown from './Markdown.svelte';
   import WorkContent from './WorkContent.svelte';
   import EvidenceRecord from './EvidenceRecord.svelte';
   import LineDiff from './LineDiff.svelte';
   import InquirySurface from './InquirySurface.svelte';
   import ArtifactLineage from './ArtifactLineage.svelte';
+  import CatalogPicker from './CatalogPicker.svelte';
+  import { savedWork, type WorkSummary } from './saved-work';
   import type { ArtifactSourceTarget } from './artifact-inputs';
   import ImprovementReview from './ImprovementReview.svelte';
   import { makeReflectionFixture } from './reflection-fixture';
@@ -20,6 +22,10 @@
   let fixtureStage = $state<'pending' | 'supplied' | null>(null);
   const fixture = $derived(fixtureStage ? makeReflectionFixture(fixtureStage) : null);
   const investigations = $derived([...savedInvestigations, ...(fixture?.investigations ?? [])]);
+  const fixtureChoices = $derived((fixture?.investigations ?? []).map((item): WorkSummary => ({
+    id: item.id, title: item.title, status: item.status, createdAtMs: item.createdAtMs, currentContextId: item.currentContextId,
+    contextCount: item.contexts.length, artifactCount: artifacts(item).length, attemptStatus: item.attempt?.status ?? null, hasInquiry: !!item.continuation?.inquiry, version: 'fixture'
+  })));
   let attentionRequest = $state('');
   let intentError = $state('');
   let reviewBase = $state('');
@@ -34,6 +40,8 @@
   let receipt = $state('');
   let seenRequest = -1;
   let inFlight = false;
+  let refreshAgain = false;
+  const bindRequests = { left: 0, right: 0 };
   let disposed = false;
   let editButton: HTMLButtonElement;
   let evidenceHeading: HTMLHeadingElement;
@@ -80,10 +88,21 @@
   }
 
   function bindTarget(side: 'left' | 'right', id: string) {
+    const request = ++bindRequests[side];
     const item = investigations.find((i) => i.id === id);
-    const contextId = item ? contextFor(item) : '';
-    const artifact = artifacts(item).find((candidate) => candidate.contextId === contextId);
-    draft = { ...draft, [side]: { investigationId: id, contextId, ...(artifact ? { artifactId: artifact.id } : {}) } };
+    const bind = (value: Investigation) => {
+      const contextId = contextFor(value);
+      const artifact = artifacts(value).find((candidate) => candidate.contextId === contextId);
+      draft = { ...draft, [side]: { investigationId: id, contextId, ...(artifact ? { artifactId: artifact.id } : {}) } };
+    };
+    if (item) { bind(item); return; }
+    draft = { ...draft, [side]: { investigationId: id, contextId: '' } };
+    if (!id) return;
+    void savedWork.view(id).then((value) => {
+      if (disposed || request !== bindRequests[side] || draft[side].investigationId !== id) return;
+      receiveInvestigation(value);
+      bind(value);
+    }).catch((cause) => { if (!disposed && request === bindRequests[side]) error = cause instanceof Error ? cause.message : String(cause); });
   }
 
   function bindContext(side: 'left' | 'right', contextId: string) {
@@ -126,9 +145,16 @@
     previewRequest();
   }
 
-  function previewRequest() {
+  async function previewRequest() {
+    const requested = attentionRequest;
     try {
-      draft = compileAttentionRequest(JSON.parse(attentionRequest), investigations, fixture ? [fixture.experiment] : []);
+      const request = JSON.parse(requested);
+      if (typeof request.investigationId === 'string' && !investigations.some((item) => item.id === request.investigationId)) {
+        const value = await savedWork.view(request.investigationId);
+        if (disposed || requested !== attentionRequest) return;
+        receiveInvestigation(value);
+      }
+      draft = compileAttentionRequest(request, investigations, fixture ? [fixture.experiment] : []);
       intentError = ''; editing = true; reviewDraft(); receipt = '';
     } catch (cause) { intentError = cause instanceof Error ? cause.message : String(cause); }
   }
@@ -139,24 +165,50 @@
     stageIntent('evidence-chain', fixture!.inquiry.baseline.investigationId);
   }
 
+  function receiveInvestigation(value: Investigation) {
+    savedInvestigations = [...savedInvestigations.filter((item) => item.id !== value.id), value];
+  }
+
   function updateInvestigation(value: Investigation) {
-    savedInvestigations = savedInvestigations.map((item) => item.id === value.id ? value : item);
+    savedWork.remember(value);
+    receiveInvestigation(value);
+  }
+
+  function referencedOwners(): string[] {
+    return [...new Set([arranged?.left.investigationId, arranged?.right.investigationId,
+      draft.left.investigationId, draft.right.investigationId, composition.focus?.investigationId, initialId]
+      .filter((id): id is string => !!id && !id.startsWith('fixture:')))];
   }
 
   async function refresh() {
-    if (inFlight || disposed) return;
+    if (disposed || !open) return;
+    if (inFlight) { refreshAgain = true; return; }
     inFlight = true;
     try {
-      const response = await fetch('/api/investigations');
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.error ?? 'Could not load saved investigations.');
+      let ids = referencedOwners();
+      if (!ids.length && !investigations.length) {
+        const page = await savedWork.catalog('catalog');
+        ids = page.items.slice(0, 2).map((item) => (item as WorkSummary).id);
+      }
+      const results = await Promise.allSettled(ids.map((id) => savedWork.view(id)));
       if (disposed) return;
-      savedInvestigations = result.investigations;
       error = '';
+      for (const result of results) {
+        if (result.status === 'fulfilled') receiveInvestigation(result.value);
+        else error = result.reason instanceof Error ? result.reason.message : String(result.reason);
+      }
+      // A failed initial selection has no context pin yet. Retrying may finish
+      // that explicit selection; existing historical pins are never rebound.
+      for (const side of ['left', 'right'] as const) {
+        if (draft[side].investigationId && !draft[side].contextId && investigations.some((item) => item.id === draft[side].investigationId)) bindTarget(side, draft[side].investigationId);
+      }
       if (!arranged && !draft.left.investigationId) beginEdit(initialId);
     } catch (cause) {
       if (!disposed) error = cause instanceof Error ? cause.message : String(cause);
-    } finally { inFlight = false; loading = false; }
+    } finally {
+      inFlight = false; loading = false;
+      if (refreshAgain) { refreshAgain = false; void refresh(); }
+    }
   }
 
   async function apply() {
@@ -230,6 +282,12 @@
     return () => { disposed = true; clearInterval(timer); };
   });
 
+  const ownerKey = $derived(JSON.stringify(referencedOwners()));
+  $effect(() => {
+    void ownerKey; void requestId;
+    if (ready && open) untrack(() => void refresh());
+  });
+
   $effect(() => {
     if (!ready) return;
     try { localStorage.setItem(compositionKey, JSON.stringify({ ...composition, open })); storageError = false; }
@@ -278,21 +336,17 @@
   {#if editing}
     <section class="arrangement-editor" aria-label="Arrange this surface">
       {#if !investigations.length}
-        <p>{loading ? 'Loading saved investigations…' : 'Save an investigation first. Two saved investigations, or two revisions of one, can share this surface.'}</p>
-      {:else}
+        <p>{loading ? 'Loading saved investigations…' : 'No selected investigation is available. Search saved work to choose a target; existing references remain unchanged.'}</p>
+      {/if}
         <div class="target-editors">
           {#each ['left', 'right'] as side}
             {@const position = side as 'left' | 'right'}
             {@const item = investigations.find((i) => i.id === draft[position].investigationId)}
             <div>
-              <label for={`compare-${side}`}>{side === 'left' ? 'A / Retain a baseline' : 'B / Bring another reading'}</label>
-              <select id={`compare-${side}`} value={draft[position].investigationId} onchange={(event) => bindTarget(position, event.currentTarget.value)}>
-                <option value="">Choose saved investigation</option>
-                {#if draft[position].investigationId && !item}<option value={draft[position].investigationId}>Unavailable saved investigation</option>{/if}
-                {#each investigations as candidate (candidate.id)}<option value={candidate.id}>{candidate.title} · {candidate.status}</option>{/each}
-              </select>
+              <CatalogPicker id={`compare-${side}`} label={side === 'left' ? 'A / Retain a baseline' : 'B / Bring another reading'} value={draft[position].investigationId} selectedLabel={item?.title} active={open} extra={fixtureChoices} onChoose={(id) => bindTarget(position, id)} />
               <label class="small-label" for={`compare-${side}-context`}>Context aperture</label>
               <select id={`compare-${side}-context`} value={draft[position].contextId} onchange={(event) => bindContext(position, event.currentTarget.value)}>
+                {#if draft[position].contextId && !item?.contexts.some((context) => context.id === draft[position].contextId)}<option value={draft[position].contextId}>Unavailable saved context · {draft[position].contextId}</option>{/if}
                 {#each item?.contexts ?? [] as context, index (context.id)}
                   <option value={context.id}>Revision {index + 1}{context.id === item?.artifact?.contextId ? ' · returned artifact input' : context.id === item?.currentContextId ? ' · current' : ' · historical'}</option>
                 {/each}
@@ -328,7 +382,6 @@
             <button onclick={cancelEdit}>Cancel changes</button>
           </div>
         {/if}
-      {/if}
     </section>
   {/if}
 

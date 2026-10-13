@@ -6,6 +6,38 @@ The baseline GitHub Actions run `38240774514` completed successfully: pytest and
 
 Refresh this file when implementation claims materially change. Keep historical audit IDs instead of quietly relabelling old evidence as current.
 
+## Saved work at scale and native process boundary — 2026-10-13
+
+Integration base `1ee2821`; [measured acceptance](../evidence/SAVED_WORK_SCALE_INTEGRATION.md)
+and [handoff](../agents/CURRENT_HANDOFF.md) identify the containing integration.
+Saved-work/result discovery now uses paged metadata and title search. Conditional
+selected-owner reads avoid repeated history transfer; exact source links return
+one artifact/context/attempt with preserved historical input review. Canonical
+source and legacy envelopes remain unchanged; read indexes are replaceable.
+
+Combined verification: **732 Python tests passed, 31 explicit native opt-ins skipped**;
+**58 Bun tests / 287 assertions**, Svelte **0 errors / 0 warnings**, build passed.
+Real HTTP over 1,000 synthetic owners measured 8,189-byte 20-owner catalogs,
+99-byte unchanged replies, and a 6,501-byte exact A source versus its 417,697-byte
+full owner. Hot catalog/unchanged paths parse no canonical owners and issue no
+source SELECTs. Initial recovery, cold/dirty indexing and changed full-owner reads
+remain material costs. These are read-path measurements, not aggregate resource
+or human-speed claims.
+
+Independent Chromium acceptance and parent reproduction preserve dirty drafts,
+historical previews/comparison pins, exact source bytes and retry identities at
+desktop and 390px widths. A committed save with a lost reply is retried after
+reload without creating a duplicate owner. Missing-owner repair remains available.
+No dispatch occurred. All completions in this fixture are authored synthetic data.
+
+The [process-boundary experiment](../evidence/NATIVE_PROCESS_BOUNDARY_EXPERIMENT.md)
+was independently reproduced on the combined tree: **34 opt-in tests passed**.
+Native 0.154.0 starts under pre-exec kernel restrictions permitting threads while
+denying tested child/exec transitions. In-process HTTP MCP still reaches a fake
+broker, so this does not establish provider-only authenticated egress. Production
+startup remains closed. The next separate experiment exercises real native turn
+transport against an isolated synthetic provider; it is not subscription execution.
+
 ## Exact result composition and rejected gateway — 2026-10-13
 
 Integration base `29a164a`; [composition evidence](../evidence/ARTIFACT_COMPOSITION_INTEGRATION.md)

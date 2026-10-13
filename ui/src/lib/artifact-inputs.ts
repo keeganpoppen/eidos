@@ -53,7 +53,7 @@ export function resolveArtifactSource(investigation: Investigation, target: Arti
   return context && attempt ? { artifact, context, attempt } : null;
 }
 
-export function artifactKind(artifact: InvestigationArtifact): string {
+export function artifactKind(artifact: { kind?: string; continuedFrom?: unknown }): string {
   if (artifact.kind === 'eidos-evidence-review') return 'Evidence decision receipt';
   if (artifact.kind === 'native-needs-evidence') return 'Specialist evidence inquiry';
   if (artifact.kind === 'native-inquiry-invalid') return 'Invalid evidence inquiry';

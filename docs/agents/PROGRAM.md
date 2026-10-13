@@ -1,6 +1,6 @@
 # Continuing development frontier
 
-**Provisional strategic understanding · 2026-10-13 · integration base `29a164a`.**
+**Provisional strategic understanding · 2026-10-13 · integration base `1ee2821`.**
 The [current handoff](CURRENT_HANDOFF.md) owns verified status and runnable steps;
 this document owns revisable conjectures and opportunity ordering. It does not
 replace the [destination](../vision/DESTINATION.md) or [V1](../roadmap/V1.md).
@@ -27,29 +27,35 @@ These are hypotheses, not established invariants or additional release gates.
 
 ## Opportunity ordering and reversible decisions
 
-1. **Current integration: result→next investigation (C1).** A narrow artifact-input
-   adapter and source-provenance view preserve exact artifact/context/attempt
-   identity without recursively including source transcripts. Legacy hashes and
-   A2 inputs remain stable. Independent review found that artifact IDs alone could
-   conceal a dropped rejection snapshot; comparison now checks the complete frozen
-   input except rationale. Combined rendered acceptance preserves dirty drafts and
-   exact support at desktop/mobile sizes. Next challenge conflicting/longer result
-   chains rather than adding more fixture conclusions.
-2. **Active native experiment: process separation before startup (C6, V1-05/12).**
-   The disconnected namespace contains tested unexpected MCP effects. A synthetic
-   gateway then falsified caller authentication through a shared relay: a sibling
-   submitting identical content first consumes the permit. That mechanism is
-   rejected. Test a tools-disabled native launch with kernel restrictions installed
-   before configuration loads: permit native threads, deny untrusted processes and
-   later executable transitions. Initialization must still work. No credentials,
-   model work or external forwarding belong in this experiment; the production
-   gate remains closed. A native compromise is outside this narrower distinction.
-3. **Established baseline: stable history recovery (C5, V1-01/02/03).** The
+1. **Established integration: saved work at scale (C1/C5).** Exact result composition
+   exposed complete-catalog and source-owner transfer. The next loop uses metadata
+   pages, conditional selected-owner reads and exact source detail while preserving
+   frozen inputs, dirty drafts and comparison pins. A 1,000-owner actual HTTP and
+   rendered fixture verifies transfer, exact source recovery and lost-reply retry. Canonical source
+   remains intact; projections are replaceable. First owner loads and dirty-index
+   refresh are explicit remaining costs, not hidden behind a bounded-page claim.
+2. **Active native experiment: synthetic turn under process denial (C6).** The
+   earlier shared relay failed caller authentication and remains rejected. A
+   pre-exec kernel process/exec restriction now permits native initialization and
+   threads while preventing tested children and subsequent exec; independent parent
+   opt-in reproduced 34 checks. In-process HTTP MCP remains a counterexample to
+   provider-only egress. Next exercise real native turn transport exclusively with
+   a disconnected fake provider and synthetic SSE. This tests native compatibility
+   and durable correlation, not subscription execution, authenticated egress or
+   model usefulness. Production startup remains closed.
+3. **Next product loop: durable named arrangements (C5, V1-01/10).** Current
+   arrangements survive only in one browser. Save a reviewed compiled arrangement
+   and focus as immutable reference content, recover it in a fresh browser on the
+   same database, and save explicit copies with ancestry. Preserve historical
+   pins even when inquiry/attempt state advances; never recompile old intent.
+   Create-only snapshots avoid premature shared mutable-head synchronization.
+   Block-focus selectors need an explicit renderer version and unresolved fallback.
+4. **Established baseline: stable history recovery (C5, V1-01/02/03).** The
    integrated 1,200-turn persisted browser case recovers disjoint support, survives
    reload and append, and measures bounded turn transfer/unchanged responses.
    Exact constituent records replaced interval-overlap membership. This enables
    better source search/lenses; it does not measure human speed or cap turn bytes.
-4. **Alternative: reversible recipe activation (C3/C4).** Choose this when observed
+5. **Alternative: reversible recipe activation (C3/C4).** Choose this when observed
    repeated selection friction justifies a concrete recipe. Do not reward adopting
    a change whose only evaluation is smaller bytes or agreeable prose.
 
@@ -61,16 +67,12 @@ not mature-world axioms.
 
 ## Current integration boundary and next contract
 
-The commit containing this update integrates artifact-input work and the rejected
-gateway experiment from base `29a164a`; [handoff](CURRENT_HANDOFF.md) owns combined
-verification and worker status. See [D28](../roadmap/DECISIONS.md) and the
-[composition evidence](../evidence/ARTIFACT_COMPOSITION_INTEGRATION.md). Native
-process-separation research is an independent lane, not an admitted launcher.
-
-One scaling limit exposed by result composition: the catalog and source-provenance
-view still load whole owning investigations. Lazy chain traversal avoids recursive
-prompt copying but does not bound a large owner's context/history transfer. Measure
-that actual bottleneck before choosing a replacement index or pagination contract.
+The previous exact result integration is `1ee2821` (public CI passed); the
+[handoff](CURRENT_HANDOFF.md) identifies combined verification, ongoing native
+research and the next product contract. See [D28](../roadmap/DECISIONS.md) and the
+[composition evidence](../evidence/ARTIFACT_COMPOSITION_INTEGRATION.md). The active
+read index is a derived performance adapter, not a second provenance authority.
+Native process/synthetic transport research is independent of production admission.
 
 Historical paging contract: `GET /api/threads/:id` returns at most 40 complete turns.
 `anchorSeq` follows a stable record; `aroundSeq` resolves exact membership in that

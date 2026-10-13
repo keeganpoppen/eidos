@@ -1,0 +1,866 @@
+{
+  "schemaVersion": "nema-native-process-boundary-probe/1",
+  "classification": "OBSERVED_NO_MODEL_SYNTHETIC",
+  "nativeVersion": "codex-cli 0.154.0",
+  "binarySha256": "9b7c1c7abdc26fc3c4f47c77656a8e9121def5483dbae830ef1ee561758448a9",
+  "helperSourceSha256": "274c79ec32bd8ab307a883bbdb74805c1a040c969ca32a3cdc7b514d35910e56",
+  "bwrapVersion": "bubblewrap 0.12.0",
+  "kernel": "7.2.4-1-aarch64-ARCH",
+  "architecture": "aarch64",
+  "allowedNativeMethods": [
+    "account/read",
+    "config/read",
+    "initialize",
+    "mcpServerStatus/list",
+    "thread/start"
+  ],
+  "challenges": {
+    "fd-audit": {
+      "exitCode": 0,
+      "stderr": "",
+      "unexpectedExecutableRan": false,
+      "result": {
+        "case": "fd-audit",
+        "openAboveStdio": 0,
+        "seccompListenerVisible": false,
+        "socketVisible": false
+      },
+      "policy": {
+        "recordKind": "trusted-launcher-self-report",
+        "installedBeforeInitialExec": true,
+        "initialExecContinued": 1,
+        "allListenerCopiesClosed": true
+      }
+    },
+    "pthread": {
+      "exitCode": 0,
+      "stderr": "",
+      "unexpectedExecutableRan": false,
+      "result": {
+        "case": "pthread",
+        "result": 42,
+        "errno": 0
+      },
+      "policy": {
+        "recordKind": "trusted-launcher-self-report",
+        "installedBeforeInitialExec": true,
+        "initialExecContinued": 1,
+        "allListenerCopiesClosed": true
+      }
+    },
+    "pthread-fork": {
+      "exitCode": 0,
+      "stderr": "",
+      "unexpectedExecutableRan": false,
+      "result": {
+        "case": "pthread-fork",
+        "result": -1,
+        "errno": 1
+      },
+      "policy": {
+        "recordKind": "trusted-launcher-self-report",
+        "installedBeforeInitialExec": true,
+        "initialExecContinued": 1,
+        "allListenerCopiesClosed": true
+      }
+    },
+    "pthread-exec": {
+      "exitCode": 0,
+      "stderr": "",
+      "unexpectedExecutableRan": false,
+      "result": {
+        "case": "pthread-exec",
+        "result": -1,
+        "errno": 38
+      },
+      "policy": {
+        "recordKind": "trusted-launcher-self-report",
+        "installedBeforeInitialExec": true,
+        "initialExecContinued": 1,
+        "allListenerCopiesClosed": true
+      }
+    },
+    "fork": {
+      "exitCode": 0,
+      "stderr": "",
+      "unexpectedExecutableRan": false,
+      "result": {
+        "case": "fork",
+        "result": -1,
+        "errno": 1
+      },
+      "policy": {
+        "recordKind": "trusted-launcher-self-report",
+        "installedBeforeInitialExec": true,
+        "initialExecContinued": 1,
+        "allListenerCopiesClosed": true
+      }
+    },
+    "vfork": {
+      "exitCode": 0,
+      "stderr": "",
+      "unexpectedExecutableRan": false,
+      "result": {
+        "case": "vfork",
+        "result": -1,
+        "errno": 1
+      },
+      "policy": {
+        "recordKind": "trusted-launcher-self-report",
+        "installedBeforeInitialExec": true,
+        "initialExecContinued": 1,
+        "allListenerCopiesClosed": true
+      }
+    },
+    "clone-process": {
+      "exitCode": 0,
+      "stderr": "",
+      "unexpectedExecutableRan": false,
+      "result": {
+        "case": "clone-process",
+        "result": -1,
+        "errno": 1
+      },
+      "policy": {
+        "recordKind": "trusted-launcher-self-report",
+        "installedBeforeInitialExec": true,
+        "initialExecContinued": 1,
+        "allListenerCopiesClosed": true
+      }
+    },
+    "clone-vm": {
+      "exitCode": 0,
+      "stderr": "",
+      "unexpectedExecutableRan": false,
+      "result": {
+        "case": "clone-vm",
+        "result": -1,
+        "errno": 1
+      },
+      "policy": {
+        "recordKind": "trusted-launcher-self-report",
+        "installedBeforeInitialExec": true,
+        "initialExecContinued": 1,
+        "allListenerCopiesClosed": true
+      }
+    },
+    "clone-thread-missing-vm": {
+      "exitCode": 0,
+      "stderr": "",
+      "unexpectedExecutableRan": false,
+      "result": {
+        "case": "clone-thread-missing-vm",
+        "result": -1,
+        "errno": 1
+      },
+      "policy": {
+        "recordKind": "trusted-launcher-self-report",
+        "installedBeforeInitialExec": true,
+        "initialExecContinued": 1,
+        "allListenerCopiesClosed": true
+      }
+    },
+    "clone-thread-signal": {
+      "exitCode": 0,
+      "stderr": "",
+      "unexpectedExecutableRan": false,
+      "result": {
+        "case": "clone-thread-signal",
+        "result": -1,
+        "errno": 1
+      },
+      "policy": {
+        "recordKind": "trusted-launcher-self-report",
+        "installedBeforeInitialExec": true,
+        "initialExecContinued": 1,
+        "allListenerCopiesClosed": true
+      }
+    },
+    "clone3-process": {
+      "exitCode": 0,
+      "stderr": "",
+      "unexpectedExecutableRan": false,
+      "result": {
+        "case": "clone3-process",
+        "result": -1,
+        "errno": 38
+      },
+      "policy": {
+        "recordKind": "trusted-launcher-self-report",
+        "installedBeforeInitialExec": true,
+        "initialExecContinued": 1,
+        "allListenerCopiesClosed": true
+      }
+    },
+    "clone3-thread": {
+      "exitCode": 0,
+      "stderr": "",
+      "unexpectedExecutableRan": false,
+      "result": {
+        "case": "clone3-thread",
+        "result": -1,
+        "errno": 38
+      },
+      "policy": {
+        "recordKind": "trusted-launcher-self-report",
+        "installedBeforeInitialExec": true,
+        "initialExecContinued": 1,
+        "allListenerCopiesClosed": true
+      }
+    },
+    "posix-spawn": {
+      "exitCode": 0,
+      "stderr": "",
+      "unexpectedExecutableRan": false,
+      "result": {
+        "case": "posix-spawn",
+        "result": -1,
+        "errno": 1
+      },
+      "policy": {
+        "recordKind": "trusted-launcher-self-report",
+        "installedBeforeInitialExec": true,
+        "initialExecContinued": 1,
+        "allListenerCopiesClosed": true
+      }
+    },
+    "execve": {
+      "exitCode": 0,
+      "stderr": "",
+      "unexpectedExecutableRan": false,
+      "result": {
+        "case": "execve",
+        "result": -1,
+        "errno": 38
+      },
+      "policy": {
+        "recordKind": "trusted-launcher-self-report",
+        "installedBeforeInitialExec": true,
+        "initialExecContinued": 1,
+        "allListenerCopiesClosed": true
+      }
+    },
+    "execveat": {
+      "exitCode": 0,
+      "stderr": "",
+      "unexpectedExecutableRan": false,
+      "result": {
+        "case": "execveat",
+        "result": -1,
+        "errno": 38
+      },
+      "policy": {
+        "recordKind": "trusted-launcher-self-report",
+        "installedBeforeInitialExec": true,
+        "initialExecContinued": 1,
+        "allListenerCopiesClosed": true
+      }
+    },
+    "execveat-path": {
+      "exitCode": 0,
+      "stderr": "",
+      "unexpectedExecutableRan": false,
+      "result": {
+        "case": "execveat-path",
+        "result": -1,
+        "errno": 38
+      },
+      "policy": {
+        "recordKind": "trusted-launcher-self-report",
+        "installedBeforeInitialExec": true,
+        "initialExecContinued": 1,
+        "allListenerCopiesClosed": true
+      }
+    },
+    "seccomp-stack": {
+      "exitCode": 0,
+      "stderr": "",
+      "unexpectedExecutableRan": false,
+      "result": {
+        "case": "seccomp-stack",
+        "result": -1,
+        "errno": 1
+      },
+      "policy": {
+        "recordKind": "trusted-launcher-self-report",
+        "installedBeforeInitialExec": true,
+        "initialExecContinued": 1,
+        "allListenerCopiesClosed": true
+      }
+    },
+    "prctl-stack": {
+      "exitCode": 0,
+      "stderr": "",
+      "unexpectedExecutableRan": false,
+      "result": {
+        "case": "prctl-stack",
+        "result": -1,
+        "errno": 1
+      },
+      "policy": {
+        "recordKind": "trusted-launcher-self-report",
+        "installedBeforeInitialExec": true,
+        "initialExecContinued": 1,
+        "allListenerCopiesClosed": true
+      }
+    },
+    "unfiltered-execve": {
+      "exitCode": 77,
+      "stderr": "",
+      "unexpectedExecutableRan": true,
+      "result": null,
+      "policy": null
+    },
+    "unfiltered-execveat": {
+      "exitCode": 77,
+      "stderr": "",
+      "unexpectedExecutableRan": true,
+      "result": null,
+      "policy": null
+    },
+    "unfiltered-execveat-path": {
+      "exitCode": 77,
+      "stderr": "",
+      "unexpectedExecutableRan": true,
+      "result": null,
+      "policy": null
+    }
+  },
+  "nativeCases": {
+    "unfilteredControl": {
+      "guarded": false,
+      "httpMcp": false,
+      "command": [
+        "/usr/bin/bwrap",
+        "--unshare-all",
+        "--unshare-user",
+        "--disable-userns",
+        "--die-with-parent",
+        "--new-session",
+        "--cap-drop",
+        "ALL",
+        "--ro-bind",
+        "/usr",
+        "/usr",
+        "--symlink",
+        "usr/bin",
+        "/bin",
+        "--symlink",
+        "usr/lib",
+        "/lib",
+        "--proc",
+        "/proc",
+        "--dev",
+        "/dev",
+        "--tmpfs",
+        "/tmp",
+        "--bind",
+        "<probe>/state",
+        "/state",
+        "--ro-bind",
+        "<probe>/fixture",
+        "/fixture",
+        "--ro-bind",
+        "<probe>/packet",
+        "/packet",
+        "--ro-bind",
+        "<probe>/broker.sock",
+        "/gateway/broker.sock",
+        "--clearenv",
+        "--setenv",
+        "HOME",
+        "/state/home",
+        "--setenv",
+        "CODEX_HOME",
+        "/state/codex",
+        "--setenv",
+        "PATH",
+        "/usr/bin:/bin",
+        "--setenv",
+        "LANG",
+        "C.UTF-8",
+        "--chdir",
+        "/state/workspace",
+        "--",
+        "/usr/bin/codex",
+        "app-server",
+        "--listen",
+        "stdio://",
+        "--strict-config"
+      ],
+      "nativeReplies": {
+        "initialize": {
+          "userAgent": "eidos/0.154.0 (Linux Unknown; aarch64) unknown (eidos; 0.1.0)",
+          "codexHome": "/state/codex",
+          "platformFamily": "unix",
+          "platformOs": "linux"
+        },
+        "account/read": {
+          "account": null,
+          "requiresOpenaiAuth": true
+        },
+        "configuredMcp": {
+          "unexpected": {
+            "command": "/usr/bin/python3",
+            "args": [
+              "/fixture/mcp.py",
+              "<probe>/outside/canary",
+              "44489"
+            ],
+            "environment_id": "local",
+            "enabled": true,
+            "startup_timeout_sec": 3.0,
+            "tool_timeout_sec": null
+          }
+        },
+        "threadStarted": true,
+        "mcpServerStatus/list": {
+          "data": [
+            {
+              "name": "unexpected",
+              "runtimeStatus": "connected",
+              "pluginId": null,
+              "serverInfo": {
+                "name": "unexpected-startup-fixture",
+                "title": null,
+                "version": "1",
+                "description": null,
+                "icons": null,
+                "websiteUrl": null
+              },
+              "tools": {},
+              "toolsError": null,
+              "resources": [],
+              "resourceTemplates": [],
+              "authStatus": "unsupported"
+            }
+          ],
+          "nextCursor": null
+        }
+      },
+      "failure": null,
+      "nativeStderr": [],
+      "nativeMethodsObserved": [
+        "initialize",
+        "account/read",
+        "config/read",
+        "thread/start",
+        "mcpServerStatus/list"
+      ],
+      "policy": null,
+      "mcpRanBeforeInventory": true,
+      "mcpStartup": {
+        "outsideRead": {
+          "blockedErrno": 2
+        },
+        "outsideWrite": {
+          "blockedErrno": 2
+        },
+        "symlinkRead": {
+          "blockedErrno": 2
+        },
+        "packetWrite": {
+          "blockedErrno": 30
+        },
+        "hostLoopback": {
+          "blockedErrno": 111
+        },
+        "externalRoute": {
+          "blockedErrno": 101
+        },
+        "parentRootRead": {
+          "blockedErrno": 2
+        },
+        "packetRead": true,
+        "effectiveCapabilities": "0000000000000000",
+        "nestedUserNamespaceRefused": true,
+        "packetRemountRefused": true
+      },
+      "mcpSyntheticEgress": {
+        "status": 409
+      },
+      "brokerEvents": [
+        {
+          "status": 200,
+          "reason": "synthetic-response",
+          "brokerPeer": "peer-1",
+          "target": "/backend-api/codex/responses",
+          "digest": "edf3a3d81964a3e1873836eced0186475745cafc42567b062f879919f0a8c139",
+          "claimedCaller": null
+        },
+        {
+          "status": 409,
+          "reason": "already-consumed",
+          "brokerPeer": "peer-2",
+          "target": "/backend-api/codex/responses"
+        }
+      ],
+      "brokerRequests": 2,
+      "syntheticPermitConsumed": true,
+      "hostCanaryUnchanged": true,
+      "packetUnchanged": true,
+      "hostListenerUntouched": true,
+      "descendantHeartbeatStoppedAfterClose": true
+    },
+    "filtered": {
+      "guarded": true,
+      "httpMcp": false,
+      "command": [
+        "/usr/bin/bwrap",
+        "--unshare-all",
+        "--unshare-user",
+        "--disable-userns",
+        "--die-with-parent",
+        "--new-session",
+        "--cap-drop",
+        "ALL",
+        "--ro-bind",
+        "/usr",
+        "/usr",
+        "--symlink",
+        "usr/bin",
+        "/bin",
+        "--symlink",
+        "usr/lib",
+        "/lib",
+        "--proc",
+        "/proc",
+        "--dev",
+        "/dev",
+        "--tmpfs",
+        "/tmp",
+        "--bind",
+        "<probe>/state",
+        "/state",
+        "--ro-bind",
+        "<probe>/fixture",
+        "/fixture",
+        "--ro-bind",
+        "<probe>/packet",
+        "/packet",
+        "--ro-bind",
+        "<probe>/broker.sock",
+        "/gateway/broker.sock",
+        "--clearenv",
+        "--setenv",
+        "HOME",
+        "/state/home",
+        "--setenv",
+        "CODEX_HOME",
+        "/state/codex",
+        "--setenv",
+        "PATH",
+        "/usr/bin:/bin",
+        "--setenv",
+        "LANG",
+        "C.UTF-8",
+        "--chdir",
+        "/state/workspace",
+        "--",
+        "/fixture/guard",
+        "guard",
+        "/usr/bin/codex",
+        "app-server",
+        "--listen",
+        "stdio://",
+        "--strict-config"
+      ],
+      "nativeReplies": {
+        "initialize": {
+          "userAgent": "eidos/0.154.0 (Linux Unknown; aarch64) unknown (eidos; 0.1.0)",
+          "codexHome": "/state/codex",
+          "platformFamily": "unix",
+          "platformOs": "linux"
+        },
+        "account/read": {
+          "account": null,
+          "requiresOpenaiAuth": true
+        },
+        "configuredMcp": {
+          "unexpected": {
+            "command": "/usr/bin/python3",
+            "args": [
+              "/fixture/mcp.py",
+              "<probe>/outside/canary",
+              "35277"
+            ],
+            "environment_id": "local",
+            "enabled": true,
+            "startup_timeout_sec": 3.0,
+            "tool_timeout_sec": null
+          }
+        },
+        "threadStarted": true,
+        "mcpServerStatus/list": {
+          "data": [
+            {
+              "name": "unexpected",
+              "runtimeStatus": "failed",
+              "pluginId": null,
+              "serverInfo": null,
+              "tools": {},
+              "toolsError": "MCP startup failed: Operation not permitted (os error 1)",
+              "resources": [],
+              "resourceTemplates": [],
+              "authStatus": "unsupported"
+            }
+          ],
+          "nextCursor": null
+        }
+      },
+      "failure": null,
+      "nativeStderr": [],
+      "nativeMethodsObserved": [
+        "initialize",
+        "account/read",
+        "config/read",
+        "thread/start",
+        "mcpServerStatus/list"
+      ],
+      "policy": {
+        "recordKind": "trusted-launcher-self-report",
+        "installedBeforeInitialExec": true,
+        "initialExecContinued": 1,
+        "allListenerCopiesClosed": true
+      },
+      "mcpRanBeforeInventory": false,
+      "mcpStartup": null,
+      "mcpSyntheticEgress": null,
+      "brokerEvents": [],
+      "brokerRequests": 0,
+      "syntheticPermitConsumed": false,
+      "hostCanaryUnchanged": true,
+      "packetUnchanged": true,
+      "hostListenerUntouched": true,
+      "descendantHeartbeatStoppedAfterClose": true
+    },
+    "filteredHttpScopeControl": {
+      "guarded": true,
+      "httpMcp": true,
+      "command": [
+        "/usr/bin/bwrap",
+        "--unshare-all",
+        "--unshare-user",
+        "--disable-userns",
+        "--die-with-parent",
+        "--new-session",
+        "--cap-drop",
+        "ALL",
+        "--ro-bind",
+        "/usr",
+        "/usr",
+        "--symlink",
+        "usr/bin",
+        "/bin",
+        "--symlink",
+        "usr/lib",
+        "/lib",
+        "--proc",
+        "/proc",
+        "--dev",
+        "/dev",
+        "--tmpfs",
+        "/tmp",
+        "--bind",
+        "<probe>/state",
+        "/state",
+        "--ro-bind",
+        "<probe>/fixture",
+        "/fixture",
+        "--ro-bind",
+        "<probe>/packet",
+        "/packet",
+        "--ro-bind",
+        "<probe>/broker.sock",
+        "/gateway/broker.sock",
+        "--clearenv",
+        "--setenv",
+        "HOME",
+        "/state/home",
+        "--setenv",
+        "CODEX_HOME",
+        "/state/codex",
+        "--setenv",
+        "PATH",
+        "/usr/bin:/bin",
+        "--setenv",
+        "LANG",
+        "C.UTF-8",
+        "--chdir",
+        "/state/workspace",
+        "--",
+        "/usr/bin/python3",
+        "/fixture/http_launcher.py",
+        "/usr/bin/codex"
+      ],
+      "nativeReplies": {
+        "initialize": {
+          "userAgent": "eidos/0.154.0 (Linux Unknown; aarch64) unknown (eidos; 0.1.0)",
+          "codexHome": "/state/codex",
+          "platformFamily": "unix",
+          "platformOs": "linux"
+        },
+        "account/read": {
+          "account": null,
+          "requiresOpenaiAuth": true
+        },
+        "configuredMcp": {
+          "unexpected": {
+            "command": "/usr/bin/python3",
+            "args": [
+              "/fixture/mcp.py",
+              "<probe>/outside/canary",
+              "35307"
+            ],
+            "environment_id": "local",
+            "enabled": true,
+            "startup_timeout_sec": 3.0,
+            "tool_timeout_sec": null
+          },
+          "http_inprocess": {
+            "url": "http://127.0.0.1:44445/backend-api/codex/responses",
+            "environment_id": "local",
+            "enabled": true,
+            "startup_timeout_sec": 2.0,
+            "tool_timeout_sec": null
+          }
+        },
+        "threadStarted": true,
+        "mcpServerStatus/list": {
+          "data": [
+            {
+              "name": "http_inprocess",
+              "runtimeStatus": "failed",
+              "pluginId": null,
+              "serverInfo": null,
+              "tools": {},
+              "toolsError": "MCP startup failed: handshaking with MCP server failed: Send message error Transport [codex_rmcp_client::event_notification_transport::EventNotificationTransport<rmcp::transport::worker::WorkerTransport<rmcp::transport::streamable_http_client::StreamableHttpClientWorker<codex_rmcp_client::http_client_adapter::StreamableHttpClientAdapter>>>] error: unexpected server response: HTTP 422: {\"synthetic\": true, \"reason\": \"content-refused\", \"brokerPeer\": \"peer-1\"}, when send initialize request: Send message error Transport [codex_rmcp_client::event_notification_transport::EventNotificationTransport<rmcp::transport::worker::WorkerTransport<rmcp::transport::streamable_http_client::StreamableHttpClientWorker<codex_rmcp_client::http_client_adapter::StreamableHttpClientAdapter>>>] error: unexpected server response: HTTP 422: {\"synthetic\": true, \"reason\": \"content-refused\", \"brokerPeer\": \"peer-1\"}, when send initialize request",
+              "resources": [],
+              "resourceTemplates": [],
+              "authStatus": "unsupported"
+            },
+            {
+              "name": "unexpected",
+              "runtimeStatus": "failed",
+              "pluginId": null,
+              "serverInfo": null,
+              "tools": {},
+              "toolsError": "MCP startup failed: Operation not permitted (os error 1)",
+              "resources": [],
+              "resourceTemplates": [],
+              "authStatus": "unsupported"
+            }
+          ],
+          "nextCursor": null
+        }
+      },
+      "failure": null,
+      "nativeStderr": [
+        "\u001b[2m2026-10-13T19:08:37.816708Z\u001b[0m \u001b[31mERROR\u001b[0m \u001b[2mrmcp::transport::worker\u001b[0m\u001b[2m:\u001b[0m worker quit with fatal: Transport channel closed, when UnexpectedServerResponse(\"HTTP 422: {\\\"synthetic\\\": true, \\\"reason\\\": \\\"content-refused\\\", \\\"brokerPeer\\\": \\\"peer-1\\\"}\")",
+        "\u001b[2m2026-10-13T19:08:41.341738Z\u001b[0m \u001b[31mERROR\u001b[0m \u001b[2mrmcp::transport::worker\u001b[0m\u001b[2m:\u001b[0m worker quit with fatal: Transport channel closed, when UnexpectedServerResponse(\"HTTP 422: {\\\"synthetic\\\": true, \\\"reason\\\": \\\"content-refused\\\", \\\"brokerPeer\\\": \\\"peer-1\\\"}\")"
+      ],
+      "nativeMethodsObserved": [
+        "initialize",
+        "account/read",
+        "config/read",
+        "thread/start",
+        "mcpServerStatus/list"
+      ],
+      "policy": {
+        "recordKind": "trusted-launcher-self-report",
+        "installedBeforeInitialExec": true,
+        "initialExecContinued": 1,
+        "allListenerCopiesClosed": true
+      },
+      "mcpRanBeforeInventory": false,
+      "mcpStartup": null,
+      "mcpSyntheticEgress": null,
+      "brokerEvents": [
+        {
+          "status": 422,
+          "reason": "content-refused",
+          "brokerPeer": "peer-1",
+          "target": "/backend-api/codex/responses"
+        },
+        {
+          "status": 403,
+          "reason": "route-refused",
+          "brokerPeer": "peer-1",
+          "target": "/backend-api/codex/responses"
+        },
+        {
+          "status": 403,
+          "reason": "route-refused",
+          "brokerPeer": "peer-1",
+          "target": "/.well-known/oauth-protected-resource/backend-api/codex/responses"
+        },
+        {
+          "status": 403,
+          "reason": "route-refused",
+          "brokerPeer": "peer-1",
+          "target": "/backend-api/codex/responses/.well-known/oauth-protected-resource"
+        },
+        {
+          "status": 403,
+          "reason": "route-refused",
+          "brokerPeer": "peer-1",
+          "target": "/.well-known/oauth-protected-resource"
+        },
+        {
+          "status": 403,
+          "reason": "route-refused",
+          "brokerPeer": "peer-1",
+          "target": "/.well-known/oauth-authorization-server/backend-api/codex/responses"
+        },
+        {
+          "status": 403,
+          "reason": "route-refused",
+          "brokerPeer": "peer-1",
+          "target": "/.well-known/openid-configuration/backend-api/codex/responses"
+        },
+        {
+          "status": 403,
+          "reason": "route-refused",
+          "brokerPeer": "peer-1",
+          "target": "/backend-api/codex/responses/.well-known/openid-configuration"
+        },
+        {
+          "status": 403,
+          "reason": "route-refused",
+          "brokerPeer": "peer-1",
+          "target": "/.well-known/oauth-authorization-server"
+        },
+        {
+          "status": 422,
+          "reason": "content-refused",
+          "brokerPeer": "peer-1",
+          "target": "/backend-api/codex/responses"
+        }
+      ],
+      "brokerRequests": 10,
+      "syntheticPermitConsumed": false,
+      "hostCanaryUnchanged": true,
+      "packetUnchanged": true,
+      "hostListenerUntouched": true,
+      "descendantHeartbeatStoppedAfterClose": true
+    }
+  },
+  "modelTurns": 0,
+  "existingCredentialsMounted": false,
+  "realUpstreamRequests": 0,
+  "liveAdmission": false,
+  "callerAuthenticationEstablished": false,
+  "mechanismDisposition": "EXPERIMENT_ONLY; HTTP integrations and full native admission remain unresolved",
+  "limits": {
+    "nativeCaseSeconds": 20,
+    "helperAlarmSeconds": 20,
+    "challengeSeconds": 5,
+    "compileSeconds": 20,
+    "brokerRequestsPerCase": 24,
+    "brokerHeaderBytes": 8192,
+    "brokerBodyBytes": 4096,
+    "brokerResponseBytes": 4096,
+    "brokerRequestSeconds": 2.0,
+    "aggregateCpuMemoryPidDiskLimit": false
+  }
+}

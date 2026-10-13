@@ -3,8 +3,9 @@
   import ArtifactContent from './ArtifactContent.svelte';
   import ContextProvenance from './ContextProvenance.svelte';
   import EvidenceRecord from './EvidenceRecord.svelte';
-  import { resolveArtifactSource, type ArtifactSourceTarget } from './artifact-inputs';
-  import type { FrozenArtifactInput, Investigation } from './types';
+  import type { ArtifactSourceTarget } from './artifact-inputs';
+  import { savedWork, type ArtifactSource } from './saved-work';
+  import type { FrozenArtifactInput } from './types';
 
   type Target = ArtifactSourceTarget & { snapshot?: FrozenArtifactInput; scrollTop?: number };
   let { target, onClose }: { target: Target | null; onClose: () => void } = $props();
@@ -12,14 +13,14 @@
   let dialog: HTMLDialogElement;
   let heading: HTMLHeadingElement;
   let trail = $state<Target[]>([]);
-  let investigation = $state<Investigation | null>(null);
+  let source = $state<ArtifactSource | null>(null);
   let loading = $state(false);
   let error = $state('');
   const active = $derived(trail.at(-1));
-  const resolved = $derived(investigation && active ? resolveArtifactSource(investigation, active) : null);
+  const resolved = $derived(source);
   const artifact = $derived(active?.snapshot?.artifact ?? resolved?.artifact);
   const context = $derived(resolved?.context);
-  const adoption = $derived(active?.snapshot ? active.snapshot.sourceAdoption : artifact && investigation?.adoption?.artifactId === artifact.id ? investigation?.adoption ?? null : null);
+  const adoption = $derived(active?.snapshot ? active.snapshot.sourceAdoption : source?.adoption ?? null);
 
   $effect(() => {
     if (target) {
@@ -33,29 +34,26 @@
 
   $effect(() => {
     const ref = active;
-    investigation = null;
+    source = null;
     error = '';
     if (!ref) return;
-    const controller = new AbortController();
+    let cancelled = false;
     loading = true;
     void (async () => {
       try {
-        const response = await fetch(`/api/investigations/${encodeURIComponent(ref.investigationId)}`, { signal: controller.signal });
-        const value = await response.json();
-        if (!response.ok) throw new Error(value.error ?? 'Source investigation is unavailable.');
-        if (!resolveArtifactSource(value, ref)) throw new Error('This exact result, source context, or attempt is unavailable. No newer result has been substituted.');
-        if (controller.signal.aborted) return;
-        investigation = value;
+        const value = await savedWork.source(ref);
+        if (cancelled) return;
+        source = value;
         await tick();
-        if (!controller.signal.aborted) {
+        if (!cancelled) {
           dialog.scrollTop = ref.scrollTop ?? 0;
           heading?.focus({ preventScroll: true });
         }
       } catch (cause) {
-        if (!controller.signal.aborted) error = cause instanceof Error ? cause.message : String(cause);
-      } finally { if (!controller.signal.aborted) loading = false; }
+        if (!cancelled) error = cause instanceof Error ? cause.message : String(cause);
+      } finally { if (!cancelled) loading = false; }
     })();
-    return () => controller.abort();
+    return () => { cancelled = true; };
   });
 
   function follow(input: FrozenArtifactInput) {
@@ -66,7 +64,7 @@
 
 <dialog bind:this={dialog} class="artifact-lineage" aria-labelledby={headingId} onclose={onClose}>
   <header>
-    <div><span class="eyebrow">Result / original support</span><h2 id={headingId} bind:this={heading} tabindex="-1">{investigation?.title ?? 'Result provenance'}</h2></div>
+    <div><span class="eyebrow">Result / original support</span><h2 id={headingId} bind:this={heading} tabindex="-1">{source?.investigationTitle ?? 'Result provenance'}</h2></div>
     <button class="lineage-close" onclick={onClose}>Close result provenance</button>
   </header>
   <nav aria-label="Result lineage navigation">

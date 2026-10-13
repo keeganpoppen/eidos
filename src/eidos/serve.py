@@ -87,7 +87,7 @@ def serve(
                     self,
                     method,
                     path,
-                    parse_qs(parsed.query),  # type: ignore[attr-defined]
+                    parse_qs(parsed.query, keep_blank_values=True),  # type: ignore[attr-defined]
                 )
             except json.JSONDecodeError as exc:
                 self._send_json(400, {"error": f"invalid JSON: {exc}"})

@@ -7,6 +7,8 @@
   import EvidenceReview from './EvidenceReview.svelte';
   import ArtifactContent from './ArtifactContent.svelte';
   import ArtifactLineage from './ArtifactLineage.svelte';
+  import CatalogPicker from './CatalogPicker.svelte';
+  import { savedWork, type ResultSummary } from './saved-work';
   import { artifactInputDiff, artifactInputKey, artifactKind, changedFrozenArtifactInputs, readArtifactInputs, sameArtifactInputs, type ArtifactSourceTarget } from './artifact-inputs';
   import { sameSelections } from './semantic';
   import type { ArtifactInputSelection, FrozenArtifactInput, EvidenceSelection, Investigation, InvestigationArtifact, InvestigationContext, InvestigationCapabilities } from './types';
@@ -18,7 +20,6 @@
   } = $props();
 
   const storageKey = 'nema.investigation-draft.v1';
-  let investigations = $state<Investigation[]>([]);
   let current = $state<Investigation | null>(null);
   let selectedId = $state('');
   let title = $state('');
@@ -34,8 +35,12 @@
   let pendingRequest = $state<{ body: string; id: string } | null>(null);
   let artifactInputs = $state<ArtifactInputSelection[]>([]);
   let artifactChoice = $state('');
+  let artifactChoiceSummary = $state<ResultSummary | undefined>();
+  let resultLabels = $state<ResultSummary[]>([]);
+  let navigation = 0;
+  let disposed = false;
+  let restoreAfterLoad = true;
   let lineageTarget = $state<(ArtifactSourceTarget & { snapshot?: FrozenArtifactInput }) | null>(null);
-  const artifactOptions = $derived(investigations.flatMap((investigation) => artifacts(investigation).map((artifact) => ({ investigation, artifact }))));
 
   const activeContext = $derived(current?.contexts.find((context) => context.id === current?.currentContextId));
   const preview = $derived(current?.contexts.find((context) => context.id === previewId) ?? activeContext);
@@ -48,7 +53,7 @@
     activeContext.question !== question || !sameSelections(activeContext.selections, selections) || !sameArtifactInputs(activeContext.artifactInputs, artifactInputs)
   ));
   const inputCount = $derived(selections.length + artifactInputs.length);
-  const canSave = $derived(title.trim().length > 0 && question.trim().length > 0 && inputCount > 0 && inputCount <= 32 && !busy);
+  const canSave = $derived(title.trim().length > 0 && question.trim().length > 0 && inputCount > 0 && inputCount <= 32 && !busy && ready && (!selectedId || current?.id === selectedId));
   const threadCount = $derived(new Set(selections.map((selection) => selection.threadId)).size);
 
   function jumpTo(selector: string) {
@@ -78,10 +83,11 @@
     return payload as T;
   }
 
-  function useInvestigation(investigation: Investigation, restoreDraft = true) {
+  function useInvestigation(investigation: Investigation, restoreDraft = true, mutation = false) {
+    if (mutation) savedWork.remember(investigation);
     current = investigation;
     selectedId = investigation.id;
-    previewId = investigation.currentContextId;
+    if (restoreDraft || !previewId) previewId = investigation.currentContextId;
     if (restoreDraft) {
       const context = investigation.contexts.find((item) => item.id === investigation.currentContextId);
       title = investigation.title;
@@ -90,26 +96,29 @@
       artifactInputs = readArtifactInputs(context?.artifactInputs);
       note = investigation.adoption?.note ?? '';
     }
-    investigations = [investigation, ...investigations.filter((item) => item.id !== investigation.id)];
   }
 
-  async function choose(id: string) {
+  async function choose(id: string, restoreDraft = true) {
     if (!id || busy) return;
     selectedId = id;
+    current = null;
+    restoreAfterLoad = restoreDraft;
+    const request = ++navigation;
     busy = true;
     error = '';
     notice = '';
     try {
-      const result = await api<Investigation>(`/api/investigations/${encodeURIComponent(id)}`);
-      if (selectedId === id) useInvestigation(result);
+      const result = await savedWork.view(id);
+      if (!disposed && request === navigation && selectedId === id) useInvestigation(result, restoreDraft);
     } catch (cause) {
-      error = cause instanceof Error ? cause.message : String(cause);
+      if (!disposed && request === navigation) error = cause instanceof Error ? cause.message : String(cause);
     } finally {
-      busy = false;
+      if (!disposed && request === navigation) busy = false;
     }
   }
 
   function newDraft(keepContext = false) {
+    navigation++;
     current = null;
     selectedId = '';
     previewId = '';
@@ -126,10 +135,11 @@
   }
 
   function addArtifact() {
-    const selected = artifactOptions.find(({ investigation, artifact }) => artifactInputKey({ investigationId: investigation.id, artifactId: artifact.id }) === artifactChoice);
+    const selected = artifactChoiceSummary;
     if (!selected || busy || inputCount >= 32) return;
-    const input = { investigationId: selected.investigation.id, artifactId: selected.artifact.id, rationale: '' };
+    const input = { investigationId: selected.investigationId, artifactId: selected.artifactId, rationale: '' };
     if (!artifactInputs.some((existing) => artifactInputKey(existing) === artifactInputKey(input))) artifactInputs = [...artifactInputs, input];
+    resultLabels = [...resultLabels.filter((item) => artifactInputKey(item) !== artifactInputKey(input)), selected];
   }
 
   function inspectArtifact(input: ArtifactInputSelection | FrozenArtifactInput) {
@@ -162,7 +172,7 @@
       }
       const path = current ? `/api/investigations/${encodeURIComponent(current.id)}/contexts` : '/api/investigations';
       const saved = await api<Investigation>(path, { requestId: pendingRequest.id, ...body });
-      useInvestigation(saved);
+      useInvestigation(saved, true, true);
       pendingRequest = null;
       notice = 'Context saved. Review its exact input before starting the specialist.';
     } catch (cause) {
@@ -180,7 +190,7 @@
     notice = '';
     try {
       const result = await api<Investigation>(`/api/investigations/${encodeURIComponent(id)}/${action}`, body);
-      if (selectedId === id) useInvestigation(result, false);
+      if (selectedId === id) useInvestigation(result, false, true);
       if (action === 'recover') notice = 'Recorded evidence checked. No work was resent.';
     } catch (cause) {
       error = cause instanceof Error ? cause.message : String(cause);
@@ -191,15 +201,13 @@
 
   async function refresh() {
     const id = selectedId;
-    if (!id || busy) return;
+    const request = navigation;
+    if (!id || !current || busy || !ready) return;
     try {
-      const result = await api<Investigation>(`/api/investigations/${encodeURIComponent(id)}`);
-      if (selectedId === id && !busy) {
-        current = result;
-        investigations = investigations.map((item) => item.id === id ? result : item);
-      }
+      const result = await savedWork.view(id);
+      if (!disposed && request === navigation && selectedId === id && !busy) current = result;
     } catch (cause) {
-      if (selectedId === id) error = cause instanceof Error ? cause.message : String(cause);
+      if (!disposed && request === navigation && selectedId === id) error = cause instanceof Error ? cause.message : String(cause);
     }
   }
 
@@ -217,6 +225,7 @@
         question = typeof stored.question === 'string' ? stored.question : '';
         note = typeof stored.note === 'string' ? stored.note : '';
         rememberedId = typeof stored.selectedId === 'string' ? stored.selectedId : '';
+        previewId = typeof stored.previewId === 'string' ? stored.previewId : '';
         pendingRequest = stored.pendingRequest && typeof stored.pendingRequest.body === 'string' && typeof stored.pendingRequest.id === 'string'
           ? stored.pendingRequest : null;
         selections = Array.isArray(stored.selections) ? stored.selections.filter((item: EvidenceSelection) =>
@@ -225,25 +234,28 @@
         artifactInputs = readArtifactInputs(stored.artifactInputs);
       }
     } catch { /* Browser storage is a convenience; saved contexts remain on the server. */ }
+    selectedId = rememberedId;
+    restoreAfterLoad = false;
+    const request = ++navigation;
     void (async () => {
       try {
-        const result = await api<{ investigations: Investigation[] }>('/api/investigations');
-        investigations = result.investigations;
-        const saved = investigations.find((item) => item.id === rememberedId);
-        if (saved) useInvestigation(saved, false);
+        if (rememberedId) {
+          const saved = await savedWork.view(rememberedId);
+          if (!disposed && request === navigation) useInvestigation(saved, false);
+        }
       } catch (cause) {
-        error = cause instanceof Error ? cause.message : String(cause);
+        if (!disposed && request === navigation) error = cause instanceof Error ? cause.message : String(cause);
       } finally {
         ready = true;
       }
     })();
     poll = setInterval(() => void refresh(), 1500);
-    return () => { if (poll) clearInterval(poll); };
+    return () => { disposed = true; navigation++; if (poll) clearInterval(poll); };
   });
 
   $effect(() => {
     if (!ready) return;
-    const draft = JSON.stringify({ selectedId, title, question, selections, artifactInputs: readArtifactInputs(artifactInputs), note, pendingRequest });
+    const draft = JSON.stringify({ selectedId, previewId, title, question, selections, artifactInputs: readArtifactInputs(artifactInputs), note, pendingRequest });
     try { localStorage.setItem(storageKey, draft); } catch { /* Private browsing may disable storage. */ }
   });
 </script>
@@ -256,14 +268,9 @@
   </header>
 
   <div class="work-picker">
-    <label for="saved-investigation">Saved work</label>
-    <select id="saved-investigation" value={selectedId} disabled={busy} onchange={(event) => event.currentTarget.value ? void choose(event.currentTarget.value) : newDraft()}>
-      <option value="">New investigation</option>
-      {#each investigations as item (item.id)}
-        <option value={item.id}>{item.title} · {item.status}</option>
-      {/each}
-    </select>
+    <CatalogPicker id="saved-investigation" label="Saved work" value={selectedId} selectedLabel={current?.title} disabled={busy} emptyLabel="New investigation" onChoose={(id) => id ? void choose(id) : newDraft()} />
     <button class="work-secondary" disabled={busy} onclick={() => newDraft()}>New investigation</button>
+    {#if selectedId && !current && ready && !busy}<button class="work-secondary" onclick={() => choose(selectedId, restoreAfterLoad)}>Retry selected investigation</button>{/if}
     {#if current}<button class="work-secondary" onclick={() => onCompare(current!.id)}>Compare saved work</button>{/if}
     {#if current?.continuation?.inquiry}<button class="work-secondary" onclick={() => jumpTo('.evidence-review')}>Go to inquiry</button><button class="work-secondary" onclick={() => onCompare(current!.id, 'evidence-chain')}>Follow evidence & response</button>{/if}
     {#if current && artifacts(current).length}<button class="work-secondary" onclick={() => jumpTo('.recorded-experiments')}>Go to experiments</button>{/if}
@@ -291,25 +298,18 @@
       {/each}
     </ol>
     <div class="artifact-picker">
-      <label for="context-artifact-picker">Include a saved result</label>
-      <select id="context-artifact-picker" bind:value={artifactChoice} disabled={busy}>
-        <option value="">Choose an exact result version</option>
-        {#each artifactOptions as option (artifactInputKey({ investigationId: option.investigation.id, artifactId: option.artifact.id }))}
-          <option value={artifactInputKey({ investigationId: option.investigation.id, artifactId: option.artifact.id })}>{option.investigation.title} · {artifactKind(option.artifact)} · {option.artifact.id.slice(-12)}</option>
-        {/each}
-      </select>
+      <CatalogPicker id="context-artifact-picker" label="Include a saved result" kind="artifacts" value={artifactChoice} disabled={busy} emptyLabel="Choose an exact result version" onChoose={(value, item) => { artifactChoice = value; artifactChoiceSummary = item && 'artifactId' in item ? item : undefined; }} />
       <button class="work-secondary" disabled={busy || !artifactChoice || inputCount >= 32} onclick={addArtifact}>Add selected result to context</button>
       <p class="work-muted">Each result keeps its original input and support links. The new packet contains that result; its underlying records are supplied only when separately selected.</p>
     </div>
     <ol class="source-list artifact-input-list">
       {#each artifactInputs as input, index (artifactInputKey(input))}
-        {@const source = artifactOptions.find(({ investigation, artifact }) => investigation.id === input.investigationId && artifact.id === input.artifactId)}
+        {@const source = resultLabels.find((item) => item.investigationId === input.investigationId && item.artifactId === input.artifactId)}
         <li data-selected-artifact-id={input.artifactId}>
           <div class="source-row">
-            <button class="source-link" onclick={() => inspectArtifact(input)}>{source?.investigation.title ?? input.investigationId} · {source ? artifactKind(source.artifact) : 'exact result unavailable'}</button>
+            <button class="source-link" onclick={() => inspectArtifact(input)}>{source?.investigationTitle ?? input.investigationId} · {source ? artifactKind(source) : 'selected exact result'}</button>
             <button class="source-remove" aria-label={`Remove result ${input.artifactId}`} disabled={busy} onclick={() => artifactInputs = artifactInputs.filter((_, position) => position !== index)}>Remove</button>
           </div>
-          {#if source}<p class="work-muted">{outputEvidence(source.artifact)}</p>{/if}
           <p class="object-ref">{input.artifactId}</p>
           <input aria-label={`Why include result ${index + 1}`} value={input.rationale} maxlength="2000" disabled={busy} placeholder="Why this result matters" oninput={(event) => artifactInputs = artifactInputs.map((value, position) => position === index ? { ...value, rationale: event.currentTarget.value } : value)} />
         </li>
@@ -455,7 +455,7 @@
       </section>
     {/if}
     {#if current.inquiryAdmissionError}<p class="work-error" role="alert">Inquiry admission: {current.inquiryAdmissionError}</p>{/if}
-    {#key current.id}<EvidenceReview investigation={current} {selections} onUpdate={(value) => { if (selectedId === value.id) useInvestigation(value, false); }} /><RecordedExperiment investigation={current} />{/key}
+    {#key current.id}<EvidenceReview investigation={current} {selections} onUpdate={(value) => { if (selectedId === value.id) useInvestigation(value, false, true); }} /><RecordedExperiment investigation={current} />{/key}
   {/if}
 
   {#if error}<p class="work-error" role="alert">{error}</p>{/if}
@@ -465,7 +465,6 @@
 
 <style>
   .artifact-picker { margin:18px 0; padding:14px 0; border-block:1px solid var(--line); }
-  .artifact-picker select { width:100%; max-width:100%; min-width:0; padding:8px; margin:6px 0 10px; background:var(--paper); border:1px solid var(--line-dark); font:inherit; font-size:13px; }
   .frozen-artifact-input { margin:18px 0; border-left:2px solid var(--accent); padding:6px 12px; background:var(--selection); }
   .frozen-artifact-input h4 { font-size:16px; margin:6px 0; }
   .source-review { font-size:13px; line-height:1.5; }
