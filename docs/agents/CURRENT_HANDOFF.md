@@ -1,85 +1,105 @@
-# Current handoff — bounded native capture and recovery
+# Current handoff — saved-question recovery and native catalog policy
 
-**NEMA-SEED-1 · 2026-10-13 · integration base `eab1653` on main.**
+**NEMA-SEED-1 · 2026-10-13 · integration base `555a317` on main.**
 The continuing mission remains active; [PROGRAM](PROGRAM.md) owns conjectures and
-opportunity ordering. The previous [experiment/catalog integration](history/RECORDED_EXPERIMENTS_AND_MODEL_CATALOG.md)
-is pushed as `eab1653437c77e4f0eb387721a2db13f9d9e1688`; [CI passed](https://github.com/keeganpoppen/eidos/actions/runs/38462571280).
+opportunity ordering. The previous [bounded capture integration](history/BOUNDED_NATIVE_CAPTURE.md)
+is pushed as `555a3170fd51a2ca20e2e15b82f7a740fa82e4e5`; [CI passed](https://github.com/keeganpoppen/eidos/actions/runs/38464488502).
 A green milestone does not complete the mission or V1.
 
-## Integrated loop
+## Integrated user loop
 
-Native capture now records finite input limits before launch and preserves bounded
-exact rejected/partial bytes in a valid internal capture-gap envelope. Accepted
-JSON objects retain unknown fields and original text. Events keep their wire-byte
-and count reservations through queues, wait_for's skipped list and backlog.
-Closure wakes waiters independently of a full event queue and stops the owned child.
+Return to saved work enters the snapshot browser from Investigation without
+changing the applied comparison, unapplied arrangement edits or pending draft.
+Read-only preview exposes the exact saved question, historical result, context-only
+alternative, immutable experiment rationale, original raw support and separately
+labelled current review. Support inspection precedes explicit Open. Missing owners,
+failed reads, delayed old reads and unknown renderer versions remain explicit.
+No new backend API, persistence model or dispatch was introduced.
 
-A source-scoped trusted capture gap ends recovery interpretation for that native
-incarnation. Completion already recorded before it survives; truncated completion
-and terminals imported after it cannot manufacture success. A child-authored copy
-of the marker grants no authority. There is no automatic retry or invented native
-completion. See [contract](BOUNDED_NATIVE_TRANSPORT_TASK.md) and [independent acceptance](../evidence/NATIVE_CAPTURE_ACCEPTANCE.md).
+UI contribution `9feac92`; independent fixture/browser acceptance `b1cb281` and
+`f3b4907`. See [contract](SAVED_QUESTION_RECOVERY_TASK.md) and [rendered acceptance](../evidence/SAVED_QUESTION_RECOVERY_INTEGRATION.md).
+The latter compares the same fixture with baseline `555a317`, records real HTTP
+responses, and retains screenshots. Exact C0/A1/attempt and context-only C1 survive
+current C2/A2, later C1 results, changed reviews and fresh-browser recovery.
+Lazy raw-input disclosure also works without a saved evidence focus.
 
-Accepted transport: `7f5d4e1`, `be3280d`, `acd6f04`; independent acceptance:
-`af51b3f`, `5cdc877`, `32c1e47`, `bbf4269`. Root owns worker cutoff, actual capture
-metadata in the three local-provider probes, integration and docs. Review resolved
-stderr loss after stdout EOF, post-gap recovery/contradiction, chunk-dependent loss
-of a terminal exactly at the byte cap, and non-JSON NaN/Infinity constants.
+## Native discriminator
 
-Defaults per incarnation: stdout frame 4MiB, stderr frame 256KiB, combined receipt
-64MiB, retained events 1,024/8MiB, stderr tail 200 lines/256KiB. Frames include their
-newline; at most one extra proof byte is read beyond a byte limit. These are wire
-budgets, not process memory/CPU, outbound RPC, total SQLite or external-effect quotas.
-Storage failure reports diagnosticError without claiming a durable gap exists.
+Contribution `59bec0d` pairs the exact public 0.154.0 Astra catalog with a labelled
+local policy changing only tool_mode and experimental_supported_tools. Supported
+agent/sleep controls apply equally. Original Lite still declares code/async tools
+and executes the authored clock call; derived Lite declares an empty tools list
+and rejects both authored resource/clock calls. Both recover exact synthetic text.
+The source hash, exact RFC6902 patch and derived hash are preserved. Root owns the
+shared catalog runner's optional config/limits injection; old defaults remain.
+See [contract](DERIVED_NATIVE_CATALOG_TASK.md) and [evidence](../evidence/NATIVE_DERIVED_CATALOG_EXPERIMENT.md).
+This supports local startup policy under trust in the reviewed native executable,
+not account entitlement, arbitrary-process authentication or exhaustive handler
+rejection. Production native admission remains closed.
 
 ## Verification
 
-- Parent final full Python suite: **947 passed, 41 explicit native checks skipped**.
-  Independent acceptance plus context checks: **29 passed**. Diff check passed.
-- Independent acceptance: **24 passed** against root transport/worker source,
-  using authored local Python processes and real store/worker recovery pathways.
-- Parent native opt-in across text, tool and exact-catalog probes: **100 passed**.
-  Seven contained native turns / fourteen authored local provider requests;
-  **zero real model/upstream requests or credentials**, native 0.154.0. Reported
-  capture limits match the actual internal trace record; no capture failure.
-  Catalog reproduction: `/tmp/native_bounded_catalog_parent_20261013.json`.
-- No frontend change in this wave. Previous eab1653 UI evidence remains **73 Bun
-  tests / 385 assertions**, Svelte 0 errors/warnings, build and desktop/mobile
-  browser acceptance passed. Those are previous integration results.
-- Historical raw probe reports remain unchanged; future reports now include
-  actual nativeCapture status and explicitly deny a database byte quota.
+- Parent full suite: **973 Python passed / 44 explicit native checks skipped**.
+  **78 Bun tests / 416 assertions**, Svelte **0 errors / 0 warnings**, build passed.
+- Independent fixture plus prior experiment acceptance: **19 passed**. Parent
+  reproduced the full browser script against a fresh marked database; all checks
+  passed, seven content checks became available, 390px overflow was zero and no
+  JavaScript exception occurred. One intentional investigation POST committed 201
+  and had its reply dropped; its pending identity survived. No native dispatch.
+- Parent fixture JSON reopened byte-identically after browser work. Parent and UI
+  owner inspected all seven desktop/mobile screenshots plus baseline. All verified
+  owned API/Vite/Chromium services were stopped; ports 8765/5173/9222 are closed.
+  Parent report `/tmp/nema-saved-question-root-browser.json` and screenshots remain
+  temporary reproduction artifacts; the independent run is committed evidence.
+- Parent paired native reproduction: **24 opt-in checks passed**, two contained
+  turns / six authored local provider requests, zero real model/upstream/auth.
+  Native 0.154.0; actual finite recorder limits match trusted trace records; no
+  reported capture gap or diagnostic error. Parent report
+  `/tmp/native_derived_catalog_parent_20261013.json` is separate from committed raw
+  development evidence. Default tests start no native process.
+- JavaScript syntax, context-link checks and diff check passed. Synthetic histories
+  and scripted availability/navigation do not measure human reorientation benefit.
 
-## Active work and next move
+## Active ownership and next runnable work
 
-Root has completed verification and is preparing one coherent main commit/push. Transport
-worktree `/tmp/nema-bounded-native-transport` is clean at `acd6f04`; acceptance
-`/tmp/nema-native-capture-acceptance` is clean at `bbf4269`. Their patches are applied
-on main. No user decision blocks ordinary repository progress.
+Root owns final review, coherent main commit/push and CI verification. UI worktree
+`/tmp/nema-saved-question-recovery` is frozen at `9feac92`; acceptance worktree
+`/tmp/nema-saved-recovery-acceptance` at `f3b4907`; both contributions are incorporated.
+Native worktree `/tmp/nema-derived-model-catalog` is frozen at `59bec0d` plus the
+root-approved shared runner diff, also incorporated. No fixture services remain.
 
-Two independent read-only scouts continue while integration finishes:
-- `history_ui`: identify a useful next product loop from reversible context recipes
-  versus returning-person recovery; reuse actual experiment/draft interfaces.
-- `native_frontier`: review the aggregate-prefix fix and prepare a narrow paired
-  original/derived Astra startup-catalog challenge. No new native turns yet.
+The next native discriminator is assigned to `native_frontier` in
+`/tmp/nema-native-tls-connect`, branch `codex/native-tls-connect`: a namespace-owned,
+destination-limited opaque CONNECT fixture with native HTTPS_PROXY and a disposable
+public CA through CODEX_CA_CERTIFICATE. Root accepted its offline task packet and
+owns shared runner injection. Test valid TLS, wrong-host certificate before plaintext,
+denied redirects, strict CONNECT parsing and bounded concurrent tunnel shutdown.
+Exact local host mapping has no DNS/upstream implementation. No sign-in, credentials,
+real model calls, production gate changes or copied native state are authorized.
 
-**Next runnable action:** commit/push bounded capture, inspect CI, then select the
-next coherent product and
-native discriminator contracts. Continue the mission; do not stop at green checks.
+`native_frontier/gateway_review` independently reviews future managed-auth lifecycle
+source. Preliminary finding: Plus/Pro excludes cloud policy at the pinned source
+branch, but cached account reads and auth refresh do not freeze that plan. Login
+completion precedes config/loader refresh; later eligible plans may fetch cloud
+requirements on the same host as inference. This is source inference, not live
+sign-in evidence. Do not admit managed/unknown accounts on this basis.
 
-Native scout direction: prefer a supported narrow ordinary-Responses model if
-available to the eventual account. A transparently derived Astra startup catalog
-may set only tool_mode=direct and experimental_supported_tools=[]; preserve slug,
-Lite mode and other metadata, original hash, exact semantic patch and derived hash.
-Supported agents.enabled=false plus multi_agent_v2=false and sleep/current-time
-controls need a paired no-credential probe. This is local policy, not authentic
-upstream metadata or proof of entitlement. An actual subscription/auth flow remains
-a later separate decision; never copy existing auth or impersonate Desktop.
+`history_ui` scouts C2 read-only: challenge the fixed one-inquiry topology with two
+independent pending questions, refusal and executor restart. Return an executable
+gap and smallest useful integration, or explain why separate investigations suffice.
+No new ontology or product implementation is preselected.
 
-## Limits
+**Next runnable action:** commit/push this tested wave, inspect CI, then review the
+CONNECT implementation and independent lifecycle findings while the C2 scout returns.
+Continue the mission; no human decision blocks offline work. A narrower ordinary
+Responses model remains simpler if a future account supports it. Recipe activation
+remains deferred until observed selection friction justifies a reusable transform.
 
-Synthetic transport and recovery are verified, not model reasoning or live caller
-admission. Internal direction is a trusted-host convention, not authentication of
-arbitrary database writers. Native admission remains closed. Catalog presence does
-not establish account availability. An absent action item does not establish that
-no native handler ran. Same-database scripted UI recovery does not measure human
-reorientation benefit. Generic TM remains a trusted-host interface.
+## Boundaries still open
+
+Saved previews read full selected-owner views; this is not a bounded-owner-payload
+claim. Copying history or results grants no continuation authority. Internal capture
+direction is a trusted-host convention, not authentication of database writers.
+Capture quotas are not CPU/RSS, total SQLite or external-effect quotas. Absence of
+native action items cannot prove no internal tool ran. Generic TM remains a trusted
+host interface. No exactly-once external-effect claim or human/model-quality claim.

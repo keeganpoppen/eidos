@@ -18,6 +18,7 @@ import threading
 import time
 from typing import Any
 
+from eidos.codex import AppServerLimits
 from eidos.investigation_worker import NativeInvestigationWorker
 from eidos.trace import TraceStore
 
@@ -152,7 +153,11 @@ def analyze_request(event: dict[str, Any], prompt: str) -> dict[str, Any]:
     return summary
 
 
-def run_case(helper: Path, model: str, catalog: bytes) -> dict[str, Any]:
+def run_case(
+    helper: Path, model: str, catalog: bytes, *,
+    config: str | None = None, limits: AppServerLimits | None = None,
+) -> dict[str, Any]:
+    """Run one authored fixture with explicit startup input and capture policy."""
     with tempfile.TemporaryDirectory(prefix="nema-model-catalog-") as temporary:
         root = Path(temporary)
         boundary.prepare(root, helper)
@@ -161,7 +166,7 @@ def run_case(helper: Path, model: str, catalog: bytes) -> dict[str, Any]:
         store, work = transport.fixture_work(trace)
         context = work["contexts"][0]
         prompt = context["projectedPrompt"]
-        config = fixture_config(model)
+        config = fixture_config(model) if config is None else config
         (root / "packet/context.json").write_text(json.dumps(context))
         (root / "state/codex/config.toml").write_text(config)
         (root / "fixture/relay.py").write_text(transport.RELAY)
@@ -188,7 +193,7 @@ def run_case(helper: Path, model: str, catalog: bytes) -> dict[str, Any]:
             command = boundary.namespace_command(root, Path("/usr/bin/bwrap"),
                       ["/usr/bin/python3", "/fixture/launcher.py"], broker=True)
             client = transport.SyntheticTurnClient(command, trace=trace, cwd=root, env={}, inherit_env=False,
-                                                   source="synthetic-model-catalog/" + model)
+                                                   source="synthetic-model-catalog/" + model, limits=limits)
             watchdog = threading.Timer(transport.CASE_SECONDS, client.close)
             watchdog.daemon = True
             watchdog.start()

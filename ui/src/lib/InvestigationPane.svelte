@@ -13,10 +13,11 @@
   import { sameSelections } from './semantic';
   import type { ArtifactInputSelection, FrozenArtifactInput, EvidenceSelection, Investigation, InvestigationArtifact, InvestigationContext, InvestigationCapabilities } from './types';
 
-  let { selections = $bindable([]), onSource, onCompare }: {
+  let { selections = $bindable([]), onSource, onCompare, onSavedWork }: {
     selections: EvidenceSelection[];
     onSource: (selection: EvidenceSelection) => void;
     onCompare: (investigationId: string, intent?: 'comparison' | 'evidence-chain' | 'alternative-review', experimentId?: string) => void;
+    onSavedWork: () => void;
   } = $props();
 
   const storageKey = 'nema.investigation-draft.v1';
@@ -268,6 +269,7 @@
   </header>
 
   <div class="work-picker">
+    <button id="return-to-saved-work" class="work-secondary" onclick={onSavedWork}>Return to saved work</button>
     <CatalogPicker id="saved-investigation" label="Saved work" value={selectedId} selectedLabel={current?.title} disabled={busy} emptyLabel="New investigation" onChoose={(id) => id ? void choose(id) : newDraft()} />
     <button class="work-secondary" disabled={busy} onclick={() => newDraft()}>New investigation</button>
     {#if selectedId && !current && ready && !busy}<button class="work-secondary" onclick={() => choose(selectedId, restoreAfterLoad)}>Retry selected investigation</button>{/if}

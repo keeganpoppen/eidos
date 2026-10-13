@@ -19,7 +19,7 @@
   import type { ApertureTarget, Arrangement } from './comparison';
   import type { FrozenArtifactInput, Investigation, InvestigationContext, ContextRecord, InvestigationArtifact, EvidenceSelection, WorkbenchExperiment } from './types';
 
-  let { open = $bindable(false), initialId = '', requestId = 0, requestIntent = 'comparison', requestExperimentId = '', selections = [] }: { open: boolean; initialId?: string; requestId?: number; requestIntent?: 'comparison' | 'evidence-chain' | 'alternative-review'; requestExperimentId?: string; selections?: EvidenceSelection[] } = $props();
+  let { open = $bindable(false), initialId = '', requestId = 0, requestIntent = 'comparison', requestExperimentId = '', browseRequest = 0, selections = [] }: { open: boolean; initialId?: string; requestId?: number; requestIntent?: 'comparison' | 'evidence-chain' | 'alternative-review'; requestExperimentId?: string; browseRequest?: number; selections?: EvidenceSelection[] } = $props();
   let composition = $state(emptyComposition());
   let savedInvestigations = $state<Investigation[]>([]);
   let fixtureStage = $state<'pending' | 'supplied' | null>(null);
@@ -259,7 +259,7 @@
     inFlight = true;
     try {
       let ids = referencedOwners();
-      if (!ids.length && !investigations.length) {
+      if (!ids.length && !investigations.length && !browseRequest) {
         const page = await savedWork.catalog('catalog');
         ids = page.items.slice(0, 2).map((item) => (item as WorkSummary).id);
       }
@@ -275,7 +275,7 @@
       for (const side of ['left', 'right'] as const) {
         if (draft[side].investigationId && !draft[side].contextId && investigations.some((item) => item.id === draft[side].investigationId)) bindTarget(side, draft[side].investigationId);
       }
-      if (!arranged && !draft.left.investigationId && !intentLoading) beginEdit(initialId);
+      if (!arranged && !draft.left.investigationId && !intentLoading && !browseRequest) beginEdit(initialId);
     } catch (cause) {
       if (!disposed) error = cause instanceof Error ? cause.message : String(cause);
     } finally {
@@ -407,7 +407,7 @@
   {#if storageError}<p class="work-notice" role="status">Browser storage is unavailable. This arrangement will not survive reload.</p>{/if}
   {#if receipt}<p class="composition-receipt" role="status">{receipt}</p>{/if}
 
-  <SavedComparisons {composition} active={open} {editing} onOpen={openSavedComparison} onSaved={savedComparison} />
+  <SavedComparisons {composition} active={open} {editing} {browseRequest} onOpen={openSavedComparison} onSaved={savedComparison} />
 
   <section class="attention-intents" aria-label="Organize this investigation">
     <div class="intent-copy"><span class="eyebrow">Arrange attention</span><p>{previewVersion && activeFixtureExperiment ? 'Presentation preview · evidence before interpretation' : 'Choose a relation to bring into view.'}</p></div>

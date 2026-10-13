@@ -1,12 +1,13 @@
 <script lang="ts">
-  import { onMount, untrack } from 'svelte';
-  import { resolveTarget, validateEvidenceChain, type Composition } from './comparison';
-  import { captureSnapshot, compositionSnapshots, CompositionRequestError, readSnapshotDraft, snapshotDraftKey, supportsBlockFocus, type CompositionSnapshot, type SnapshotSave, type SnapshotSummary } from './composition-snapshots';
-  import { savedWork } from './saved-work';
-  import type { Investigation } from './types';
+  import { onMount, tick, untrack } from 'svelte';
+  import { resolveTarget, type Composition } from './comparison';
+  import { captureSnapshot, compositionSnapshots, CompositionRequestError, readSnapshotDraft, snapshotDraftKey, type CompositionSnapshot, type SnapshotSave, type SnapshotSummary } from './composition-snapshots';
+  import SavedQuestionPreview from './SavedQuestionPreview.svelte';
+  import { loadSavedQuestion } from './saved-question';
+  import type { Investigation, WorkbenchExperiment } from './types';
 
-  let { composition, active, editing, onOpen, onSaved }: {
-    composition: Composition; active: boolean; editing: boolean;
+  let { composition, active, editing, browseRequest = 0, onOpen, onSaved }: {
+    composition: Composition; active: boolean; editing: boolean; browseRequest?: number;
     onOpen: (snapshot: CompositionSnapshot, owners: Investigation[]) => void;
     onSaved: (snapshot: CompositionSnapshot) => void;
   } = $props();
@@ -36,7 +37,11 @@
   let previewError = $state('');
   let preview = $state<CompositionSnapshot | null>(null);
   let owners = $state<Investigation[]>([]);
+  let experiment = $state<WorkbenchExperiment | undefined>();
+  let experimentError = $state('');
   let resolutionErrors = $state<string[]>([]);
+  let searchInput: HTMLInputElement;
+  let seenBrowseRequest = 0;
   let reviewBase = $state('');
   const currentView = $derived(JSON.stringify({ arrangement: composition.arrangement, focus: composition.focus, renderer: composition.focusRendererVersion }));
   const changedAfterReview = $derived(!!preview && reviewBase !== currentView);
@@ -104,13 +109,10 @@
     const base = currentView;
     try {
       const value = await compositionSnapshots.get(id);
-      const ids = [...new Set([value.arrangement.left.investigationId, value.arrangement.right.investigationId, value.focus?.investigationId].filter((item): item is string => !!item))];
-      const results = await Promise.allSettled(ids.map((owner) => savedWork.view(owner)));
+      const result = await loadSavedQuestion(value);
       if (request !== previewGeneration) return;
-      owners = results.flatMap((result) => result.status === 'fulfilled' ? [result.value] : []);
-      resolutionErrors = results.flatMap((result, index) => result.status === 'rejected' ? [`${ids[index]}: ${String(result.reason instanceof Error ? result.reason.message : result.reason)}`] : []);
-      const chainError = validateEvidenceChain(owners, value.arrangement);
-      if (chainError) resolutionErrors = [...resolutionErrors, chainError];
+      owners = result.owners; resolutionErrors = result.errors;
+      experiment = result.experiment; experimentError = result.experimentError;
       preview = value; selectedTitle = value.title; reviewBase = base;
     } catch (cause) { if (request === previewGeneration) previewError = cause instanceof Error ? cause.message : String(cause); }
     finally { if (request === previewGeneration) previewing = false; }
@@ -129,6 +131,19 @@
     return () => { listGeneration++; previewGeneration++; };
   });
   $effect(() => { if (ready && active && browse) untrack(() => { if (!loaded && !loading) void load(); }); });
+  $effect(() => {
+    if (ready && active && browseRequest > seenBrowseRequest) {
+      seenBrowseRequest = browseRequest;
+      browse = true;
+      const request = browseRequest;
+      void tick().then(() => {
+        if (active && request === browseRequest) {
+          searchInput?.focus({ preventScroll: true });
+          searchInput?.scrollIntoView({ block: 'center' });
+        }
+      });
+    }
+  });
 </script>
 
 <section class="saved-comparisons" aria-label="Saved comparisons">
@@ -151,7 +166,7 @@
     <summary>Find saved comparisons</summary>
     <form onsubmit={(event) => { event.preventDefault(); find(); }}>
       <label for="composition-search">Search comparison names</label>
-      <div class="input-row"><input id="composition-search" type="search" bind:value={search} placeholder="All names" /><button type="submit">Search</button></div>
+      <div class="input-row"><input id="composition-search" bind:this={searchInput} type="search" bind:value={search} placeholder="All names" /><button type="submit">Search</button></div>
     </form>
     <label for="saved-composition">Saved comparison</label>
     <select id="saved-composition" value={selected} disabled={loading} onchange={(event) => select(event.currentTarget.value)}>
@@ -166,6 +181,8 @@
     {#if preview}
       <section class="snapshot-preview" data-composition-id={preview.id} aria-label="Saved comparison preview">
         <h4>{preview.title}</h4><p>{preview.arrangement.lens === 'context' ? 'Context and evidence' : 'Returned results'} · {preview.arrangement.layout === 'beside' ? 'side by side' : 'stacked'}{preview.arrangement.intent ? ` · ${preview.arrangement.intent}` : ''}</p>
+        {#key preview.id}<SavedQuestionPreview snapshot={preview} {owners} {experiment} {experimentError} onRetry={() => inspect()} />{/key}
+        <details><summary>Exact saved references and provenance</summary>
         <div class="preview-targets">
           {#each ['left', 'right'] as side}
             {@const target = preview.arrangement[side as 'left' | 'right']}
@@ -176,10 +193,11 @@
           {/each}
         </div>
         {#if preview.focus}<p class="snapshot-ref">Focus: {preview.focus.investigationId}<br />{preview.focus.contextId}<br />{preview.focus.artifactId ?? 'Context record'}{preview.focus.blockId ? ` · ${preview.focus.blockId}` : ''}{preview.focus.seq ? ` · [evidence:${preview.focus.seq}] · ${preview.focus.threadId}` : ''}</p>{:else}<p>No saved evidence focus.</p>{/if}
-        {#if !supportsBlockFocus(preview.focus, preview.rendererVersion)}<p class="work-notice" data-unresolved-selector>Passage selector unavailable for renderer {preview.rendererVersion}. Exact result and record references remain; opening will not highlight a passage under the installed parser.</p>{/if}
+        <pre>{JSON.stringify(preview, null, 2)}</pre>
+        </details>
         {#each resolutionErrors as failure}<p class="work-notice">{failure}</p>{/each}
+        {#if resolutionErrors.length}<button class="retry-preview-sources" onclick={() => inspect()}>Retry exact preview sources</button>{/if}
         {#if preview.copiedFrom}<p class="snapshot-ref">Copied from <button onclick={() => inspect(preview!.copiedFrom!)}>{preview.copiedFrom}</button></p>{/if}
-        <details><summary>Exact saved references</summary><pre>{JSON.stringify(preview, null, 2)}</pre></details>
         <p>Open replaces this browser’s applied comparison and focus. Investigation drafts and pending saves stay in place. {editing ? 'Unapplied arrangement edits will be replaced.' : ''}</p>
         {#if changedAfterReview}<p class="work-notice">Your comparison or focus changed after this preview. Preview it again before opening.</p>{/if}
         <button id="open-comparison" disabled={changedAfterReview} onclick={openPreview}>Open this comparison</button>

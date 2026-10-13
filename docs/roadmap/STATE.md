@@ -6,6 +6,33 @@ The baseline GitHub Actions run `38240774514` completed successfully: pytest and
 
 Refresh this file when implementation claims materially change. Keep historical audit IDs instead of quietly relabelling old evidence as current.
 
+## Saved-question recovery and derived startup catalog — 2026-10-13
+
+Integration base `555a317`; [rendered acceptance](../evidence/SAVED_QUESTION_RECOVERY_INTEGRATION.md)
+and [handoff](../agents/CURRENT_HANDOFF.md) identify this integration. Investigation
+now offers Return to saved work. Snapshot preview exposes the exact saved question,
+historical result, context-only alternative, rationale and raw support before Open.
+Current review remains separately labelled. Read-only inspection preserves applied
+comparison, unapplied arrangement edits, dirty drafts and pending save identities.
+No new backend API, persistence or dispatch. Full selected-owner reads remain a cost.
+
+Parent verification: **973 Python passed / 44 explicit native checks skipped;
+78 Bun tests / 416 assertions; Svelte 0 errors / 0 warnings; build passed**.
+Independent and parent browser runs preserve exact old pins through later results,
+lost save replies, delayed reads, failures/retry, source loss and unknown renderers.
+Desktop/390px UI was inspected; no overflow or JavaScript exceptions. Fixture
+histories reopened byte-identically. Scripted availability is not human benefit.
+
+The [paired native catalog experiment](../evidence/NATIVE_DERIVED_CATALOG_EXPERIMENT.md)
+retains exact upstream metadata beside a labelled two-field local startup policy.
+With the same supported agent/sleep controls, original Astra Lite still declares
+code/async tools and executes the clock challenge; the derived catalog declares
+empty tools and rejects both resource/clock calls. Both return exact synthetic text.
+Parent reproduced **24 opt-in checks**, two contained native turns/six authored
+local provider requests, zero real models/upstream/credentials and no reported
+capture gap. No account entitlement, exhaustive handler proof or production
+admission change follows. Supported opaque HTTPS transport is the next discriminator.
+
 ## Bounded native recording and capture-aware recovery — 2026-10-13
 
 Integration base `eab1653`; [acceptance and counterexamples](../evidence/NATIVE_CAPTURE_ACCEPTANCE.md)

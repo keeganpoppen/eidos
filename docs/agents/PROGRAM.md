@@ -1,6 +1,6 @@
 # Continuing development frontier
 
-**Provisional strategic understanding · 2026-10-13 · integration base `eab1653`.**
+**Provisional strategic understanding · 2026-10-13 · integration base `555a317`.**
 The [current handoff](CURRENT_HANDOFF.md) owns verified status and runnable steps;
 this document owns revisable conjectures and opportunity ordering. It does not
 replace the [destination](../vision/DESTINATION.md) or [V1](../roadmap/V1.md).
@@ -22,7 +22,7 @@ These are hypotheses, not established invariants or additional release gates.
 | C2 | A small continuation vocabulary supports useful delegation despite opaque native stacks. Named ProcessRuntime protocols exist; the investigation program is fixed Discover→AwaitDiscovery and A2 is a newly admitted attempt. | Two independent inquiries, refusal and executor restart should preserve one task identity and accepted results without hidden per-case host state. Failure challenges the vocabulary; it does not automatically justify a kernel rewrite. |
 | C3 | Explicit source relationships and attention limits outperform larger undirected context. Weighted hindsight trees and synthetic one-hop selection exist. | Held-out sanitized histories with irrelevant links, conflicting updates and dispersed support must improve controlling-decision recovery without increasing unsupported conclusions. Existing fixture scores are not this evidence. |
 | C4 | Reviewed interpretation changes improve future work while historical pins remain stable. Immutable manifests and experiment reviews exist; adoption currently activates nothing. | Activate a bounded context recipe for future drafts, inspect its actual next preview/request pin, then roll back. Historical pins must remain identical and the earlier future behavior must return without editing global instructions. |
-| C5 | Several durable lenses over shared references reduce reorientation work. Frozen bindings exist, and stable server pages now preserve exact evidence under append/reload; named compiled arrangements now persist as immutable same-database snapshots. | The 1,200-turn recovery and 1,000-owner transfer cases now pass. Recorded experiments now retain exact context-only alternatives in saved views. Next evaluate whether a returning person recovers competing decisions and support without reconstructing their working arrangement. Scripted success still does not measure human reorientation. |
+| C5 | Several durable lenses over shared references reduce reorientation work. Frozen bindings exist, and stable server pages now preserve exact evidence under append/reload; named compiled arrangements now persist as immutable same-database snapshots. | The 1,200-turn recovery and 1,000-owner transfer cases now pass. Recorded experiments now retain exact context-only alternatives in saved views. Saved-question preview now exposes exact question, rationale, baseline and raw support before replacing the working arrangement. Next evaluate this with a returning person. Scripted success still does not measure human reorientation. |
 | C6 | Knowledge and action remain separate while useful work still happens. Owner routes and admission checks exist; native startup remains closed. | Copied history and prompt-like source instructions must remain inspectable without granting execution, while one admitted subscription-backed specialist completes useful work. A permanently closed gate cannot establish this conjecture. |
 
 ## Opportunity ordering and reversible decisions
@@ -34,27 +34,38 @@ These are hypotheses, not established invariants or additional release gates.
    completion without inventing success across a gap. Independent counterexamples
    caught EOF, parser, byte-boundary and recovery errors. Wire budgets do not imply
    process CPU/RSS, outbound traffic or total database quotas.
-2. **Next native discriminator: exact model behavior and supported admission (C6).**
-   The [public-catalog challenge](../evidence/NATIVE_MODEL_CATALOG_EXPERIMENT.md)
-   falsifies a model-independent tools-disabled configuration. Astra metadata
-   overrides flags; its Lite payload declares tools outside top-level `tools`,
-   and a clock call executes without a native action item. A control model rejects
-   the two chosen calls but is not a proof about every hidden handler. The next
-   paired probe will combine supported agent/sleep controls with an explicitly
-   derived Astra startup catalog that changes only its tool mode and experimental
-   tool list. Preserve original and derived hashes and the exact semantic patch.
-   A narrower ordinary-Responses model remains the simpler first candidate if the
-   eventual account supports it. Separate trust in the reviewed native binary/
-   configuration from authentication against arbitrary native compromise. No real
-   model, auth state or production gate changes are implicit in this research.
-3. **Established integration: recorded experiments in durable views (C1/C5).**
-   Exact context/result/attempt pins now compose a real recorded experiment into
-   comparison, current-review inspection and same-database snapshots. Later results
-   cannot fill a context-only alternative or replace the historical baseline.
-   Frozen source-review changes remain visible behind unchanged artifact IDs.
-   Scripted API/browser acceptance establishes recovery, not human reorientation
-   benefit or reasoning improvement. This removes the prior authored-fixture-only
-   composition seam using the existing ontology and measurements.
+2. **Active native discriminator: opaque HTTPS transport (C6).**
+   The [derived-catalog evidence](../evidence/NATIVE_DERIVED_CATALOG_EXPERIMENT.md)
+   establishes a transparent two-field local startup policy: Astra Lite declares
+   empty tools and rejects the resource/clock challenges. Original public metadata
+   still registers tools and executes clock despite supported agent/sleep controls.
+   Preserve both source and derivation; this is not exhaustive hidden-handler proof.
+   The next offline fixture challenges supported native HTTPS_PROXY and custom CA
+   behavior through a destination-limited opaque CONNECT relay: valid TLS,
+   wrong-host certificates, redirect refusal, bounded streams and owned shutdown.
+   Its broker has no DNS/upstream path; plaintext belongs only to the authored TLS
+   endpoint. This does not admit real accounts or observe opaque production bodies.
+
+   Managed sign-in remains a separate unresolved boundary. Exact Plus/Pro source
+   eligibility excludes initial cloud policy, but auth refresh can change the plan
+   and later fetch cloud requirements from the same host as inference. A cached
+   account read does not freeze that lifecycle. Keep production closed; investigate
+   the concrete supported lifecycle rather than inventing account authority from
+   a model catalog. Ordinary Responses remains a simpler model candidate if an
+   eventual account supports it. No credentials or real model calls are implicit.
+3. **Established product loop: return to a saved question (C1/C5).**
+   The [recovery acceptance](../evidence/SAVED_QUESTION_RECOVERY_INTEGRATION.md)
+   verifies discoverable entry, exact question/rationale/result preview and raw
+   support before Open. Dirty/pending investigation drafts and working arrangements
+   survive inspection. Current review is separately labelled; later results cannot
+   fill a context-only alternative or replace a historical baseline. Baseline and
+   changed UI were exercised against the same saved fixture. Scripted availability,
+   exact recovery and navigation are established; human benefit remains unmeasured.
+
+   **Next product scout:** challenge C2's fixed one-inquiry product topology with two
+   independent pending questions, refusal and restart. Distinguish the continuation
+   vocabulary's actual capacity from an adapter's singular fields. Do not pluralize
+   every schema without a concrete user loop; separate investigations may suffice.
 4. **Established baseline: substantial saved work (C1/C5).** The 1,200-turn history
    and 1,000-owner HTTP/browser cases preserve stable source membership, bounded
    metadata pages, conditional reads, exact artifact detail and dirty draft/retry
@@ -75,9 +86,9 @@ not mature-world axioms.
 
 ## Current integration boundary and next contract
 
-The previous experiment/catalog integration is `eab1653` (public CI passed); the
-[handoff](CURRENT_HANDOFF.md) identifies bounded recorder verification and ongoing
-product/native scouts. See [D28/D29](../roadmap/DECISIONS.md) and linked evidence. The active
+The previous bounded-capture integration is `555a317` (public CI passed); the
+[handoff](CURRENT_HANDOFF.md) identifies saved-question/catalog verification and
+the next native/product lanes. See [D28/D29](../roadmap/DECISIONS.md) and linked evidence. The active
 read index is a derived performance adapter, not a second provenance authority.
 Native process/synthetic transport research is independent of production admission.
 

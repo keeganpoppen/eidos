@@ -31,6 +31,7 @@
   let comparisonRequest = $state(0);
   let comparisonIntent = $state<'comparison' | 'evidence-chain' | 'alternative-review'>('comparison');
   let comparisonExperimentId = $state('');
+  let savedWorkRequest = $state(0);
   let historyAnchorSeq = $state<number | null>(null);
   let recordQuery = $state('');
   let historyNotice = $state('');
@@ -401,6 +402,11 @@
     comparisonOpen = true;
   }
 
+  function returnToSavedWork() {
+    savedWorkRequest += 1;
+    comparisonOpen = true;
+  }
+
   function inputText(input: Record<string, unknown>): string {
     if (input.type === 'text') return String(input.text ?? '');
     return JSON.stringify(input, null, 2);
@@ -489,10 +495,10 @@
     </div>
   </aside>
 
-  <ComparisonSurface bind:open={comparisonOpen} initialId={comparisonSeed} requestId={comparisonRequest} requestIntent={comparisonIntent} requestExperimentId={comparisonExperimentId} {selections} />
+  <ComparisonSurface bind:open={comparisonOpen} initialId={comparisonSeed} requestId={comparisonRequest} requestIntent={comparisonIntent} requestExperimentId={comparisonExperimentId} browseRequest={savedWorkRequest} {selections} />
 
   <div class:hidden-aperture={!workMode || comparisonOpen} class="work-aperture">
-    <InvestigationPane bind:selections onSource={returnToSource} onCompare={compareInvestigation} />
+    <InvestigationPane bind:selections onSource={returnToSource} onCompare={compareInvestigation} onSavedWork={returnToSavedWork} />
   </div>
 
   {#if !workMode && !comparisonOpen}

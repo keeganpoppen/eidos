@@ -1,0 +1,37 @@
+{
+  "schemaVersion": "nema-saved-question-preview/1",
+  "classification": "BASELINE_555a317_SYNTHETIC_FIXTURE",
+  "availableBeforeOpen": {
+    "question": false,
+    "rationale": false,
+    "baselineResult": false,
+    "contextOnly": false,
+    "savedRawRecord": false,
+    "currentReview": false,
+    "inspectSupport": false
+  },
+  "investigationReturnEntry": false,
+  "appliedComparison": {
+    "version": 1,
+    "open": true,
+    "arrangement": null,
+    "undo": [],
+    "focus": null
+  },
+  "humanBenefitMeasured": false,
+  "screenshots": [
+    "docs/evidence/saved_question_recovery_baseline_2026_10_13_desktop_baseline.png"
+  ],
+  "javascriptExceptions": [],
+  "browserWrites": [],
+  "exactReads": [
+    {
+      "context": "baseline-555a317",
+      "phase": "initial",
+      "path": "/api/compositions/composition_e47d578f781d4617adc1413b4890583d",
+      "query": "",
+      "status": 200,
+      "bodyBytes": 1115
+    }
+  ]
+}

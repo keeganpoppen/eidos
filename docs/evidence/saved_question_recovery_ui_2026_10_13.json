@@ -1,0 +1,529 @@
+{
+  "schemaVersion": "nema-saved-question-preview/1",
+  "classification": "REAL_BROWSER_SYNTHETIC_SAVED_HISTORY",
+  "availableBeforeOpen": {
+    "question": true,
+    "rationale": true,
+    "baselineResult": true,
+    "contextOnly": true,
+    "savedRawRecord": true,
+    "currentReview": true,
+    "inspectSupport": true
+  },
+  "investigationReturnEntry": true,
+  "similarNamedSnapshots": [
+    {
+      "id": "composition_e47d578f781d4617adc1413b4890583d",
+      "title": "Unknown reply · retry review"
+    },
+    {
+      "id": "composition_6c5edaf84b304f6f8562edd7dbd7b1ea",
+      "title": "Unknown reply · retry review (broader inputs)"
+    },
+    {
+      "id": "composition_bfd4a51bc99442b09ac9d7af12008709",
+      "title": "Unknown reply · retry review (current result)"
+    },
+    {
+      "id": "composition_061190e9945548adb6cd12917b18826c",
+      "title": "Unknown reply · retry review (older renderer)"
+    },
+    {
+      "id": "composition_a3f201ff46e84ce1aea9bd2eabcdeef9",
+      "title": "Unknown reply · retry review (unavailable source)"
+    }
+  ],
+  "originalSupportRecoveredBeforeOpen": true,
+  "contextOnlyUnfocusedRawSupportBeforeOpen": true,
+  "frozenInputReviewPreserved": true,
+  "currentReviewSeparatelyLabelled": true,
+  "previewRetainedAppliedArrangement": true,
+  "previewRetainedUnsavedArrangementEdits": true,
+  "pendingDraftRequestId": "9590d66d-5e79-4484-9716-845879d97d8b",
+  "latePreviewIgnored": true,
+  "lateExperimentReadIgnored": true,
+  "failedPreviewRetried": true,
+  "failedExperimentReadNotSubstituted": true,
+  "unavailableSourceNotSubstituted": true,
+  "unknownRendererRetainsRawSupport": true,
+  "explicitOpenRetainsHistoricalPins": true,
+  "freshBrowserExactRecovery": true,
+  "mobile": {
+    "width": 390,
+    "document": 0,
+    "preview": 0
+  },
+  "nativeOrModelCalls": 0,
+  "humanBenefitMeasured": false,
+  "limits": "Synthetic histories; one deliberately lost save reply and labelled held/503 reads. Objective availability/navigation only, no human participants or speed claim.",
+  "screenshots": [
+    "docs/evidence/saved_question_recovery_ui_2026_10_13_desktop_unfocused_support.png",
+    "docs/evidence/saved_question_recovery_ui_2026_10_13_desktop_preview.png",
+    "docs/evidence/saved_question_recovery_ui_2026_10_13_desktop_reason_support.png",
+    "docs/evidence/saved_question_recovery_ui_2026_10_13_desktop_original_support.png",
+    "docs/evidence/saved_question_recovery_ui_2026_10_13_mobile_preview.png",
+    "docs/evidence/saved_question_recovery_ui_2026_10_13_mobile_reason_support.png",
+    "docs/evidence/saved_question_recovery_ui_2026_10_13_mobile_original_support.png"
+  ],
+  "javascriptExceptions": [],
+  "browserWrites": [
+    {
+      "path": "/api/investigations",
+      "body": "{\"requestId\":\"9590d66d-5e79-4484-9716-845879d97d8b\",\"title\":\"DIRTY saved-question draft 7b2728bb\",\"question\":\"Keep this unsaved question and its pending request while I recover another saved question.\",\"selections\":[],\"artifactInputs\":[{\"investigationId\":\"investigation_a36d72098b5c4be3bd4c1fdd03a64f0f\",\"artifactId\":\"artifact_c415390082ef8bdc1452acc770ca91197a06313698d6e49e74b6d491919dbfd1\",\"rationale\":\"Unsubmitted rationale must survive read-only recovery.\"}]}"
+    }
+  ],
+  "lostReplyCommittedStatus": 201,
+  "legacyFullCatalogGets": 0,
+  "ownerViews": [
+    {
+      "context": "saved-question-recovery",
+      "phase": "read-only-preview",
+      "path": "/api/investigations/investigation_1f21d45534b9439f962d4cd5e98d7e62/view",
+      "query": "",
+      "status": 200,
+      "bodyBytes": 29810
+    },
+    {
+      "context": "saved-question-recovery",
+      "phase": "read-only-preview",
+      "path": "/api/investigations/investigation_1f21d45534b9439f962d4cd5e98d7e62/view",
+      "query": "?knownVersion=iv1_f74bf6e670277d975a427ba22c7ebea5e4993ea28d006882ea619f0e8c068215",
+      "status": 200,
+      "bodyBytes": 99
+    },
+    {
+      "context": "saved-question-recovery",
+      "phase": "read-only-preview",
+      "path": "/api/investigations/investigation_1f21d45534b9439f962d4cd5e98d7e62/view",
+      "query": "?knownVersion=iv1_f74bf6e670277d975a427ba22c7ebea5e4993ea28d006882ea619f0e8c068215",
+      "status": 200,
+      "bodyBytes": 99
+    },
+    {
+      "context": "saved-question-recovery",
+      "phase": "read-only-preview",
+      "path": "/api/investigations/investigation_1f21d45534b9439f962d4cd5e98d7e62/view",
+      "query": "?knownVersion=iv1_f74bf6e670277d975a427ba22c7ebea5e4993ea28d006882ea619f0e8c068215",
+      "status": 200,
+      "bodyBytes": 99
+    },
+    {
+      "context": "saved-question-recovery",
+      "phase": "stale-preview",
+      "path": "/api/investigations/investigation_1f21d45534b9439f962d4cd5e98d7e62/view",
+      "query": "?knownVersion=iv1_f74bf6e670277d975a427ba22c7ebea5e4993ea28d006882ea619f0e8c068215",
+      "status": 200,
+      "bodyBytes": 99
+    },
+    {
+      "context": "saved-question-recovery",
+      "phase": "stale-preview",
+      "path": "/api/investigations/investigation_1f21d45534b9439f962d4cd5e98d7e62/view",
+      "query": "?knownVersion=iv1_f74bf6e670277d975a427ba22c7ebea5e4993ea28d006882ea619f0e8c068215",
+      "status": 200,
+      "bodyBytes": 99
+    },
+    {
+      "context": "saved-question-recovery",
+      "phase": "stale-experiment-read",
+      "path": "/api/investigations/investigation_1f21d45534b9439f962d4cd5e98d7e62/view",
+      "query": "?knownVersion=iv1_f74bf6e670277d975a427ba22c7ebea5e4993ea28d006882ea619f0e8c068215",
+      "status": 200,
+      "bodyBytes": 99
+    },
+    {
+      "context": "saved-question-recovery",
+      "phase": "stale-experiment-read",
+      "path": "/api/investigations/investigation_1f21d45534b9439f962d4cd5e98d7e62/view",
+      "query": "?knownVersion=iv1_f74bf6e670277d975a427ba22c7ebea5e4993ea28d006882ea619f0e8c068215",
+      "status": 200,
+      "bodyBytes": 99
+    },
+    {
+      "context": "saved-question-recovery",
+      "phase": "failed-preview",
+      "path": "/api/investigations/investigation_1f21d45534b9439f962d4cd5e98d7e62/view",
+      "query": "?knownVersion=iv1_f74bf6e670277d975a427ba22c7ebea5e4993ea28d006882ea619f0e8c068215",
+      "status": 200,
+      "bodyBytes": 99
+    },
+    {
+      "context": "saved-question-recovery",
+      "phase": "failed-experiment",
+      "path": "/api/investigations/investigation_1f21d45534b9439f962d4cd5e98d7e62/view",
+      "query": "?knownVersion=iv1_f74bf6e670277d975a427ba22c7ebea5e4993ea28d006882ea619f0e8c068215",
+      "status": 200,
+      "bodyBytes": 99
+    },
+    {
+      "context": "saved-question-recovery",
+      "phase": "failed-experiment",
+      "path": "/api/investigations/investigation_1f21d45534b9439f962d4cd5e98d7e62/view",
+      "query": "?knownVersion=iv1_f74bf6e670277d975a427ba22c7ebea5e4993ea28d006882ea619f0e8c068215",
+      "status": 200,
+      "bodyBytes": 99
+    },
+    {
+      "context": "saved-question-recovery",
+      "phase": "missing-source",
+      "path": "/api/investigations/investigation_b82be3e4ce0d404281ef1e050287cea0/view",
+      "query": "",
+      "status": 404,
+      "bodyBytes": 35
+    },
+    {
+      "context": "saved-question-recovery",
+      "phase": "missing-source",
+      "path": "/api/investigations/investigation_1f21d45534b9439f962d4cd5e98d7e62/view",
+      "query": "?knownVersion=iv1_f74bf6e670277d975a427ba22c7ebea5e4993ea28d006882ea619f0e8c068215",
+      "status": 200,
+      "bodyBytes": 99
+    },
+    {
+      "context": "saved-question-recovery",
+      "phase": "missing-source",
+      "path": "/api/investigations/investigation_b82be3e4ce0d404281ef1e050287cea0/view",
+      "query": "",
+      "status": 404,
+      "bodyBytes": 35
+    },
+    {
+      "context": "saved-question-recovery",
+      "phase": "missing-source",
+      "path": "/api/investigations/investigation_1f21d45534b9439f962d4cd5e98d7e62/view",
+      "query": "?knownVersion=iv1_f74bf6e670277d975a427ba22c7ebea5e4993ea28d006882ea619f0e8c068215",
+      "status": 200,
+      "bodyBytes": 99
+    },
+    {
+      "context": "saved-question-recovery",
+      "phase": "unknown-renderer",
+      "path": "/api/investigations/investigation_1f21d45534b9439f962d4cd5e98d7e62/view",
+      "query": "?knownVersion=iv1_f74bf6e670277d975a427ba22c7ebea5e4993ea28d006882ea619f0e8c068215",
+      "status": 200,
+      "bodyBytes": 99
+    },
+    {
+      "context": "saved-question-recovery",
+      "phase": "mobile-preview",
+      "path": "/api/investigations/investigation_1f21d45534b9439f962d4cd5e98d7e62/view",
+      "query": "?knownVersion=iv1_f74bf6e670277d975a427ba22c7ebea5e4993ea28d006882ea619f0e8c068215",
+      "status": 200,
+      "bodyBytes": 99
+    },
+    {
+      "context": "saved-question-recovery",
+      "phase": "explicit-open",
+      "path": "/api/investigations/investigation_1f21d45534b9439f962d4cd5e98d7e62/view",
+      "query": "",
+      "status": 200,
+      "bodyBytes": 29810
+    },
+    {
+      "context": "saved-question-recovery",
+      "phase": "explicit-open",
+      "path": "/api/investigations/investigation_1f21d45534b9439f962d4cd5e98d7e62/view",
+      "query": "?knownVersion=iv1_f74bf6e670277d975a427ba22c7ebea5e4993ea28d006882ea619f0e8c068215",
+      "status": 200,
+      "bodyBytes": 99
+    },
+    {
+      "context": "fresh-browser-recovery",
+      "phase": "initial",
+      "path": "/api/investigations/investigation_1f21d45534b9439f962d4cd5e98d7e62/view",
+      "query": "",
+      "status": 200,
+      "bodyBytes": 29810
+    },
+    {
+      "context": "fresh-browser-recovery",
+      "phase": "initial",
+      "path": "/api/investigations/investigation_1f21d45534b9439f962d4cd5e98d7e62/view",
+      "query": "?knownVersion=iv1_f74bf6e670277d975a427ba22c7ebea5e4993ea28d006882ea619f0e8c068215",
+      "status": 200,
+      "bodyBytes": 99
+    }
+  ],
+  "exactReads": [
+    {
+      "context": "saved-question-recovery",
+      "phase": "read-only-preview",
+      "path": "/api/compositions/composition_6c5edaf84b304f6f8562edd7dbd7b1ea",
+      "query": "",
+      "status": 200,
+      "bodyBytes": 933
+    },
+    {
+      "context": "saved-question-recovery",
+      "phase": "read-only-preview",
+      "path": "/api/investigations/investigation_1f21d45534b9439f962d4cd5e98d7e62/experiments/comparison_9982cacbdb3a1140c719a9df1f63b20fc3c4069f27f48e2a61540b89da2d6a7e",
+      "query": "",
+      "status": 200,
+      "bodyBytes": 2324
+    },
+    {
+      "context": "saved-question-recovery",
+      "phase": "read-only-preview",
+      "path": "/api/investigations/investigation_1f21d45534b9439f962d4cd5e98d7e62/experiments/comparison_9982cacbdb3a1140c719a9df1f63b20fc3c4069f27f48e2a61540b89da2d6a7e",
+      "query": "",
+      "status": 200,
+      "bodyBytes": 2324
+    },
+    {
+      "context": "saved-question-recovery",
+      "phase": "read-only-preview",
+      "path": "/api/investigations/investigation_1f21d45534b9439f962d4cd5e98d7e62/experiments/comparison_9982cacbdb3a1140c719a9df1f63b20fc3c4069f27f48e2a61540b89da2d6a7e",
+      "query": "",
+      "status": 200,
+      "bodyBytes": 2324
+    },
+    {
+      "context": "saved-question-recovery",
+      "phase": "read-only-preview",
+      "path": "/api/compositions/composition_e47d578f781d4617adc1413b4890583d",
+      "query": "",
+      "status": 200,
+      "bodyBytes": 1115
+    },
+    {
+      "context": "saved-question-recovery",
+      "phase": "read-only-preview",
+      "path": "/api/investigations/investigation_1f21d45534b9439f962d4cd5e98d7e62/experiments/comparison_5458987f283ec97a3540f14dfe64c10982779849db403281fb55401546ccb91c",
+      "query": "",
+      "status": 200,
+      "bodyBytes": 2702
+    },
+    {
+      "context": "saved-question-recovery",
+      "phase": "read-only-preview",
+      "path": "/api/investigations/investigation_1f21d45534b9439f962d4cd5e98d7e62/artifacts/artifact_426b202bb70ca4f3a8a9257cea19839a4a56f71bd401c71055971e710380a8c8/source",
+      "query": "?contextId=context_927c85b5b7b53a491a2c5dae06693d5197eda39421607b0a218eadfa0c7bcf0e",
+      "status": 200,
+      "bodyBytes": 8525
+    },
+    {
+      "context": "saved-question-recovery",
+      "phase": "read-only-preview",
+      "path": "/api/investigations/investigation_a36d72098b5c4be3bd4c1fdd03a64f0f/artifacts/artifact_c415390082ef8bdc1452acc770ca91197a06313698d6e49e74b6d491919dbfd1/source",
+      "query": "?contextId=context_b126312accfe831eb2cddd98dc7910353d881a7112ef5609a4de400a48c3a6ac",
+      "status": 200,
+      "bodyBytes": 6534
+    },
+    {
+      "context": "saved-question-recovery",
+      "phase": "read-only-preview",
+      "path": "/api/investigations/investigation_1f21d45534b9439f962d4cd5e98d7e62/artifacts/artifact_426b202bb70ca4f3a8a9257cea19839a4a56f71bd401c71055971e710380a8c8/source",
+      "query": "?contextId=context_927c85b5b7b53a491a2c5dae06693d5197eda39421607b0a218eadfa0c7bcf0e",
+      "status": 200,
+      "bodyBytes": 8525
+    },
+    {
+      "context": "saved-question-recovery",
+      "phase": "stale-preview",
+      "path": "/api/compositions/composition_e47d578f781d4617adc1413b4890583d",
+      "query": "",
+      "status": 200,
+      "bodyBytes": 1115
+    },
+    {
+      "context": "saved-question-recovery",
+      "phase": "stale-preview",
+      "path": "/api/compositions/composition_bfd4a51bc99442b09ac9d7af12008709",
+      "query": "",
+      "status": 200,
+      "bodyBytes": 809
+    },
+    {
+      "context": "saved-question-recovery",
+      "phase": "stale-preview",
+      "path": "/api/investigations/investigation_1f21d45534b9439f962d4cd5e98d7e62/experiments/comparison_5458987f283ec97a3540f14dfe64c10982779849db403281fb55401546ccb91c",
+      "query": "",
+      "status": 200,
+      "bodyBytes": 2702
+    },
+    {
+      "context": "saved-question-recovery",
+      "phase": "stale-experiment-read",
+      "path": "/api/compositions/composition_e47d578f781d4617adc1413b4890583d",
+      "query": "",
+      "status": 200,
+      "bodyBytes": 1115
+    },
+    {
+      "context": "saved-question-recovery",
+      "phase": "stale-experiment-read",
+      "path": "/api/investigations/investigation_1f21d45534b9439f962d4cd5e98d7e62/experiments/comparison_5458987f283ec97a3540f14dfe64c10982779849db403281fb55401546ccb91c",
+      "query": "",
+      "status": 200,
+      "bodyBytes": 2702
+    },
+    {
+      "context": "saved-question-recovery",
+      "phase": "stale-experiment-read",
+      "path": "/api/compositions/composition_6c5edaf84b304f6f8562edd7dbd7b1ea",
+      "query": "",
+      "status": 200,
+      "bodyBytes": 933
+    },
+    {
+      "context": "saved-question-recovery",
+      "phase": "stale-experiment-read",
+      "path": "/api/investigations/investigation_1f21d45534b9439f962d4cd5e98d7e62/experiments/comparison_9982cacbdb3a1140c719a9df1f63b20fc3c4069f27f48e2a61540b89da2d6a7e",
+      "query": "",
+      "status": 200,
+      "bodyBytes": 2324
+    },
+    {
+      "context": "saved-question-recovery",
+      "phase": "failed-preview",
+      "path": "/api/compositions/composition_e47d578f781d4617adc1413b4890583d",
+      "query": "",
+      "status": 503,
+      "bodyBytes": 43
+    },
+    {
+      "context": "saved-question-recovery",
+      "phase": "failed-preview",
+      "path": "/api/compositions/composition_e47d578f781d4617adc1413b4890583d",
+      "query": "",
+      "status": 200,
+      "bodyBytes": 1115
+    },
+    {
+      "context": "saved-question-recovery",
+      "phase": "failed-preview",
+      "path": "/api/investigations/investigation_1f21d45534b9439f962d4cd5e98d7e62/experiments/comparison_5458987f283ec97a3540f14dfe64c10982779849db403281fb55401546ccb91c",
+      "query": "",
+      "status": 200,
+      "bodyBytes": 2702
+    },
+    {
+      "context": "saved-question-recovery",
+      "phase": "failed-experiment",
+      "path": "/api/compositions/composition_e47d578f781d4617adc1413b4890583d",
+      "query": "",
+      "status": 200,
+      "bodyBytes": 1115
+    },
+    {
+      "context": "saved-question-recovery",
+      "phase": "failed-experiment",
+      "path": "/api/investigations/investigation_1f21d45534b9439f962d4cd5e98d7e62/experiments/comparison_5458987f283ec97a3540f14dfe64c10982779849db403281fb55401546ccb91c",
+      "query": "",
+      "status": 503,
+      "bodyBytes": 43
+    },
+    {
+      "context": "saved-question-recovery",
+      "phase": "failed-experiment",
+      "path": "/api/compositions/composition_e47d578f781d4617adc1413b4890583d",
+      "query": "",
+      "status": 200,
+      "bodyBytes": 1115
+    },
+    {
+      "context": "saved-question-recovery",
+      "phase": "failed-experiment",
+      "path": "/api/investigations/investigation_1f21d45534b9439f962d4cd5e98d7e62/experiments/comparison_5458987f283ec97a3540f14dfe64c10982779849db403281fb55401546ccb91c",
+      "query": "",
+      "status": 200,
+      "bodyBytes": 2702
+    },
+    {
+      "context": "saved-question-recovery",
+      "phase": "missing-source",
+      "path": "/api/compositions/composition_a3f201ff46e84ce1aea9bd2eabcdeef9",
+      "query": "",
+      "status": 200,
+      "bodyBytes": 814
+    },
+    {
+      "context": "saved-question-recovery",
+      "phase": "missing-source",
+      "path": "/api/compositions/composition_a3f201ff46e84ce1aea9bd2eabcdeef9",
+      "query": "",
+      "status": 200,
+      "bodyBytes": 814
+    },
+    {
+      "context": "saved-question-recovery",
+      "phase": "unknown-renderer",
+      "path": "/api/compositions/composition_061190e9945548adb6cd12917b18826c",
+      "query": "",
+      "status": 200,
+      "bodyBytes": 1251
+    },
+    {
+      "context": "saved-question-recovery",
+      "phase": "unknown-renderer",
+      "path": "/api/investigations/investigation_1f21d45534b9439f962d4cd5e98d7e62/experiments/comparison_5458987f283ec97a3540f14dfe64c10982779849db403281fb55401546ccb91c",
+      "query": "",
+      "status": 200,
+      "bodyBytes": 2702
+    },
+    {
+      "context": "saved-question-recovery",
+      "phase": "mobile-preview",
+      "path": "/api/compositions/composition_e47d578f781d4617adc1413b4890583d",
+      "query": "",
+      "status": 200,
+      "bodyBytes": 1115
+    },
+    {
+      "context": "saved-question-recovery",
+      "phase": "mobile-preview",
+      "path": "/api/investigations/investigation_1f21d45534b9439f962d4cd5e98d7e62/experiments/comparison_5458987f283ec97a3540f14dfe64c10982779849db403281fb55401546ccb91c",
+      "query": "",
+      "status": 200,
+      "bodyBytes": 2702
+    },
+    {
+      "context": "saved-question-recovery",
+      "phase": "mobile-preview",
+      "path": "/api/investigations/investigation_1f21d45534b9439f962d4cd5e98d7e62/artifacts/artifact_426b202bb70ca4f3a8a9257cea19839a4a56f71bd401c71055971e710380a8c8/source",
+      "query": "?contextId=context_927c85b5b7b53a491a2c5dae06693d5197eda39421607b0a218eadfa0c7bcf0e",
+      "status": 200,
+      "bodyBytes": 8525
+    },
+    {
+      "context": "saved-question-recovery",
+      "phase": "explicit-open",
+      "path": "/api/investigations/investigation_1f21d45534b9439f962d4cd5e98d7e62/experiments/comparison_5458987f283ec97a3540f14dfe64c10982779849db403281fb55401546ccb91c",
+      "query": "",
+      "status": 200,
+      "bodyBytes": 2702
+    },
+    {
+      "context": "saved-question-recovery",
+      "phase": "explicit-open",
+      "path": "/api/investigations/investigation_1f21d45534b9439f962d4cd5e98d7e62/experiments/comparison_5458987f283ec97a3540f14dfe64c10982779849db403281fb55401546ccb91c",
+      "query": "",
+      "status": 200,
+      "bodyBytes": 2702
+    },
+    {
+      "context": "fresh-browser-recovery",
+      "phase": "initial",
+      "path": "/api/compositions/composition_e47d578f781d4617adc1413b4890583d",
+      "query": "",
+      "status": 200,
+      "bodyBytes": 1115
+    },
+    {
+      "context": "fresh-browser-recovery",
+      "phase": "initial",
+      "path": "/api/investigations/investigation_1f21d45534b9439f962d4cd5e98d7e62/experiments/comparison_5458987f283ec97a3540f14dfe64c10982779849db403281fb55401546ccb91c",
+      "query": "",
+      "status": 200,
+      "bodyBytes": 2702
+    },
+    {
+      "context": "fresh-browser-recovery",
+      "phase": "initial",
+      "path": "/api/investigations/investigation_1f21d45534b9439f962d4cd5e98d7e62/experiments/comparison_5458987f283ec97a3540f14dfe64c10982779849db403281fb55401546ccb91c",
+      "query": "",
+      "status": 200,
+      "bodyBytes": 2702
+    }
+  ]
+}
