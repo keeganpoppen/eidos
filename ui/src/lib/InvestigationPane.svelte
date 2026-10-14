@@ -1,4 +1,5 @@
 <script lang="ts">
+  import EvidenceRecord from './EvidenceRecord.svelte';
   import { onMount, tick } from 'svelte';
   import Markdown from './Markdown.svelte';
   import ContextProvenance from './ContextProvenance.svelte';
@@ -579,7 +580,7 @@
           <details>
             <summary>[evidence:{record.seq}] · {record.threadId} · {record.method ?? record.direction}</summary>
             <button class="source-link" onclick={() => onSource({ threadId: record.threadId, startSeq: record.seq, endSeq: record.seq, rationale: '' })}>Return to source</button>
-            <pre>{record.rawText}</pre>
+            {#if record.localEvidence}<EvidenceRecord {record} />{:else}<pre>{record.rawText}</pre>{/if}
             <p class="object-ref">SHA-256 {record.sha256}</p>
           </details>
         {/each}

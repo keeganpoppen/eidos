@@ -1,5 +1,7 @@
 <script lang="ts">
   import Markdown from './Markdown.svelte';
+  import SuppliedTextContent from './SuppliedTextContent.svelte';
+  import { isLocalTextEvidence } from './supplied-text';
   import type { ThreadItem } from './types';
 
   let {
@@ -83,8 +85,8 @@
   tabindex="-1"
 >
   <header>
-    <span>{item.type === 'privateResultPublication' ? 'Published result' : item.type}</span>
-    <code>{item.id}</code>
+    <span>{item.type === 'suppliedText' ? isLocalTextEvidence(item.localEvidence) ? 'Supplied text' : 'Unverified source record' : item.type === 'privateResultPublication' ? 'Published result' : item.type}</span>
+    {#if item.type === 'suppliedText'}<details><summary>Source reference</summary><code>{item.id}</code></details>{:else}<code>{item.id}</code>{/if}
     {#if onSelect && item.startSeq > 0}
       <button class="source-select" class:selected aria-pressed={selected} disabled={selectionDisabled || selected} title={selectionReason || (selected ? 'Remove selected source ranges in the Investigation editor.' : '')} onclick={() => onSelect?.(item)}>
         {selected ? "Selected for context" : "Add to context"}
@@ -93,7 +95,9 @@
     {#if !item.complete}<b title="No completion event is present in these records.">PARTIAL</b>{/if}
   </header>
 
-  {#if item.type === 'agentMessage'}
+  {#if item.type === 'suppliedText' && isLocalTextEvidence(item.localEvidence) && typeof item.text === 'string'}
+    <SuppliedTextContent text={item.text} evidence={item.localEvidence} />
+  {:else if item.type === 'agentMessage'}
     <Markdown source={showFullText ? agentText : agentPreview} />
     {#if compactAgent}
       <button class="inline-control" onclick={() => showFullText = !showFullText}>

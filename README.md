@@ -73,6 +73,14 @@ File review and import do not start native work. The importer retains unknown fi
 and repeated lines; its [contract](docs/agents/HISTORY_IMPORT_TASK.md) documents
 bounds, exact line mappings and the distinct legacy iterable API behavior.
 
+Use **Add text evidence** for a local UTF-8 file such as test output or a code
+excerpt. Preview and save it, then open or search its literal text and add it to
+a context. Original bytes can be downloaded from the receipt. Files are limited
+to 64 KiB, with additional encoding limits shown on refusal. A lost reply retains
+the exact request for receipt lookup or file reselection. This records supplied
+contents; it does not certify their origin or run them as commands.
+[Contract and recovery](docs/agents/SUPPLIED_TEXT_TASK.md).
+
 From a saved context, choose **Write finding** to retain a conclusion and open
 questions without starting a specialist. The finding keeps that exact context,
 appears in result search, and can become an input to another question. Citations

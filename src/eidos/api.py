@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import asdict
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -18,6 +19,10 @@ from .investigation_experiments import InvestigationExperiments
 from .investigation_reads import InvestigationReads
 from .evidence_discovery import EvidenceDiscovery
 from .history_imports import HistoryImports, upload_body, bounded_response
+from .supplied_text import (
+    SuppliedText, GROUP_PREFIX, group_metadata, verified_documents,
+    upload_body as supplied_upload_body, bounded_response as supplied_response,
+)
 from .compositions import Compositions
 from .history import (
     PAGE_SIZE, SourceRecordNotFound, history_snapshot, history_version,
@@ -63,9 +68,13 @@ def thread_payload(
         if revision_id is not None and not any(row["revision_id"] == revision_id for row in revisions):
             raise SourceRecordNotFound("That semantic revision does not belong to this thread's history map.")
         version = history_version(thread_id, revision_id, summary, revisions, window, selected)
+        local = group_metadata(store, thread_id)
+        if thread_id.startswith(GROUP_PREFIX):
+            version = hashlib.sha256(json.dumps([version, local], sort_keys=True).encode()).hexdigest()
         if known_version == version:
             return {"id": thread_id, "unchanged": True, "version": version, "window": window}
-        view = project_records(thread_id, window_records(store, thread_id, selected))
+        records = window_records(store, thread_id, selected)
+        view = project_records(thread_id, records, local_evidence=verified_documents(store, records))
         outline = store.semantic_outline(thread_id, revision_id=revision_id)
         preview = _thread_preview(store, thread_id)
     turns: list[dict[str, Any]] = []
@@ -95,6 +104,7 @@ def thread_payload(
         **summary,
         "version": version,
         "window": window,
+        **local,
     }
 
 
@@ -198,6 +208,8 @@ class LiveCodex:
             self._loaded.add(thread_id)
 
     def send(self, thread_id: str, text: str) -> str:
+        if thread_id.startswith(GROUP_PREFIX):
+            raise ValueError("supplied text groups are source-only; native messaging is unavailable")
         self._ensure_thread(thread_id)
         assert self._client is not None
         result = self._client.turn_start_text(
@@ -231,6 +243,7 @@ class EidosAPI:
         self.investigation_reads = InvestigationReads(self.investigations)
         self.evidence_discovery = EvidenceDiscovery(store)
         self.history_imports = HistoryImports(store)
+        self.supplied_text = SuppliedText(store)
         self.investigation_experiments = InvestigationExperiments(self.investigations)
         self.compositions = Compositions(self.investigations)
         self.investigation_continuations = InvestigationContinuations(self.investigations)
@@ -288,6 +301,26 @@ class EidosAPI:
 
     def dispatch(self, handler: Any, method: str, path: str, query: dict[str, list[str]]) -> tuple[int, Any]:
         parts = [unquote(part) for part in path.split("/") if part]
+        if parts[:3] == ["api", "evidence", "files"]:
+            try:
+                if query:
+                    raise InvestigationError(400, "supplied text routes take no query parameters")
+                if method == "POST" and parts in (["api", "evidence", "files"], ["api", "evidence", "files", "preview"]):
+                    commit = len(parts) == 3
+                    body = supplied_upload_body(handler, commit=commit)
+                    args = {"file_name": body["fileName"], "format": body["format"]}
+                    if not commit:
+                        return 200, supplied_response({"preview": self.supplied_text.preview(body["data"], **args)})
+                    receipt, created = self.supplied_text.commit(body["data"], request_id=body["requestId"],
+                        preview_fingerprint=body["previewFingerprint"], **args)
+                    return (201 if created else 200), supplied_response({"receipt": receipt})
+                if method == "GET" and len(parts) == 5 and parts[3] == "requests":
+                    return 200, supplied_response({"receipt": self.supplied_text.get_request(parts[4])})
+                if method == "GET" and len(parts) == 4:
+                    return 200, self.supplied_text.get(parts[3])
+                return 404, {"error": "not found"}
+            except InvestigationError as exc:
+                return exc.status, {"error": exc.message}
         if parts[:3] == ["api", "history", "imports"]:
             try:
                 if method == "POST" and parts in (["api", "history", "imports"], ["api", "history", "imports", "preview"]):
@@ -359,6 +392,9 @@ class EidosAPI:
         # Legacy chat/index controls use a different adapter from the bounded
         # investigation worker. A synthetic investigation capability must not
         # accidentally authorize that adapter to spend live model resources.
+        if (method == "POST" and len(parts) == 4 and parts[:2] == ["api", "threads"]
+                and parts[3] == "messages" and parts[2].startswith(GROUP_PREFIX)):
+            return 409, {"error": "supplied text groups are source-only; native messaging is unavailable"}
         if method == "POST" and (parts == ["api", "threads"] or
                 len(parts) == 4 and parts[:2] == ["api", "threads"] and parts[3] in {"messages", "observe"}):
             return 409, {"error": self.investigation_capabilities()["legacyLiveActions"]["reason"]}
@@ -373,6 +409,7 @@ class EidosAPI:
                             **thread,
                             "preview": _thread_preview(self.store, thread_id),
                             "hasSemanticMap": self.store.semantic_outline(thread_id) is not None,
+                            **group_metadata(self.store, thread_id),
                         }
                     )
                 return 200, {"threads": rows}

@@ -12,12 +12,13 @@ import json
 from typing import Any, Iterator
 
 from .trace import TraceRecord, TraceStore
+from .supplied_text import group_metadata
 
 
 PAGE_SIZE = 40
 # Bump when the wire projection changes so an older client-held page cannot
 # suppress fetching the new representation after a server upgrade.
-PROJECTION_VERSION = "thread-window-v1"
+PROJECTION_VERSION = "thread-window-v2"
 _TURNS = """
     WITH turns AS (
         SELECT turn_id, MIN(seq) AS first_seq, MAX(seq) AS last_seq,
@@ -50,6 +51,9 @@ def history_snapshot(store: TraceStore) -> Iterator[None]:
 def thread_preview(store: TraceStore, thread_id: str) -> str:
     # Fetch one candidate at a time instead of materializing the entire trace.
     with store._lock:
+        local = group_metadata(store, thread_id)
+        if local:
+            return local["preview"]
         candidates = store.db.execute(
             "SELECT raw_text FROM trace_records WHERE thread_id=? AND "
             "(method='turn/start' OR (method IN ('item/completed', '$history/item') "

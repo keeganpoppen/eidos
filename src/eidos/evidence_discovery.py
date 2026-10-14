@@ -18,14 +18,15 @@ from .history_projection import TextField, item_text_fields
 from .investigation import InvestigationError, MAX_PROMPT_BYTES, MAX_RECORDS, _json, _text
 from .investigation_reads import InvestigationReads
 from .trace import TraceRecord, TraceStore
+from .supplied_text import context_record, document_descriptor, verified_documents, GROUP_PREFIX, METHOD
 from .view import project_records
 
 SCOPE = "displayed-history-text/v1"
-INDEX_VERSION = "evidence-discovery-index/v1"
+INDEX_VERSION = "evidence-discovery-index/v2"
 METHODS = (
     "turn/start", "item/started", "item/completed", "$history/item",
     "item/agentMessage/delta", "item/commandExecution/outputDelta",
-    "item/reasoning/summaryTextDelta", "item/reasoning/textDelta",
+    "item/reasoning/summaryTextDelta", "item/reasoning/textDelta", METHOD,
 )
 DIRECTIONS = ("internal", "client_to_appserver", "appserver_to_client")
 
@@ -103,6 +104,19 @@ class EvidenceDiscovery:
                     INSERT OR IGNORE INTO evidence_discovery_dirty VALUES(NEW.thread_id);
                     UPDATE evidence_discovery_meta SET generation=generation+1 WHERE id=1;
                 END;
+                CREATE TRIGGER IF NOT EXISTS evidence_discovery_supplied_insert AFTER INSERT ON supplied_text_files BEGIN
+                    INSERT OR IGNORE INTO evidence_discovery_dirty VALUES(NEW.thread_id);
+                    UPDATE evidence_discovery_meta SET generation=generation+1 WHERE id=1;
+                END;
+                CREATE TRIGGER IF NOT EXISTS evidence_discovery_supplied_delete AFTER DELETE ON supplied_text_files BEGIN
+                    INSERT OR IGNORE INTO evidence_discovery_dirty VALUES(OLD.thread_id);
+                    UPDATE evidence_discovery_meta SET generation=generation+1 WHERE id=1;
+                END;
+                CREATE TRIGGER IF NOT EXISTS evidence_discovery_supplied_update AFTER UPDATE ON supplied_text_files BEGIN
+                    INSERT OR IGNORE INTO evidence_discovery_dirty VALUES(OLD.thread_id);
+                    INSERT OR IGNORE INTO evidence_discovery_dirty VALUES(NEW.thread_id);
+                    UPDATE evidence_discovery_meta SET generation=generation+1 WHERE id=1;
+                END;
             """)
         with self._snapshot():
             row = trace.db.execute("SELECT schema_version FROM evidence_discovery_meta WHERE id=1").fetchone()
@@ -145,13 +159,14 @@ class EvidenceDiscovery:
                 sql = ("SELECT * FROM trace_records WHERE thread_id=? AND direction IN (?,?,?) "
                        f"AND method IN ({','.join('?' for _ in METHODS)}) ORDER BY seq")
                 records = [TraceRecord(**dict(record)) for record in self.trace.db.execute(sql, (thread_id, *DIRECTIONS, *METHODS))]
-                for turn in project_records(thread_id, records).turns:
+                for turn in project_records(thread_id, records, local_evidence=verified_documents(self.trace, records)).turns:
                     for item in turn.items.values():
                         first = min(record.seq for record in item.events)
                         for field in item_text_fields(item):
                             self._index_field(thread_id, turn.turn_id, item.item_id, first, field, epoch)
                     # Exactly the renderer's user-input fallback, over eligible history.
-                    if not any(item.item_type == "userMessage" for item in turn.items.values()):
+                    if (not thread_id.startswith(GROUP_PREFIX)
+                            and not any(item.item_type == "userMessage" for item in turn.items.values())):
                         for record in turn.events:
                             if record.method != "turn/start":
                                 continue
@@ -291,9 +306,13 @@ class EvidenceDiscovery:
             rows = self.trace.db.execute(f"SELECT * FROM trace_records WHERE seq IN ({marks}) ORDER BY seq", seqs).fetchall()
             if len(rows) != len(seqs):
                 raise InvestigationError(404, "source records are missing")
-            records = [{"seq": value["seq"], "threadId": value["thread_id"], "source": value["source"],
-                        "direction": value["direction"], "method": value["method"], "rawText": value["raw_text"],
-                        "sha256": hashlib.sha256(value["raw_text"].encode()).hexdigest()} for value in rows]
+            records = []
+            for value in rows:
+                record = TraceRecord(**dict(value))
+                local = document_descriptor(self.trace, record) if row["field"] == "suppliedText.text" else None
+                if row["field"] == "suppliedText.text" and local is None:
+                    raise InvestigationError(409, "supplied text admission changed; refresh search")
+                records.append(context_record(record, local))
             response = {"scope": SCOPE, "hit": hit, "records": records}
             # Same compact UTF-8 JSON serialization as the HTTP server, including envelopes.
             if len(_json(response).encode()) > MAX_PROMPT_BYTES:

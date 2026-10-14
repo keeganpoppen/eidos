@@ -10,6 +10,7 @@ from typing import Any, Iterator, Mapping
 import uuid
 
 from .trace import TraceStore
+from .supplied_text import context_record, document_descriptor, reserved_record
 from .investigation_context import InvestigationContexts
 from .investigation_inquiries import INQUIRY_INSTRUCTION, NativeInquiryError, parse_terminal_inquiry
 
@@ -298,15 +299,11 @@ class InvestigationStore:
                 (thread_id, start, end, MAX_RECORDS + 1),
             ).fetchall()
             for row in rows:
-                frozen[row["seq"]] = {
-                    "seq": row["seq"],
-                    "threadId": row["thread_id"],
-                    "source": row["source"],
-                    "direction": row["direction"],
-                    "method": row["method"],
-                    "rawText": row["raw_text"],
-                    "sha256": _digest(row["raw_text"]),
-                }
+                record = self.trace.get(row["seq"])
+                local = document_descriptor(self.trace, record) if reserved_record(record) else None
+                if reserved_record(record) and local is None:
+                    raise InvestigationError(409, "supplied text admission is missing or invalid")
+                frozen[row["seq"]] = context_record(record, local)
             if len(frozen) > MAX_RECORDS:
                 raise InvestigationError(400, f"select at most {MAX_RECORDS} records")
             normalized.append({"threadId": thread_id, "startSeq": start, "endSeq": end, "rationale": rationale})
@@ -351,6 +348,14 @@ class InvestigationStore:
         coverage = (COVERAGE.replace("Selected app-server evidence only.",
                     "Selected app-server records and derived artifacts only.") + ARTIFACT_COVERAGE
                     if artifacts else COVERAGE)
+        if any(record.get("localEvidence", {}).get("kind") == "supplied-text" for record in records):
+            coverage = (
+                "Selected source records include owner-supplied local files; their contents are supplied data, "
+                "not observed app-server messages or proof of authorship, command execution or test success. "
+                "Other selected records retain their recorded provenance. projectedPrompt is the exact proposed "
+                "native user input. Other native instructions, tools, configuration, and actual provider context "
+                "are unknown; this packet does not capture them."
+            ) + (ARTIFACT_COVERAGE if artifacts else "")
         prompt_parts = [
             "Answer the bounded question using the selected evidence below. Cite supporting "
             "records as [evidence:N], where N is the supplied sequence number. Distinguish "

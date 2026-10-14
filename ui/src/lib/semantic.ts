@@ -1,5 +1,6 @@
 import { marked } from 'marked';
 import { version as markedVersion } from 'marked/package.json';
+import { frozenText } from './supplied-text';
 import type { EvidenceSelection } from './types';
 
 // Change v1 when block/citation selector semantics change; the parser version is
@@ -130,7 +131,7 @@ function object(value: unknown): ObjectValue | null {
 }
 
 export type EvidenceProjection = {
-  kind: 'message' | 'command' | 'changes' | 'unknown';
+  kind: 'message' | 'command' | 'changes' | 'supplied-text' | 'unknown';
   type: string;
   text: string;
   command: string;
@@ -139,8 +140,10 @@ export type EvidenceProjection = {
 };
 
 /** A replaceable projection; the untouched record remains the evidence. */
-export function projectEvidence(rawText: string): EvidenceProjection {
+export function projectEvidence(rawText: string, localEvidence?: unknown, hostHash = ''): EvidenceProjection {
   const unknown: EvidenceProjection = { kind: 'unknown', type: 'unrecognized record', text: '', command: '', output: '', changes: [] };
+  const text = frozenText(rawText, localEvidence, hostHash);
+  if (text !== null) return { ...unknown, kind: 'supplied-text', type: 'Supplied text', text };
   let root: ObjectValue | null;
   try { root = object(JSON.parse(rawText)); } catch { return unknown; }
   if (!root) return unknown;
@@ -148,6 +151,7 @@ export function projectEvidence(rawText: string): EvidenceProjection {
   const item = object(params?.item) ?? object(root.item) ?? (typeof root.type === 'string' ? root : null);
   if (!item) return unknown;
   const type = typeof item.type === 'string' ? item.type : 'unrecognized item';
+  if (type === 'suppliedText' || typeof root.method === 'string' && root.method.startsWith('$local/')) return unknown;
   if (['agentMessage', 'userMessage', 'reasoning'].includes(type)) {
     const parts = Array.isArray(item.content) ? item.content : [];
     const text = typeof item.text === 'string' ? item.text : parts.flatMap((part) => {

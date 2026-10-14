@@ -1,6 +1,7 @@
 <script lang="ts">
   import Markdown from './Markdown.svelte';
   import WorkContent from './WorkContent.svelte';
+  import SuppliedTextContent from './SuppliedTextContent.svelte';
   import { projectEvidence } from './semantic';
   import type { ContextRecord } from './types';
 
@@ -8,7 +9,7 @@
   let full = $state(false);
   let rawOpen = $state(false);
   let fullRaw = $state(false);
-  const projected = $derived(projectEvidence(record.rawText));
+  const projected = $derived(projectEvidence(record.rawText, record.localEvidence, record.sha256));
   const displayText = $derived(full ? projected.text : projected.text.slice(0, 12000));
   const displayOutput = $derived(full ? projected.output : projected.output.slice(0, 12000));
 </script>
@@ -16,10 +17,12 @@
 <article class="frozen-record" data-evidence-seq={record.seq}>
   <header class="record-origin">
     <strong>[evidence:{record.seq}]</strong>
-    <span>{record.threadId}</span>
+    {#if projected.kind !== 'supplied-text'}<span>{record.threadId}</span>{/if}
     <small>{projected.type} · {record.method ?? record.direction}</small>
   </header>
-  {#if projected.kind === 'message'}
+  {#if projected.kind === 'supplied-text' && record.localEvidence}
+    <SuppliedTextContent text={projected.text} evidence={record.localEvidence} />
+  {:else if projected.kind === 'message'}
     <Markdown source={displayText} />
     {#if projected.text.length > 12000}<button onclick={() => full = !full}>{full ? 'Collapse evidence text' : `Read full evidence · ${projected.text.length.toLocaleString()} characters`}</button>{/if}
   {:else if projected.kind === 'command'}
@@ -42,7 +45,9 @@
       {#if record.rawText.length > 12000}<button onclick={() => fullRaw = !fullRaw}>{fullRaw ? 'Collapse original record' : 'Read complete original record'}</button>{/if}
     {/if}
   </details>
-  <footer><span>Frozen from {record.source} · {record.direction}</span><span class="record-hash">SHA-256 {record.sha256}</span></footer>
+  {#if projected.kind === 'supplied-text'}
+    <details><summary>Source record references</summary><p class="record-hash">{record.threadId}<br />Frozen from {record.source} · {record.direction}<br />SHA-256 {record.sha256}</p></details>
+  {:else}<footer><span>Frozen from {record.source} · {record.direction}</span><span class="record-hash">SHA-256 {record.sha256}</span></footer>{/if}
 </article>
 
 <style>

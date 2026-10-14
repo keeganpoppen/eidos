@@ -81,7 +81,9 @@ def _project_item(item: ItemView) -> dict[str, Any] | None:
         "complete": any(event.method in {"item/completed", "$history/item"} for event in item.events),
         "raw": raw,
     }
-    if kind == "privateResultPublication":
+    if kind == "suppliedText":
+        projected.update(text=raw["text"], localEvidence=raw["localEvidence"], complete=True)
+    elif kind == "privateResultPublication":
         projected["text"] = raw["text"]
         projected["complete"] = True
         projected["provenance"] = raw["provenance"]
@@ -126,6 +128,8 @@ def item_text_fields(item: ItemView) -> list[TextField]:
     raw = item.final_item or {}
     kind = item.item_type or raw.get("type")
     event = item.final_event
+    if kind == "suppliedText":
+        return [TextField("suppliedText.text", [(raw["text"], event)])] if raw["text"].strip() else []
     if kind == "agentMessage":
         return [TextField("agentMessage.text", _text_segments(item, "text", "item/agentMessage/delta"))]
     if kind == "reasoning":

@@ -6,6 +6,30 @@ The baseline GitHub Actions run `38240774514` completed successfully: pytest and
 
 Refresh this file when implementation claims materially change. Keep historical audit IDs instead of quietly relabelling old evidence as current.
 
+## Supplied text and a recoverable engineering review — 2026-10-14
+
+Integration base `d2b5fdb`; [contract](../agents/SUPPLIED_TEXT_TASK.md),
+[evidence](../evidence/SUPPLIED_TEXT_INTEGRATION.md), [D37](DECISIONS.md#d37--supplied-files-are-source-evidence-not-native-messages).
+Explicit UTF-8 files now enter as supplied text with original-byte retention,
+recoverable admission, verified search/source projection and frozen provenance.
+They render as literal text and cannot become native conversation handles. Existing
+findings/comparisons support the ensuing engineering review without a new experiment type.
+
+Parent **1,798Python passed /55explicit native skips**, **265Bun tests /1,213assertions**,
+check/buildclean. Actual UI admission/lost-reply/restart/retry/search/context/findings/
+comparison/reopen passes, desktop/390px inspected. A preserved collision allowed a
+foreign typeless completion to inherit document projection; exact per-record
+admission now blocks it. Unknown-field compatibility and a hidden-disclosure
+acceptance mistake were repaired before final acceptance.
+
+Three owner JSON values remain exact after marked fixture source/raw deletion;
+frozen support still renders and all attempts remain null. Fresh independent
+reconstruction recovered the review and identified missing harness/input/runtime
+identity for exact replay. This demonstrates analytical continuity, not certified
+execution, formal code adoption, human speed or model quality. All test services stopped.
+Files are bounded64KiB before encoding, with stricter64KiB envelope/96KiB frozen
+record/128KiB response limits; existing aggregate context bounds still apply.
+
 ## Direct saved result uses — 2026-10-14
 
 Integration base `25d6350`; [contract](../agents/RESULT_USES_TASK.md),

@@ -3,9 +3,10 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from html import escape
 import json
-from typing import Any
+from typing import Any, Mapping
 
 from .trace import TraceRecord, TraceStore
+from .supplied_text import GROUP_PREFIX, reserved_record, verified_documents
 
 
 @dataclass
@@ -33,10 +34,13 @@ class ThreadView:
 
 
 def project_thread(store: TraceStore, thread_id: str) -> ThreadView:
-    return project_records(thread_id, store.records(thread_id=thread_id))
+    with store._lock:
+        records = store.records(thread_id=thread_id)
+        return project_records(thread_id, records, local_evidence=verified_documents(store, records))
 
 
-def project_records(thread_id: str, records: list[TraceRecord]) -> ThreadView:
+def project_records(thread_id: str, records: list[TraceRecord], *,
+                    local_evidence: Mapping[int, dict[str, Any]] | None = None) -> ThreadView:
     """Project an explicitly selected evidence set without fetching history."""
     turns: dict[str, TurnView] = {}
     turn_order: list[str] = []
@@ -51,19 +55,28 @@ def project_records(thread_id: str, records: list[TraceRecord]) -> ThreadView:
     for record in records:
         message = record.message
         params = message.get("params") if isinstance(message, dict) else None
-        if record.method == "turn/start" and isinstance(params, dict):
+        if record.method == "turn/start" and isinstance(params, dict) and not thread_id.startswith(GROUP_PREFIX):
             tid = record.turn_id or f"pending@{record.seq}"
             turn = ensure_turn(tid)
             inputs = params.get("input")
             if isinstance(inputs, list):
                 turn.inputs.extend(x for x in inputs if isinstance(x, dict))
         if record.turn_id is None:
-            if record.method == "turn/start" and isinstance(params, dict):
+            if record.method == "turn/start" and isinstance(params, dict) and not thread_id.startswith(GROUP_PREFIX):
                 turn.events.append(record)
             unscoped.append(record)
             continue
         turn = ensure_turn(record.turn_id)
         turn.events.append(record)
+        if reserved_record(record):
+            proof = (local_evidence or {}).get(record.seq)
+            if proof is not None:
+                raw = params["item"]
+                turn.items[record.item_id] = ItemView(record.item_id, "suppliedText",
+                    {**raw, "localEvidence": proof}, [record], record)
+            # Copied/fake local envelopes remain raw evidence, not documents.
+            # They cannot replace the admitted item with the same coordinates.
+            continue
         if (
             record.method == "$capsule/result"
             and record.direction == "internal"
@@ -146,7 +159,11 @@ def _render_item(item: ItemView) -> str:
     kind = item.item_type or str(raw.get("type") or "item")
     title = kind
     body = ""
-    if kind == "privateResultPublication":
+    if kind == "suppliedText":
+        title = "Supplied text"
+        body = ('<p class="muted">Local file; contents supplied by the owner.</p><pre>'
+                + escape(str(raw.get("text", ""))) + '</pre>')
+    elif kind == "privateResultPublication":
         title = "Published result"
         body = (
             '<p class="muted">Derived publication; original native evidence was recorded privately.</p>'

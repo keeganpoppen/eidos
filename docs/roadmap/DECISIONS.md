@@ -397,6 +397,29 @@ projections make the uses view refuse completeness without changing existing cat
 semantics. No mutation, new persistent browser state or execution authority enters
 through inspection. See the [contract](../agents/RESULT_USES_TASK.md).
 
+### D37 — Supplied files are source evidence, not native messages
+
+**Accepted 2026-10-14; base d2b5fdb.** Public local check output could be archived
+but not selected without an authored native-shaped wrapper. That wrapper falsely
+suggested assistant/app-server provenance and exposed Markdown rendering behavior.
+Use a small separate UTF-8 admission adapter, exact original-byte ledger and
+host-created source-only record. Existing selections, contexts, findings and saved
+comparisons carry the subsequent review; no new experiment or execution ontology.
+
+Receipt means file intake, not authorship, repository origin or command success.
+Names and copied host shapes cannot establish admission. Live projection requires
+the exact ledger binding; frozen descriptive provenance survives source loss.
+Local groups cannot resume native conversations. File text is inert in every
+renderer, and imported JSON remains opaque unless an existing explicit projection
+admits it. Legacy native-only context bytes stay compatible.
+
+[Acceptance](../evidence/SUPPLIED_TEXT_INTEGRATION.md) includes an actual public-code
+regression, file/reply recovery, saved review, source loss and fresh reconstruction.
+The fresh participant could recover the judgment but could not precisely rerun from
+the saved bundle: exact harness/input/runtime identity remain a separate obligation.
+Do not inflate a supplied-file hash or an authored review into execution evidence,
+automatic code adoption, human usefulness or live authority.
+
 ## Deferred explorations, kept for their potential
 
 ### D22 — Names, routing, locality, and leases

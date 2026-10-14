@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onDestroy } from 'svelte';
+  import EvidenceRecord from './EvidenceRecord.svelte';
   import { EvidenceDiscoveryClient, evidenceFieldLabel, type EvidenceDiscoveryState } from './evidence-discovery';
   import type { EvidenceHit, ThreadSummary } from './types';
   import type { EvidenceAddition } from './evidence-selection';
@@ -27,13 +28,13 @@
 
 <section class="evidence-discovery" aria-label="Find recorded evidence">
   <h3>Find recorded evidence</h3>
-  <p>Search recorded message text, exposed reasoning, commands, output and file paths. Raw fields, control records and private evidence are outside this search.</p>
+  <p>Search supplied text, recorded messages, exposed reasoning, commands, output and file paths. Raw fields, control records and private evidence are outside this search.</p>
   <form onsubmit={event => { event.preventDefault(); notice = ''; void client.search(query, threadId); }}>
     <label for="evidence-search-query">Remembered words or phrase</label>
     <input id="evidence-search-query" type="search" maxlength="200" bind:value={query} oninput={edited} placeholder="Find a decision or counterexample" />
     <label for="evidence-search-thread">Recorded history</label>
     <select id="evidence-search-thread" bind:value={threadId} onchange={edited}>
-      <option value="">All recorded threads</option>
+      <option value="">All recorded sources</option>
       {#each threads as thread (thread.thread_id)}<option value={thread.thread_id}>{thread.preview || thread.thread_id}</option>{/each}
     </select>
     <button class="work-secondary" type="submit" disabled={!active || !query.trim() || discovery.loading}>Search history</button>
@@ -69,8 +70,12 @@
       <p>These are the record bytes read for this hit version. Add stages their exact references; saving the working draft freezes source bytes then. Surrounding history may show later updates.</p>
       {#each discovery.source.records as record (record.seq)}
         <article data-evidence-record-seq={record.seq}>
+          {#if record.localEvidence}
+            <EvidenceRecord {record} />
+          {:else}
           <p class="object-ref">Record {record.seq} · {record.method ?? record.direction}<br />{record.source} · {record.direction}<br />SHA-256 {record.sha256}</p>
           <details><summary>Original record · seq {record.seq}</summary><pre>{record.rawText}</pre></details>
+          {/if}
         </article>
       {/each}
       <button class="work-secondary" disabled={!active || discovery.refreshRequired} onclick={show}>Show in history</button>

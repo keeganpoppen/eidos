@@ -223,6 +223,9 @@ class TraceStore:
             );
             """
         )
+        if self.role == "workbench":
+            from .supplied_text import ensure_schema
+            ensure_schema(self)
 
     def close(self) -> None:
         with self._lock:

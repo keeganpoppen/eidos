@@ -7,6 +7,8 @@
   import SemanticRail from '#lib/SemanticRail.svelte';
   import ThreadItemCard from '#lib/ThreadItem.svelte';
   import HistoryImport from '#lib/HistoryImport.svelte';
+  import SuppliedTextEvidence from '#lib/SuppliedTextEvidence.svelte';
+  import { sourceOnly, type TextReceipt } from '#lib/supplied-text.ts';
   import { createHistoryRequests, hasSourceEvidence, historyQuery, readSourceFocus, retainThread, sourceTarget } from '#lib/history.ts';
   import { itemRecords, recordsSelected, type EvidenceEditor } from '#lib/evidence-selection.ts';
   import type {
@@ -42,12 +44,14 @@
   let historyNotice = $state('');
   let workspaceReady = $state(false);
   let importOpen = $state(false);
+  let textEvidenceOpen = $state(false);
   const historyRequests = createHistoryRequests();
   function navigateHistory() { sourceNavigation++; return historyRequests.navigate(); }
   let historyView = '';
   let threadLoads = 0;
   let selectedThread = $state('');
   let thread = $state<ThreadPayload | null>(null);
+  const selectedSourceOnly = $derived(sourceOnly(selectedThread, thread?.id === selectedThread ? thread : threads.find(value => value.thread_id === selectedThread)));
   let composer = $state('');
   let cwd = $state('');
   let selectedRevision = $state('');
@@ -181,7 +185,7 @@
 
   async function send() {
     const text = composer.trim();
-    if (!liveAvailable || !selectedThread || !text || sending) return;
+    if (!liveAvailable || selectedSourceOnly || !selectedThread || !text || sending) return;
     sending = true;
     error = '';
     composer = '';
@@ -426,6 +430,21 @@
     document.getElementById('evidence-search-query')?.focus();
   }
 
+  async function openSuppliedText(receipt: TextReceipt) {
+    textEvidenceOpen = false;
+    comparisonOpen = false;
+    const mode = workMode, isCurrent = navigateHistory();
+    await loadThreads();
+    if (!isCurrent() || comparisonOpen || mode !== workMode) return;
+    const loaded = await chooseThread(receipt.threadId, receipt.seq);
+    if (loaded) await focusSource({ start: receipt.seq, end: receipt.seq, weight: 1 }, () => loaded() && !comparisonOpen && mode === workMode);
+  }
+
+  async function findSuppliedEvidence() {
+    textEvidenceOpen = false;
+    await findImportedEvidence();
+  }
+
   onMount(() => {
     void api<InvestigationCapabilities>('/api/investigations/capabilities').then((value) => capabilities = value).catch(() => {});
     try {
@@ -495,6 +514,7 @@
     </nav>
 
     <button class="work-secondary" data-open-history-import="rail" onclick={() => importOpen = true}>Import history</button>
+    <button class="work-secondary" data-open-supplied-text="rail" onclick={() => textEvidenceOpen = true}>Add text evidence</button>
 
     <div class="new-thread">
       <input bind:value={cwd} placeholder="cwd (optional)" aria-label="working directory" />
@@ -512,7 +532,7 @@
         >
           {#if summary.hasSemanticMap}<span class="map-dot" title="semantic map"></span>{/if}
           <strong>{summary.preview || summary.thread_id}</strong>
-          <small>{summary.turn_count} turns · {summary.record_count} records</small>
+          <small>{#if summary.sourceOnly || summary.sourceKind === 'supplied-text'}Supplied text · {summary.record_count} {summary.record_count === 1 ? 'record' : 'records'}{:else}{summary.turn_count} turns · {summary.record_count} records{/if}</small>
         </button>
       {/each}
     </div>
@@ -580,7 +600,7 @@
       </header>
 
       <nav class="history-navigation" aria-label="History navigation">
-        <div><button disabled={!thread.window.hasEarlier} onclick={() => moveHistory(-1)}>Earlier turns</button><span>Turns {thread.turns.length ? thread.window.startIndex + 1 : 0}–{thread.window.startIndex + thread.turns.length} of {thread.window.totalTurns}</span><button disabled={!thread.window.hasLater} onclick={() => moveHistory(1)}>Later turns</button></div>
+        {#if selectedSourceOnly}<p>Supplied text · source only</p>{:else}<div><button disabled={!thread.window.hasEarlier} onclick={() => moveHistory(-1)}>Earlier turns</button><span>Turns {thread.turns.length ? thread.window.startIndex + 1 : 0}–{thread.window.startIndex + thread.turns.length} of {thread.window.totalTurns}</span><button disabled={!thread.window.hasLater} onclick={() => moveHistory(1)}>Later turns</button></div>{/if}
         <form onsubmit={(event) => { event.preventDefault(); void goToRecord(); }}><input aria-label="Find source record" type="number" min="1" bind:value={recordQuery} placeholder="Record sequence" /><button type="submit">Go to record</button></form>
         {#if historyNotice}<p role="status">{historyNotice}</p>{/if}
       </nav>
@@ -596,7 +616,7 @@
           data-end={turn.endSeq}
           tabindex="-1"
         >
-          <span class="turn-label">{turn.id} · {turn.eventCount} events</span>
+          <span class="turn-label">{selectedSourceOnly ? 'Supplied file' : turn.id} · {turn.eventCount} {selectedSourceOnly ? 'source record' : 'events'}</span>
 
           {#if !turn.items.some((item) => item.type === 'userMessage')}
             {#each turn.inputs as input}
@@ -636,16 +656,19 @@
     {:else}
       <header class="thread-header">
         <h2>NO THREAD SELECTED</h2>
-        <div class="meta">Choose recorded app-server history, or start a thread when native execution is available.</div>
+        <div class="meta">Choose recorded history or supply a text file as evidence.</div>
         <button class="work-primary" data-open-history-import="empty" onclick={() => importOpen = true}>Import history</button>
+        <button class="work-secondary" data-open-supplied-text="empty" onclick={() => textEvidenceOpen = true}>Add text evidence</button>
       </header>
     {/if}
   </main>
 </div>
 
 <HistoryImport open={importOpen} navigation={`${sourceNavigation}:${workMode}:${comparisonOpen}`} onClose={() => importOpen = false} onFind={findImportedEvidence} />
+<SuppliedTextEvidence open={textEvidenceOpen} navigation={`${sourceNavigation}:${workMode}:${comparisonOpen}`} onClose={() => textEvidenceOpen = false} onOpen={openSuppliedText} onFind={findSuppliedEvidence} />
 
 <div class:hidden-aperture={comparisonOpen} class="composer">
+  {#if !selectedSourceOnly}
   <div class="composer-inner">
     <textarea
       bind:value={composer}
@@ -659,6 +682,7 @@
       {sending ? 'sending…' : 'send'}
     </button>
   </div>
+  {:else}<p class="work-muted">Supplied text is source evidence. Select it for an investigation to work from these contents.</p>{/if}
   {#if error}
     <div class="status-line error">{error}</div>
   {:else if status}

@@ -153,8 +153,8 @@ def _parse(data: bytes, *, reserved: bool = True, allow_empty: bool = False) -> 
             method = message.get("method")
             params = message.get("params")
             item = params.get("item") if isinstance(params, dict) else None
-            if ((isinstance(method, str) and method.startswith("$capsule/")) or
-                    (isinstance(item, dict) and item.get("type") == "privateResultPublication")):
+            if ((isinstance(method, str) and method.startswith(("$capsule/", "$local/"))) or
+                    (isinstance(item, dict) and item.get("type") in ("privateResultPublication", "suppliedText"))):
                 raise InvestigationError(400, "reserved host publication shape" + where)
         lines.append(_Line(physical, match.start(), match.end(1), match.end(), raw, message))
     if not lines and not allow_empty:

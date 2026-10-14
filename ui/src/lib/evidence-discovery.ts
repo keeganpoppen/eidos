@@ -1,7 +1,9 @@
 import type { EvidenceHit, EvidenceHitSource, EvidenceSearchPage } from './types';
+import { frozenText, isLocalTextEvidence } from './supplied-text';
 
 export const EVIDENCE_SCOPE = 'displayed-history-text/v1';
 export function evidenceFieldLabel(field: string): string {
+  if (field === 'suppliedText.text') return 'Supplied text';
   if (field === 'agentMessage.text') return 'Assistant message';
   if (/^userMessage\.content\/\d+\/text$/.test(field)) return 'User message';
   if (/^turn\.input\/\d+\/text$/.test(field)) return 'Turn input';
@@ -39,6 +41,12 @@ export async function readEvidenceSource(value: unknown, expected: EvidenceHit):
     if (bytes > 131072) throw Error('Exact source exceeds the 128 KiB inspection limit. Nothing was selected.');
     const hash = [...new Uint8Array(await crypto.subtle.digest('SHA-256', raw))].map(n => n.toString(16).padStart(2, '0')).join('');
     if (hash !== record.sha256) throw Error('Source bytes do not match their recorded hash. Nothing was selected.');
+    if (expected.field === 'suppliedText.text' || record.localEvidence !== undefined) {
+      const text = frozenText(record.rawText, record.localEvidence, record.sha256);
+      if (expected.field !== 'suppliedText.text' || text === null || !isLocalTextEvidence(record.localEvidence)) throw Error('Supplied text provenance is unavailable. Nothing was selected.');
+      const fileHash = [...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text)))].map(n => n.toString(16).padStart(2, '0')).join('');
+      if (fileHash !== record.localEvidence.fileSha256) throw Error('Supplied file bytes do not match their recorded hash. Nothing was selected.');
+    }
   }
   return value as EvidenceHitSource;
 }

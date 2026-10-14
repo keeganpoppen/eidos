@@ -1,4 +1,6 @@
 export type ThreadSummary = {
+  sourceKind?: 'supplied-text';
+  sourceOnly?: boolean;
   thread_id: string;
   first_seq: number;
   last_seq: number;
@@ -50,6 +52,7 @@ export type SemanticRevision = {
 };
 
 export type ThreadItem = {
+  localEvidence?: LocalTextEvidence;
   id: string;
   type: string;
   startSeq: number;
@@ -92,6 +95,8 @@ export type ThreadWindow = {
 };
 
 export type ThreadPayload = {
+  sourceKind?: 'supplied-text';
+  sourceOnly?: boolean;
   id: string;
   version: string;
   window: ThreadWindow;
@@ -149,7 +154,13 @@ export type EvidenceSelection = {
   rationale: string;
 };
 
+export type LocalTextEvidence = {
+  kind: 'supplied-text'; version: 1; id: string; fileName: string; fileSha256: string; byteLength: number;
+  classification: 'local-owner-supplied'; parserVersion: string; hostRecordSha256: string;
+};
+
 export type ContextRecord = {
+  localEvidence?: LocalTextEvidence;
   seq: number;
   threadId: string;
   source: string;

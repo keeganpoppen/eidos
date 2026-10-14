@@ -1,6 +1,6 @@
 # Continuing development frontier
 
-**Provisional strategic understanding · 2026-10-14 · inspected base `25d6350`.**
+**Provisional strategic understanding · 2026-10-14 · inspected base `d2b5fdb`.**
 The [current handoff](CURRENT_HANDOFF.md) owns verified status and runnable steps;
 this document owns revisable conjectures and opportunity ordering. It does not
 replace the [destination](../vision/DESTINATION.md) or [V1](../roadmap/V1.md).
@@ -189,23 +189,30 @@ Browser restart/focus/pending-draft preservation and canonical byte checks pass.
 The relation derives existing artifactInputs; it neither infers claim reliance nor
 turns a newer finding into automatic supersession or propagation.
 
-**Next discriminator (reflective work loop, C4/V1-11): improve a real repository task.**
-The linked evidence/finding/comparison surfaces now need a more consequential test:
-can a fresh participant reconstruct one actual public-repository change decision,
-its before/after code, observed failing/repaired regression, and rollback basis from
-saved work alone? A scout reproduced authored findings refusing the native-only
-recorded experiment gate. Do not merely relax that gate or add recipe activation.
-First try ordinary findings and saved comparisons, separating measured test behavior
-from a claim of owner benefit. If sufficient, consider simplifying the fixture-only
-improvement presentation; otherwise implement the first demonstrated integration gap.
-Root must independently reproduce and freeze this next contract. Recipe activation
-still needs repeated selection friction; native matrices cannot establish usefulness.
+**Established reflective entry (C1/C5/C4): supplied files and a public-code review.**
+[Supplied text](../evidence/SUPPLIED_TEXT_INTEGRATION.md) closes the demonstrated
+gap between local check output and selectable evidence without disguising files as
+native messages. Actual malformed-tail behavior, pinned public code, ordinary
+findings and a saved comparison support a retained review after restart/source loss.
+A fresh participant reconstructed the judgment and its limits from saved work only.
+No new experiment ontology or relaxation of the native-only gate was needed.
+
+**Next discriminator (C4/V1-11): distinguish recoverable reasoning from reproducibility.**
+The fresh review identified missing exact harness/input/runtime identity and an
+ambiguous rollback parent. Supply those using existing text evidence and findings,
+then test whether another participant can reconstruct the precise local check
+without original chat or ambient repository assumptions. Preserve the older limited
+finding; do not silently replace it or turn a new file receipt into execution proof.
+Only a demonstrated missing relation should motivate an execution representation.
+If ordinary Values suffice again, simplify the fixture-only improvement presentation
+instead of maintaining a separate simulated product ontology. Human usefulness,
+performance and real native model quality still require different observations.
 
 The active read index is a replaceable performance adapter, not a second provenance
 authority. Native process/synthetic transport research is independent of production
 admission. Direct result-use discovery is established for exact saved membership;
-the next reflective episode must test whether those connections support an actual
-review decision, rather than treating more references as sufficient by themselves.
+the next reflective episode must test whether preserved support permits a precise
+next action, rather than treating an understandable review as reproducibility.
 
 Historical paging contract: `GET /api/threads/:id` returns at most 40 complete turns.
 `anchorSeq` follows a stable record; `aroundSeq` resolves exact membership in that
