@@ -1,85 +1,86 @@
-# Current handoff — authored findings with exact support
+# Current handoff — exact direct saved uses
 
-**2026-10-13 · integration base `2aae982806de5386d0e42dc22f499bdb6d5e77f4`.**
-The base import commit is pushed; [CI38500053697](https://github.com/keeganpoppen/eidos/actions/runs/38500053697)
-passed. This snapshot accompanies the completed authored-finding integration.
-The autonomous mission remains active; a completed wave is not its endpoint.
+**2026-10-14 · integration base `25d6350b104c2543060fe76a9447502c81f56caa`.**
+Base authored-finding commit is pushed; [CI38503232607](https://github.com/keeganpoppen/eidos/actions/runs/38503232607)
+passed. This snapshot accompanies completed direct-use integration. Mission remains
+active: commit/nonforce-push this coherent wave, then continue the next discriminator.
 No real account, private history, model or upstream call is authorized.
 
-## Completed C1/C5/C6 slice — V1-02/04/07/08
+## Completed C1/C5 slice — V1-03/04/09
 
-[Contract](AUTHORED_FINDING_TASK.md), [acceptance](../evidence/AUTHORED_FINDING_INTEGRATION.md),
-[D35](../roadmap/DECISIONS.md#d35--authored-findings-are-reusable-knowledge-independent-of-native-completion).
-Root used public D34 and exact import implementation excerpts to establish the gap:
-rationale survives reopen but result search misses the conclusion; native completion
-correctly refuses without an attempt. Baseline actual browser19GETs/zeroPOSTs.
+[Contract](RESULT_USES_TASK.md), [evidence](../evidence/RESULT_USES_INTEGRATION.md),
+[D36](../roadmap/DECISIONS.md#d36--direct-saved-uses-describe-input-membership-not-inferred-dependence).
+Root independently reproduced six-owner/seven-context relation gap: whole-owner
+scanning104,509bytes finds historical B0/copied-input D; text search misses D and
+includes prose-only F. New bounded direct-use list and exact consumer/context detail
+use existing frozen artifactInputs, independent of current/original source existence.
+No transitive/claim reliance, supersession or execution authority is inferred.
 
-Optional immutable findings[] now belongs to the saved investigation/context. Exact
-request receipts recover the original finding after later work and restart. Result
-catalog/source/frozen-input/plain-comparison paths share explicit authored membership
-validation; native provenance/adoption/inquiry/experiment gates remain intact. No
-native state transition or fake output record accompanies a finding. The UI editor
-has independent pending storage, exact context pin and deliberate GET/retry recovery.
-Uncited hypotheses are labelled; recognized citations establish supplied membership,
-not truth. Copied result inputs do not inherit raw support or live authority.
-
-Integrated lanes: backend5d9fa8+49f6b0b, UIffa246e, independent testsc60df2c.
-Root owns scripts/docs and final integration. Review repaired whitespace/BOM-only
-API/browser mismatch and a disposed client's late receipt overwriting a replacement
-client's pending slot. Exact legacy context/prompt/manifest compatibility remains.
-Preserve the policy literal from2a62d68; it hashes into old manifests.
+Integrated backend18b5fc4, UI4466c91+05b8e5e, independent acceptancea2c88d6. Root
+scripts/docs/final commit. Author-bound frozen hash validation catches changed prose
+or citations under F0 ID; canonical validation still verifies original membership.
+Malformed use projections refuse completeness through isolated derived error markers,
+preserving legacy catalog semantics. Matching versions bind cursors and exact detail.
+UI cancellation/explicit focus guard preserves independent drafts and source focus;
+late original-source load cannot steal an opened preview. Narrow review moved long
+IDs into reference disclosures. Preserve old prompt/manifest bytes and the literal
+managed policy from2a62d68; do not reopen native gates as an incidental change.
 
 ## Verification and cleanup
 
-Parent full Python **1,706passed /55explicit native skips in59.38s**,
-`/tmp/nema-authored-finding-parent-full.log`. UI **220tests /940assertions**,
-Svelte0errors/0warnings and clean build. Seed-context5passes; diff checks clean.
-Independent cases include six-connection replay, receipt rollback, native progress,
-source damage/deletion, forged/copy/ambiguous identity and direct/inherited support.
+Parent Python **1,742passed /55explicit native skips in61.08s**,
+`/tmp/nema-result-uses-parent-full.log`. UI **242tests /1,075assertions**, check0/0,
+buildclean; final presentation-only parent check/build repeated successfully.
+Independent9composed cases, backend27cases; source/deletion/rebuild, independent
+writer/version races, legacy behavior, malformed/ambiguous identity, authored hash
+integrity, UTF-8/control-escaped whole-envelope paging and no warm owner parsing.
 
-Final actual browser: flow29requests/onePOST loses201reply and retains exact request
-plus independent dirty/pending editor. Explicit fixture C0→C1 and actual API restart:
-recovery72requests/fivePOSTs (exact retry, B creation, B finding, uncited hypothesis,
-comparison). F0 remains C0; B marks inherited evidence:1 unsupported. Second restart:
-20GETs/zeroPOSTs, exact owners/comparison and displayed original raw text/hashes.
-Desktop1600/390px inspected with no horizontal overflow. Two initial harness mistakes
-(cached catalog assumption, hidden-dialog close selector) were preserved; final
-acceptance reran the whole changed flow on a fresh fixture with explicit searches
-and visible-dialog/closed-state checks. Full hashes and scope are in acceptance.
+Baseline browser21GET/zeroPOST; final40GETflow,24GETafter actual API restart,
+23GETafter trusted fixture source/raw deletion+restart. Exact B0/D list1,311bytes;
+exact snapshots/rationales; F1emptyuses; error/refresh; close/target cancellation;
+held original-source reply preserves explicit focus/scroll. Desktop1600/390 inspected,
+no overflow/runtime exceptions. Every run preserves pending editor/finding storage
+and source focus. Root verified6owner JSON hashes/2rawrecords unchanged before
+fixture deletion, all5surviving owner hashes unchanged afterward; no attempts.
 
-Final fixture `/tmp/nema-authored-finding-final-20261013.db`, marker
-`/tmp/nema-authored-finding-final-marker.json`; reports
-`/tmp/nema-authored-finding-final-browser-20261013-*`. SQL verifies2original records,
-2owners,3findings/3receipts,1comparison,zero native attempts/artifacts/adoptions.
-Root scripts authored_finding_demo.py/browser.mjs support fresh/resume/advance and
-flow/recovery/reopened. Older failed-run evidence is retained separately.
-All owned API/Vite/Chromium descendants and crash handlers stopped;8767/5173/9233
-closed; temporary Vite config removed. `/tmp/nema-authored-finding-cleanup.json`.
+Fixture `/tmp/nema-result-uses-20261013.db` is now explicitly source-deleted; marker
+`/tmp/nema-result-uses-marker.json`. Final reports
+`/tmp/nema-result-uses-final-browser-20261013-{flow,reopened,source-deleted}.json`.
+Root scripts result_uses_demo.py/browser.mjs. Fresh mode refuses existingDB;
+resume checks marker. `--delete-source` is fixture-only, atomically removes source
+creation-request FK rows/owner/raw; finding receipts survive. Two preserved harness
+failures: Chromium retired a held interception on actual abort; initial fixture
+source deletion omitted creation-request FK, refused and did not start API. Final
+accepted runs distinguish cancellation from stale delivery and require prepared
+marker. Exact paths/hashes in evidence doc; do not overwrite failed-run artifacts.
+
+All owned API/Vite/Chromium descendants/crash handlers stopped,8767/5173/9233closed,
+temporary Vite config removed. Fresh Chrome profile/config/cache only.
+`/tmp/nema-result-uses-cleanup.json`. List bounds128KiB/40rows do not bound total
+owner/database/CPU work. Relation versions scan matching metadata. Source integrity
+checks do not authenticate authors or re-establish missing original support.
 
 ## Next discriminator and ownership
 
-Read-only scouts independently recommend bounded reverse-use inspection:
-“Which saved questions supplied this exact finding?” Existing canonical contexts
-already preserve this fact, but the only exhaustive route downloads every owner.
-A disposable6owner/7context fixture required32,543bytes and manual scanning.
-Searching F0's ID as result text missed copied-input D and included prose-only F.
-The backend scout found historical B0 and current D as the direct uses; B1 dropped
-F0, C supplies B's derived result, E shares only raw records. F1 is a new immutable
-value, not an automatically inferred supersession or invalidation.
+Independent strategy review recommends an actual public-repository improvement
+episode: pinned before/after code, observed failing/repaired regression, explicit
+review decision/rollback basis, then fresh participant recovery from saved work alone.
+Authored findings currently refuse native-only recorded experiments (scout409).
+Do not relax that gate alone or create another experiment ontology.
 
-Root next: independently reproduce that relation query on the now-complete finding
-path and inspect existing read-index/detail APIs. If warranted, freeze a narrow
-read-only direct-frozen-artifact-inputs contract and bounded task packet. Reuse dirty
-read-index triggers and ArtifactLineage, showing exact consumer/context and current
-versus historical membership. Do not infer claim dependence, transitive effects,
-automatic propagation or stale status. Consumer inspection must not call choose():
-that restores current context and overwrites the independent editor. Reuse exact
-EvidenceRecord/ArtifactContent previews; no new controller or browser persistence.
+Backend scout reproduced the old malformed-tail import retaining1then2prefix records
+on retry versus current0then0; intentional valid duplicate lines remain2. Ordinary
+findings/frozen inputs/plain comparisons/direct uses carried that episode with zero
+attempts. The concrete intake seam: plain test stdout refuses history preview400,
+JSON test report is not browser-committable without discoverable native fields; an
+explicit authored $history/item wrapper was needed. Scout is preserving script/report
+under/tmp. Root next: independently reproduce that actual loop after pushing current
+wave, test whether existing raw CLI import plus source selection already suffices,
+then choose one demonstrated intake/review integration gap. Human usefulness remains
+unmeasured; fresh-agent coherence is not a human-speed claim.
 
-history_ui/backend, native_frontier/UI and gateway_review all completed read-only
-next-frontier scouts; no next implementation is assigned. Their current authored
-worktrees are clean at lane commits under /tmp/nema-authored-finding-{backend,ui,review}.
-Root owns main integration and the next contract. Older managed worktrees may retain
-historical unintegrated changes; do not sweep them in. Authored findings bound prose
-and receipts, not whole-owner/total-resource cost. Real owner benefit and authorized
-subscription-backed useful work remain unobserved. Continue the mission after push.
+history_ui owns read-only next intake/episode scout; gateway_review owns independent
+strategic criticism (complete); native_frontier completed UI at05b8e5e. Current owned
+worktrees `/tmp/nema-result-uses-{backend,ui,review}` are clean at lane commits. Root
+owns main integration, final checks, and next contract. Older worktrees may contain
+historical unintegrated changes; do not sweep them in. No next implementation assigned.

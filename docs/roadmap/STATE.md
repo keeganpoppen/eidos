@@ -6,6 +6,31 @@ The baseline GitHub Actions run `38240774514` completed successfully: pytest and
 
 Refresh this file when implementation claims materially change. Keep historical audit IDs instead of quietly relabelling old evidence as current.
 
+## Direct saved result uses — 2026-10-14
+
+Integration base `25d6350`; [contract](../agents/RESULT_USES_TASK.md),
+[evidence](../evidence/RESULT_USES_INTEGRATION.md),
+[D36](DECISIONS.md#d36--direct-saved-uses-describe-input-membership-not-inferred-dependence).
+Result provenance now shows which exact saved contexts included that result.
+Historical and copied contexts retain their frozen snapshots after upstream source
+loss. Inspection preserves independent pending drafts and source focus; long IDs
+remain available in expandable details. New findings never automatically replace
+old inputs or imply that consumers became invalid.
+
+Parent **1,742Python passed /55explicit native skips**, **242Bun tests /1,075assertions**,
+clean check/build. Actual baseline21GETs; final40GETflow,24GETafter restart,23GETafter
+fixture source/raw deletion and restart; zeroPOSTs. Exact B0/D metadata is1,311bytes
+versus104,509bytes for previous full-owner discovery. All6owner/raw bytes unchanged
+before deletion; all5surviving owner JSON hashes unchanged afterward. Desktop/390px
+inspected. Authored hash integrity and legacy-catalog isolation defects were fixed;
+two fixture/harness mistakes were preserved and corrected before acceptance.
+
+List128KiB/40rows bounds do not bound exact context detail, cold/dirty owner parsing,
+matching-metadata version work or total database/CPU. Uses report supplied membership,
+not transitive dependence, claim validity or native consumption. Malformed projections
+refuse completeness without changing legacy catalog behavior. All owned test services
+stopped. Human benefit and real-account/model work remain unobserved.
+
 ## Authored findings with exact support — 2026-10-13
 
 Integration base `2aae982`; [contract](../agents/AUTHORED_FINDING_TASK.md),

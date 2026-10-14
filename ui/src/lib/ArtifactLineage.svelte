@@ -3,6 +3,7 @@
   import ArtifactContent from './ArtifactContent.svelte';
   import ContextProvenance from './ContextProvenance.svelte';
   import EvidenceRecord from './EvidenceRecord.svelte';
+  import ResultUses from './ResultUses.svelte';
   import type { ArtifactSourceTarget } from './artifact-inputs';
   import { savedWork, type ArtifactSource } from './saved-work';
   import type { FrozenArtifactInput } from './types';
@@ -12,6 +13,7 @@
   const headingId = $props.id();
   let dialog: HTMLDialogElement;
   let heading: HTMLHeadingElement;
+  let resultUses = $state<{ cancel: () => void; hasInteracted: () => boolean }>();
   let trail = $state<Target[]>([]);
   let source = $state<ArtifactSource | null>(null);
   let loading = $state(false);
@@ -42,10 +44,10 @@
     void (async () => {
       try {
         const value = await savedWork.source(ref);
-        if (cancelled) return;
+        if (cancelled || !dialog.open) return;
         source = value;
         await tick();
-        if (!cancelled) {
+        if (!cancelled && dialog.open && !resultUses?.hasInteracted()) {
           dialog.scrollTop = ref.scrollTop ?? 0;
           heading?.focus({ preventScroll: true });
         }
@@ -57,22 +59,27 @@
   });
 
   function follow(input: FrozenArtifactInput) {
+    resultUses?.cancel();
     const previous = active ? [...trail.slice(0, -1), { ...active, scrollTop: dialog.scrollTop }] : trail;
     trail = [...previous, { investigationId: input.investigationId, artifactId: input.artifactId, contextId: input.sourceContextId, snapshot: input }];
   }
+
+  function close() { resultUses?.cancel(); onClose(); }
+  function back() { resultUses?.cancel(); trail = trail.slice(0, -1); }
 </script>
 
-<dialog bind:this={dialog} class="artifact-lineage" aria-labelledby={headingId} onclose={onClose}>
+<dialog bind:this={dialog} class="artifact-lineage" aria-labelledby={headingId} onclose={close}>
   <header>
     <div><span class="eyebrow">Result / original support</span><h2 id={headingId} bind:this={heading} tabindex="-1">{source?.investigationTitle ?? 'Result provenance'}</h2></div>
-    <button class="lineage-close" onclick={onClose}>Close result provenance</button>
+    <button class="lineage-close" onclick={close}>Close result provenance</button>
   </header>
   <nav aria-label="Result lineage navigation">
-    <button disabled={trail.length < 2} onclick={() => trail = trail.slice(0, -1)}>Back to previous result</button>
+    <button disabled={trail.length < 2} onclick={back}>Back to previous result</button>
     <span>{trail.length > 1 ? `${trail.length - 1} source link${trail.length > 2 ? 's' : ''} from the selected result` : 'Selected result'}</span>
   </nav>
   {#if active}
     <p class="object-ref">Investigation {active.investigationId}<br />Artifact {active.artifactId}<br />Context {active.contextId ?? artifact?.contextId ?? 'resolving'}</p>
+    {#key active}<ResultUses target={active} bind:this={resultUses} />{/key}
     <div data-lineage-artifact-id={active.artifactId} data-lineage-context-id={context?.id}>
       {#if loading}<p role="status">Loading original source context…</p>{/if}
       {#if error}<p class="work-error" role="alert">{error}</p>{/if}

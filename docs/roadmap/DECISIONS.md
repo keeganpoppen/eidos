@@ -375,6 +375,28 @@ Submission attribution is not authentication of a human author. These are narrow
 local owner operations, not a new general artifact or permissions framework.
 See the [contract](../agents/AUTHORED_FINDING_TASK.md).
 
+### D36 — Direct saved uses describe input membership, not inferred dependence
+
+**Accepted implementation direction, 2026-10-13**, base `25d6350`. A saved finding
+can be supplied to several questions, including historical and copied contexts.
+Text search misses copied inputs and includes prose-only mentions; upstream lineage
+cannot answer the inverse question. Derive a bounded direct-use view from existing
+frozen artifactInputs, with exact consumer/context inspection independent of the
+working editor. A new result does not automatically supersede the old one or render
+its consumers invalid. Transitive paths and claim reliance require further evidence.
+
+The surviving consumer owns the record of what it received. Deleting an upstream
+owner or raw history cannot erase that frozen fact. Validate retained authored
+content identity without demanding the now-absent original context; do not recompute
+its citation classification against the consumer's different inputs. That check
+does not authenticate an author or re-establish the original support.
+
+The index remains replaceable. Matching-consumer versions bind pagination and detail;
+changed work refuses rather than opening a current replacement. Malformed input
+projections make the uses view refuse completeness without changing existing catalog
+semantics. No mutation, new persistent browser state or execution authority enters
+through inspection. See the [contract](../agents/RESULT_USES_TASK.md).
+
 ## Deferred explorations, kept for their potential
 
 ### D22 — Names, routing, locality, and leases

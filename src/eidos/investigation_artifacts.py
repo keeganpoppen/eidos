@@ -13,12 +13,17 @@ FINDING_FIELDS = {"id", "kind", "contextId", "text", "citations", "unsupportedCi
                   "artifactCitations", "unsupportedArtifactCitations", "authorship"}
 
 
-def finding_content(context: Mapping[str, Any], text: Any) -> dict[str, Any]:
+def _finding_text(text: Any) -> str:
     text = _text(text, "finding text", MAX_ARTIFACT_BYTES)
     if not text.replace("\ufeff", "").strip():
         raise InvestigationError(400, "finding text must contain non-whitespace content")
     if len(text.encode("utf-8")) > MAX_ARTIFACT_BYTES:
         raise InvestigationError(400, "finding text exceeds 128 KiB")
+    return text
+
+
+def finding_content(context: Mapping[str, Any], text: Any) -> dict[str, Any]:
+    text = _finding_text(text)
     cited = set()
     for token in re.findall(r"\[evidence:([0-9]+)\]", text):
         # Bound conversion before Python's configurable integer-string limit.
@@ -44,8 +49,12 @@ def _context(work: Mapping[str, Any], context_id: str) -> dict[str, Any]:
     return contexts[0]
 
 
-def validate_finding(work: Mapping[str, Any], finding: Any) -> dict[str, Any]:
-    """Validate the host schema and content identity, not an authenticated author."""
+def validate_frozen_finding(owner_id: str, finding: Any) -> dict[str, Any]:
+    """Check a retained value without reinterpreting its absent source context.
+
+    This checks the recorded citation sets and owner-bound content identity. It
+    cannot re-establish citation membership or authenticate the attribution.
+    """
     if not isinstance(finding, dict) or set(finding) != FINDING_FIELDS or finding.get("kind") != FINDING_KIND:
         raise InvestigationError(409, "invalid authored finding schema")
     author = finding["authorship"]
@@ -54,15 +63,36 @@ def validate_finding(work: Mapping[str, Any], finding: Any) -> dict[str, Any]:
             or not 0 <= author["createdAtMs"] <= 2**53 - 1):
         raise InvestigationError(409, "invalid authored finding attribution")
     for key in ("citations", "unsupportedCitations"):
-        if not isinstance(finding[key], list) or any(type(v) is not int for v in finding[key]):
+        values = finding[key]
+        minimum = 1 if key == "citations" else 0
+        if (not isinstance(values, list) or any(type(v) is not int or not minimum <= v <= 2**53 - 1 for v in values)
+                or values != sorted(set(values))):
             raise InvestigationError(409, "invalid authored finding citations")
+    for key in ("artifactCitations", "unsupportedArtifactCitations"):
+        values = finding[key]
+        if (not isinstance(values, list) or any(not isinstance(v, str) or not re.fullmatch(r"[A-Za-z0-9_-]+", v) for v in values)
+                or values != sorted(set(values))):
+            raise InvestigationError(409, "invalid authored finding artifact citations")
+    try:
+        _finding_text(finding["text"])
+        _text(finding["contextId"], "contextId", 200)
+    except InvestigationError:
+        raise InvestigationError(409, "invalid authored finding content") from None
+    content = {key: value for key, value in finding.items() if key not in {"id", "authorship"}}
+    if finding["id"] != finding_id(owner_id, content):
+        raise InvestigationError(409, "authored finding content identity mismatch")
+    return content
+
+
+def validate_finding(work: Mapping[str, Any], finding: Any) -> dict[str, Any]:
+    """Validate source membership as well as the immutable authored value."""
+    frozen = validate_frozen_finding(work["id"], finding)
     context = _context(work, finding["contextId"])
     try:
         content = finding_content(context, finding["text"])
     except InvestigationError:
         raise InvestigationError(409, "invalid authored finding content") from None
-    if ({k: finding[k] for k in content} != content
-            or finding["id"] != finding_id(work["id"], content)):
+    if frozen != content:
         raise InvestigationError(409, "authored finding content identity mismatch")
     return context
 

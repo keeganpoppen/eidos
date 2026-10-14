@@ -1,6 +1,6 @@
 # Continuing development frontier
 
-**Provisional strategic understanding · 2026-10-13 · inspected base `2386b29`.**
+**Provisional strategic understanding · 2026-10-14 · inspected base `25d6350`.**
 The [current handoff](CURRENT_HANDOFF.md) owns verified status and runnable steps;
 this document owns revisable conjectures and opportunity ordering. It does not
 replace the [destination](../vision/DESTINATION.md) or [V1](../roadmap/V1.md).
@@ -150,7 +150,7 @@ not mature-world axioms.
 Managed attempts are integrated in `fa7eabf`; `2a62d68` preserves exact legacy
 manifest bytes. Historical-input reuse is integrated in `1698f6a`. The
 [handoff](CURRENT_HANDOFF.md) owns the completed source-discovery and explicit-import slices and current
-integration status. See [D31–D35](../roadmap/DECISIONS.md) and linked evidence.
+integration status. See [D31–D36](../roadmap/DECISIONS.md) and linked evidence.
 
 **Established discriminator: recover evidence from unmapped history (C3/V1-01/04).**
 On the same authored 1,200-turn corpus without maps, baseline needed 27 page
@@ -180,22 +180,32 @@ citations establish supply, not verified truth; inherited raw references remain
 unsupported. Actual desktop/narrow scripted comparison/reopen passes after preserved
 harness corrections. Human benefit and real model quality remain unmeasured.
 
-**Next discriminator (C1/C5): inspect where an exact finding was supplied.**
-Scouts reproduced a relation gap: full-owner download/manual scan finds historical
-B0 and copied-input D, while text search misses D and includes unsupported prose
-mentions. Root should independently verify the six-owner counterexample and choose
-a bounded read-only direct-use index if warranted. Existing frozen artifactInputs
-are the facts; no new dependency ontology is needed. Show saved question/context
-membership, preserve independent editor state, and do not infer transitive effects,
-claim reliance, automatic invalidation or propagation. A newer finding is a separate
-value without an inferred supersedes relation. Existing upstream lineage and exact
-context previews provide the integration points. Recipe activation still needs
-repeated selection friction; broad native matrices cannot establish owner benefit.
+**Established relation (C1/C5): inspect where an exact finding was supplied.**
+Root independently verified the six-owner counterexample: full-owner scanning finds
+historical B0/copied-input D, while text search misses D and includes prose-only F.
+[Direct saved uses](../evidence/RESULT_USES_INTEGRATION.md) now supplies bounded
+membership and exact-context inspection, including after original-source deletion.
+Browser restart/focus/pending-draft preservation and canonical byte checks pass.
+The relation derives existing artifactInputs; it neither infers claim reliance nor
+turns a newer finding into automatic supersession or propagation.
+
+**Next discriminator (reflective work loop, C4/V1-11): improve a real repository task.**
+The linked evidence/finding/comparison surfaces now need a more consequential test:
+can a fresh participant reconstruct one actual public-repository change decision,
+its before/after code, observed failing/repaired regression, and rollback basis from
+saved work alone? A scout reproduced authored findings refusing the native-only
+recorded experiment gate. Do not merely relax that gate or add recipe activation.
+First try ordinary findings and saved comparisons, separating measured test behavior
+from a claim of owner benefit. If sufficient, consider simplifying the fixture-only
+improvement presentation; otherwise implement the first demonstrated integration gap.
+Root must independently reproduce and freeze this next contract. Recipe activation
+still needs repeated selection friction; native matrices cannot establish usefulness.
 
 The active read index is a replaceable performance adapter, not a second provenance
 authority. Native process/synthetic transport research is independent of production
-admission. Direct result-use discovery remains a proposed next slice; its scope must be tested
-against exact frozen membership rather than inferred semantic dependence.
+admission. Direct result-use discovery is established for exact saved membership;
+the next reflective episode must test whether those connections support an actual
+review decision, rather than treating more references as sufficient by themselves.
 
 Historical paging contract: `GET /api/threads/:id` returns at most 40 complete turns.
 `anchorSeq` follows a stable record; `aroundSeq` resolves exact membership in that

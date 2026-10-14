@@ -446,6 +446,11 @@ class EidosAPI:
             return 200, self.investigation_reads.view(parts[2], query)
         if len(parts) == 6 and parts[3] == "artifacts" and parts[5] == "source" and method == "GET":
             return 200, self.investigation_reads.source(parts[2], parts[4], query)
+        if len(parts) == 6 and parts[3] == "artifacts" and parts[5] == "uses" and method == "GET":
+            return 200, self.investigation_reads.uses(parts[2], parts[4], query)
+        if (len(parts) == 9 and parts[3] == "artifacts" and parts[5] == "uses"
+                and parts[7] == "contexts" and method == "GET"):
+            return 200, self.investigation_reads.use_context(parts[2], parts[4], parts[6], parts[8], query)
         if len(parts) == 4 and parts[3] == "findings" and method == "POST":
             if query:
                 raise InvestigationError(400, "finding writes take no query parameters")

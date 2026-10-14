@@ -8,7 +8,12 @@ import json
 from typing import Any, Iterator, Mapping
 
 from .investigation import InvestigationError, InvestigationStore, _json, _text
-from .investigation_artifacts import artifacts, resolve_artifact
+from .investigation_artifacts import FINDING_KIND, artifacts, resolve_artifact, validate_frozen_finding
+
+
+USES_SCOPE = "direct-frozen-artifact-inputs/v1"
+MAX_USES_BYTES = 128 * 1024
+MAX_USES_CURSOR = 16 * 1024
 
 
 class InvestigationReads:
@@ -54,6 +59,23 @@ class InvestigationReads:
                   PRIMARY KEY(investigation_id,artifact_id)
                 );
                 CREATE TABLE IF NOT EXISTS investigation_read_dirty(id TEXT PRIMARY KEY);
+                CREATE TABLE IF NOT EXISTS investigation_read_result_uses(
+                  source_owner TEXT NOT NULL,
+                  artifact_id TEXT NOT NULL,
+                  consumer_owner TEXT NOT NULL,
+                  context_id TEXT NOT NULL,
+                  created_at_ms INTEGER NOT NULL,
+                  owner_version TEXT NOT NULL,
+                  summary_json TEXT NOT NULL,
+                  PRIMARY KEY(source_owner,artifact_id,consumer_owner,context_id)
+                );
+                CREATE INDEX IF NOT EXISTS investigation_read_result_uses_order
+                  ON investigation_read_result_uses(source_owner,artifact_id,created_at_ms DESC,consumer_owner,context_id);
+                CREATE TABLE IF NOT EXISTS investigation_read_result_use_owners(
+                  owner_id TEXT PRIMARY KEY,
+                  projection_version INTEGER NOT NULL,
+                  error TEXT
+                );
                 CREATE TRIGGER IF NOT EXISTS investigation_read_insert
                   AFTER INSERT ON investigations BEGIN
                     INSERT OR IGNORE INTO investigation_read_dirty VALUES(NEW.id);
@@ -73,12 +95,21 @@ class InvestigationReads:
                   AFTER DELETE ON investigations BEGIN
                     DELETE FROM investigation_read_result_search WHERE investigation_id=OLD.id;
                   END;
+                CREATE TRIGGER IF NOT EXISTS investigation_read_result_uses_delete
+                  AFTER DELETE ON investigations BEGIN
+                    DELETE FROM investigation_read_result_uses WHERE consumer_owner=OLD.id;
+                    DELETE FROM investigation_read_result_use_owners WHERE owner_id=OLD.id;
+                  END;
                 INSERT OR IGNORE INTO investigation_read_dirty
                   SELECT id FROM investigations WHERE id NOT IN (SELECT id FROM investigation_read_catalog);
                 INSERT OR IGNORE INTO investigation_read_dirty
                   SELECT DISTINCT investigation_id FROM investigation_read_artifacts AS a
                   WHERE NOT EXISTS (SELECT 1 FROM investigation_read_result_search AS s
                     WHERE s.investigation_id=a.investigation_id AND s.artifact_id=a.artifact_id);
+                INSERT OR IGNORE INTO investigation_read_dirty
+                  SELECT id FROM investigations WHERE NOT EXISTS (
+                    SELECT 1 FROM investigation_read_result_use_owners
+                    WHERE owner_id=investigations.id AND projection_version=1);
             """)
 
     @contextmanager
@@ -110,6 +141,14 @@ class InvestigationReads:
                 continue
             work = json.loads(row["state_json"])
             version = "iv1_" + hashlib.sha256(row["state_json"].encode()).hexdigest()
+            try:
+                self._refresh_uses(work, version)
+            except InvestigationError as error:
+                # Legacy catalogs intentionally ignore frozen input contents.
+                # Preserve that behavior; new uses reads refuse incomplete data.
+                self.trace.db.execute("DELETE FROM investigation_read_result_uses WHERE consumer_owner=?", (work["id"],))
+                self.trace.db.execute("INSERT OR REPLACE INTO investigation_read_result_use_owners VALUES (?,1,?)",
+                    (work["id"], error.message))
             artifacts = self._artifacts(work)
             contexts = {context["id"]: context for context in work["contexts"]}
             summary = {
@@ -146,8 +185,207 @@ class InvestigationReads:
             self.trace.db.execute("DELETE FROM investigation_read_catalog")
             self.trace.db.execute("DELETE FROM investigation_read_artifacts")
             self.trace.db.execute("DELETE FROM investigation_read_result_search")
+            self.trace.db.execute("DELETE FROM investigation_read_result_uses")
+            self.trace.db.execute("DELETE FROM investigation_read_result_use_owners")
             self.trace.db.execute("INSERT OR IGNORE INTO investigation_read_dirty SELECT id FROM investigations")
             self._refresh()
+
+    @staticmethod
+    def _preview(value: Any) -> str:
+        if not isinstance(value, str):
+            raise InvestigationError(409, "saved result use has malformed text")
+        try:
+            value.encode("utf-8")
+        except UnicodeError:
+            raise InvestigationError(409, "saved result use has invalid UTF-8 text") from None
+        return value if len(value) <= 240 else value[:239] + "…"
+
+    @staticmethod
+    def _use_identity(value: Any) -> str:
+        try:
+            return _text(value, "saved result-use identity", 200)
+        except InvestigationError:
+            raise InvestigationError(409, "saved result use has malformed identity") from None
+
+    @staticmethod
+    def _use_contexts(work: Mapping[str, Any]) -> dict[str, dict[str, Any]]:
+        contexts = work.get("contexts")
+        if not isinstance(contexts, list):
+            raise InvestigationError(409, "saved result use has malformed contexts")
+        found = {}
+        for context in contexts:
+            if not isinstance(context, dict):
+                raise InvestigationError(409, "saved result use has malformed context identity")
+            InvestigationReads._use_identity(context.get("id"))
+            if context["id"] in found and _json(found[context["id"]]) != _json(context):
+                raise InvestigationError(409, "saved context identity is ambiguous")
+            found[context["id"]] = context
+        return found
+
+    @staticmethod
+    def _use_inputs(context: Mapping[str, Any]) -> list[dict[str, Any]]:
+        inputs = context.get("artifactInputs", [])
+        if not isinstance(inputs, list):
+            raise InvestigationError(409, "saved result inputs are malformed")
+        required = {"investigationId", "artifactId", "rationale", "artifact", "sourceContextId",
+                    "sourceManifestId", "sourceAttemptManifestId", "sourceAdoption"}
+        for item in inputs:
+            if (not isinstance(item, dict) or not required <= set(item)
+                    or any(not isinstance(item[key], str) or not item[key] for key in ("investigationId", "artifactId", "sourceContextId"))
+                    or not isinstance(item["rationale"], str)
+                    or any(item[key] is not None and not isinstance(item[key], str)
+                           for key in ("sourceManifestId", "sourceAttemptManifestId"))):
+                raise InvestigationError(409, "saved result input snapshot is malformed")
+            for key in ("investigationId", "artifactId", "sourceContextId"):
+                InvestigationReads._use_identity(item[key])
+            artifact = item["artifact"]
+            adoption = item["sourceAdoption"]
+            if (not isinstance(artifact, dict) or artifact.get("id") != item["artifactId"]
+                    or artifact.get("contextId") != item["sourceContextId"]
+                    or not isinstance(artifact.get("text"), str)
+                    or not isinstance(artifact.get("citations"), list)
+                    or not isinstance(artifact.get("unsupportedCitations"), list)
+                    or adoption is not None and (not isinstance(adoption, dict) or adoption.get("artifactId") != item["artifactId"])):
+                raise InvestigationError(409, "saved result input snapshot does not match its reference")
+            if (any(type(seq) is not int or not 0 <= seq <= 2**63 - 1
+                    for key in ("citations", "unsupportedCitations") for seq in artifact[key])
+                    or adoption is not None and (adoption.get("decision") not in ("adopt", "reject")
+                                                or not isinstance(adoption.get("note"), str))):
+                raise InvestigationError(409, "saved result input snapshot is malformed")
+            if artifact.get("kind") == FINDING_KIND:
+                validate_frozen_finding(item["investigationId"], artifact)
+            try:
+                _json(item).encode("utf-8")
+            except (ValueError, TypeError, UnicodeError, RecursionError):
+                raise InvestigationError(409, "saved result input snapshot has invalid text") from None
+        return inputs
+
+    def _refresh_uses(self, work: Mapping[str, Any], version: str) -> None:
+        """Index consumer-owned frozen values; never resolve their current sources."""
+        self._use_identity(work.get("id"))
+        if type(work.get("createdAtMs")) is not int or not 0 <= work["createdAtMs"] <= 2**63 - 1:
+            raise InvestigationError(409, "saved result use has malformed creation time")
+        self.trace.db.execute("DELETE FROM investigation_read_result_uses WHERE consumer_owner=?", (work["id"],))
+        for context_id, context in self._use_contexts(work).items():
+            grouped: dict[tuple[str, str], list[dict[str, Any]]] = {}
+            for item in self._use_inputs(context):
+                grouped.setdefault((item["investigationId"], item["artifactId"]), []).append(item)
+            for (source, artifact), inputs in grouped.items():
+                summary = {"investigationId": work["id"], "investigationTitle": self._preview(work.get("title")),
+                    "contextId": context_id, "ownerVersion": version, "isCurrent": context_id == work["currentContextId"],
+                    "questionExcerpt": self._preview(context.get("question")), "rationaleExcerpt": self._preview(inputs[0]["rationale"]),
+                    "matchingInputCount": len(inputs)}
+                self.trace.db.execute("INSERT INTO investigation_read_result_uses VALUES (?,?,?,?,?,?,?)",
+                    (source, artifact, work["id"], context_id, work["createdAtMs"], version, _json(summary)))
+        self.trace.db.execute("INSERT OR REPLACE INTO investigation_read_result_use_owners VALUES (?,1,NULL)", (work["id"],))
+
+    @staticmethod
+    def _use_source(identifier: str, artifact_id: str) -> dict[str, str]:
+        # Names identify a reference, even when its original owner is unavailable.
+        return {"investigationId": _text(identifier, "investigationId", 200),
+                "artifactId": _text(artifact_id, "artifactId", 200)}
+
+    @staticmethod
+    def _use_cursor(source: Mapping[str, str], limit: int, relation: str, row: Any) -> str:
+        return base64.urlsafe_b64encode(_json({"v": 1, "scope": USES_SCOPE, "source": source, "limit": limit,
+            "relationVersion": relation, "after": [row["created_at_ms"], row["consumer_owner"], row["context_id"]]}).encode()).decode().rstrip("=")
+
+    @staticmethod
+    def _read_use_cursor(value: str, source: Mapping[str, str], limit: int) -> dict[str, Any]:
+        _text(value, "cursor", MAX_USES_CURSOR)
+        try:
+            cursor = json.loads(base64.b64decode(value + "=" * (-len(value) % 4), altchars=b"-_", validate=True))
+            if (not isinstance(cursor, dict) or set(cursor) != {"v", "scope", "source", "limit", "relationVersion", "after"}
+                    or type(cursor["v"]) is not int or cursor["v"] != 1 or cursor["scope"] != USES_SCOPE
+                    or cursor["source"] != source or type(cursor["limit"]) is not int or cursor["limit"] != limit
+                    or not isinstance(cursor["relationVersion"], str) or not cursor["relationVersion"].startswith("ur1_")
+                    or len(cursor["relationVersion"]) != 68
+                    or any(c not in "0123456789abcdef" for c in cursor["relationVersion"][4:])
+                    or not isinstance(cursor["after"], list) or len(cursor["after"]) != 3
+                    or type(cursor["after"][0]) is not int or not 0 <= cursor["after"][0] <= 2**63 - 1
+                    or any(not isinstance(v, str) or not v.strip() or len(v) > 200 for v in cursor["after"][1:])):
+                raise ValueError
+            for value in cursor["after"][1:]:
+                value.encode("utf-8")
+        except (ValueError, TypeError, KeyError, UnicodeError, RecursionError):
+            raise InvestigationError(400, "cursor does not match this result-use query") from None
+        return cursor
+
+    def uses(self, identifier: str, artifact_id: str, query: Mapping[str, list[str]]) -> dict[str, Any]:
+        self.trace.require_workbench()
+        source = self._use_source(identifier, artifact_id)
+        params = self._params(query, {"limit", "cursor", "knownVersion"})
+        try:
+            limit = int(params.get("limit", "20"))
+        except ValueError:
+            raise InvestigationError(400, "result-use limit must be between 1 and 40") from None
+        if not 1 <= limit <= 40:
+            raise InvestigationError(400, "result-use limit must be between 1 and 40")
+        if "knownVersion" in params:
+            _text(params["knownVersion"], "knownVersion", 200)
+        cursor = self._read_use_cursor(params["cursor"], source, limit) if "cursor" in params else None
+        with self._snapshot():
+            self._refresh()
+            if self.trace.db.execute("SELECT 1 FROM investigation_read_result_use_owners WHERE error IS NOT NULL LIMIT 1").fetchone():
+                raise InvestigationError(409, "saved result uses cannot be listed while a consumer projection is malformed")
+            # O(matching contexts) metadata work; no warm canonical-history parse.
+            members = self.trace.db.execute("SELECT consumer_owner,context_id,owner_version FROM investigation_read_result_uses "
+                "WHERE source_owner=? AND artifact_id=? ORDER BY consumer_owner,context_id", (identifier, artifact_id)).fetchall()
+            relation = "ur1_" + hashlib.sha256(_json({"scope": USES_SCOPE, "source": source,
+                "members": [list(row) for row in members]}).encode()).hexdigest()
+            if cursor and cursor["relationVersion"] != relation:
+                raise InvestigationError(409, "saved result uses changed; restart from the first page")
+            where, args = "source_owner=? AND artifact_id=?", [identifier, artifact_id]
+            if cursor:
+                created, owner, context = cursor["after"]
+                where += " AND (created_at_ms < ? OR (created_at_ms = ? AND (consumer_owner > ? OR (consumer_owner = ? AND context_id > ?))))"
+                args.extend([created, created, owner, owner, context])
+            rows = self.trace.db.execute("SELECT * FROM investigation_read_result_uses WHERE " + where
+                + " ORDER BY created_at_ms DESC,consumer_owner,context_id LIMIT ?", (*args, limit + 1)).fetchall()
+            count = min(limit, len(rows))
+            values = [json.loads(row["summary_json"]) for row in rows[:count]]
+            while True:
+                next_cursor = self._use_cursor(source, limit, relation, rows[count - 1]) if count and len(rows) > count else None
+                content = {"scope": USES_SCOPE, "source": source, "uses": values[:count], "nextCursor": next_cursor}
+                version = "up1_" + hashlib.sha256(_json({"page": params.get("cursor"), "limit": limit, **content}).encode()).hexdigest()
+                envelope = {**content, "version": version, "unchanged": False}
+                if len(_json(envelope).encode()) <= MAX_USES_BYTES:
+                    break
+                if count <= 1:
+                    raise InvestigationError(413, "result-use metadata exceeds the 128 KiB response limit")
+                count -= 1
+            if params.get("knownVersion") == version:
+                return {"scope": USES_SCOPE, "source": source, "version": version, "unchanged": True}
+            return envelope
+
+    def use_context(self, identifier: str, artifact_id: str, consumer_id: str, context_id: str,
+                    query: Mapping[str, list[str]]) -> dict[str, Any]:
+        self.trace.require_workbench()
+        source = self._use_source(identifier, artifact_id)
+        _text(consumer_id, "investigationId", 200)
+        _text(context_id, "contextId", 200)
+        params = self._params(query, {"expectedVersion"})
+        if set(params) != {"expectedVersion"}:
+            raise InvestigationError(400, "exact saved use requires expectedVersion")
+        expected = _text(params["expectedVersion"], "expectedVersion", 200)
+        with self._snapshot():
+            version = self._version(consumer_id)
+            failure = self.trace.db.execute("SELECT error FROM investigation_read_result_use_owners WHERE owner_id=?", (consumer_id,)).fetchone()
+            if failure is not None and failure["error"] is not None:
+                raise InvestigationError(409, "saved consumer result inputs are malformed")
+            work = self.investigations._load(consumer_id)
+            context = self._use_contexts(work).get(context_id)
+            if context is None:
+                raise InvestigationError(404, "exact saved consumer context not found")
+            if expected != version:
+                raise InvestigationError(409, "saved consumer changed; refresh its result uses")
+            indexes = [index for index, item in enumerate(self._use_inputs(context))
+                       if item["investigationId"] == identifier and item["artifactId"] == artifact_id]
+            if not indexes:
+                raise InvestigationError(409, "exact saved context did not supply this result")
+            return {"scope": USES_SCOPE, "source": source, "investigationId": consumer_id,
+                    "investigationTitle": work["title"], "contextId": context_id, "ownerVersion": version,
+                    "isCurrent": work["currentContextId"] == context_id, "context": context, "matchingInputIndexes": indexes}
 
     @staticmethod
     def _cursor(kind: str, query: str, after: list[Any]) -> str:
