@@ -86,7 +86,7 @@ class InvestigationContexts:
             "sandboxPolicy": TURN_SANDBOX, "environments": [],
             "workingDirectory": "fresh temporary directory; path assigned by worker",
             "timeoutSeconds": attempt["timeoutSeconds"], "turnLimit": 1,
-            "limits": "These requested restrictions do not establish startup containment; no token/cost cap.",
+            "limits": "Native startup integrations are not contained; no token/cost cap.",
         }, projected=True)
         manifest = self.store.replace(context["manifestId"], "runtime/requested-policy", policy)
         name = attempt["id"] + "/app-server-input"

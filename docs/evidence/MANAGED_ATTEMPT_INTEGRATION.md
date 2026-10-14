@@ -25,10 +25,9 @@ An explicit server flag enables fresh managed attempts from existing pinned work
 The private worker owns a disposable runtime and a full-context/source identity.
 Fresh device login and ordered account/config readiness precede one private
 receipt and the existing thread/turn loop. No alternate event pump or model loop.
-The generic requested-policy manifest now says its restrictions alone do not
-establish startup containment, instead of asserting that all startup is uncontained.
-Old request pins retain their bytes. Only the exact currently owned control
-response includes the transient challenge.
+The generic requested-policy manifest is a retained legacy projection; current
+managed startup and admission are separately described by their private receipts.
+Only the exact currently owned control response includes the transient challenge.
 Stop targets that attempt; result publication and reopen reuse existing proof
 resolution. The legacy native profile remains closed by default.
 
@@ -118,3 +117,20 @@ replay checks passed in0.14s, including the newly added positive replay; seed
 navigation5 passed. These checks launch no real native/model request. Independent
 review accepted the second native report and rejected mutated closure, issuer-cut
 and public/private source coordinates.
+
+
+## CI compatibility correction
+
+Commit `fa7eabf` pushed successfully, but [CI38489881645](https://github.com/keeganpoppen/eidos/actions/runs/38489881645)
+failed two legacy request-manifest identity checks; UI check/build passed. A final
+wording-only change after the full suite altered content-addressed requested-policy
+bytes. The19 focused follow-ups did not include that compatibility fixture. Restore
+the legacy string, keeping historical/new legacy request identities stable; actual
+managed startup/admission evidence remains in the separate private receipts. No
+runtime, native configuration, routes, bounds or probe bytes changed. This failure
+is preserved rather than relabelled as a passing final checkout.
+
+Correction verification:25 focused legacy/context/managed-worker checks passed;
+full parent **1,529 passed /55 native skips in56.63s**,
+`/tmp/nema-managed-ci-correction-full.log`. The extra test versus1,528 is retained
+positive-report replay. All native/runtime bytes still match the second report.

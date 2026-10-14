@@ -3,8 +3,11 @@
 **2026-10-13 · implementation base `8ed2f0a5ed107e03863fdcf9623e8571eb606051`.**
 The preceding owned-worker integration is committed/pushed with
 [successful CI](https://github.com/keeganpoppen/eidos/actions/runs/38484292688).
-The coherent managed-attempt wave described below is verified and awaiting its
-final integration commit. The continuing mission remains active; green changes
+The managed-attempt wave below is committed/pushed as `fa7eabf`. Its first CI
+failed two legacy request-manifest checks after a final prose change altered their
+hash. Restoring that exact legacy string passes25 focused checks and the full
+parent suite:1,529 passed/55 skips in56.63s. UI CI passed. Push the correction and
+verify the new CI result; preserve the first failure. The continuing mission remains active; green changes
 the frontier. [PROGRAM](PROGRAM.md) owns conjectures and opportunity ordering.
 
 ## Completed implementation — C6 / V1-05/07/12
@@ -39,9 +42,8 @@ cleanup; independent reproduction completed in0.058s with zero Popen.
 Fixed destinations, finite resolver/dial/relay/capture budgets, isolated disposable
 state and packaged guard/catalog provenance are implemented. No CPU/RSS/disk quota
 or exact provider-request-count claim. Fresh sign-in on each attempt is a provisional
-isolation choice; practical cost remains unmeasured. Generic request-policy wording
-now distinguishes requested restrictions from established startup containment;
-existing request pins remain unchanged.
+isolation choice; practical cost remains unmeasured. The generic request-policy projection retains its legacy bytes for compatibility;
+separate managed startup/admission receipts describe actual managed preparation.
 
 ## Verification and observed scope
 
@@ -101,8 +103,8 @@ fix60c3528 and positive evidence/replay a967912. The source hashes and preserved
 
 ## Next runnable action
 
-Positive evidence and exact raw hash/default replay are integrated. Commit and
-nonforce-push this coherent wave. Check
+Positive evidence and exact raw hash/default replay are integrated and pushed.
+Complete the CI compatibility correction/full checks and nonforce-push. Check
 public CI, then continue the mission; do not launch additional native matrices
 without a question they can resolve. No user-operated real resource use has yet
 been requested or authorized by these experiment packets.
