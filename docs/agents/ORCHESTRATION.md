@@ -36,6 +36,12 @@ Result format and reintegration point
 
 Request a usable patch, tests, and a compact explanation. Reports should distinguish observed code, inferred behavior, proposed changes, and unverified claims. The worker does not get permission to inspect unrelated data or execute external actions simply because the task is ambitious.
 
+Put governing acceptance constraints in the actual delegated question, not only in
+the coordinator's private packet. Distinguish a requested policy from historical
+evidence about it. Before asking for exact patch review, retain the patch bytes with
+the saved support. A later clarification creates a new conditioned task; preserve
+the earlier interpretation and evaluate each against the contract it received.
+
 ## O4. Coordinate files and interfaces
 
 Use separate worktrees/branches when available. A shared workspace requires an explicit file ledger. One agent owns `trusted.py` and other hot shared surfaces for a given cycle. Workers who need shared API changes propose them to the contract owner rather than racing replacements.

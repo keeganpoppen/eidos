@@ -1,6 +1,6 @@
 # Continuing development frontier
 
-**Provisional strategic understanding · 2026-10-14 · inspected base `3d4f396`.**
+**Provisional strategic understanding · 2026-10-14 · inspected base `035104d`.**
 The [current handoff](CURRENT_HANDOFF.md) owns verified status and runnable steps;
 this document owns revisable conjectures and opportunity ordering. It does not
 replace the [destination](../vision/DESTINATION.md) or [V1](../roadmap/V1.md).
@@ -208,24 +208,30 @@ execution or full environment closure. No new execution entity was needed.
 now brings the displayed finding and its exact cited input into a reviewed ordinary
 arrangement; irrelevant fixture/native guidance is demoted while recovery remains.
 
-**Next discriminator (C3/C5, V1-01/04/11): recover a useful repair without an answer packet.**
-The bespoke reproduction bundle provided traversal convenience; the existing
-projected prompt already contains every complete reproduction file. Test a different
-public-code incident through existing discovery and context reads before adding
-export, recipe activation or another semantic lens. A fresh participant should find
-the controlling historical identity contract among conflicting reports, freeze its
-support and propose the minimal repair. Root independently checks the proposal in
-an isolated historical checkout. Withhold the known correction and coordinator-
-selected source coordinates; record assistance and omissions. Retrieval failure,
-context assembly failure, byte-transfer friction and reasoning error warrant
-different responses. This remains a retrospective developer-participant experiment;
-human usefulness and real native model quality require different observations.
+**Observed discriminator (C3/C4/C5): useful repair, ambiguous governing contract.**
+The [blind recovery episode](../evidence/RECOVERY_REPAIR_EXPERIMENT.md) found the
+controlling source change through ordinary discovery and saved enough support for
+an independent reader. Its test-only repair was defensible under the delegated
+question; root had omitted its unchanged-four-identities requirement from that
+question. The revised test passes while the original fails. A second, explicitly
+constrained question yields a source-only repair that passes the original test.
+Both interpretations and verification survive comparison/restart. This is evidence
+for making constraints and exact patches part of saved work, not a retrieval defect,
+controlled model advantage or a new export/execution ontology.
+
+**Next discriminator (C4/V1-11): conduct current engineering from saved work.**
+Save the actual governing question, constraints and support before assigning a real
+current-main task. Give the reviewer that contract and the exact proposed patch;
+record later case guidance as a revision. A source-level scout identifies a useful
+candidate: the primary context editor can strand or replace an unresolved save
+when polling observes its committed revision. First reproduce it in the actual
+browser. If confirmed, repair the existing request lifecycle and evaluate the
+result against the saved contract. Do not manufacture a feature from the experiment.
 
 The active read index is a replaceable performance adapter, not a second provenance
 authority. Native process/synthetic transport research is independent of production
 admission. Direct result-use discovery is established for exact saved membership;
-the next reflective episode tests whether a participant can discover support and
-choose a useful next action, beyond replaying an already prepared recipe.
+the next reflective episode uses saved evidence to govern a consequential change.
 
 Historical paging contract: `GET /api/threads/:id` returns at most 40 complete turns.
 `anchorSeq` follows a stable record; `aroundSeq` resolves exact membership in that

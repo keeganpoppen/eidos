@@ -3,8 +3,9 @@
 **2026-10-14 · inspected base `3d4f396afbb4603adb0aadcc301224796dd5e397`.**
 This public-code developer experiment follows the
 [supplied-text integration](SUPPLIED_TEXT_INTEGRATION.md). No account, private
-history, native Codex/app-server or model/inference call participated. The fresh
-participant resolved explicitly named public Git objects over HTTPS.
+history, native Codex/app-server or project-initiated inference operation participated.
+The fresh participant used host collaboration and resolved explicitly named public
+Git objects over HTTPS. The local check itself made no native/model call.
 
 ## Question and result
 

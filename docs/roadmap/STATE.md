@@ -6,6 +6,27 @@ The baseline GitHub Actions run `38240774514` completed successfully: pytest and
 
 Refresh this file when implementation claims materially change. Keep historical audit IDs instead of quietly relabelling old evidence as current.
 
+## Blind repair recovery and explicit task contracts — 2026-10-14
+
+Workbench base `035104d`; [experiment](../evidence/RECOVERY_REPAIR_EXPERIMENT.md).
+A fresh participant found the historical identity change and saved a defensible
+test-update proposal. Root's intended unchanged-identity requirement was absent
+from the actual delegated question. Independent review agreed the first direction
+was grounded; its revised two cases pass while an exact original copy fails.
+A new question explicitly requiring unchanged identities produces a source-only
+patch whose original two cases pass. Both proposals, their exact patches and later
+verification remain distinct; actual comparison/restart preserves all three owners.
+Desktop/390px inspected; all owned services stopped.
+
+Accepted current changes are the reproducible public corpus producer, three source
+comments preserving the existing legacy string and an orchestration clarification.
+Producer checks include exact admission/reopen, invalid UTF-8 refusal and **56
+existing supplied-text tests**. Parent seed/legacy checks **7 passed**; no new full
+suite is claimed here. No runtime/schema/native gate changed. This establishes
+retrospective developer continuity, not human benefit, model superiority or a need
+for another export/recipe/executor. The next task should be conducted from its
+actual saved governing question and exact patch evidence.
+
 ## Exact supplied-result comparison and repeatable review — 2026-10-14
 
 Integration base `3d4f396`; [comparison evidence](../evidence/SUPPLIED_RESULT_COMPARISON_INTEGRATION.md),

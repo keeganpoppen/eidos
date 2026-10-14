@@ -83,6 +83,9 @@ class InvestigationContexts:
 
     def pin(self, investigation_id: str, attempt: dict[str, Any], context: dict[str, Any]) -> None:
         self.attach(context)  # also supports an unattempted legacy frozen packet
+        # This v1 description participates in the legacy request-manifest identity.
+        # Preserve its bytes; it is not an observation of managed startup.
+        # Managed preparation records runtime evidence in its separate receipt.
         policy = self._slot("investigation.native-policy.v1", {
             "threadConfig": THREAD_CONFIG, "approvalPolicy": "never",
             "sandboxPolicy": TURN_SANDBOX, "environments": [],

@@ -1,75 +1,68 @@
-# Current handoff — exact supplied-result comparison accepted
+# Current handoff — explicit repair contracts retained
 
-**2026-10-14 · integration base `3d4f396afbb4603adb0aadcc301224796dd5e397`.**
-Prior supplied-text commit is pushed; CI38520089063 passed. Current coherent
-comparison/reproduction integration is verified and awaiting final commit/push.
-Continuing mission remains active. No real account/auth/private history, native
-app-server, model or upstream inference operation is authorized.
+**2026-10-14 · integration base `035104de1e109f72fb160bc9bf2b5e5d80c1f8f0`.**
+Prior supplied-result comparison/reproduction integration is pushed;
+[CI38552299275](https://github.com/keeganpoppen/eidos/actions/runs/38552299275) passed.
+The continuing mission remains active. Host collaboration and public/local fixtures
+are authorized; real account/auth/private traces, native app-server and project
+upstream inference remain outside this work.
 
-## Completed and verified
+## Completed episode and accepted changes
 
-[Comparison evidence](../evidence/SUPPLIED_RESULT_COMPARISON_INTEGRATION.md),
-[contract](SUPPLIED_RESULT_COMPARISON_TASK.md),
-[precise reproduction](../evidence/IMPORT_REPRODUCTION_EXPERIMENT.md).
-Root integrated UI lane781f4cf plus display-only5ce68c8 without separate commits.
-Exact displayed result + cited frozen input now stages ordinary reviewed comparison;
-original content/pins must agree, while mutable current adoption may differ. Apply
-revalidates current views. No new serialized intent/backend/schema/native gate.
-Examples are disclosed; authored-only irrelevant native guidance hides while pending
-requests, errors, retry and saved experiments remain recoverable.
+[Experiment](../evidence/RECOVERY_REPAIR_EXPERIMENT.md),
+[contract and chronology](RECOVERY_REPAIR_TASK.md).
+Fresh blind participant discovered the historical request-identity change. Its
+first test-only proposal was defensible: the coordinator had omitted its intended
+unchanged-four-identities requirement from the delegated question. Independent
+review agreed; revised test passes two cases while an exact original copy fails.
+Do not relabel this a retrieval/model failure or rewrite the first finding.
 
-Parent Python1,798 passed/55explicit native skips; UI290tests/1,264assertions,
-check/buildclean. Final label change received check/build and actual read-only UI.
-Nine browser modes pass: historical pair, failed read/retry, close, same owner,
-manual/saved Open/new-request interruptions, recovery/example panels, restart,
-existing recorded experiments and final labels. Late held responses were actually
-released after interruption. Only one composition POST; three canonical owners
-unchanged. Root inspected desktop1600/390px, no global overflow/runtime exceptions.
-Independent review's wrong retry, owner-refresh Apply, close/reopen proof retention
-and event-argument errors were fixed before acceptance. Evidence doc owns hashes.
+One explicit second contract requires original identities/test. The new source-only
+patch, admitted before its finding, passes both original cases in the same recorded
+historical runtime. Root extracted the exact patch from frozen support before
+review/execution. Verification is a separate finding. Actual browser comparisons
+retain both interpretations and proposal/verification after API restart. All three
+canonical owners remain exact with null attempts; desktop/390px inspected.
 
-The saved reproduction uses the exact public3d4f396 runtime, historical2386b29
-method and d2b5fdb adapter. Fresh participant reconstructed entire execution record
-and stdout byte-for-byte from saved ordinary files and named public Git sources.
-Same available runtime, not another machine or authenticated past execution.
-Runner rejects modified source and ignored bytecode caches. Root verified the benign
-unchecked-cache counterexample and independently compared outputs. Independent
-report itself was admitted into a separate finding; old findings remain exact.
+Current main already had the corrected legacy string. Accepted changes are its
+three explanatory comments, the public corpus producer from `dc457438`, and a short
+orchestration rule: governing constraints and exact patch bytes belong in the
+actual delegated/reviewed support. No new runtime/schema/export/native gate.
+Producer exact admission/reopen and invalid UTF-8 refusal pass, with 56 existing
+supplied-text tests. Parent seed/legacy checks: 7 passed. Full product suites and CI
+remain evidence for035104d; this slice did not repeat them.
 
 ## Artifacts and cleanup
 
-Root reproduction `/tmp/nema-import-reproduction-20261014`; independent repetition
-`/tmp/nema-independent-reproduction-20261014-hl280msa`. Final runner committed as
-`scripts/import_reproduction.py`; artifact identities are in reproduction evidence.
-Comparison fixture `/tmp/nema-supplied-result-comparison-20261014`, browser prefix
-`/tmp/nema-supplied-result-comparison-browser-20261014`. Existing synthetic-native
-fixture `/tmp/nema-supplied-comparison-legacy-20261014.db` used no native process.
-All API/Vite/Chromium groups and owned helpers stopped;8767/5173/9233closed,
-temporary Vite config removed: `/tmp/nema-import-review-cleanup.json`.
-No owned service remains. Older unrelated worktrees are preserved.
+Root `/tmp/nema-recovery-repair-20261014`; participant
+`/tmp/nema-blind-recovery-participant-Z0i46V` and `stage2/`; independent review
+`/tmp/nema-selected-context-review-sZjJg1lS`. Historical checks live in
+`/tmp/nema-recovery-repair-baseline-20261014` and
+`/tmp/nema-recovery-repair-test-proposal-20261014`; both retain their reviewed patches.
+Evidence document owns exact identities, request counts, report hashes and limits.
+All prior API/Vite/Chromium groups/helpers stopped;8767/5173/9233closed; temporary
+Vite config removed. Cleanup `/tmp/nema-recovery-repair-cleanup.json`.
+Older unrelated worktrees are preserved.
 
-## Next discriminator and ownership
+## Next current-main task
 
-Read-only strategic scout post_reproduction_frontier found no demonstrated export
-gap: existing reproduction projectedPrompt already contains all five raw files;
-exact-source/provenance reads reach upstream owners. The bespoke bundle added
-convenient traversal closure. Do not infer a new executor/export/recipe requirement.
+Read-only scouts independently identified primary context-save recovery as a real
+candidate in `ui/src/lib/InvestigationPane.svelte`: lost revision reply commits C1;
+poll sees C1 and disables Save, while pending request blocks evidence Add. Editing
+can replace that unresolved identity; New investigation clears it. An extracted
+function probe confirms the state transition, not actual browser behavior.
+Backend exact replay already precedes stale-parent checks, but returns the latest
+owner rather than a dedicated historical-context receipt.
 
-Choose one blind public-code recovery-to-repair episode using existing discovery,
-context and findings (C3/C5, V1-01/04/11). Proposed incident: brokenfa7eabf requested-
-policy identity versus independently withheld correction2a62d68. Fresh participant
-gets natural task + local product access, no answer/owner IDs/custom bundle. Root
-runs the existing pure historical identity test before/after the proposed patch in
-an isolated checkout, admits observed output and reopens support. Distinguish
-retrieval, context assembly, byte-transfer and reasoning failures; do not silently
-rescue the participant. This is developer evaluation, not human benefit.
+The independent `context_save_baseline` lane owns only a new `/tmp` fixture and
+tracked local API/Vite/Chromium services (suggested ports8768/5174/9234). It is
+observing the actual counterexample; no product writer has started. Obtain its
+report and inspect screenshots/request bodies. If confirmed, save the actual
+question, constraints and selected support into Nema before dispatching a writer.
+Reviewer must receive that saved contract and exact patch. Root owns integration,
+checks and final commit; native gates remain closed.
 
-post_reproduction_frontier is preparing a read-only neutral corpus manifest with
-exact public revisions/paths and test prerequisites; it owns no files. Root owns
-fixture/admission/new task contract and will use a fresh participant with no prior
-conversation context. Other review/UI agents are finished; history_ui capacity
-failures are preserved and its earlier claims were independently checked.
-
-Next runnable action: final diff/seed-context check, explicit staging, coherent
-commit/nonforce-push and public CI check. Then stage the bounded neutral corpus and
-conduct the next discriminator. A completed slice does not complete the mission.
+Next runnable action: finish this episode's seed/diff checks, coherent commit and
+nonforce push; inspect actual context-save baseline. Select the smallest existing
+lifecycle repair only if the observation supports it. A completed slice does not
+complete the mission.
