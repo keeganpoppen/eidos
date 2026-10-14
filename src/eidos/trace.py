@@ -604,10 +604,9 @@ class TraceStore:
         source: str = "codex-app-server",
         direction: Direction = "appserver_to_client",
     ) -> int:
-        count = 0
-        for line in lines:
-            if not line.strip():
-                continue
-            self.append_line(source=source, direction=direction, raw_text=line)
-            count += 1
-        return count
+        # Text iterators cannot prove original file bytes. The explicit-file
+        # importer owns archives/receipts; this preserves source/correlation and
+        # count semantics while making each bounded call atomic.
+        from .history_imports import import_legacy_lines
+
+        return import_legacy_lines(self, lines, source=source, direction=direction)

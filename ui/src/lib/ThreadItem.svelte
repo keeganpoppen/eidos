@@ -90,7 +90,7 @@
         {selected ? "Selected for context" : "Add to context"}
       </button>
     {/if}
-    {#if !item.complete}<b>LIVE</b>{/if}
+    {#if !item.complete}<b title="No completion event is present in these records.">PARTIAL</b>{/if}
   </header>
 
   {#if item.type === 'agentMessage'}
@@ -139,7 +139,7 @@
     {#if semanticFocus}
       <details bind:open={inspectOpen} class="semantic-tool-detail">
         <summary>
-          command · {item.status ?? (item.complete ? 'completed' : 'running')}
+          command · {item.status ?? (item.complete ? 'completed' : 'completion not recorded')}
           {#if item.exitCode !== null && item.exitCode !== undefined}
             · exit {item.exitCode}
           {/if}
@@ -165,7 +165,7 @@
         {/if}
       {/if}
       <footer>
-        <span>{item.status ?? (item.complete ? 'completed' : 'running')}</span>
+        <span>{item.status ?? (item.complete ? 'completed' : 'completion not recorded')}</span>
         {#if item.exitCode !== null && item.exitCode !== undefined}
           <span>exit {item.exitCode}</span>
         {/if}

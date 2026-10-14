@@ -17,6 +17,7 @@ from .investigation_inquiries import terminal_inquiry
 from .investigation_experiments import InvestigationExperiments
 from .investigation_reads import InvestigationReads
 from .evidence_discovery import EvidenceDiscovery
+from .history_imports import HistoryImports, upload_body, bounded_response
 from .compositions import Compositions
 from .history import (
     PAGE_SIZE, SourceRecordNotFound, history_snapshot, history_version,
@@ -229,6 +230,7 @@ class EidosAPI:
         self.investigations = InvestigationStore(store)
         self.investigation_reads = InvestigationReads(self.investigations)
         self.evidence_discovery = EvidenceDiscovery(store)
+        self.history_imports = HistoryImports(store)
         self.investigation_experiments = InvestigationExperiments(self.investigations)
         self.compositions = Compositions(self.investigations)
         self.investigation_continuations = InvestigationContinuations(self.investigations)
@@ -286,6 +288,35 @@ class EidosAPI:
 
     def dispatch(self, handler: Any, method: str, path: str, query: dict[str, list[str]]) -> tuple[int, Any]:
         parts = [unquote(part) for part in path.split("/") if part]
+        if parts[:3] == ["api", "history", "imports"]:
+            try:
+                if method == "POST" and parts in (["api", "history", "imports"], ["api", "history", "imports", "preview"]):
+                    if query:
+                        raise InvestigationError(400, "history upload takes no query parameters")
+                    commit = len(parts) == 3
+                    body = upload_body(handler, commit=commit)
+                    args = {"source": body["source"], "direction": body["direction"],
+                            "file_name": body["fileName"], "format": body["format"]}
+                    if not commit:
+                        return 200, bounded_response({"preview": self.history_imports.preview(body["data"], **args)})
+                    receipt, created = self.history_imports.commit(body["data"], request_id=body["requestId"],
+                        preview_fingerprint=body["previewFingerprint"], **args)
+                    return (201 if created else 200), bounded_response({"receipt": receipt})
+                if method == "GET" and len(parts) == 5 and parts[3] == "requests":
+                    if query:
+                        raise InvestigationError(400, "history receipt takes no query parameters")
+                    return 200, bounded_response({"receipt": self.history_imports.get_request(parts[4])})
+                if method == "GET" and len(parts) == 5 and parts[4] == "records":
+                    if (set(query) - {"limit", "cursor"} or any(not isinstance(v, list) or len(v) != 1 or
+                            not isinstance(v[0], str) for v in query.values())):
+                        raise InvestigationError(400, "invalid history mapping query")
+                    limit = int(query.get("limit", ["100"])[0])
+                    return 200, self.history_imports.records(parts[3], limit=limit, cursor=query.get("cursor", [None])[0])
+                return 404, {"error": "not found"}
+            except InvestigationError as exc:
+                return exc.status, {"error": exc.message}
+            except (ValueError, TypeError, UnicodeError, RecursionError, OverflowError):
+                return 400, {"error": "invalid history import request"}
         if parts[:2] == ["api", "evidence"]:
             try:
                 if method == "GET" and parts == ["api", "evidence", "search"]:

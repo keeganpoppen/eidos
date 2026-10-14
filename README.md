@@ -54,6 +54,25 @@ bash scripts/dev.sh
 
 The existing dev setup serves the UI on loopback port 5173 and the Python API on 8765. Inspect [scripts/dev.sh](scripts/dev.sh) and the current CLI before changing launch behavior. Native Codex use requires the user's authorized local installation and consumes real resources. Keep auth material and personal traces out of this public repository.
 
+Use **Import history** in the workbench to review an explicitly chosen app-server
+JSONL file, then commit its records and exact original bytes together. The supported
+format is UTF-8 JSON objects with one recorded direction for the entire file; other
+Codex export formats are not inferred. Imports use isolated capture identities and
+refuse thread IDs already present in the workbench. After a lost reply, check the
+retained receipt or reselect the exact file to retry the same operation.
+
+The CLI uses the same importer. Repeating the same file, origin label and direction
+recovers its receipt instead of appending duplicates:
+
+```bash
+uv run eidos import-jsonl .eidos/traces.db supplied-history.jsonl --preview --json
+uv run eidos import-jsonl .eidos/traces.db supplied-history.jsonl
+```
+
+File review and import do not start native work. The importer retains unknown fields
+and repeated lines; its [contract](docs/agents/HISTORY_IMPORT_TASK.md) documents
+bounds, exact line mappings and the distinct legacy iterable API behavior.
+
 Managed attempts are explicitly enabled when starting the API:
 
 ```bash

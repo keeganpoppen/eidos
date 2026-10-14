@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 from datetime import datetime
+import json
 from pathlib import Path
 import sys
 import threading
@@ -13,6 +14,8 @@ from .serve import serve
 from .semantic_tree import SemanticTreeBuilder
 from .trace import TraceStore
 from .view import render_thread_html
+from .history_imports import HistoryImports, MAX_FILE_BYTES, operation_identity
+from .investigation import InvestigationError
 
 
 def main(argv: list[str] | None = None) -> None:
@@ -32,10 +35,16 @@ def main(argv: list[str] | None = None) -> None:
     p_render.add_argument("thread_id")
     p_render.add_argument("output")
 
-    p_import = sub.add_parser("import-jsonl", help="append native JSONL evidence")
+    p_import = sub.add_parser("import-jsonl", help="atomically import an explicit JSONL file",
+        description="Import one-direction JSONL with exact original bytes and a durable receipt. "
+        "Source is an origin label; imports use isolated capture sources and refuse existing thread IDs. "
+        "Repeating the same file/source/direction returns its receipt without appending again.")
     p_import.add_argument("db")
     p_import.add_argument("file")
     p_import.add_argument("--source", default="codex-app-server")
+    p_import.add_argument("--request-id", help="explicit operation identity (still subject to thread collision refusal)")
+    p_import.add_argument("--preview", action="store_true", help="review this file without importing records")
+    p_import.add_argument("--json", action="store_true", help="print the bounded preview or receipt envelope as JSON")
     p_import.add_argument(
         "--direction",
         default="appserver_to_client",
@@ -75,9 +84,35 @@ def main(argv: list[str] | None = None) -> None:
     if args.command == "import-jsonl":
         store = TraceStore(args.db)
         try:
-            with open(args.file, encoding="utf-8") as fh:
-                count = store.import_jsonl(fh, source=args.source, direction=args.direction)
-            print(f"imported {count} records")
+            with open(args.file, "rb") as fh:
+                data = fh.read(MAX_FILE_BYTES + 1)
+            imports = HistoryImports(store)
+            options = {"source": args.source, "direction": args.direction, "file_name": Path(args.file).name}
+            if args.preview:
+                preview = imports.preview(data, **options)
+                value = {"preview": preview}
+            else:
+                identity = operation_identity(data, source=args.source, direction=args.direction)
+                request_id = args.request_id or "history_" + identity["operationFingerprint"]
+                try:
+                    reviewed = imports.get_request(request_id)
+                except InvestigationError as exc:
+                    if exc.status != 404:
+                        raise
+                    reviewed = imports.preview(data, **options)
+                receipt, _ = imports.commit(data, request_id=request_id,
+                    preview_fingerprint=reviewed["previewFingerprint"], require_discoverable=False, **options)
+                value = {"receipt": receipt}
+            if args.json:
+                print(json.dumps(value, ensure_ascii=False, separators=(",", ":")))
+            else:
+                reviewed = value["preview"] if args.preview else value["receipt"]
+                print(f"{'reviewed' if args.preview else 'imported'} {reviewed['recordCount']} records")
+                print(f"{reviewed['summary']['discoverableFieldCount']} readable fields (file-local); isolated capture, no history merging")
+                if not args.preview:
+                    print(f"receipt {reviewed['id']} · request {reviewed['requestId']}")
+        except InvestigationError as exc:
+            parser.error(exc.message)
         finally:
             store.close()
         return

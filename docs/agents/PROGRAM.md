@@ -1,6 +1,6 @@
 # Continuing development frontier
 
-**Provisional strategic understanding · 2026-10-13 · inspected base `1698f6a`.**
+**Provisional strategic understanding · 2026-10-13 · inspected base `2386b29`.**
 The [current handoff](CURRENT_HANDOFF.md) owns verified status and runnable steps;
 this document owns revisable conjectures and opportunity ordering. It does not
 replace the [destination](../vision/DESTINATION.md) or [V1](../roadmap/V1.md).
@@ -149,8 +149,8 @@ not mature-world axioms.
 
 Managed attempts are integrated in `fa7eabf`; `2a62d68` preserves exact legacy
 manifest bytes. Historical-input reuse is integrated in `1698f6a`. The
-[handoff](CURRENT_HANDOFF.md) owns the completed source-discovery slice and current
-integration status. See [D31–D33](../roadmap/DECISIONS.md) and linked evidence.
+[handoff](CURRENT_HANDOFF.md) owns the completed source-discovery and explicit-import slices and current
+integration status. See [D31–D34](../roadmap/DECISIONS.md) and linked evidence.
 
 **Established discriminator: recover evidence from unmapped history (C3/V1-01/04).**
 On the same authored 1,200-turn corpus without maps, baseline needed 27 page
@@ -160,27 +160,31 @@ freeze into a canonical saved context and reopen after restart. Unknown, replace
 private/control and hidden text cannot supply search matches. This establishes
 scripted recovery, not returning-person speed or useful answers.
 
-**Next discriminator: reliable entry of explicitly supplied work (C3/C5).**
-The existing CLI importer commits each line separately: a malformed tail leaves a
-prefix, and retry duplicates it. A browser file chooser alone would expose that
-failure more conveniently. Reproduce against current main and test fresh-empty
-startup. Pin one documented offline format with explicit source/direction, bounded
-preflight, atomic publication and an exact-operation receipt. Retain original file
-bytes and line-to-record mapping; preserve repeated events within the file. A lost
-reply/restart retry must recover original membership. Then connect explicit file
-preview/commit to discovery → inspection → question → reopen. No directory scanning,
-private-history access, guessed format conversion or native sync substitutes.
-Human usefulness still needs a deliberately supplied sanitized corpus and observation.
+**Established prerequisite: reliable entry of explicitly supplied work (C3/C5).**
+The prior CLI committed prefixes on malformed files and duplicated them on retry.
+[Explicit byte import](../evidence/HISTORY_IMPORT_INTEGRATION.md) now reviews bounded
+one-direction JSONL, atomically retains original bytes/records/mappings/receipt,
+isolates RPC capture source and refuses silent native-ID merges. Actual empty-browser
+entry, lost import reply, receipt/retry after restart, exact discovery/context save
+and second restart pass. Unknown fields and intentional repeated lines survive.
+The original file is retained without a download route;8MiB and no same-thread merge
+are current limits. Real owner archives and human usefulness remain unobserved.
 
-**Independent next-use candidate (C1/C6): an owner-authored grounded finding.**
-The owner should be able to finish useful evidence-backed work without dispatch.
-Current native results require an attempt; test whether existing rationale/review
-notes suffice to write, reopen and reuse a conclusion plus its support and remaining
-question. If not, distinguish authored findings from native output rather than
-inventing a completed attempt. This may enable consequential self-use with public
-repository evidence while account/model availability remains unobserved. A narrower
-composition candidate is starting a question directly from a saved aperture's exact
-context; reuse the existing staged contract if an actual workflow justifies it.
+**Next discriminator (C1/C6): finish an owner-authored grounded finding.**
+The owner can now bring in and recover evidence, but cannot finish reusable findings
+without an attempt. An authored API scout shows rationale survives restart and input
+reuse while result discovery cannot find its conclusion; native completion/adoption
+refuse without their proper attempt/artifact. Independently exercise this with public
+repository material, then choose an immutable authored finding tied to an exact
+saved context if existing notes do not cover the action. The loop is write conclusion
+and open questions → save/reopen → inspect original support → reuse in later work.
+Preserve authorship; never fabricate native completion or execution evidence. A
+context advancing from C0 to C1 must not repin F0. Lost reply/restart must recover the
+same finding. Reuse current result discovery/inspection/context conventions where
+an explicit kind branch keeps native invariants intact; avoid a parallel generalized
+artifact system. This opens consequential self-use without account/model access.
+A narrower later candidate is starting a question from a saved aperture's exact
+context; current staged input reuse already supplies the necessary creation path.
 
 The active read index is a replaceable performance adapter, not a second provenance
 authority. Native process/synthetic transport research is independent of production

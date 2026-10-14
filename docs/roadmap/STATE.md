@@ -6,6 +6,32 @@ The baseline GitHub Actions run `38240774514` completed successfully: pytest and
 
 Refresh this file when implementation claims materially change. Keep historical audit IDs instead of quietly relabelling old evidence as current.
 
+## Explicit file import with exact recovery — 2026-10-13
+
+Integration base `2386b29`; [contract](../agents/HISTORY_IMPORT_TASK.md),
+[evidence](../evidence/HISTORY_IMPORT_INTEGRATION.md),
+[D34](DECISIONS.md#d34--import-supplied-bytes-as-one-isolated-recoverable-operation).
+An explicit one-direction JSONL file now has bounded review, atomic original-byte/
+record/mapping retention and a durable replay receipt. Browser upload keeps pending
+metadata separate from the investigation editor, supports deliberate receipt check
+and exact-file retry, and never auto-submits on reload. New import capture sources
+cannot borrow native RPC correlation; thread collisions and reserved host publication
+shapes refuse. CLI retries recover receipts; legacy iterable batches are atomic.
+
+Parent **1,663 Python passed /55 explicit native skips**, **192 Bun tests /838
+assertions**, clean check/build. Actual empty-workbench baseline5GETs; flow22requests
+including four stateless previews and one committed import whose reply is lost.
+After API restart, GET recovers its receipt; exact reselect/retry yields the same
+receipt. Recovery59requests/twoPOSTs (replay and canonical question), freezing four
+exact records across two threads. A second restart17GETs/zeroPOSTs recovers the
+same owner and receipt. Original1,491bytes, all8records/mappings and unknown/repeated
+lines remain exact. Independent race/rollback/source-isolation tests pass.
+
+Desktop/390px inspected, no overflow; historical unfinished records say PARTIAL,
+not LIVE. All owned services stopped. Limits:8MiBfile/512KiBline/20kphysical lines,
+128KiBresponses; same-thread incremental merging and original-file download absent.
+No total database/CPU/RSS quota, authenticity, human-speed or real-account claim.
+
 ## Discover source evidence before knowing its coordinates — 2026-10-13
 
 Integration base `1698f6a`; [contract](../agents/EVIDENCE_DISCOVERY_TASK.md),

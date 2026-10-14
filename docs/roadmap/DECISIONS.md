@@ -324,6 +324,33 @@ inspection is not a new source-hash precondition or live capability. This closes
 27-page recovery case without claiming human-speed or model-quality improvement.
 See the [contract](../agents/EVIDENCE_DISCOVERY_TASK.md).
 
+### D34 — Import supplied bytes as one isolated, recoverable operation
+
+**Accepted implementation direction, 2026-10-13**, base `2386b29`. A malformed
+JSONL tail currently leaves a committed prefix; retry duplicates displayed deltas.
+Explicit file ingestion must atomically retain the original bytes, parsed records,
+physical line mappings and immutable receipt. Request replay resolves the committed
+operation before current parser, discovery or collision checks. The receipt survives
+source deletion and never recreates deleted records. Identical lines within a file
+remain distinct events. This is one local SQLite transaction, not an exactly-once
+external-effects claim or evidence that the supplied file is authentic native output.
+
+A supplied origin label cannot borrow a live recorder's RPC correlation scope.
+Each new import receives a host-derived capture source; native coordinates and raw
+bytes remain intact. New operations refuse existing thread identities, including
+retained annotations and semantic maps, instead of silently replacing their current
+interpretation. Coordinate rewriting was deferred, and a future incremental/merge
+operation needs an explicit review contract. Reserved host publication shapes refuse;
+ordinary unknown fields and strings remain evidence, never execution authority.
+
+Preview is bounded and file-local. Browser admission requires recognizable displayed
+history, while the CLI still permits explicitly labelled raw-only imports. Pending
+browser recovery stores metadata only; receipt checking and exact-file retry are
+deliberate, never automatic. Import cannot replace a dirty/pending investigation.
+The byte CLI now defaults to operation replay; the trusted legacy iterable API keeps
+source/correlation/count semantics and gains bounded atomicity, without claiming
+original-byte retention or durable idempotency. See the [contract](../agents/HISTORY_IMPORT_TASK.md).
+
 ## Deferred explorations, kept for their potential
 
 ### D22 — Names, routing, locality, and leases

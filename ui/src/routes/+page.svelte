@@ -6,6 +6,7 @@
   import Markdown from '#lib/Markdown.svelte';
   import SemanticRail from '#lib/SemanticRail.svelte';
   import ThreadItemCard from '#lib/ThreadItem.svelte';
+  import HistoryImport from '#lib/HistoryImport.svelte';
   import { createHistoryRequests, hasSourceEvidence, historyQuery, readSourceFocus, retainThread, sourceTarget } from '#lib/history.ts';
   import { itemRecords, recordsSelected, type EvidenceEditor } from '#lib/evidence-selection.ts';
   import type {
@@ -40,6 +41,7 @@
   let recordQuery = $state('');
   let historyNotice = $state('');
   let workspaceReady = $state(false);
+  let importOpen = $state(false);
   const historyRequests = createHistoryRequests();
   function navigateHistory() { sourceNavigation++; return historyRequests.navigate(); }
   let historyView = '';
@@ -96,11 +98,11 @@
     return payload as T;
   }
 
-  async function loadThreads() {
+  async function loadThreads({ selectFirst = false }: { selectFirst?: boolean } = {}) {
     try {
       const result = await api<{ threads: ThreadSummary[] }>('/api/threads');
       threads = result.threads;
-      if (!selectedThread && threads.length) {
+      if (selectFirst && !selectedThread && threads.length) {
         selectedThread = threads[0].thread_id;
         await loadThread();
       }
@@ -416,6 +418,14 @@
     return JSON.stringify(input, null, 2);
   }
 
+  async function findImportedEvidence() {
+    importOpen = false;
+    workMode = true;
+    comparisonOpen = false;
+    await tick();
+    document.getElementById('evidence-search-query')?.focus();
+  }
+
   onMount(() => {
     void api<InvestigationCapabilities>('/api/investigations/capabilities').then((value) => capabilities = value).catch(() => {});
     try {
@@ -431,7 +441,7 @@
     } catch { /* The trace remains available when browser storage is disabled. */ }
     historyView = `${workMode}:${comparisonOpen}`;
     workspaceReady = true;
-    void loadThreads();
+    void loadThreads({ selectFirst: true });
     if (selectedThread) {
       const isCurrent = navigateHistory();
       void loadThread({ aroundSeq: historyAnchorSeq === null ? focusSpans[0]?.start : undefined }).then((loaded) => {
@@ -483,6 +493,8 @@
       <button class:active={!workMode && !comparisonOpen} aria-pressed={!workMode && !comparisonOpen} onclick={() => { workMode = false; comparisonOpen = false; }}>Evidence map</button>
       <button class:active={comparisonOpen} aria-pressed={comparisonOpen} onclick={() => comparisonOpen = true}>Compare</button>
     </nav>
+
+    <button class="work-secondary" data-open-history-import="rail" onclick={() => importOpen = true}>Import history</button>
 
     <div class="new-thread">
       <input bind:value={cwd} placeholder="cwd (optional)" aria-label="working directory" />
@@ -624,11 +636,14 @@
     {:else}
       <header class="thread-header">
         <h2>NO THREAD SELECTED</h2>
-        <div class="meta">start one on the left, or import existing Codex history</div>
+        <div class="meta">Choose recorded app-server history, or start a thread when native execution is available.</div>
+        <button class="work-primary" data-open-history-import="empty" onclick={() => importOpen = true}>Import history</button>
       </header>
     {/if}
   </main>
 </div>
+
+<HistoryImport open={importOpen} navigation={`${sourceNavigation}:${workMode}:${comparisonOpen}`} onClose={() => importOpen = false} onFind={findImportedEvidence} />
 
 <div class:hidden-aperture={comparisonOpen} class="composer">
   <div class="composer-inner">

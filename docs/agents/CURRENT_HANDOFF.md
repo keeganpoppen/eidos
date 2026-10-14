@@ -1,82 +1,97 @@
-# Current handoff — discover evidence before knowing its coordinates
+# Current handoff — bring supplied history into recoverable work
 
-**2026-10-13 · integration base `1698f6abb74523a3d04b54e840bd38057f55c2a9`.**
-This snapshot accompanies the completed evidence-discovery integration. Historical
-input reuse at that base is pushed and [CI38491870455](https://github.com/keeganpoppen/eidos/actions/runs/38491870455)
-passed. The continuing autonomous mission remains active; a completed slice is not
-its completion. No real account, private history, model or upstream call authorized.
+**2026-10-13 · integration base `2386b294cfe700622d672ff7e1a35dd9229eba30`.**
+Evidence discovery at that base is pushed; [CI38497695685](https://github.com/keeganpoppen/eidos/actions/runs/38497695685)
+passed. This snapshot accompanies completed explicit-file import integration.
+The autonomous mission remains active; completing this slice does not complete it.
+No real account, private history, model or upstream call is authorized.
 
-## Completed C3/C5 slice — V1-01/04/08
+## Completed C3/C5 slice — V1-01/02/04/07/12
 
-[Contract](EVIDENCE_DISCOVERY_TASK.md), [acceptance](../evidence/EVIDENCE_DISCOVERY_INTEGRATION.md),
-[D33](../roadmap/DECISIONS.md#d33--discover-recorded-text-through-exact-source-contributors).
-Remembered text now finds eligible history before semantic maps or known record
-coordinates. Shared projection precedence excludes replaced text; exact inspection
-shows contributing raw records. Provider/control rows are filtered before projection,
-even when reusing public item IDs. Excerpts and full response envelopes are bounded;
-stale cursors/hits refuse. Disposable SQL index tracks cross-connection mutations.
-Cold rebuild, dirty-thread projection and literal scans remain corpus-scaled.
+[Contract](HISTORY_IMPORT_TASK.md), [acceptance](../evidence/HISTORY_IMPORT_INTEGRATION.md),
+[D34](../roadmap/DECISIONS.md#d34--import-supplied-bytes-as-one-isolated-recoverable-operation).
+Root reproduced malformed-tail partial commit and retry duplication, plus the actual
+empty-browser import affordance gap. The shared byte importer now supports bounded
+stateless review, atomic original BLOB/records/line mappings/receipt, and exact
+request replay before current parser/collision policy. Same-file CLI retries do not
+append again. Legacy iterable API retains source/correlation semantics but gains
+atomic batch/savepoint rollback; it claims neither original-file bytes nor receipts.
 
-Explicit Add stages exact disjoint membership, correcting the prior [1,3]→1–3
-selection error. Current busy/pending-save gates cover discovery and legacy item
-Add. Read-only search/inspection preserves dirty and pending drafts; late responses
-cannot revive after query, navigation or aperture changes. Canonical Save remains
-the source freeze boundary: inspected hashes are not a new Save precondition.
+New byte imports use a host-derived capture source; supplied source is an origin
+label. Native thread collisions (raw/annotations/maps) and reserved host publication
+shapes refuse. Original coordinates/unknown fields/repeated lines remain evidence;
+copied descriptions cannot create native ownership. API requires at least one known
+searchable field; CLI can retain explicitly reported raw-only imports. V1 accepts
+one-direction UTF8JSON objects,8MiBfile/512KiBline/20kphysical lines;128KiBresponse
+ceilings include metadata. No same-thread merging, raw download, or total resource
+quota. File-local preview does not attest authentic native origin or useful answers.
 
-Integrated lanes: backend `a65be27` + `398bdd7`, UI `720355e`, independent acceptance
-`06867e4` + `65b98d1`. Root owns public authored fixture/browser scripts, count
-pluralization, docs and final integration. Prior [historical input reuse](../evidence/CONTEXT_INPUT_REUSE_INTEGRATION.md)
-and [managed attempt](../evidence/MANAGED_ATTEMPT_INTEGRATION.md) evidence remains linked.
-Preserve the legacy policy literal identified in `2a62d68`; it hashes into manifests.
+One import dialog is accessible from rail/empty state. A separate metadata-only
+browser slot persists exact operation identity before POST. Reload never submits;
+GET receipt or exact-file reselect/retry is deliberate. Wrong files/stale previews/
+foreign slots refuse. Dirty/pending investigation editor stays byte-identical.
+Read-only receipt does not establish current availability of every original record.
+Import polling preserves existing focus. Partial source records now say PARTIAL;
+missing command completion no longer defaults to running.
+
+Integrated lanes: backend `f597460`, UI `87135bd`, independent tests `e3261b3`.
+Root owns scripts/docs, pluralization and partial-record labels. Source review
+accepted the frozen lanes; a fresh-only fixture serve guard fixes a reviewed helper
+risk. Prior [discovery](../evidence/EVIDENCE_DISCOVERY_INTEGRATION.md),
+[historical reuse](../evidence/CONTEXT_INPUT_REUSE_INTEGRATION.md) and
+[managed attempt](../evidence/MANAGED_ATTEMPT_INTEGRATION.md) evidence remain linked.
+Preserve the exact legacy policy literal from `2a62d68`; it hashes into manifests.
 
 ## Verification and cleanup
 
-Full Python **1,602 passed / 55 explicit native skips in 59.13s**; UI **146 tests /
-689 assertions**, zero Svelte errors/warnings, clean build. Final text-only correction
-also passed check/build and restart browser inspection. Independent review accepted
-source and scripts; Unicode metadata demonstrated and closed a response-size gap.
+Root full Python **1,663 passed /55 explicit native skips in58.57s**,
+`/tmp/nema-history-import-parent-full.log`. UI **192tests /838assertions**, Svelte
+0errors/0warnings, clean build. Final text-only corrections also check/build clean
+and actual restart screenshots show PARTIAL. Seed-context5passes, diff checks clean.
+Independent11cases cover six-connection replay, distinct-operation collision race,
+late-ledger rollback, exact mixed-ending mapping, old request isolation, source
+removal/replay without parser, reserved shapes, private-role and nested rollback.
 
-Same authored 1,200-turn corpus, with maps removed: baseline 27 page advances,
-36 GETs/zero POSTs, 1,201,333 long-thread response bytes. Changed remembered-decision
-phase: 3 GETs/45,393 bytes, no supplied source coordinates. Whole flow: 57 requests,
-one canonical draft POST, exactly four inspected records across two threads and
-no interleaved neighbor. Dirty/pending draft bytes unchanged. Actual API restart,
-pagination and filtering: 38 GETs/zero POSTs; saved context and separate pending
-editor restored exactly. Desktop/390px screenshots inspected, no horizontal overflow.
-First restart harness race is preserved separately; settling initial reads before
-restoration/reload corrected the harness, with no product logic change.
+Actual browser baseline5GETs/zeroPOSTs. Flow22requests/5POSTs (four stateless previews,
+one import whose successful201reply is lost). First API restart: explicit receipt
+GET resolves same import with zeroPOSTs; separate restored pending snapshot rejects
+wrong file then exact retry returns200/same receipt. Recovery59requests/2POSTs
+(replay + canonical question), exactly4inspected records across2threads. Second API
+restart17GETs/zeroPOSTs, same canonical owner/receipt. Desktop1600/390px inspected,
+no document/component overflow. Explicitly restored authored browser snapshots are
+not a claim that disposed browser contexts persisted.
 
-Scripts: `scripts/evidence_discovery_demo.py`, `scripts/evidence_discovery_browser.mjs`.
-Reports/hashes: [acceptance](../evidence/EVIDENCE_DISCOVERY_INTEGRATION.md), raw captures
-`/tmp/nema-evidence-discovery-browser-20261013-*`. Fixture2,605 records, one owner,
-one request mapping, zero attempts. Source raw hash unchanged. All owned API/Vite/
-Chromium roots, descendants and recorded crash handlers stopped; 8767/5173/9233
-closed, temporary Vite config removed. No native call. Scripted retrieval does not
-measure human speed or answer quality.
+Final SQL: one import,8rawrecords/8exactmappings, original1,491-byte BLOB identical,
+one investigation/request; no attempt/artifact/adoption. Report hashes in acceptance.
+Scripts: history_import_demo.py/history_import_browser.mjs; raw reports
+`/tmp/nema-history-import-browser-20261013-*`; fixture directory
+`/tmp/nema-history-import-fixture-20261013`; database
+`/tmp/nema-history-import-20261013.db`. All owned API/Vite/Chromium descendants and
+crashhandlers stopped;8767/5173/9233closed; temporary Vite config removed. Cleanup
+`/tmp/nema-history-import-cleanup.json`. No native/account/model/upstream call.
 
 ## Next discriminator and ownership
 
-Independent scouts converge on reliable explicit-file history ingestion. Existing
-`import-jsonl` already accepts one direction/source for a file; it is an append loop,
-not a missing feature. A malformed tail leaves a committed prefix, and retrying it
-duplicates a delta. Unsupported objects can report success without visible threads.
-Start with a root reproduction and fresh-empty-browser baseline. Freeze a bounded
-preflight → atomic commit → durable exact-operation receipt contract before exposing
-upload. Retain original bytes, unknown fields and line-to-sequence mapping; preserve
-intentional repeated lines. Retry after lost reply/restart must return original
-membership. Do not scan directories, infer mixed traffic directions, call codex-sync
-or claim arbitrary exports are supported. Use only authored/supplied public fixtures.
+Scouts converge on useful work without dispatch: write an owner-authored grounded
+finding, reopen it and reuse it in another question. Existing rationale survives
+restart/input reuse but remains commentary on a draft; its conclusion is absent
+from result discovery. Artifact completion currently requires a native attempt,
+adoption requires an artifact, and no authored-result route exists. A public authored
+API probe produced one source/zero native calls and demonstrated those refusals.
 
-Root next: inspect `src/eidos/trace.py:import_jsonl`, `src/eidos/cli.py` and empty
-`ui/src/routes/+page.svelte`, then establish contract and disjoint fresh worktrees.
-Completed discovery worktrees remain clean under `/tmp/nema-evidence-discovery-`
-`backend`, `ui`, `review`. Backend/UI agents are now assigned read-only ingestion
-contract refinement; no new implementation assigned yet. Older managed worktrees
-may contain historical unintegrated changes and must not be swept into main.
+Root next: independently inspect InvestigationStore.complete/result input resolution,
+result catalog and UI around a saved context; reproduce the owner-finding gap using
+public repository evidence. Prefer an immutable finding tied to an exact saved
+context, with explicit authorship and support. Do not fabricate completed attempts,
+weaken native result requirements, or introduce a general artifact framework before
+the useful loop exists. Test lost reply/restart, advance C0→C1 while F0 stays pinned,
+then exact reuse into a new question. Existing rationale may remain sufficient for
+some notes; establish which action needs a finding.
 
-Independent alternative worth testing after entry integrity: complete and reopen
-an owner-authored evidence-backed finding without fabricating a native attempt.
-Existing rationale/review notes may or may not cover that need; establish an actual
-workflow gap before adding another artifact type. Aperture-to-new-question input
-reuse is another narrow composition candidate. Real owner usability and authorized
-subscription-backed useful work remain unobserved.
+history_ui is assigned a read-only backend schema/reuse design in the completed
+`/tmp/nema-history-import-backend` worktree; no new implementation yet. native_frontier
+completed a read-only API/UI scout with the gap above. gateway_review completed
+import acceptance. All three import worktrees are clean (backend/UI/review), at
+branches codex/history-import-*. Root owns main integration/next contract. Older
+managed worktrees may retain historical unintegrated changes; do not sweep them in.
+Real owner usability and authorized subscription-backed useful work remain unobserved.
