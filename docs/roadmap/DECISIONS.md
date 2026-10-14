@@ -248,6 +248,33 @@ cooperative deadline. Cancellation and native outcome remain distinct: closed
 evidence may support a completed result even after a stop request. See the
 [owned-control evidence](../evidence/OWNED_ATTEMPT_CONTROL_INTEGRATION.md).
 
+### D31 — Separate contained startup, fresh readiness and recorded closure
+
+**Accepted implementation direction, 2026-10-13**, base `8ed2f0a`. One deliberately
+enabled managed attempt uses the existing private worker and frozen context. A
+fresh disposable runtime, device login and ordered account/config observations
+precede one private pre-turn receipt. Closing issuer paths precedes provider
+readiness. A reusable profile is a factory, never a cached admission or credential.
+Exact historical identity and readiness hashes support evidence interpretation;
+they cannot reconstruct the live runtime. The ordinary native profile stays closed.
+
+The challenge is transient current-attempt control, with explicit navigation to
+sign-in and the local preparation deadline. It never enters public history or
+browser storage. Each attempt requires fresh sign-in; this isolation choice has
+an unmeasured usability cost. Product bounds are explicit in the
+[accepted contract](../agents/MANAGED_ATTEMPT_TASK.md), independent of older probe
+limits. Neither the flag nor these docs establish real account/model availability.
+
+Independent review found completed evidence could publish after failed cleanup
+when its negative close marker could not be stored. Managed recovery now requires
+one successful exact closure record after all native protocol rows. Missing
+closure retains private terminal evidence but leaves outcome uncertain; invalid
+closure refuses recovery. This deliberately narrows crash recovery after native
+completion and before closure commit. Legacy completed-prefix recovery remains
+unchanged. Copying any closure record grants no live capability. Cancellation
+also signals pending startup before waiting for registration locks, so a held
+startup guard cannot launch a child after observing Stop.
+
 ## Deferred explorations, kept for their potential
 
 ### D22 — Names, routing, locality, and leases

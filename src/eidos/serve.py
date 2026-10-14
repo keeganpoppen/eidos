@@ -49,11 +49,12 @@ def serve(
     host: str = "127.0.0.1",
     port: int = 8765,
     codex: str = "codex",
+    managed_native: bool = False,
 ) -> None:
     if host not in {"127.0.0.1", "localhost"}:
         raise ValueError("the unauthenticated workbench must bind to loopback")
     store = TraceStore(db)
-    api = EidosAPI(store, codex=codex)
+    api = EidosAPI(store, codex=codex, **({"managed_native": True} if managed_native else {}))
 
     class Handler(BaseHTTPRequestHandler):
         def _send_json(self, status: int, payload: object) -> None:
@@ -149,8 +150,10 @@ def main() -> None:
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8765)
     parser.add_argument("--codex", default="codex")
+    parser.add_argument("--managed-native", action="store_true",
+                        help="enable bounded attempts with fresh ChatGPT sign-in and account model usage")
     args = parser.parse_args()
-    serve(args.db, host=args.host, port=args.port, codex=args.codex)
+    serve(args.db, host=args.host, port=args.port, codex=args.codex, managed_native=args.managed_native)
 
 
 if __name__ == "__main__":

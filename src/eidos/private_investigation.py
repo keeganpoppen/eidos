@@ -263,15 +263,18 @@ class PrivateInvestigationWorker:
                  execution_evidence: Literal["synthetic", "unverified"] = "unverified",
                  limits: PrivateEvidenceLimits | None = None,
                  preparation: Callable[[NativePreparation], None] | None = None,
-                 preparation_timeout: float = 120) -> None:
+                 preparation_timeout: float = 120,
+                 managed_profile: Any = None) -> None:
         trace.require_workbench()
         self.trace = trace
         self.limits = limits or PrivateEvidenceLimits()
         self._legacy = NativeInvestigationWorker(trace, command, execution_evidence=execution_evidence,
-                                                preparation=preparation, preparation_timeout=preparation_timeout)
+                                                preparation=preparation, preparation_timeout=preparation_timeout,
+                                                managed_profile=managed_profile)
         self.preparation, self.preparation_timeout = preparation, preparation_timeout
         self.command = self._legacy.command
         self.execution_profile = self._legacy.execution_profile
+        self.managed_profile = managed_profile
         self.execution_evidence = self._legacy.execution_evidence
         self._lock = threading.RLock()
         self._workers: set[NativeInvestigationWorker] = set()
@@ -310,11 +313,17 @@ class PrivateInvestigationWorker:
             if not bound and attempt_id not in self._owned:
                 self._owned[attempt_id] = _OwnedAttempt()
 
-    def inspect_owned(self, attempt_id: str) -> dict[str, bool]:
+    def inspect_owned(self, attempt_id: str) -> dict[str, Any]:
         with self._lock:
             owned = self._owned.get(attempt_id)
             live = owned is not None and not owned.closed
-            return {"owned": live, "canCancel": live and not owned.cancelled}
+            control = {"owned": live, "canCancel": live and not owned.cancelled}
+            if live and not owned.cancelled and owned.worker is not None:
+                read = getattr(owned.worker, "managed_challenge", None)
+                challenge = read(attempt_id) if callable(read) else None
+                if challenge is not None:
+                    control["signIn"] = challenge
+            return control
 
     def cancel(self, attempt_id: str) -> None:
         with self._lock:
@@ -420,9 +429,11 @@ class PrivateInvestigationWorker:
             client = _PrivateClient(*args, **kwargs, limits=store.limits.capture)
             clients.append(client)
             return client
-        worker = NativeInvestigationWorker(store, self.command, execution_evidence=self.execution_evidence,
+        worker = NativeInvestigationWorker(store, None if self.managed_profile is not None else self.command,
+                                           execution_evidence=self.execution_evidence,
                                            client_factory=factory, preparation=self.preparation,
-                                           preparation_timeout=self.preparation_timeout)
+                                           preparation_timeout=self.preparation_timeout,
+                                           managed_profile=self.managed_profile)
         worker.execution_profile = self.execution_profile
         worker._private_clients = clients
         return worker

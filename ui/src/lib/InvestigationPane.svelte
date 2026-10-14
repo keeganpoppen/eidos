@@ -14,8 +14,9 @@
   import { sameSelections } from './semantic';
   import type { ArtifactInputSelection, FrozenArtifactInput, EvidenceSelection, Investigation, InvestigationArtifact, InvestigationContext, InvestigationCapabilities } from './types';
 
-  let { selections = $bindable([]), onSource, onCompare, onSavedWork }: {
+  let { selections = $bindable([]), active = true, onSource, onCompare, onSavedWork }: {
     selections: EvidenceSelection[];
+    active?: boolean;
     onSource: (selection: EvidenceSelection) => void;
     onCompare: (investigationId: string, intent?: 'comparison' | 'evidence-chain' | 'alternative-review', experimentId?: string) => void;
     onSavedWork: () => void;
@@ -209,14 +210,14 @@
   async function refresh() {
     const id = selectedId;
     const request = navigation;
-    if (!id || !current || busy || !ready) return;
+    if (!active || !id || !current || busy || !ready) return;
     try {
       const result = await savedWork.view(id);
       if (!disposed && request === navigation && selectedId === id && !busy) current = result;
     } catch (cause) {
       if (!disposed && request === navigation && selectedId === id) error = cause instanceof Error ? cause.message : String(cause);
     } finally {
-      if (!disposed && request === navigation && selectedId === id && !busy && controlClient?.state.target?.attemptId === current?.attempt?.id) void controlClient?.inspect();
+      if (active && !disposed && request === navigation && selectedId === id && !busy && controlClient?.state.target?.attemptId === current?.attempt?.id) void controlClient?.inspect();
     }
   }
 
@@ -281,10 +282,14 @@
   });
 
   $effect(() => {
-    const target = ownedTarget;
+    const target = active ? ownedTarget : '';
+    const phase = current?.attempt?.lifecycle?.phase;
+    const status = current?.attempt?.status;
     if (!ready || !controlClient) return;
     const [investigationId, attemptId] = target ? JSON.parse(target) : [];
     controlClient.select(target ? { investigationId, attemptId } : null);
+    if (target && (phase === 'checking' || phase === 'running' || phase === 'closed'
+        || status === 'completed' || status === 'failed' || status === 'unknown')) controlClient.retireSignIn();
     void controlClient.inspect();
   });
 
@@ -460,6 +465,17 @@
             <p class="object-ref">Pinned input {current.attempt.contextId}</p>
           {/if}
           {#if attemptControl.target?.investigationId === current.id && attemptControl.target.attemptId === current.attempt.id}
+            {#if active && attemptControl.control?.signIn && !attemptControl.pending}
+              {@const challenge = attemptControl.control.signIn}
+              <section class="attempt-sign-in" data-attempt-sign-in={current.attempt.id} aria-label="Sign in for this attempt">
+                <h4>Sign in for this attempt</h4>
+                <p>Open ChatGPT sign-in and enter this code:</p>
+                <p class="sign-in-code"><code>{challenge.userCode}</code></p>
+                <a href={challenge.verificationUrl} target="_blank" rel="noopener noreferrer">Sign in with ChatGPT <span>(opens a new tab)</span></a>
+                <p class="sign-in-deadline">Complete sign-in before <time datetime={new Date(challenge.expiresAtMs).toISOString()}>{new Date(challenge.expiresAtMs).toLocaleString()}</time>. This is this attempt’s time limit.</p>
+                <p class="work-muted">You can stop this attempt while sign-in is pending.</p>
+              </section>
+            {/if}
             {#if attemptControl.control && !attemptControl.control.owned}<p class="work-muted">Live control is unavailable in this app. Showing the last recorded progress.</p>{/if}
             {#if attemptControl.pending}
               <p class="work-notice" role="status">{attemptControl.sending ? 'Requesting a local stop for this attempt…' : 'The stop reply was not confirmed. Retry targets this same attempt.'}</p>
@@ -532,6 +548,14 @@
 </aside>
 
 <style>
+  .attempt-sign-in { margin:16px 0; padding:14px 0; border-block:1px solid var(--line); overflow-wrap:anywhere; }
+  .attempt-sign-in h4 { margin:0 0 8px; font-size:17px; }
+  .attempt-sign-in p { margin:8px 0; }
+  .sign-in-code { font-size:22px; line-height:1.5; }
+  .sign-in-code code { white-space:pre-wrap; }
+  .attempt-sign-in a { color:var(--accent); line-height:1.6; }
+  .attempt-sign-in a:focus-visible { outline:2px solid var(--accent); outline-offset:3px; }
+  .attempt-sign-in a span,.sign-in-deadline { font-size:13px; }
   .investigation-result > .source-link { margin-inline-end:8px; }
   .artifact-picker { margin:18px 0; padding:14px 0; border-block:1px solid var(--line); }
   .frozen-artifact-input { margin:18px 0; border-left:2px solid var(--accent); padding:6px 12px; background:var(--selection); }

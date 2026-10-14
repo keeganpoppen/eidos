@@ -1,6 +1,6 @@
 # Continuing development frontier
 
-**Provisional strategic understanding · 2026-10-13 · inspected base `63cd47f`.**
+**Provisional strategic understanding · 2026-10-13 · inspected base `8ed2f0a`.**
 The [current handoff](CURRENT_HANDOFF.md) owns verified status and runnable steps;
 this document owns revisable conjectures and opportunity ordering. It does not
 replace the [destination](../vision/DESTINATION.md) or [V1](../roadmap/V1.md).
@@ -21,9 +21,9 @@ These are hypotheses, not established invariants or additional release gates.
 | C1 | Grounded artifacts compose into larger work without flattening provenance. Exact frozen result inputs now support a synthetic A→B→C chain, original-support recovery and separate adoption snapshots. | Test longer and conflicting chains in useful native work. A cited input proves supply, not its claims. The synthetic chain does not establish answer quality or practical reorientation speed. Copied results carry no continuation authority. |
 | C2 | A small continuation vocabulary supports useful delegation despite opaque native stacks. Named ProcessRuntime protocols exist; the investigation program is fixed Discover→AwaitDiscovery and A2 is a newly admitted attempt. | A local regression now opens two inquiries, receives B before A, reopens the database, refuses A and incorporates both exact receipts under one process identity. Await order remains explicit. Product admission is deliberately singular; expand it only for a demonstrated same-task need, not because the vocabulary can express it. |
 | C3 | Explicit source relationships and attention limits outperform larger undirected context. Weighted hindsight trees and synthetic one-hop selection exist. | Held-out sanitized histories with irrelevant links, conflicting updates and dispersed support must improve controlling-decision recovery without increasing unsupported conclusions. Existing fixture scores are not this evidence. |
-| C4 | Reviewed interpretation changes improve future work while historical pins remain stable. Immutable manifests and experiment reviews exist; adoption currently activates nothing. | Activate a bounded context recipe for future drafts, inspect its actual next preview/request pin, then roll back. Historical pins must remain identical and the earlier future behavior must return without editing global instructions. |
+| C4 | Reviewed interpretation changes improve future work while historical pins remain stable. Immutable manifests and experiment reviews exist; adoption currently activates nothing. | First test explicit reuse of one historical context’s input references in a distinct new draft. Omit its old prompt/inquiry instructions and execution authority. Only repeated owner friction would justify a reversible starter for future drafts; historical pins must remain unchanged. |
 | C5 | Several durable lenses over shared references reduce reorientation work. Frozen bindings exist, and stable server pages now preserve exact evidence under append/reload; named compiled arrangements now persist as immutable same-database snapshots. | The 1,200-turn recovery and 1,000-owner transfer cases now pass. Recorded experiments now retain exact context-only alternatives in saved views. Saved-question preview now exposes exact question, rationale, baseline and raw support before replacing the working arrangement. Next evaluate this with a returning person. Scripted success still does not measure human reorientation. |
-| C6 | Knowledge and action remain separate while useful work still happens. Owner routes and admission checks exist; native startup remains closed. | Copied history and prompt-like source instructions must remain inspectable without granting execution, while one admitted subscription-backed specialist completes useful work. A permanently closed gate cannot establish this conjecture. |
+| C6 | Knowledge and action remain separate while useful work still happens. Owner routes and admission checks exist; default-off managed attempts connect fresh sign-in and private evidence. | Copied history and prompt-like source instructions must remain inspectable without granting execution, while one admitted subscription-backed specialist completes useful work. A permanently closed gate cannot establish this conjecture. |
 
 ## Opportunity ordering and reversible decisions
 
@@ -62,15 +62,22 @@ These are hypotheses, not established invariants or additional release gates.
    synthetic publication and exact reopen without a parallel turn loop or reader.
    The first refusal exposed default goal tools; explicit worker-mode startup
    disablement passed with the same empty-tool guard and unchanged bounds.
-   Next build one opt-in user-operated managed attempt: separate contained startup
-   from fresh attempt-scoped turn admission, expose an ephemeral sign-in challenge
-   only to the current owner and keep historical receipts non-executable. A shared
-   profile must never carry admission from cancelled attempt A into B. Real account
+   The [opt-in managed attempt](MANAGED_ATTEMPT_TASK.md) now separates contained
+   startup from fresh attempt-scoped turn admission, exposes an ephemeral challenge
+   only through current control and keeps historical receipts non-executable.
+   Authored browser/private-worker evidence proves A cannot lend readiness to B.
+   Review found cleanup-marker loss could admit a result: exact recorded managed
+   closure is now required, deliberately narrowing recovery after a host crash.
+   A composed startup lock cycle also required nonwaiting failure unwind followed
+   by strict final closure. The [exact product preparation](../evidence/NATIVE_PRODUCT_MANAGED_EXPERIMENT.md)
+   now passes local native fixtures after a preserved canonical-URL refusal and
+   source-supported validator correction. Production runtime connectivity and
+   explicitly user-operated service work remain unobserved. Real account
    and model availability require a deliberate user-operated run after the concrete
    implementation; further broad token matrices cannot answer those questions.
    Fresh Ephemeral login per attempt is a
    provisional isolation choice with unmeasured usability cost. Production
-   admission stays closed; no real account/model calls are part of this contract.
+   admission stays closed by default; no real account/model calls are part of this contract.
 
    The [derived catalog policy](../evidence/NATIVE_DERIVED_CATALOG_EXPERIMENT.md)
    remains an established prerequisite: Astra Lite declares empty tools and rejects
@@ -104,6 +111,18 @@ These are hypotheses, not established invariants or additional release gates.
    questions. The next experience discriminator is a returning owner using an
    explicitly supplied sanitized history to recover support and build a context;
    synthetic UI cases alone cannot establish usefulness or justify C4 activation.
+
+   **C4 scout outcome:** historical context input reuse has a concrete affordance
+   gap: New investigation clears inputs, while New alternative from selection
+   carries current editable inputs rather than the previewed historical packet.
+   A bounded explicit “Start a draft with these inputs” could preserve exact
+   source/artifact references and rationales, omit the old question/prompt/inquiry
+   text, and save through the existing context builder with origin provenance.
+   This is a source-level candidate, not an implemented action or measured human
+   benefit. Do not rename existing experiment adoption into automatic activation;
+   its retention/byte evaluator does not establish instruction quality or future
+   usefulness. Verify actual historical selection behavior before accepting the
+   next slice; defer a global starter/rollback layer until a repeated need exists.
 4. **Established baseline: substantial saved work (C1/C5).** The 1,200-turn history
    and 1,000-owner HTTP/browser cases preserve stable source membership, bounded
    metadata pages, conditional reads, exact artifact detail and dirty draft/retry

@@ -29,7 +29,7 @@ There are two substantial bodies of implementation to connect deliberately:
 
 The [implementation overview](IMPLEMENTATION.md) and existing [runtime checkpoint](docs/PROCESS_RUNTIME.md) describe these in more detail. The [state audit](docs/roadmap/STATE.md) distinguishes local demonstrations from production guarantees. In particular, host registration and holder strings are not a secure remote capability system; generic commit is a privileged interface, not permission for arbitrary clients to mint successors.
 
-The integrated investigation connects two-thread evidence selection, immutable context manifests and request pins, one native attempt, evidence-only recovery, and comparison of exact artifact versions. An owner-started local evidence review can defer, reload, offer or refuse evidence, then retain its receipt beside the original answer. Try the [synthetic workflow and integration evidence](docs/evidence/INTEGRATION_CYCLE_B.md); its fake worker consumes no account resources. A subscription-backed native model run and specialist-originated questions remain unverified.
+The integrated investigation connects two-thread evidence selection, immutable context manifests and request pins, bounded attempts, evidence-only recovery, and comparison of exact artifact versions. Evidence inquiries can defer, reload, offer or refuse evidence while retaining the original context and receipt. Exact result discovery supports inspecting and reusing earlier work. Try the [synthetic workflow](docs/evidence/INTEGRATION_CYCLE_B.md) or the [managed-attempt acceptance](docs/evidence/MANAGED_ATTEMPT_INTEGRATION.md); their authored workers consume no account resources. Real subscription-backed service availability and answer quality remain unverified.
 
 ## Develop
 
@@ -53,6 +53,22 @@ bash scripts/dev.sh
 ```
 
 The existing dev setup serves the UI on loopback port 5173 and the Python API on 8765. Inspect [scripts/dev.sh](scripts/dev.sh) and the current CLI before changing launch behavior. Native Codex use requires the user's authorized local installation and consumes real resources. Keep auth material and personal traces out of this public repository.
+
+Managed attempts are explicitly enabled when starting the API:
+
+```bash
+uv run eidos serve .eidos/traces.db --managed-native
+```
+
+Start an attempt from its reviewed context in the UI. Each attempt requires fresh
+ChatGPT Plus or Pro sign-in, with three minutes for setup/sign-in and two minutes
+for work, and uses that account's model allowance. Stop targets the current owned
+attempt; reopening history restores no login or automatic execution. Initial
+support requires Linux/aarch64, the pinned Codex0.154.0 executable, bubblewrap,
+system Python, a C compiler and public system certificate roots. The
+[acceptance evidence](docs/evidence/MANAGED_ATTEMPT_INTEGRATION.md) distinguishes
+offline verification from unobserved real service behavior. Ordinary startup
+leaves native execution closed.
 
 ## Architecture in one breath
 

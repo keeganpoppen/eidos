@@ -25,6 +25,8 @@ from eidos.investigation_context import THREAD_CONFIG, TURN_SANDBOX
 from eidos.investigation_inquiries import terminal_inquiry
 from eidos.private_investigation import PrivateEvidenceLimits, PrivateInvestigationWorker, validate_publication
 from eidos.trace import TraceStore
+from eidos.native_managed import ManagedExecutionProfile, managed_config, managed_catalog, validate_managed_config
+from eidos.native_managed_contract import MANAGED_VERSION, ManagedLaunchError, ManagedPolicy
 
 _spec = importlib.util.spec_from_file_location("managed_tls_fixture", Path(__file__).with_name("probe_native_tls_connect.py"))
 assert _spec and _spec.loader
@@ -41,6 +43,10 @@ CLIENT_ID = "app_EMoamEEZ73f0CkXaXp7hrann"
 CASES = ("nearExpiry", "closedIssuer401")
 POSITIVE_CASE = "managedText"
 WORKER_CASE = "managedWorkerText"
+PRODUCT_CASE = "managedProductText"
+PRODUCT_ISSUER = "https://auth.openai.com"
+PRODUCT_ISSUER_AUTHORITY = "auth.openai.com:443"
+PRODUCT_PROVIDER_AUTHORITY = "chatgpt.com:443"
 MAX_HTTP = 8
 HOLD_SECONDS = 1.5
 MAX_EVENTS = 100
@@ -97,10 +103,10 @@ def synthetic_jwt(claims: dict[str, Any]) -> str:
     return encode({"alg": "HS256", "typ": "JWT", "kid": "nema-invalid-synthetic-key"}) + "." + encode(claims) + ".INVALID_SYNTHETIC_SIGNATURE"
 
 
-def token_generation(generation: str, plan: str, expires: int) -> dict[str, str]:
+def token_generation(generation: str, plan: str, expires: int, *, issuer: str = ISSUER) -> dict[str, str]:
     if generation not in ("A", "B") or plan not in ("plus", "free") or type(expires) is not int:
         raise ValueError("only authored token generations are permitted")
-    claims = {"iss": ISSUER, "aud": "nema-synthetic.invalid", "email": "fixture@example.invalid",
+    claims = {"iss": issuer, "aud": "nema-synthetic.invalid", "email": "fixture@example.invalid",
               "jti": "nema-synthetic-" + generation, "exp": expires,
               "https://api.openai.com/auth": {"chatgpt_plan_type": plan,
                   "chatgpt_user_id": "nema-fixture-user", "chatgpt_account_id": "nema-fixture-account"}}
@@ -204,11 +210,14 @@ class ManagedClient(AppServerClient):
 
 class Services:
     def __init__(self, variant: str, prompt: str, timeline: Timeline):
-        if variant not in (*CASES, POSITIVE_CASE, WORKER_CASE): raise ValueError("unknown lifecycle case")
+        if variant not in (*CASES, POSITIVE_CASE, WORKER_CASE, PRODUCT_CASE): raise ValueError("unknown lifecycle case")
         self.variant, self.prompt, self.timeline = variant, prompt, timeline
+        self.issuer = PRODUCT_ISSUER if variant == PRODUCT_CASE else ISSUER
+        self.issuer_host = "auth.openai.com" if variant == PRODUCT_CASE else "issuer.fixture.invalid"
+        self.provider_host = "chatgpt.com" if variant == PRODUCT_CASE else "provider.fixture.invalid"
         now = int(time.time())
-        self.tokens = {"A": token_generation("A", "plus", now + (60 if variant == "nearExpiry" else 3600)),
-                       "B": token_generation("B", "free", now + 3600)}
+        self.tokens = {"A": token_generation("A", "plus", now + (60 if variant == "nearExpiry" else 3600), issuer=self.issuer),
+                       "B": token_generation("B", "free", now + 3600, issuer=self.issuer)}
         self.issuer_step = 0
         self.generations = []
         self.provider_enabled = False
@@ -227,7 +236,7 @@ class Services:
         if side == "issuer":
             if method != "POST" or "authorization" in headers:
                 raise ValueError("issuer route or authorization refused")
-            if headers.get("host") != "issuer.fixture.invalid": raise ValueError("issuer Host differs")
+            if headers.get("host") != self.issuer_host: raise ValueError("issuer Host differs")
             expected_type = "application/x-www-form-urlencoded" if target == "/oauth/token" and self.issuer_step == 2 else "application/json"
             if headers.get("content-type", "").split(";")[0] != expected_type: raise ValueError("issuer content type differs")
             if target == "/api/accounts/deviceauth/usercode" and self.issuer_step == 0:
@@ -244,7 +253,7 @@ class Services:
             if self.issuer_step == 2:
                 pairs = parse_qsl(raw, keep_blank_values=True, strict_parsing=True, max_num_fields=5)
                 expected = {"grant_type": "authorization_code", "code": "nema-fixture-code", "client_id": CLIENT_ID,
-                            "redirect_uri": ISSUER + "/deviceauth/callback", "code_verifier": "nema-fixture-verifier"}
+                            "redirect_uri": self.issuer + "/deviceauth/callback", "code_verifier": "nema-fixture-verifier"}
                 if len(pairs) != 5 or dict(pairs) != expected: raise ValueError("authorization grant differs")
                 self.issuer_step = 3
                 generation = "A"
@@ -262,7 +271,7 @@ class Services:
             self.timeline.add("fixtureTokenResponseAuthored", generation=generation)
             return 200, "authored-token-" + generation, self.tokens[generation]
         if not self.provider_enabled: raise ValueError("provider contacted before issuer closure")
-        if headers.get("host") != "provider.fixture.invalid": raise ValueError("provider Host differs")
+        if headers.get("host") != self.provider_host: raise ValueError("provider Host differs")
         if headers.get("authorization") != "Bearer " + self.tokens["A"]["access_token"]:
             raise ValueError("provider bearer is not authored generation A")
         if target == SETTINGS_PATH:
@@ -272,7 +281,7 @@ class Services:
             return 200, "authored-attribution-disabled", {"commit_attribution_enabled": False}
         if target != PROVIDER_PATH: raise ValueError("unknown provider route")
         if method == "GET" and headers.get("upgrade", "").lower() == "websocket" and raw == "":
-            if self.variant in (POSITIVE_CASE, WORKER_CASE) and self.websocket_served:
+            if self.variant in (POSITIVE_CASE, WORKER_CASE, PRODUCT_CASE) and self.websocket_served:
                 raise ValueError("positive fixture permits one WebSocket fallback")
             self.websocket_served = True
             return 426, "authored-websocket-http-fallback", {"synthetic": True}
@@ -282,7 +291,7 @@ class Services:
             raise ValueError("provider envelope differs")
         tools = [item for item in payload["input"] if item.get("type") == "additional_tools"]
         if tools[0]["tools"]: raise ValueError("unexpected tool declaration")
-        if self.variant in (POSITIVE_CASE, WORKER_CASE):
+        if self.variant in (POSITIVE_CASE, WORKER_CASE, PRODUCT_CASE):
             if self.response_served or not self.websocket_served or not self.settings_served:
                 raise ValueError("positive response requires one fallback/settings prefix")
             if any(item.get("type") in ("function_call", "function_call_output") for item in payload["input"]):
@@ -320,7 +329,7 @@ class Services:
         payload = response if isinstance(response, bytes) else json.dumps(response, separators=(",", ":")).encode()
         if len(payload) > 8192: raise ValueError("authored endpoint response limit")
         record.update(status=status, reason=reason, responseRaw=payload.decode())
-        if self.variant in (POSITIVE_CASE, WORKER_CASE): record["responseContentType"] = content_type
+        if self.variant in (POSITIVE_CASE, WORKER_CASE, PRODUCT_CASE): record["responseContentType"] = content_type
         self.events.append(record)
         self.timeline.add("fixtureHttpResponse", side=side, status=status, reason=reason)
         return transport.FixtureBroker._http(status, payload, content_type)
@@ -357,10 +366,32 @@ def prepare_case(root: Path, helper: Path, paths: dict[str, Path], *, owned_work
     (root / "fixture/launcher.py").write_text(transport.LAUNCHER.replace(anchor, environment + anchor))
 
 
-def worker_launcher(root: Path) -> tuple[str, ...]:
+def prepare_product_case(root: Path, helper: Path, paths: dict[str, Path]) -> None:
+    """Offline transport only; production configuration is supplied by the profile."""
+    boundary.prepare(root, helper)
+    (root / "assets").mkdir()
+    (root / "fixture/ca.pem").write_bytes(paths["ca"].read_bytes())
+    (root / "fixture/relay.py").write_text(transport.RELAY)
+    rewrite = "config.write_text(config.read_text().replace('FIXTURE_PORT',port.read_text()))\n"
+    anchor = "os.execv('/fixture/guard'"
+    assert transport.LAUNCHER.count(rewrite) == transport.LAUNCHER.count(anchor) == 1
+    launcher = transport.LAUNCHER.replace(rewrite, "")
+    launcher = launcher.replace(anchor,
+        "os.environ['HTTPS_PROXY']='http://127.0.0.1:'+port.read_text()\n"
+        "os.environ['CODEX_CA_CERTIFICATE']='/fixture/ca.pem'\n" + anchor)
+    (root / "fixture/launcher.py").write_text(launcher)
+    for name in ("ca.pem", "relay.py", "launcher.py"):
+        (root / "fixture" / name).chmod(0o400)
+
+
+def worker_launcher(root: Path, *, product_managed: bool = False) -> tuple[str, ...]:
     """Mirror only the owned cwd spelling inside empty namespace tmpfs."""
     command = boundary.namespace_command(root, Path("/usr/bin/bwrap"),
                                          ["/usr/bin/python3", "/fixture/launcher.py"], broker=True)
+    if product_managed:
+        index = command.index("--clearenv")
+        command[index:index] = ["--ro-bind", str(root / "assets"), "/assets",
+                               "--ro-bind", str(root / "assets/config.toml"), "/state/codex/config.toml"]
     script = root / "worker-launcher.py"
     script.write_text("import os\nfrom pathlib import Path\n"
         "cwd = Path.cwd()\n"
@@ -374,6 +405,114 @@ def worker_launcher(root: Path) -> tuple[str, ...]:
     # Host-side adapter reads only its authored script and stdlib before exec;
     # disable user site/PYTHON* startup hooks before namespace clearenv applies.
     return ("/usr/bin/python3", "-I", "-S", str(script))
+
+
+def product_fixture_policy() -> ManagedPolicy:
+    # Product configuration/preparation, historical offline traffic budgets.
+    return ManagedPolicy(preparation_seconds=8, turn_seconds=120, lifetime_seconds=18,
+        max_connections=8, max_active=2, max_received_bytes=2097152,
+        idle_seconds=4, buffer_bytes=8192, header_bytes=8192, capture=derived.LIMITS)
+
+
+def product_fixture_broker(issuer_tls, provider_tls):
+    """Two fixed local factories. No hostname-to-address lookup or dial path."""
+    return tls.ConnectBroker(destinations={PRODUCT_ISSUER_AUTHORITY: issuer_tls.open_endpoint,
+                                          PRODUCT_PROVIDER_AUTHORITY: provider_tls.open_endpoint})
+
+
+class OfflineManagedRuntime:
+    """Explicit authored transport: no production resolver or live dial exists.
+
+    The supplied broker already maps the two production authority *labels* to
+    preconstructed local TLS/socketpair factories. No URL/config/reply rewriting.
+    Native disposable files remain until the outer fixture snapshots them.
+    """
+
+    def __init__(self, owner, cwd, *, config_toml, catalog_bytes, policy, binary="codex", cancelled=None):
+        if config_toml != managed_config() or catalog_bytes != managed_catalog() or policy != product_fixture_policy():
+            raise ManagedLaunchError("offline product inputs differ")
+        self.owner, self.policy, self.cancelled = owner, policy, cancelled
+        self.created, self.turn_started = time.monotonic(), None
+        self._lock, self._closed = threading.Lock(), threading.Event()
+        self._state, self._callback, self._report = "prepared", None, None
+        root = owner.probe_root
+        for name, value in (("config.toml", config_toml.encode()), ("models.json", catalog_bytes)):
+            target = root / "assets" / name
+            target.write_bytes(value); target.chmod(0o400)
+        self.command, self.env = worker_launcher(root, product_managed=True), {}
+        self._assets = {str(p): hashlib.sha256(p.read_bytes()).hexdigest() for p in
+            [root / "assets/config.toml", root / "assets/models.json", root / "fixture/ca.pem",
+             root / "fixture/guard", root / "fixture/relay.py", root / "fixture/launcher.py", Path(self.command[-1])]}
+        self.evidence = {"version": MANAGED_VERSION, "transport": "authored-local", "classification": "synthetic",
+            "binarySha256": checked_binary(), "configSha256": hashlib.sha256(config_toml.encode()).hexdigest(),
+            "catalogSha256": hashlib.sha256(catalog_bytes).hexdigest(), "limits": policy.as_dict(),
+            "fixtureAssets": dict(self._assets), "fixtureOnly": True,
+            "destinations": [PRODUCT_ISSUER_AUTHORITY, PRODUCT_PROVIDER_AUTHORITY],
+            "dns": False, "liveDial": False, "fixtureCaSha256": self._assets[str(root / "fixture/ca.pem")]}
+        owner.runtime = self
+
+    def _active(self):
+        if self._state == "closed" or (self.cancelled is not None and self.cancelled.is_set()):
+            raise ManagedLaunchError("offline managed runtime closed")
+        if time.monotonic() >= self.created + self.policy.lifetime_seconds:
+            raise ManagedLaunchError("offline managed lifetime expired")
+
+    def remaining_preparation(self):
+        self._active()
+        value = min(self.created + self.policy.preparation_seconds, self.created + self.policy.lifetime_seconds) - time.monotonic()
+        if value <= 0: raise ManagedLaunchError("offline managed preparation expired")
+        return value
+
+    def remaining_turn(self):
+        self._active()
+        if self.turn_started is None: raise ManagedLaunchError("offline managed provider not active")
+        value = min(self.turn_started + self.policy.turn_seconds, self.created + self.policy.lifetime_seconds) - time.monotonic()
+        if value <= 0: raise ManagedLaunchError("offline managed turn expired")
+        return value
+
+    def bind_abort(self, callback):
+        with self._lock:
+            self._active()
+            if self._callback is not None: raise ManagedLaunchError("offline abort already bound")
+            self._callback = callback
+
+    def require_contained_startup(self):
+        with self._lock:
+            self.remaining_preparation()
+            if self._state != "prepared": raise ManagedLaunchError("offline startup already consumed")
+            if checked_binary() != self.evidence["binarySha256"]: raise ManagedLaunchError("native executable changed")
+            if any(hashlib.sha256(Path(p).read_bytes()).hexdigest() != digest for p, digest in self._assets.items()):
+                raise ManagedLaunchError("offline asset changed")
+            self._state = "issuer-only"
+
+    def activate_provider(self):
+        with self._lock:
+            self.remaining_preparation()
+            if self._state != "issuer-only": raise ManagedLaunchError("offline provider cannot reopen")
+            self.owner.timeline.add("orderedConfigSucceeded")
+            self.owner.broker.close_authority(PRODUCT_ISSUER_AUTHORITY)
+            self.owner.timeline.add("issuerClosed", connectCount=self.owner.broker.connections,
+                issuerHttpRequests=sum(e["side"] == "issuer" for e in self.owner.services.events))
+            self.owner.issuer_closed = self.owner.services.provider_enabled = True
+            self.turn_started, self._state = time.monotonic(), "provider-only"
+
+    def close(self, reason="closed", *, wait=True):
+        with self._lock:
+            first = self._state != "closed"
+            self._state = "closed"
+            callback = self._callback
+        if not first:
+            if wait: self._closed.wait(5)
+            return self._report or {"allWorkersJoined": False, "errors": ["close-in-progress"]}
+        errors = []
+        for name, action in (("transports", self.owner.close_transports), ("owned-client", callback)):
+            if action is not None:
+                try: action()
+                except Exception as exc: errors.append(name + ":" + type(exc).__name__)
+        self._report = {"allWorkersJoined": not errors, "errors": errors, "reason": reason,
+                        "stateRetainedForFixtureInspection": True, "classification": "synthetic"}
+        self._closed.set()
+        return dict(self._report)
 
 
 class OwnedManagedWorker(PrivateInvestigationWorker):
@@ -407,6 +546,10 @@ class OwnedManagedWorker(PrivateInvestigationWorker):
                 result = request(method, params, timeout=timeout)
                 if method in {"initialize", "thread/start", "turn/start", "mcpServerStatus/list"}:
                     self.replies[method] = result
+                elif self.services.variant == PRODUCT_CASE:
+                    key = ["initialize", "initialAccount", "initialConfig", "loginStart",
+                           "orderedAccount", "orderedConfig", "thread/start", "mcpServerStatus/list", "turn/start"][len(self.methods)-1]
+                    self.replies[key] = result
                 return result
             def checked_notify(method, params=None):
                 if method != "initialized": raise ValueError("fixture refuses notification")
@@ -491,6 +634,21 @@ class OwnedManagedWorker(PrivateInvestigationWorker):
         self.services.provider_enabled = True
 
 
+class ProductManagedWorker(OwnedManagedWorker):
+    """Same guarded private worker; preparation/admission are production code."""
+
+    def __init__(self, trace, *, root, services, broker, timeline):
+        self.probe_root, self.services, self.broker, self.timeline = root, services, broker, timeline
+        self.clients, self.events, self.methods, self.replies = [], [], [], {}
+        self.issuer_closed, self.cwd, self.runtime = False, None, None
+        self.close_transports = None
+        def factory(cwd, **kwargs):
+            return OfflineManagedRuntime(self, cwd, **kwargs)
+        profile = ManagedExecutionProfile(policy=product_fixture_policy(), runtime_factory=factory)
+        PrivateInvestigationWorker.__init__(self, trace, managed_profile=profile,
+            limits=PrivateEvidenceLimits(capture=derived.LIMITS))
+
+
 def trace_rows(trace):
     return [{"seq": row.seq, "source": row.source, "direction": row.direction, "rawText": row.raw_text}
             for row in trace.records()]
@@ -502,23 +660,29 @@ def terminal_turn(message):
     return turn if isinstance(turn, dict) else None
 
 
-def run_worker_case(helper: Path, paths: dict[str, Path]) -> dict[str, Any]:
+def run_worker_case(helper: Path, paths: dict[str, Path], *, product_managed: bool = False) -> dict[str, Any]:
     with tempfile.TemporaryDirectory(prefix="nema-managed-worker-") as temporary:
         root = Path(temporary)
-        prepare_case(root, helper, paths, owned_worker=True)
+        if product_managed: prepare_product_case(root, helper, paths)
+        else: prepare_case(root, helper, paths, owned_worker=True)
         trace = TraceStore(root / "trace.db")
         store, work = transport.fixture_work(trace)
         context, attempt = work["contexts"][0], work["attempt"]
         (root / "packet/context.json").write_text(json.dumps(context))
         timeline = Timeline()
-        services = Services(WORKER_CASE, context["projectedPrompt"], timeline)
-        issuer_tls = tls.TlsFixture("", "valid", paths, endpoint=Endpoint(services, "issuer"), certificate="issuer")
-        provider_tls = tls.TlsFixture("", "valid", paths, endpoint=Endpoint(services, "provider"))
-        broker = tls.ConnectBroker(destinations={ISSUER_AUTHORITY: issuer_tls.open_endpoint,
-                                                tls.AUTHORITY: provider_tls.open_endpoint})
+        services = Services(PRODUCT_CASE if product_managed else WORKER_CASE, context["projectedPrompt"], timeline)
+        issuer_tls = tls.TlsFixture("", "valid", paths, endpoint=Endpoint(services, "issuer"),
+                                   certificate="productIssuer" if product_managed else "issuer")
+        provider_tls = tls.TlsFixture("", "valid", paths, endpoint=Endpoint(services, "provider"),
+                                     certificate="productProvider" if product_managed else None)
+        broker = (product_fixture_broker(issuer_tls, provider_tls) if product_managed else
+                  tls.ConnectBroker(destinations={ISSUER_AUTHORITY: issuer_tls.open_endpoint,
+                                                  tls.AUTHORITY: provider_tls.open_endpoint}))
         broker.admit()
-        command = worker_launcher(root)
-        owned = OwnedManagedWorker(trace, command, root=root, services=services, broker=broker, timeline=timeline)
+        command = None if product_managed else worker_launcher(root)
+        owned = (ProductManagedWorker(trace, root=root, services=services, broker=broker, timeline=timeline)
+                 if product_managed else
+                 OwnedManagedWorker(trace, command, root=root, services=services, broker=broker, timeline=timeline))
         owned.reserve(attempt["id"])
         failure = artifact = final_work = proof = replay = reopened_artifact = None
         recovery_failure = None
@@ -561,6 +725,18 @@ def run_worker_case(helper: Path, paths: dict[str, Path]) -> dict[str, Any]:
             abort_worker = threading.Thread(target=abort_native, daemon=True)
             server_worker.start()
             abort_worker.start()
+            if product_managed:
+                def close_transports():
+                    observer_stop.set(); server_stop.set(); services.abort.set()
+                    errors = []
+                    for closer in (broker.close, issuer_tls.close, provider_tls.close):
+                        try: closer()
+                        except Exception as exc: errors.append(type(exc).__name__)
+                    for thread in (server_worker, abort_worker):
+                        if thread is not threading.current_thread(): thread.join(3)
+                        if thread.is_alive(): errors.append("fixture-worker-not-joined")
+                    if errors: raise RuntimeError("offline transports did not close: " + ",".join(errors))
+                owned.close_transports = close_transports
             watchdog = threading.Timer(transport.CASE_SECONDS, expire)
             watchdog.daemon = True
             watchdog.start()
@@ -619,8 +795,10 @@ def run_worker_case(helper: Path, paths: dict[str, Path]) -> dict[str, Any]:
                      if json.loads(row["rawText"]).get("method") == "turn/completed"]
         policy_path = root / "state/policy.json"
         initialization = owned.replies.get("initialize")
-        report = {"case": WORKER_CASE, "classification": "NATIVE_MANAGED_AUTH_SYNTHETIC_FIXTURE", "failure": failure,
-            "command": command, "requestedConfigToml": fixture_config(owned_worker=True),
+        report = {"case": PRODUCT_CASE if product_managed else WORKER_CASE,
+            "classification": "NATIVE_MANAGED_AUTH_SYNTHETIC_FIXTURE", "failure": failure,
+            "command": (owned.runtime.command if owned.runtime is not None else None) if product_managed else command,
+            "requestedConfigToml": managed_config() if product_managed else fixture_config(owned_worker=True),
             "policy": json.loads(policy_path.read_text()) if policy_path.exists() else None,
             "nativeReplies": owned.replies, "nativeEvents": owned.events,
             "nativeCapture": clients[0].capture_status if len(clients) == 1 else None,
@@ -654,6 +832,12 @@ def run_worker_case(helper: Path, paths: dict[str, Path]) -> dict[str, Any]:
             "authFileExists": (root / "state/codex/auth.json").exists(),
             "providerRequestAnalyses": [catalog.analyze_request(e, context["projectedPrompt"])
                 for e in services.events if e.get("reason") == "authored-managed-text"]}
+        if product_managed:
+            report.update(managedRuntime=owned.runtime.evidence if owned.runtime is not None else None,
+                          managedClose=owned.runtime._report if owned.runtime is not None else None,
+                          managedPolicy=product_fixture_policy().as_dict(),
+                          stateRetainedForFixtureInspection=True,
+                          authFileInspectedBeforeStateRemoval=True)
         # Public synthetic evidence, not an export path for real private accounts.
         report = json.loads(json.dumps(report))
         report["assessmentProblems"] = assess_worker_case(report)
@@ -662,6 +846,8 @@ def run_worker_case(helper: Path, paths: dict[str, Path]) -> dict[str, Any]:
 
 
 def run_case(helper: Path, paths: dict[str, Path], variant: str) -> dict[str, Any]:
+    if variant == PRODUCT_CASE:
+        return run_worker_case(helper, paths, product_managed=True)
     if variant == WORKER_CASE:
         return run_worker_case(helper, paths)
     with tempfile.TemporaryDirectory(prefix="nema-managed-case-") as temporary:
@@ -890,7 +1076,7 @@ def run_case(helper: Path, paths: dict[str, Path], variant: str) -> dict[str, An
 
 def assess_case(case: dict[str, Any]) -> list[str]:
     """Post-effect synthetic evidence checks; this does not authorize a native process."""
-    if case["case"] == WORKER_CASE:
+    if case["case"] in (WORKER_CASE, PRODUCT_CASE):
         return assess_worker_case(case)
     problems = []
     resource_stop = (case["case"] == "closedIssuer401"
@@ -1056,7 +1242,7 @@ def assess_worker_case(case: dict[str, Any]) -> list[str]:
     """Pure joining-case evidence assessment; never a native admission."""
     try:
         return _assess_worker_case(case)
-    except (KeyError, IndexError, AttributeError, TypeError, ValueError, RecursionError) as exc:
+    except (KeyError, IndexError, AttributeError, TypeError, ValueError, RecursionError, ManagedLaunchError) as exc:
         # The report already retains the exact bounded records. An unknown
         # shape is failed evidence, never grounds to lose that report or accept.
         return ["malformed-worker-evidence:" + type(exc).__name__]
@@ -1064,6 +1250,7 @@ def assess_worker_case(case: dict[str, Any]) -> list[str]:
 
 def _assess_worker_case(case: dict[str, Any]) -> list[str]:
     problems = []
+    product = case.get("case") == PRODUCT_CASE
     if case.get("failure") is not None: problems.append("worker-failed")
     capture = case.get("nativeCapture") or {}
     if (capture.get("failure") is not None or capture.get("diagnosticError") is not None
@@ -1076,8 +1263,10 @@ def _assess_worker_case(case: dict[str, Any]) -> list[str]:
             or case.get("effectiveOuterSeconds") != transport.CASE_SECONDS):
         problems.append("worker-deadlines-differ")
     for name in ("initialConfig", "orderedConfig"):
-        try: validate_config(case["nativeReplies"][name], owned_worker=True)
-        except (KeyError, ValueError, TypeError): problems.append(name + "-controls-differ")
+        try:
+            if product: validate_managed_config(case["nativeReplies"][name])
+            else: validate_config(case["nativeReplies"][name], owned_worker=True)
+        except (KeyError, ValueError, TypeError, ManagedLaunchError): problems.append(name + "-controls-differ")
     try:
         if case["nativeReplies"]["initialAccount"] != {"account": None, "requiresOpenaiAuth": True}:
             raise ValueError("not fresh")
@@ -1169,7 +1358,9 @@ def _assess_worker_case(case: dict[str, Any]) -> list[str]:
         ("issuer", "POST", "/api/accounts/deviceauth/token", 200), ("issuer", "POST", "/oauth/token", 200),
         ("provider", "GET", PROVIDER_PATH, 426), ("provider", "GET", SETTINGS_PATH, 200), ("provider", "POST", PROVIDER_PATH, 200)]
     if ([(e["side"], e["method"], e["target"], e["status"]) for e in case["endpointEvents"]] != expected_http
-            or [(e.get("authority"), e["status"]) for e in case["connectEvents"]] != [(ISSUER_AUTHORITY, 200)] * 3 + [(tls.AUTHORITY, 200)] * 3
+            or [(e.get("authority"), e["status"]) for e in case["connectEvents"]] !=
+                [(PRODUCT_ISSUER_AUTHORITY if product else ISSUER_AUTHORITY, 200)] * 3 +
+                [(PRODUCT_PROVIDER_AUTHORITY if product else tls.AUTHORITY, 200)] * 3
             or any(case[k] != 6 for k in ("connectAttempts", "processedConnects", "mappedEndpointOpens"))
             or case["fixtureViolations"] or case["unrecordedConnectRefusals"] or case["fixtureTokenGenerations"] != ["A"]):
         problems.append("worker-endpoint-sequence-differs")
@@ -1183,6 +1374,34 @@ def _assess_worker_case(case: dict[str, Any]) -> list[str]:
                 or json.loads(case["endpointEvents"][-2]["responseRaw"]) != {"commit_attribution_enabled": False}):
             raise ValueError("provider payload")
     except (IndexError, KeyError, ValueError, TypeError): problems.append("worker-provider-evidence-differs")
+    if product:
+        try:
+            runtime = case["managedRuntime"]
+            if (case["requestedConfigToml"] != managed_config() or runtime["configSha256"] != hashlib.sha256(managed_config().encode()).hexdigest()
+                    or runtime["catalogSha256"] != hashlib.sha256(managed_catalog()).hexdigest()
+                    or runtime["transport"] != "authored-local" or runtime["classification"] != "synthetic"
+                    or runtime["dns"] is not False or runtime["liveDial"] is not False
+                    or runtime["destinations"] != [PRODUCT_ISSUER_AUTHORITY, PRODUCT_PROVIDER_AUTHORITY]
+                    or runtime["limits"] != product_fixture_policy().as_dict()
+                    or case["managedPolicy"] != product_fixture_policy().as_dict()
+                    or case["managedClose"]["allWorkersJoined"] is not True or case["managedClose"]["errors"]
+                    or case["stateRetainedForFixtureInspection"] is not True
+                    or case["authFileInspectedBeforeStateRemoval"] is not True):
+                raise ValueError("offline product boundary differs")
+            host = [(row, message) for row, message in messages if row["source"] == source and row["direction"] == "internal"]
+            admissions = [(row, message) for row, message in host if message.get("method") == "$native/managedAdmission"]
+            startups = [(row, message) for row, message in host if message.get("method") == "$native/managedStartup"]
+            closes = [(row, message) for row, message in host if message.get("method") == "$native/managedClose"]
+            if len(admissions) != 1 or len(startups) != 1 or len(closes) != 1:
+                raise ValueError("managed marker count")
+            if (startups[0][1]["params"]["manifest"] != admissions[0][1]["params"]["manifest"]
+                    or admissions[0][1]["params"]["manifest"]["runtime"] != runtime
+                    or closes[0][1]["params"]["complete"] is not True
+                    or any(message.get("method") == "$native/profile" for _, message in host)):
+                raise ValueError("managed marker differs")
+            login = case["nativeReplies"]["loginStart"]
+            if login["verificationUrl"] != "https://auth.openai.com/codex/device": raise ValueError("challenge differs")
+        except (IndexError, KeyError, ValueError, TypeError): problems.append("product-managed-evidence-differs")
     return problems
 
 
@@ -1231,15 +1450,17 @@ def assess_positive_artifact(case: dict[str, Any]) -> list[str]:
 
 
 def run_probe(*, mode: str | None = None):
-    if mode not in (None, POSITIVE_CASE, WORKER_CASE): raise ValueError("unknown explicit managed probe mode")
+    if mode not in (None, POSITIVE_CASE, WORKER_CASE, PRODUCT_CASE): raise ValueError("unknown explicit managed probe mode")
     binary_hash = checked_binary()
     with tempfile.TemporaryDirectory(prefix="nema-managed-host-") as temporary:
         directory = Path(temporary)
-        paths = tls.make_certificates(directory, extra_fixed_hostnames={"issuer": "issuer.fixture.invalid"})
+        hosts = ({"productIssuer": "auth.openai.com", "productProvider": "chatgpt.com"} if mode == PRODUCT_CASE
+                 else {"issuer": "issuer.fixture.invalid"})
+        paths = tls.make_certificates(directory, extra_fixed_hostnames=hosts)
         helper = boundary.compile_helper(directory)
         cases = {variant: run_case(helper, paths, variant) for variant in ((mode,) if mode else CASES)}
         ca_hash = hashlib.sha256(paths["ca"].read_bytes()).hexdigest()
-    return {"schemaVersion": "nema-native-managed-lifecycle/1", "implementationBase": "4b91892" if mode == WORKER_CASE else "6ea405a" if mode else "13abac7", "cases": cases,
+    return {"schemaVersion": "nema-native-managed-lifecycle/1", "implementationBase": "managed-product-integration" if mode == PRODUCT_CASE else "4b91892" if mode == WORKER_CASE else "6ea405a" if mode else "13abac7", "cases": cases,
             "classification": "NATIVE_MANAGED_AUTH_SYNTHETIC_FIXTURE", "realAuthCalls": 0, "realModelCalls": 0,
             "realUpstreamRequests": 0, "subscriptionExecution": False, "liveAdmission": False,
             "nativeLoginRPCs": sum(case["nativeLoginRPCs"] for case in cases.values()),
@@ -1257,13 +1478,16 @@ def run_probe(*, mode: str | None = None):
                               Path(catalog.__file__), Path(boundary.__file__),
                               *([Path(__file__).parents[1] / "src/eidos" / name for name in
                                  ("codex.py", "private_investigation.py", "investigation_worker.py", "trace.py", "investigation.py")]
-                                if mode == WORKER_CASE else []))}}
+                                if mode in (WORKER_CASE, PRODUCT_CASE) else []),
+                              *([Path(__file__).parents[1] / "src/eidos" / name for name in
+                                 ("native_managed.py", "native_managed_contract.py")]
+                                if mode == PRODUCT_CASE else []))}}
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path)
-    parser.add_argument("--mode", choices=[POSITIVE_CASE, WORKER_CASE], help="explicit positive fixture; default retains the negative pair")
+    parser.add_argument("--mode", choices=[POSITIVE_CASE, WORKER_CASE, PRODUCT_CASE], help="explicit positive fixture; default retains the negative pair")
     args = parser.parse_args()
     data = json.dumps(run_probe(mode=args.mode), indent=2) + "\n"
     if args.output: args.output.write_text(data)

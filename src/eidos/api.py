@@ -24,6 +24,7 @@ from .history import (
 from .semantic_tree import SemanticTreeBuilder
 from .trace import TraceStore
 from .private_investigation import PrivateInvestigationWorker
+from .native_managed_contract import DEVICE_VERIFICATION_URL
 from .view import ItemView, project_records
 
 
@@ -303,7 +304,7 @@ class LiveCodex:
 
 
 class EidosAPI:
-    def __init__(self, store: TraceStore, *, codex: str = "codex") -> None:
+    def __init__(self, store: TraceStore, *, codex: str = "codex", managed_native: bool = False) -> None:
         store.require_workbench()
         self.store = store
         self.codex = codex
@@ -316,11 +317,15 @@ class EidosAPI:
         self.compositions = Compositions(self.investigations)
         self.investigation_continuations = InvestigationContinuations(self.investigations)
         self.investigation_runtime = self.investigation_continuations.runtime
-        self.investigation_worker = PrivateInvestigationWorker(
-            store, command=[codex, "app-server", "--listen", "stdio://"],
-            execution_evidence=("synthetic" if Path(codex).resolve() ==
-                Path(__file__).resolve().parents[2] / "tests/fixtures/investigation_appserver.py" else "unverified"),
-        )
+        if managed_native:
+            from .native_managed import ManagedExecutionProfile
+            self.investigation_worker = PrivateInvestigationWorker(store, managed_profile=ManagedExecutionProfile(binary=codex))
+        else:
+            self.investigation_worker = PrivateInvestigationWorker(
+                store, command=[codex, "app-server", "--listen", "stdio://"],
+                execution_evidence=("synthetic" if Path(codex).resolve() ==
+                    Path(__file__).resolve().parents[2] / "tests/fixtures/investigation_appserver.py" else "unverified"),
+            )
         self._investigation_lock = threading.RLock()
         self._investigation_threads: dict[str, threading.Thread] = {}
         self._closing = False
@@ -539,10 +544,14 @@ class EidosAPI:
     def investigation_capabilities(self) -> dict[str, Any]:
         worker = self.investigation_worker
         native = worker.execution_profile is not None
+        managed = getattr(worker, "managed_profile", None) is not None
         return {"schemaVersion": 1, "nativeExecution": {
             "available": not native,
-            "mode": "native" if native else ("synthetic" if worker.execution_evidence == "synthetic" else "unverified"),
+            "mode": "native" if native or managed else ("synthetic" if worker.execution_evidence == "synthetic" else "unverified"),
             "reason": (
+                "Each attempt needs a fresh ChatGPT Plus or Pro sign-in. Sign-in is limited to three minutes; work to two minutes. "
+                "Starting work uses the signed-in account's available model allowance."
+                if managed else
                 "Live model execution is unavailable: account-backed cloud configuration may refresh during startup; "
                 "containment is unverified. A separate resource authorization and admitted profile are required."
                 if native else "Explicit trusted-host test adapter; no native execution authority is implied."),
@@ -632,8 +641,17 @@ class EidosAPI:
                 raise InvestigationError(404, "attempt not found in the current investigation")
             inspect = getattr(self.investigation_worker, "inspect_owned", None)
             state = inspect(attempt_id) if callable(inspect) else {}
-            return {"attemptId": attempt_id, "owned": state.get("owned") is True,
-                    "canCancel": state.get("owned") is True and state.get("canCancel") is True}
+            control = {"attemptId": attempt_id, "owned": state.get("owned") is True,
+                       "canCancel": state.get("owned") is True and state.get("canCancel") is True}
+            challenge = state.get("signIn")
+            if (control["owned"] and control["canCancel"] and isinstance(challenge, dict)
+                    and challenge.get("verificationUrl") == DEVICE_VERIFICATION_URL
+                    and isinstance(challenge.get("userCode"), str) and 0 < len(challenge["userCode"]) <= 128
+                    and all(32 <= ord(c) < 127 for c in challenge["userCode"])
+                    and type(challenge.get("expiresAtMs")) is int
+                    and challenge["expiresAtMs"] > int(time.time() * 1000)):
+                control["signIn"] = {key: challenge[key] for key in ("verificationUrl", "userCode", "expiresAtMs")}
+            return control
 
     def cancel_attempt(self, identifier: str, attempt_id: str) -> dict[str, Any]:
         with self._investigation_lock:

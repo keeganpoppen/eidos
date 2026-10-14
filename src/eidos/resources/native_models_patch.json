@@ -1,0 +1,30 @@
+[
+  {
+    "op": "test",
+    "path": "/models/0/slug",
+    "value": "gpt-6-astra"
+  },
+  {
+    "op": "test",
+    "path": "/models/0/tool_mode",
+    "value": "code_mode_only"
+  },
+  {
+    "op": "test",
+    "path": "/models/0/experimental_supported_tools",
+    "value": [
+      "send_user_message_async",
+      "clock"
+    ]
+  },
+  {
+    "op": "replace",
+    "path": "/models/0/tool_mode",
+    "value": "direct"
+  },
+  {
+    "op": "replace",
+    "path": "/models/0/experimental_supported_tools",
+    "value": []
+  }
+]

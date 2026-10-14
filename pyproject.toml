@@ -21,6 +21,9 @@ default-groups = ["dev"]
 [project.scripts]
 eidos = "eidos.cli:main"
 
+[tool.hatch.build.targets.wheel]
+packages = ["src/eidos"]
+
 [tool.pytest.ini_options]
 addopts = "-q"
 testpaths = ["tests"]

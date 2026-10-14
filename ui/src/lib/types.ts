@@ -220,7 +220,8 @@ export type InvestigationAttempt = {
   continuedFrom?: InquiryLineage;
 };
 
-export type OwnedAttemptControl = { attemptId: string; owned: boolean; canCancel: boolean };
+export type AttemptSignIn = { verificationUrl: string; userCode: string; expiresAtMs: number };
+export type OwnedAttemptControl = { attemptId: string; owned: boolean; canCancel: boolean; signIn?: AttemptSignIn };
 
 export type InvestigationArtifact = {
   id: string;

@@ -6,6 +6,32 @@ The baseline GitHub Actions run `38240774514` completed successfully: pytest and
 
 Refresh this file when implementation claims materially change. Keep historical audit IDs instead of quietly relabelling old evidence as current.
 
+## Opt-in managed attempts — 2026-10-13
+
+Working integration base `8ed2f0a`; [contract](../agents/MANAGED_ATTEMPT_TASK.md),
+[offline evidence](../evidence/MANAGED_ATTEMPT_INTEGRATION.md),
+[D31](DECISIONS.md#d31--separate-contained-startup-fresh-readiness-and-recorded-closure).
+Explicit `--managed-native` connects fresh contained resources, transient sign-in,
+ordered account/config readiness and exact private receipts to existing pinned
+attempts, Stop, publication and reopen. Default legacy native admission stays
+closed. Initial containment supports pinned native0.154.0 on Linux/aarch64 only.
+
+Parent defaults **1,528 passed /55 native skips**, UI **108 tests/539 assertions**,
+clean check/build. Authored desktop/390px browser:62 requests/4 deliberate POSTs,
+then24 GETs/zero POSTs after actual API restart; cancellation prevents late work,
+independent completion publishes synthetic evidence, reopen restores no owner.
+Independent review closed cleanup-marker-loss publication and composed startup/
+cancellation races. Managed recovery now requires a successful exact final closure
+record; missing closure preserves private completion but leaves outcome uncertain.
+
+The [reviewed compatibility task](../agents/NATIVE_PRODUCT_MANAGED_TASK.md) now
+passes actual native0.154.0 through production config/preparation against authored
+local TLS services: one login/thread/turn, six local CONNECT/HTTP exchanges,
+44 private records, one synthetic publication and exact unowned reopen. The
+first canonical-URL refusal remains preserved separately. No real account/model/
+DNS/upstream call; production runtime connectivity, live service availability,
+login friction and useful answers remain unmeasured.
+
 ## Native preparation through the owned private worker — 2026-10-13
 
 Integration base `63cd47f`; [contract](../agents/NATIVE_OWNED_WORKER_TASK.md),

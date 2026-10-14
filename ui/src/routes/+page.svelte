@@ -498,7 +498,7 @@
   <ComparisonSurface bind:open={comparisonOpen} initialId={comparisonSeed} requestId={comparisonRequest} requestIntent={comparisonIntent} requestExperimentId={comparisonExperimentId} browseRequest={savedWorkRequest} {selections} />
 
   <div class:hidden-aperture={!workMode || comparisonOpen} class="work-aperture">
-    <InvestigationPane bind:selections onSource={returnToSource} onCompare={compareInvestigation} onSavedWork={returnToSavedWork} />
+    <InvestigationPane active={workMode && !comparisonOpen} bind:selections onSource={returnToSource} onCompare={compareInvestigation} onSavedWork={returnToSavedWork} />
   </div>
 
   {#if !workMode && !comparisonOpen}

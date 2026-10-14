@@ -23,6 +23,9 @@ def main(argv: list[str] | None = None) -> None:
     p_serve.add_argument("db")
     p_serve.add_argument("--host", default="127.0.0.1")
     p_serve.add_argument("--port", type=int, default=8765)
+    p_serve.add_argument("--codex", default="codex")
+    p_serve.add_argument("--managed-native", action="store_true",
+                         help="enable bounded attempts with fresh ChatGPT sign-in and account model usage")
 
     p_render = sub.add_parser("render", help="render one persisted thread to static HTML")
     p_render.add_argument("db")
@@ -60,7 +63,7 @@ def main(argv: list[str] | None = None) -> None:
 
     args = parser.parse_args(argv)
     if args.command == "serve":
-        serve(args.db, host=args.host, port=args.port)
+        serve(args.db, host=args.host, port=args.port, codex=args.codex, managed_native=args.managed_native)
         return
     if args.command == "render":
         store = TraceStore(args.db)

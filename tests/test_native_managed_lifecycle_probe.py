@@ -442,14 +442,18 @@ def test_positive_mode_is_explicit_and_defaults_keep_negative_pair(monkeypatch):
 
 
 def run_authored_worker(tmp_path, monkeypatch, *, terminal_params="valid", cleanup_failure=None, malformed_reply=None,
-                        goals_drift=None):
+                        goals_drift=None, product_managed=False, product_drift=None):
     """Exercise the production join with a local authored stdio child, never native.
 
     Transport expectations below are separate historical fixture data used for
     assessor mutation tests; they are not observations of this authored child.
     """
     from types import SimpleNamespace
-    config = tomllib.loads(probe.fixture_config(owned_worker=True))
+    config = tomllib.loads(probe.managed_config() if product_managed else probe.fixture_config(owned_worker=True))
+    if product_managed:
+        # Authored effective reply, matching native's packaged default. The
+        # production startup bytes and real native responses remain untouched.
+        config["chatgpt_base_url"] = "https://chatgpt.com/backend-api/"
     script = tmp_path / "authored.py"
     script.write_text("import json, os, sys\n" + f"config = {config!r}\n" + r'''
 reads = 0
@@ -480,6 +484,22 @@ for line in sys.stdin:
                       'text': 'SYNTHETIC FIXTURE: both selected records survived [evidence:1] [evidence:2].', 'future': 'PRIVATE_ITEM'}}})
         send({'method': 'turn/completed', 'params': {'threadId': 'authored-thread', 'turn': {'id': 'authored-turn', 'status': 'completed'}}})
 ''')
+    if product_managed:
+        source = script.read_text()
+        source = source.replace("'loginId': 'authored-login', 'userCode': 'PRIVATE_CODE'",
+            "'loginId': 'authored-login', 'userCode': 'PRIVATE_CODE', 'type': 'chatgptDeviceCode', "
+            "'verificationUrl': 'https://auth.openai.com/codex/device'")
+        script.write_text(source)
+    if product_drift is not None:
+        stage, section, key, value = product_drift
+        before = "    elif method == 'config/read': send({'id': ident, 'result': {'config': config, 'future': 'PRIVATE_CONFIG'}})"
+        mutation = f"config[{section!r}].pop({key!r})" if value == "missing" else f"config[{section!r}][{key!r}] = {value!r}"
+        after = ("    elif method == 'config/read':\n"
+                 f"        if reads == {stage}: {mutation}\n"
+                 "        send({'id': ident, 'result': {'config': config, 'future': 'PRIVATE_CONFIG'}})")
+        source = script.read_text()
+        assert source.count(before) == 1
+        script.write_text(source.replace(before, after))
     if goals_drift is not None:
         stage, value = goals_drift
         before = "    elif method == 'config/read': send({'id': ident, 'result': {'config': config, 'future': 'PRIVATE_CONFIG'}})"
@@ -517,10 +537,18 @@ for line in sys.stdin:
         (root / "packet").mkdir()
         (root / "state/policy.json").write_text(json.dumps({"installedBeforeInitialExec": True, "allListenerCopiesClosed": True}))
     monkeypatch.setattr(probe, "prepare_case", prepare)
-    monkeypatch.setattr(probe, "worker_launcher", lambda root: [sys.executable, str(script)])
+    if product_managed:
+        def prepare_product(root, helper, paths):
+            prepare(root, helper, paths, owned_worker=True)
+            (root / "assets").mkdir(); (root / "fixture").mkdir()
+            for name in ("ca.pem", "guard", "relay.py", "launcher.py"):
+                (root / "fixture" / name).write_text("authored unused resource " + name)
+        monkeypatch.setattr(probe, "prepare_product_case", prepare_product)
+        monkeypatch.setattr(probe, "checked_binary", lambda: probe.REVIEWED_BINARY_SHA256)
+    monkeypatch.setattr(probe, "worker_launcher", lambda root, **kwargs: [sys.executable, str(script)])
     monkeypatch.setattr(probe.tls, "TlsFixture", lambda *args, **kwargs: SimpleNamespace(
         workers=[], tls_events=[], open_endpoint=lambda: pytest.fail("network endpoint used"), close=lambda: None))
-    return probe.run_worker_case(tmp_path / "not-executed", {})
+    return probe.run_worker_case(tmp_path / "not-executed", {}, product_managed=product_managed)
 
 
 def test_goals_disable_is_worker_only_and_other_startup_bytes_are_unchanged():
@@ -753,6 +781,244 @@ def test_contained_owned_worker_completes_private_public_recovery(owned_worker_o
     assert probe.assess_worker_case(case) == [], json.dumps({"failure": case["failure"],
         "assessment": case["assessmentProblems"], "stderr": case["nativeStderr"]})
     assert case["positiveOwnedWorkerAccepted"] and case["nativeTerminalRecovered"]
+    assert report["realAuthCalls"] == report["realModelCalls"] == report["realUpstreamRequests"] == 0
+    assert not report["liveAdmission"] and not report["subscriptionExecution"]
+
+
+def test_product_managed_authored_worker_uses_production_preparation_and_receipt(tmp_path, monkeypatch):
+    case = run_authored_worker(tmp_path, monkeypatch, product_managed=True)
+    assert case["failure"] is None, case["failure"]
+    assert case["requestedConfigToml"] == probe.managed_config()
+    for name in ("initialConfig", "orderedConfig"):
+        probe.validate_managed_config(case["nativeReplies"][name])
+    messages = [json.loads(row["rawText"]) for row in case["privateTraceRecords"]]
+    assert len([m for m in messages if m.get("method") == "$native/managedAdmission"]) == 1
+    assert not any(m.get("method") == "$native/profile" for m in messages)
+    assert case["managedClose"]["allWorkersJoined"] is True
+    assert case["managedRuntime"]["transport"] == "authored-local"
+    assert case["managedRuntime"]["classification"] == "synthetic"
+    assert case["recoveredArtifact"]["executionEvidence"] == "synthetic"
+    assert case["durableReopenMatches"] and case["reopenedControl"] == {"owned": False, "canCancel": False}
+    assert "PRIVATE_" not in json.dumps(case["traceRecords"])
+    published, original = probe.recover_recorded_worker(case)
+    assert published == case["recoveredArtifact"] and original == case["resolvedEvidence"]["artifact"]
+    # This child exercised RPCs, not TLS/native: never promote its unused fixture
+    # transport fields into a passing actual-native report.
+    assert "worker-endpoint-sequence-differs" in case["assessmentProblems"]
+
+
+def test_product_managed_namespace_assets_are_read_only_without_url_overrides(tmp_path):
+    helper = tmp_path / "authored-guard"; helper.write_bytes(b"not executable native")
+    ca = tmp_path / "authored-ca"; ca.write_bytes(b"authored public fixture CA")
+    root = tmp_path / "case"; root.mkdir()
+    probe.prepare_product_case(root, helper, {"ca": ca})
+    launcher = (root / "fixture/launcher.py").read_text()
+    assert "CODEX_CA_CERTIFICATE" in launcher and "HTTPS_PROXY" in launcher
+    assert "CODEX_APP_SERVER_LOGIN_ISSUER" not in launcher and "CODEX_REFRESH_TOKEN_URL_OVERRIDE" not in launcher
+    assert "config.write_text" not in launcher and "FIXTURE_PORT" not in launcher
+    assert (root / "fixture/ca.pem").read_bytes() == ca.read_bytes()
+    assert (root / "fixture/ca.pem").stat().st_mode & 0o222 == 0
+    command = probe.worker_launcher(root, product_managed=True)
+    source = Path(command[-1]).read_text()
+    assert "'--ro-bind', '" + str(root / "assets") + "', '/assets'" in source
+    assert "'--ro-bind', '" + str(root / "assets/config.toml") + "', '/state/codex/config.toml'" in source
+    assert command[:3] == ("/usr/bin/python3", "-I", "-S")
+
+
+def test_product_managed_first_failure_retains_exact_native_config_without_reclassification():
+    import hashlib
+    path = Path(__file__).parents[1] / "docs/evidence/NATIVE_PRODUCT_MANAGED_0_154_0_FIRST_FAILURE.json"
+    raw = path.read_bytes()
+    assert hashlib.sha256(raw).hexdigest() == "e2e68f68379761cf057dd9e0b31db9c1ef711b6fcd57d86faae442e785d6e0f0"
+    case = json.loads(raw)["cases"][probe.PRODUCT_CASE]
+    assert case["failure"] is not None and not case["positiveOwnedWorkerAccepted"]
+    assert case["nativeMethodsObserved"] == ["initialize", "account/read", "config/read"]
+    assert case["nativeLoginRPCs"] == case["nativeThreadRPCs"] == case["nativeTurnRPCs"] == 0
+    assert len(case["privateTraceRecords"]) == 13 and len(case["traceRecords"]) == 2
+    assert case["issuerHttpRequests"] == case["providerHttpRequests"] == case["processedConnects"] == 0
+    reply = case["nativeReplies"]["initialConfig"]
+    probe.validate_managed_config(reply)
+    assert reply["config"]["chatgpt_base_url"] == "https://chatgpt.com/backend-api/"
+    assert "experimental_request_user_input" not in reply["config"]["tools"]
+    assert "tools.experimental_request_user_input.enabled" in reply["origins"]
+    assert probe.assess_worker_case(case), "corrected validation cannot fabricate the unobserved login/turn"
+
+
+def test_product_managed_retained_positive_replays_exact_readiness_and_private_proof(monkeypatch):
+    import hashlib
+    import subprocess
+    from eidos.native_managed import validate_managed_receipt
+    from eidos.native_managed_contract import ManagedAttemptIdentity
+    from eidos.trace import TraceStore
+    def forbidden(*args, **kwargs):
+        pytest.fail("retained evidence replay must not launch a child")
+    monkeypatch.setattr(subprocess, "Popen", forbidden)
+    raw = (Path(__file__).parents[1] / "docs/evidence/NATIVE_PRODUCT_MANAGED_0_154_0.json").read_bytes()
+    assert hashlib.sha256(raw).hexdigest() == "5175384248ebb905c31949c07f452134d31f8b39584b8592c89be1b7a533cc5d"
+    report = json.loads(raw)
+    case = report["cases"][probe.PRODUCT_CASE]
+    assert probe.assess_worker_case(case) == []
+    assert report["realAuthCalls"] == report["realModelCalls"] == report["realUpstreamRequests"] == 0
+    published, original = probe.recover_recorded_worker(case)
+    assert published == case["recoveredArtifact"] == case["replayRecoveredArtifact"]
+    assert published["executionEvidence"] == original["executionEvidence"] == "synthetic"
+    assert published["outputSeqs"] == [3] and original["outputSeqs"] == [39]
+    assert case["reopenedControl"] == {"owned": False, "canCancel": False}
+    assert case["savedArtifact"] == case["reopenedArtifact"]
+    private = TraceStore(":memory:", role="private-control")
+    try:
+        for row in case["privateTraceRecords"]:
+            private.append_line(source=row["source"], direction=row["direction"], raw_text=row["rawText"])
+        records = private.records()
+        admission, = [r for r in records if r.direction == "internal" and r.method == "$native/managedAdmission"]
+        closure, = [r for r in records if r.direction == "internal" and r.method == "$native/managedClose"]
+        identity = ManagedAttemptIdentity.from_attempt(case["savedAttempt"], case["selectedContext"], case["savedAttempt"]["source"])
+        assert validate_managed_receipt(admission.message["params"], identity, records, before_seq=admission.seq) == "synthetic"
+        assert closure.message["params"] == {"identity": identity.as_dict(), "complete": True, "diagnostics": []}
+        assert closure.seq == 44 and next(r.seq for r in records if r.method == "turn/completed") == 43
+    finally: private.close()
+
+
+@pytest.mark.parametrize("stage", [1, 2])
+@pytest.mark.parametrize("section,key,value", [
+    ("features", "remote_plugin", "missing"), ("features", "goals", True),
+    ("otel", "trace_exporter", "missing"), ("otel", "trace_exporter", None),
+    ("otel", "exporter", None), ("otel", "metrics_exporter", None),
+])
+def test_product_managed_config_drift_cannot_start_thread(tmp_path, monkeypatch, stage, section, key, value):
+    case = run_authored_worker(tmp_path, monkeypatch, product_managed=True, product_drift=(stage, section, key, value))
+    assert case["failure"] is not None
+    assert case["nativeLoginRPCs"] == stage - 1
+    assert case["nativeThreadRPCs"] == case["nativeTurnRPCs"] == 0
+    assert case["publicationLedger"] is None and len(case["traceRecords"]) == 2
+    assert not case["positiveOwnedWorkerAccepted"]
+
+
+@pytest.mark.parametrize("mutation", ["missing-close", "failed-close", "source", "context-hash", "readiness"])
+def test_product_managed_private_recovery_rejects_incomplete_or_foreign_proof(tmp_path, monkeypatch, mutation):
+    case = run_authored_worker(tmp_path, monkeypatch, product_managed=True)
+    assert case["failure"] is None
+    from eidos.trace import TraceStore
+    from eidos.investigation_worker import NativeInvestigationWorker, NativeInvestigationError
+    private = TraceStore(":memory:", role="private-control")
+    try:
+        for row in case["privateTraceRecords"]:
+            message = json.loads(row["rawText"])
+            if message.get("method") == "$native/managedClose":
+                if mutation == "missing-close": continue
+                if mutation == "failed-close": message["params"]["complete"] = False
+            if message.get("method") == "$native/managedAdmission":
+                if mutation == "source": row["source"] = "foreign-source"
+                if mutation == "context-hash": message["params"]["identity"]["contextSha256"] = "0" * 64
+                if mutation == "readiness": message["params"]["readiness"]["orderedConfig"] = "0" * 64
+            private.append_line(source=row["source"], direction=row["direction"], raw_text=json.dumps(message))
+        try:
+            recovered = NativeInvestigationWorker(private, command=["/never-launch"]).recover(case["savedAttempt"], case["selectedContext"])
+        except (NativeInvestigationError, probe.ManagedLaunchError):
+            recovered = None
+        if mutation == "source":
+            assert recovered is not None and recovered["executionEvidence"] == "unverified"
+        else:
+            assert recovered is None
+    finally: private.close()
+
+
+def test_product_managed_local_tls_mapping_has_no_dns_or_live_route(tmp_path, monkeypatch):
+    import builtins
+    import ssl
+    def forbidden(*args, **kwargs):
+        pytest.fail("offline product fixture attempted DNS or live dial")
+    monkeypatch.setattr(socket, "getaddrinfo", forbidden)
+    monkeypatch.setattr(socket, "create_connection", forbidden)
+    original_connect = socket.socket.connect
+    def local_connect(self, address):
+        if self.family in (socket.AF_INET, socket.AF_INET6): forbidden()
+        return original_connect(self, address)
+    monkeypatch.setattr(socket.socket, "connect", local_connect)
+    monkeypatch.setattr(socket.socket, "connect_ex", forbidden)
+    original_import = builtins.__import__
+    def import_without_production_runtime(name, *args, **kwargs):
+        if name.endswith("native_containment"): pytest.fail("offline fixture imported live runtime")
+        return original_import(name, *args, **kwargs)
+    monkeypatch.setattr(builtins, "__import__", import_without_production_runtime)
+    # Traverse real production preparation/receipt with an authored stdio child
+    # while the network entry points remain forbidden.
+    case = run_authored_worker(tmp_path, monkeypatch, product_managed=True)
+    assert case["failure"] is None
+    # Restore the TLS class replaced only for the authored subprocess helper.
+    tls_spec = importlib.util.spec_from_file_location("product_tls_default_test", Path(probe.tls.__file__))
+    real_tls = importlib.util.module_from_spec(tls_spec)
+    sys.modules[tls_spec.name] = real_tls
+    tls_spec.loader.exec_module(real_tls)
+    paths = real_tls.make_certificates(tmp_path, extra_fixed_hostnames={
+        "productIssuer": "auth.openai.com", "productProvider": "chatgpt.com"})
+    class Endpoint:
+        def exchange(self, connection):
+            request = probe.transport.read_fixture_http_request(connection, probe.time.monotonic() + 2)
+            assert request["method"] == "GET" and request["target"] == "/local-proof"
+            return b"HTTP/1.1 200 OK\r\nContent-Length: 7\r\nConnection: close\r\n\r\nauthored"
+    issuer = real_tls.TlsFixture("", "valid", paths, endpoint=Endpoint(), certificate="productIssuer")
+    provider = real_tls.TlsFixture("", "valid", paths, endpoint=Endpoint(), certificate="productProvider")
+    broker = probe.product_fixture_broker(issuer, provider)
+    broker.admit()
+    errors = []
+    def exchange(authority, *, accepted):
+        client, server = socket.socketpair(); client.settimeout(3)
+        def serve():
+            try:
+                response = broker.exchange(server)
+                if response: server.sendall(response)
+            except Exception as exc: errors.append(exc)
+            finally: server.close()
+        worker = threading.Thread(target=serve); worker.start()
+        try:
+            client.sendall(f"CONNECT {authority} HTTP/1.1\r\nHost: {authority}\r\n\r\n".encode())
+            head = bytearray()
+            while not head.endswith(b"\r\n\r\n"): head.extend(client.recv(1))
+            if not accepted:
+                assert b" 403 " in head
+                return
+            assert b" 200 " in head
+            context = ssl.create_default_context(cafile=str(paths["ca"]))
+            with context.wrap_socket(client, server_hostname=authority.split(":")[0]) as secure:
+                secure.sendall(b"GET /local-proof HTTP/1.1\r\nHost: local-proof\r\n\r\n")
+                result = bytearray()
+                expected = b"HTTP/1.1 200 OK\r\nContent-Length: 7\r\nConnection: close\r\n\r\nauthored"
+                while len(result) < len(expected):
+                    data = secure.recv(4096)
+                    assert data, "truncated local TLS response"
+                    result.extend(data)
+            assert bytes(result) == expected
+        finally:
+            client.close(); worker.join(3)
+            assert not worker.is_alive()
+    try:
+        exchange(probe.PRODUCT_ISSUER_AUTHORITY, accepted=True)
+        broker.close_authority(probe.PRODUCT_ISSUER_AUTHORITY)
+        exchange(probe.PRODUCT_ISSUER_AUTHORITY, accepted=False)
+        exchange(probe.PRODUCT_PROVIDER_AUTHORITY, accepted=True)
+        for authority in (probe.ISSUER_AUTHORITY, probe.tls.AUTHORITY, "unmapped.invalid:443"):
+            exchange(authority, accepted=False)
+        assert broker.opened == 2 and not errors
+    finally:
+        broker.close(); issuer.close(); provider.close()
+
+
+@pytest.fixture(scope="module")
+def product_managed_observed():
+    if os.environ.get("NEMA_NATIVE_PRODUCT_MANAGED_PROBE") != "1":
+        pytest.skip("explicit reviewed product-managed offline native opt-in required")
+    report = probe.run_probe(mode=probe.PRODUCT_CASE)
+    if output := os.environ.get("NEMA_NATIVE_PRODUCT_MANAGED_OUTPUT"):
+        Path(output).write_text(json.dumps(report, indent=2) + "\n")
+    return report
+
+
+def test_product_managed_contained_native_uses_exact_config_and_private_publication(product_managed_observed):
+    report = product_managed_observed
+    case = report["cases"][probe.PRODUCT_CASE]
+    assert probe.assess_worker_case(case) == [], json.dumps({"failure": case["failure"], "assessment": case["assessmentProblems"], "stderr": case["nativeStderr"]})
+    assert case["positiveOwnedWorkerAccepted"] and case["durableReopenMatches"]
     assert report["realAuthCalls"] == report["realModelCalls"] == report["realUpstreamRequests"] == 0
     assert not report["liveAdmission"] and not report["subscriptionExecution"]
 

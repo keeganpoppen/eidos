@@ -15,11 +15,15 @@ import re
 import tempfile
 import threading
 import time
-from typing import Any, Callable, Literal, Mapping, Sequence
+from typing import Any, Callable, Literal, Mapping, Sequence, TYPE_CHECKING
 
 from .codex import AppServerClient, NativeExecutionProfile, NativeExecutionProfileError
 from .investigation_context import THREAD_CONFIG, TURN_SANDBOX
+from .native_managed_contract import ManagedAttemptIdentity
 from .trace import TraceRecord, TraceStore
+
+if TYPE_CHECKING:
+    from .native_managed import ManagedExecutionProfile, ManagedLaunch
 
 
 class NativeInvestigationError(RuntimeError):
@@ -48,6 +52,10 @@ class NativePreparation:
         if self._finished.is_set():
             raise NativeInvestigationError("preparation has ended")
         return self._remaining()
+
+    @property
+    def source(self) -> str:
+        return self._client.source
 
     def _finish(self) -> None:
         self._finished.set()
@@ -423,6 +431,7 @@ class NativeInvestigationWorker:
         client_factory: Callable[..., AppServerClient] | None = None,
         preparation: Callable[[NativePreparation], None] | None = None,
         preparation_timeout: float = 120,
+        managed_profile: ManagedExecutionProfile | None = None,
     ) -> None:
         if execution_evidence not in {"synthetic", "unverified"}:
             raise ValueError("only synthetic or unverified custom execution evidence may be declared")
@@ -431,6 +440,11 @@ class NativeInvestigationWorker:
         if not math.isfinite(preparation_timeout) or preparation_timeout <= 0:
             raise ValueError("preparation timeout must be finite and positive")
         self.preparation, self.preparation_timeout = preparation, preparation_timeout
+        if managed_profile is not None and (command is not None or preparation is not None):
+            raise ValueError("managed execution cannot combine custom commands or preparation")
+        self.managed_profile = managed_profile
+        self._managed_launches: dict[str, tuple[ManagedAttemptIdentity, ManagedLaunch]] = {}
+        self._cancelled = threading.Event()
         # A trusted host may identify a synthetic fixture, but cannot declare
         # native model observation. Recovery uses this incarnation's recorded
         # admission evidence, never the current worker's constructor setting.
@@ -455,18 +469,36 @@ class NativeInvestigationWorker:
         # The repository's EidosAPI demo passes an executable Python fixture
         # in the codex slot. Its .py command is explicit trusted-host testing,
         # just like a Python interpreter or disposable env-wrapped probe.
-        self.execution_profile = NativeExecutionProfile(codex_binary=self.command[0]) if native_command else None
+        self.execution_profile = NativeExecutionProfile(codex_binary=self.command[0]) if native_command and managed_profile is None else None
         self._clients: set[AppServerClient] = set()
         self._clients_lock = threading.RLock()
         self._closed = False
 
     def close(self) -> None:
         """Cancel only owned processes; a cancelled attempt is not retried."""
+        # The startup guard may be resolving fixed destinations while holding
+        # the client registration lock. Signal it before waiting for that lock.
+        self._cancelled.set()
         with self._clients_lock:
             self._closed = True
             clients = tuple(self._clients)
-        for client in clients:
-            client.close()
+            launches = tuple(launch for _, launch in self._managed_launches.values())
+        failure = None
+        for resource in (*launches, *clients):
+            try:
+                resource.close()
+            except Exception as exc:
+                failure = failure or exc
+        if failure is not None:
+            raise failure
+
+    def managed_challenge(self, attempt_id: str) -> dict[str, Any] | None:
+        with self._clients_lock:
+            owned = self._managed_launches.get(attempt_id)
+            if self._closed or self._cancelled.is_set() or owned is None:
+                return None
+            identity, launch = owned
+            return launch.read_challenge(identity)
 
     @staticmethod
     def _check_thread_policy(result: Mapping[str, Any], cwd: str) -> None:
@@ -579,7 +611,9 @@ class NativeInvestigationWorker:
         if not isinstance(prompt, str) or not prompt.strip():
             raise ValueError("context must contain the reviewed prompt")
 
-        deadline = time.monotonic() + (self.preparation_timeout if self.preparation is not None else timeout)
+        preparation_timeout = (self.managed_profile.policy.preparation_seconds if self.managed_profile is not None
+                               else self.preparation_timeout)
+        deadline = time.monotonic() + (preparation_timeout if self.preparation is not None or self.managed_profile is not None else timeout)
         state = dict(attempt)
         events: queue.Queue[dict[str, Any]] = queue.Queue(maxsize=512)
         errors: queue.Queue[Exception] = queue.Queue()
@@ -588,7 +622,7 @@ class NativeInvestigationWorker:
 
         def active_remaining() -> float:
             with self._clients_lock:
-                if self._closed:
+                if self._closed or self._cancelled.is_set():
                     raise NativeInvestigationError("owned worker was cancelled", stop_reason="cancelled")
             if expired.is_set():
                 raise NativeInvestigationError("native worker deadline expired", stop_reason="deadline")
@@ -642,8 +676,34 @@ class NativeInvestigationWorker:
 
             reader: threading.Thread | None = None
             watchdog: threading.Timer | None = None
+            managed_launch = None
+            managed_identity = None
             try:
-                if self.execution_profile is not None:
+                if self.managed_profile is not None:
+                    managed_identity = ManagedAttemptIdentity.from_attempt(attempt, context, client.source)
+                    managed_launch = self.managed_profile.prepare(cwd, identity=managed_identity, cancelled=self._cancelled)
+                    active_remaining()
+                    managed_launch.bind_abort(client.close)
+                    with self._clients_lock:
+                        active_remaining()
+                        self._managed_launches[attempt["id"]] = (managed_identity, managed_launch)
+                    client.command = tuple(managed_launch.command)
+                    client.env = dict(managed_launch.env)
+                    client.inherit_env = False
+                    client.limits = managed_launch.limits
+                    # Popen's guard consumes startup once; it does not admit work.
+                    def managed_startup() -> None:
+                        active_remaining()
+                        managed_launch.require_contained_startup()
+                        active_remaining()
+                    client.launch_guard = managed_startup
+                    self.trace.append(source=client.source, direction="internal", message={
+                        "method": "$native/managedStartup", "params": {
+                            "identity": managed_identity.as_dict(), "manifest": dict(managed_launch.evidence),
+                        },
+                    })
+                    adapter.refresh()
+                elif self.execution_profile is not None:
                     try:
                         launch = self.execution_profile.prepare(cwd)
                         self.trace.append(source=client.source, direction="internal", message={
@@ -694,19 +754,21 @@ class NativeInvestigationWorker:
                 reader = threading.Thread(target=pump, daemon=True, name="nema-investigation-events")
                 reader.start()
                 client.initialize(timeout=min(10.0, self._remaining(deadline)))
-                if self.preparation is not None:
+                preparation_hook = managed_launch.prepare_native if managed_launch is not None else self.preparation
+                if preparation_hook is not None:
                     preparation = NativePreparation(client, events, errors, active_remaining,
                         lambda phase: remember(lifecycle={"phase": phase}))
                     try:
-                        self.preparation(preparation)
+                        preparation_hook(preparation)
                     finally:
                         preparation._finish()
                     active_remaining()
                     watchdog.cancel()
                     watchdog.join()
                     active_remaining()
-                    deadline = time.monotonic() + timeout
-                    watchdog = threading.Timer(timeout, expire)
+                    turn_timeout = min(timeout, managed_launch.remaining_turn()) if managed_launch is not None else timeout
+                    deadline = time.monotonic() + turn_timeout
+                    watchdog = threading.Timer(turn_timeout, expire)
                     watchdog.daemon = True
                     watchdog.start()
                 if self.execution_profile is not None:
@@ -723,6 +785,19 @@ class NativeInvestigationWorker:
                             f"native subscription admission failed: {exc}", status="failed",
                         ) from exc
                 active_remaining()
+                if managed_launch is not None:
+                    with self._clients_lock:
+                        active_remaining()
+                        receipt = managed_launch.consume_turn_admission(managed_identity)
+                        from .native_managed import validate_managed_receipt
+                        with self.trace._lock:
+                            observed = self.trace.records()
+                            before_seq = max((r.seq for r in observed), default=0) + 1
+                            validate_managed_receipt(receipt, managed_identity, observed, before_seq=before_seq)
+                            self.trace.append(source=client.source, direction="internal", message={
+                                "method": "$native/managedAdmission", "params": receipt,
+                            })
+                    adapter.refresh()
                 result = client.request("thread/start", {
                     "cwd": cwd,
                     "approvalPolicy": "never",
@@ -771,7 +846,8 @@ class NativeInvestigationWorker:
                         and isinstance(params.get("turn"), dict)
                         and params["turn"].get("id") == state["turnId"]
                     ):
-                        artifact = self.recover(state, context)
+                        artifact = (self.recover(state, context, allow_unclosed_managed=True)
+                                    if managed_launch is not None else self.recover(state, context))
                         if artifact is None:
                             raise NativeInvestigationError("native turn ended without a recoverable artifact")
                         return artifact
@@ -788,16 +864,47 @@ class NativeInvestigationWorker:
                 stopped.set()
                 if watchdog is not None:
                     watchdog.cancel()
-                client.close()
+                    watchdog.join(timeout=1.0)
+                # Invalidate the challenge/admission and all network resources
+                # even when closing another resource fails. Publication happens
+                # only after this worker and its private reader have closed.
+                cleanup_error = None
+                cleanup_diagnostics = []
+                for resource in ((managed_launch, client) if managed_launch is not None else (client,)):
+                    try:
+                        report = resource.close()
+                        if resource is managed_launch and isinstance(report, dict) and (
+                                report.get("allWorkersJoined") is not True or report.get("errors")):
+                            raise NativeInvestigationError("managed resources did not confirm shutdown")
+                    except Exception as exc:
+                        cleanup_error = cleanup_error or exc
+                        detail = getattr(exc, "diagnostic", None)
+                        if detail is not None:
+                            try:
+                                encoded = json.dumps(detail, allow_nan=False)
+                                cleanup_diagnostics.append(detail if len(encoded) <= 16000 else {"detail": encoded[:16000], "complete": False})
+                            except (TypeError, ValueError, RecursionError):
+                                cleanup_diagnostics.append({"type": type(exc).__name__, "detail": "Malformed shutdown diagnostic"})
                 if reader is not None:
                     reader.join(timeout=1.0)
                 adapter.refresh()
                 adapter.close(closure_reason)
                 with self._clients_lock:
                     self._clients.discard(client)
+                    self._managed_launches.pop(attempt["id"], None)
+                if managed_launch is not None:
+                    self.trace.append(source=client.source, direction="internal", message={
+                        "method": "$native/managedClose", "params": {
+                            "identity": managed_identity.as_dict(), "complete": cleanup_error is None,
+                            "diagnostics": cleanup_diagnostics,
+                        },
+                    })
+                if cleanup_error is not None:
+                    raise NativeInvestigationError(f"owned native cleanup failed: {cleanup_error}") from cleanup_error
 
     @staticmethod
-    def _execution_evidence(records: Sequence[TraceRecord], request_seq: int) -> str:
+    def _execution_evidence(records: Sequence[TraceRecord], request_seq: int,
+                            identity: ManagedAttemptIdentity | None = None) -> str:
         """Classify historical output using only preceding host admissions.
 
         Child output, selected text, and later annotations cannot establish a
@@ -805,6 +912,28 @@ class NativeInvestigationWorker:
         security boundary against a caller that can alter the trace database.
         Unknown, missing, or contradictory admissions remain unverified.
         """
+        managed = [record for record in records if record.direction == "internal"
+                   and record.method in {"$native/managedStartup", "$native/managedAdmission"}]
+        if managed:
+            admissions = [record for record in managed if record.method == "$native/managedAdmission"]
+            startup = [record for record in managed if record.method == "$native/managedStartup"]
+            threads = [record for record in records if record.direction == "client_to_appserver"
+                       and record.method == "thread/start"]
+            if (identity is None or len(admissions) != 1 or len(startup) != 1 or len(threads) != 1
+                    or not startup[0].seq < admissions[0].seq < threads[0].seq < request_seq
+                    or any(record.direction == "internal" and record.method == "$native/profile" for record in records)):
+                return "unverified"
+            receipt = admissions[0].message.get("params")
+            start = startup[0].message.get("params")
+            if (not isinstance(receipt, dict) or not isinstance(start, dict)
+                    or start.get("identity") != identity.as_dict() or start.get("manifest") != receipt.get("manifest")):
+                return "unverified"
+            from .native_managed import validate_managed_receipt
+            try:
+                classification = validate_managed_receipt(receipt, identity, records, before_seq=admissions[0].seq)
+                return classification if classification in {"native-observed", "synthetic", "unverified"} else "unverified"
+            except (ValueError, TypeError, KeyError, AttributeError):
+                return "unverified"
         classifications: set[str] = set()
         for record in records:
             if (record.direction != "internal" or record.method != "$native/profile"
@@ -829,7 +958,8 @@ class NativeInvestigationWorker:
             classifications.add("native-observed" if admitted else "unverified")
         return next(iter(classifications)) if len(classifications) == 1 else "unverified"
 
-    def recover(self, attempt: Mapping[str, Any], context: Mapping[str, Any]) -> dict[str, Any] | None:
+    def recover(self, attempt: Mapping[str, Any], context: Mapping[str, Any], *,
+                allow_unclosed_managed: bool = False) -> dict[str, Any] | None:
         """Read matching native evidence, including acknowledgements not mapped locally."""
         if attempt.get("contextId") != context.get("id"):
             raise ValueError("attempt names a different context")
@@ -837,6 +967,22 @@ class NativeInvestigationWorker:
         if not isinstance(source, str):
             return None
         records = [record for record in self.trace.records() if record.source == source]
+        managed_source = any(record.direction == "internal" and record.method in {
+            "$native/managedStartup", "$native/managedAdmission"} for record in records)
+        managed_closure = [record for record in records if record.direction == "internal"
+                           and record.method == "$native/managedClose"]
+        if managed_source:
+            if not managed_closure and not allow_unclosed_managed:
+                return None
+            if managed_closure:
+                params = managed_closure[-1].message.get("params")
+                identity = ManagedAttemptIdentity.from_attempt(attempt, context, source)
+                last_native = max((record.seq for record in records
+                                   if record.direction in {"appserver_to_client", "client_to_appserver"}), default=0)
+                if (len(managed_closure) != 1 or not isinstance(params, dict) or params.get("complete") is not True
+                        or params.get("identity") != identity.as_dict()
+                        or managed_closure[-1].seq <= last_native):
+                    raise NativeInvestigationError("managed resource shutdown remains unconfirmed")
         # A stopped incarnation cannot regain contiguous evidence through a later
         # import. Preserve any accepted terminal before the gap, while excluding
         # later frames from both completion and contradiction checks.
@@ -976,9 +1122,16 @@ class NativeInvestigationWorker:
             raise NativeInvestigationError("recorded native artifact exceeds output limit")
         cited = {int(value) for value in re.findall(r"\[evidence:(\d+)\]", text)}
         available = {record["seq"] for record in context.get("records", [])}
+        managed_identity = None
+        if any(record.direction == "internal" and record.method == "$native/managedAdmission" for record in records):
+            try:
+                managed_identity = ManagedAttemptIdentity.from_attempt(attempt, context, source)
+            except (ValueError, TypeError):
+                pass  # A malformed historical pin cannot establish native admission.
         return {
             "text": text,
-            "executionEvidence": self._execution_evidence(records, request.seq),
+            "executionEvidence": self._execution_evidence(records, request.seq,
+                managed_identity),
             "outputSeqs": sorted({entry[2] for entry in selected}),
             "citations": sorted(cited & available),
             "unsupportedCitations": sorted(cited - available),

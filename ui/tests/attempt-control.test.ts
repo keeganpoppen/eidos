@@ -25,6 +25,141 @@ function memory() {
     setItem: (key: string, value: string) => { values.set(key, value); }, removeItem: (key: string) => { values.delete(key); } };
 }
 
+function manualClock() {
+  let now = 1_800_000_000_000;
+  const timers = new Map<() => void, number>();
+  return {
+    now: () => now,
+    later: (callback: () => void, delay: number) => { timers.set(callback, now + delay); return () => { timers.delete(callback); }; },
+    advance(ms: number) {
+      now += ms;
+      for (const [callback, due] of [...timers]) if (due <= now) { timers.delete(callback); callback(); }
+    },
+    timers,
+  };
+}
+const challenge = (expiresAtMs: number) => ({ verificationUrl: 'https://auth.openai.com/codex/device', userCode: 'NEMA-ONLY-TEST', expiresAtMs });
+
+describe('transient managed sign-in', () => {
+  test('only a current owned control supplies a bounded challenge, with no storage write', async () => {
+    const time = manualClock(), store = memory();
+    const draft = '{"question":"unsaved question","pendingRequest":{"id":"same-save","body":"same-body"}}';
+    store.values.set('nema.investigation-draft.v1', draft);
+    const offered = challenge(time.now() + 180_000);
+    const client = new AttemptControlClient(store, () => {}, async () => response({ ...live(), signIn: offered }), time);
+    client.select(a); await client.inspect();
+    expect(client.state.control?.signIn).toEqual(offered);
+    expect([...store.values.entries()]).toEqual([['nema.investigation-draft.v1', draft]]);
+    client.dispose();
+    expect(client.state.control).toBeNull(); expect(time.timers.size).toBe(0);
+  });
+
+  test('expiry clears the code without polling and an outstanding read cannot revive it', async () => {
+    const time = manualClock(), late = deferred<Response>();
+    const offered = { ...live(), signIn: challenge(time.now() + 50) }; let calls = 0;
+    const client = new AttemptControlClient(memory(), () => {}, async () => ++calls === 1 ? response(offered) : late.promise, time);
+    client.select(a); await client.inspect(); const reading = client.inspect();
+    time.advance(50);
+    expect(client.state.control).toEqual(live()); expect(client.state.notice).toContain('time limit');
+    late.resolve(response(offered)); await reading;
+    expect(client.state.control?.signIn).toBeUndefined(); expect(calls).toBe(2);
+    client.dispose();
+  });
+
+  test('navigation discards the old code and late A response, and returning requires a fresh read', async () => {
+    const time = manualClock(), old = deferred<Response>(); let aReads = 0;
+    const ca = challenge(time.now() + 50), cb = { ...challenge(time.now() + 500), userCode: 'B-ONLY' };
+    const client = new AttemptControlClient(memory(), () => {}, async path => {
+      if (path.includes('owner-b')) return response({ ...live(b), signIn: cb });
+      return ++aReads === 2 ? old.promise : response({ ...live(), signIn: ca });
+    }, time);
+    client.select(a); await client.inspect(); const reading = client.inspect();
+    client.select(null); expect(client.state.control).toBeNull(); expect(time.timers.size).toBe(0);
+    client.select(b); await client.inspect(); old.resolve(response({ ...live(), signIn: ca })); await reading;
+    time.advance(50); expect(client.state.control?.signIn).toEqual(cb);
+    client.select(null); client.select(b); expect(client.state.control).toBeNull();
+    await client.inspect(); expect(client.state.control?.signIn).toEqual(cb);
+    client.dispose();
+  });
+
+  test('completion observed from the saved phase defeats an older control read', async () => {
+    const time = manualClock(), late = deferred<Response>(); let calls = 0;
+    const offered = { ...live(), signIn: challenge(time.now() + 180_000) };
+    const client = new AttemptControlClient(memory(), () => {}, async () => ++calls === 1 ? response(offered) : late.promise, time);
+    client.select(a); await client.inspect(); const reading = client.inspect();
+    client.retireSignIn(); expect(client.state.control).toEqual(live());
+    late.resolve(response(offered)); await reading;
+    expect(client.state.control).toEqual(live()); expect(time.timers.size).toBe(0);
+    client.dispose();
+  });
+
+  test('a withdrawn or lost-ownership challenge stays retired on the same attempt', async () => {
+    for (const next of [live(), stopped(a, false)]) {
+      const time = manualClock(); let reads = 0;
+      const offered = { ...live(), signIn: challenge(time.now() + 180_000) };
+      const client = new AttemptControlClient(memory(), () => {}, async () => response(++reads === 2 ? next : offered), time);
+      client.select(a); await client.inspect(); await client.inspect(); await client.inspect();
+      expect(client.state.control?.signIn).toBeUndefined(); client.dispose();
+    }
+  });
+
+  test('lost stop reply and reload retain only exact cancellation intent, never the sign-in code', async () => {
+    const time = manualClock(), store = memory(); let posts = 0;
+    const offered = { ...live(), signIn: challenge(time.now() + 180_000) };
+    const fetcher = async (_path: string, init?: RequestInit) => {
+      if (init?.method === 'POST') { posts++; throw Error('Authored lost stop reply'); }
+      return response(offered);
+    };
+    const first = new AttemptControlClient(store, () => {}, fetcher, time);
+    first.select(a); await first.inspect(); await first.cancel(); await first.inspect();
+    expect(first.state.control?.signIn).toBeUndefined(); expect(first.state.pending).toBe(true);
+    expect([...store.values.values()].map(v => JSON.parse(v))).toEqual([{ version: 1, ...a, action: 'cancel' }]);
+    first.dispose();
+    const reopened = new AttemptControlClient(store, () => {}, fetcher, time);
+    reopened.select(a); await reopened.inspect();
+    expect(reopened.state.control?.signIn).toBeUndefined(); expect(posts).toBe(1); reopened.dispose();
+  });
+
+  test('invalid or unowned challenges cannot become links while ordinary stop controls remain usable', async () => {
+    const time = manualClock(), valid = challenge(time.now() + 180_000);
+    const bad = [
+      { ...valid, verificationUrl: 'http://auth.openai.com/codex/device' },
+      { ...valid, verificationUrl: 'https://auth.openai.com/codex/device?user_code=SECRET' },
+      { ...valid, verificationUrl: 'https://auth.openai.com.evil.test/codex/device' },
+      { ...valid, verificationUrl: 'javascript:alert(1)' },
+      { ...valid, userCode: 'x'.repeat(129) }, { ...valid, userCode: 'bad\ncode' }, { ...valid, userCode: '   ' },
+      { ...valid, expiresAtMs: time.now() }, { ...valid, expiresAtMs: Infinity }, { ...valid, expiresAtMs: 8.64e15 + 1 },
+    ];
+    for (const signIn of bad) {
+      const client = new AttemptControlClient(memory(), () => {}, async () => response({ ...live(), signIn }), time);
+      client.select(a); await client.inspect(); expect(client.state.control).toEqual(live()); client.dispose();
+    }
+    for (const state of [stopped(), stopped(a, false)]) {
+      const client = new AttemptControlClient(memory(), () => {}, async () => response({ ...state, signIn: valid }), time);
+      client.select(a); await client.inspect(); expect(client.state.control).toEqual(state); client.dispose();
+    }
+  });
+
+  test('a failed control refresh immediately withdraws the code and cancels its timer', async () => {
+    const time = manualClock(); let reads = 0;
+    const client = new AttemptControlClient(memory(), () => {}, async () => ++reads === 1
+      ? response({ ...live(), signIn: challenge(time.now() + 180_000) }) : response({}, 503), time);
+    client.select(a); await client.inspect(); await client.inspect();
+    expect(client.state.control).toBeNull(); expect(time.timers.size).toBe(0); client.dispose();
+  });
+
+  test('requesting Stop clears sign-in even when retry storage fails before sending', async () => {
+    const time = manualClock(), store = memory(); let posts = 0;
+    const client = new AttemptControlClient({ ...store, setItem: () => { throw Error('No storage'); } }, () => {}, async (_path, init) => {
+      if (init?.method === 'POST') posts++;
+      return response({ ...live(), signIn: challenge(time.now() + 180_000) });
+    }, time);
+    client.select(a); await client.inspect(); await client.cancel(); await client.inspect();
+    expect(client.state.control?.signIn).toBeUndefined(); expect(posts).toBe(0); expect(time.timers.size).toBe(0);
+    client.dispose();
+  });
+});
+
 describe('exact owned-attempt control', () => {
   test('a late ownership read cannot enable controls on another selection', async () => {
     const old = deferred<Response>();
