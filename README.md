@@ -73,6 +73,13 @@ File review and import do not start native work. The importer retains unknown fi
 and repeated lines; its [contract](docs/agents/HISTORY_IMPORT_TASK.md) documents
 bounds, exact line mappings and the distinct legacy iterable API behavior.
 
+From a saved context, choose **Write finding** to retain a conclusion and open
+questions without starting a specialist. The finding keeps that exact context,
+appears in result search, and can become an input to another question. Citations
+identify supplied sources; uncited hypotheses are labelled. A lost save reply can
+be recovered with **Check finding receipt** or an exact retry. The
+[contract](docs/agents/AUTHORED_FINDING_TASK.md) describes its attribution and recovery.
+
 Managed attempts are explicitly enabled when starting the API:
 
 ```bash

@@ -446,6 +446,15 @@ class EidosAPI:
             return 200, self.investigation_reads.view(parts[2], query)
         if len(parts) == 6 and parts[3] == "artifacts" and parts[5] == "source" and method == "GET":
             return 200, self.investigation_reads.source(parts[2], parts[4], query)
+        if len(parts) == 4 and parts[3] == "findings" and method == "POST":
+            if query:
+                raise InvestigationError(400, "finding writes take no query parameters")
+            finding, created = self.investigations.create_finding(parts[2], _json_body(handler))
+            return (201 if created else 200), {"finding": finding}
+        if len(parts) == 6 and parts[3:5] == ["findings", "requests"] and method == "GET":
+            if query:
+                raise InvestigationError(400, "finding receipts take no query parameters")
+            return 200, {"finding": self.investigations.get_finding_request(parts[2], parts[5])}
         if len(parts) == 6 and parts[3] == "attempts" and parts[5] == "control":
             if method == "GET":
                 return 200, self.attempt_control(parts[2], parts[4])

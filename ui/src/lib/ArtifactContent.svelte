@@ -2,6 +2,7 @@
   import WorkContent from './WorkContent.svelte';
   import { outputEvidence } from './comparison';
   import { artifactKind } from './artifact-inputs';
+  import { isAuthoredFinding, findingSupport } from './authored-finding';
   import type { FrozenArtifactInput, InvestigationArtifact, InvestigationContext } from './types';
 
   let { artifact, context, onArtifact }: {
@@ -15,6 +16,9 @@
 <div class="artifact-content" data-artifact-id={artifact.id}>
   <p class="artifact-classification">{artifactKind(artifact)} · {outputEvidence(artifact)}</p>
   <WorkContent source={artifact.text} />
+  {#if isAuthoredFinding(artifact)}
+    <p class="work-notice">{findingSupport(artifact)}</p>
+  {/if}
   {#if artifact.kind === 'eidos-evidence-review'}
     <p class="work-notice">This receipt records an evidence decision; it is not a new specialist analysis.</p>
   {:else if ['native-needs-evidence', 'native-inquiry-invalid'].includes(artifact.kind ?? '')}

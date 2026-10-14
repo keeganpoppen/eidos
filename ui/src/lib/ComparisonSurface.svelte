@@ -6,6 +6,7 @@
   import LineDiff from './LineDiff.svelte';
   import InquirySurface from './InquirySurface.svelte';
   import ArtifactLineage from './ArtifactLineage.svelte';
+  import { isAuthoredFinding, findingSupport } from './authored-finding';
   import CatalogPicker from './CatalogPicker.svelte';
   import SavedComparisons from './SavedComparisons.svelte';
   import { openSnapshot, sameSnapshotView, snapshotRenderer, supportsBlockFocus, type CompositionSnapshot } from './composition-snapshots';
@@ -96,6 +97,7 @@
   }
 
   function artifactLabel(investigation: Investigation | undefined, artifact: InvestigationArtifact | undefined): string {
+    if (isAuthoredFinding(artifact)) return 'Authored finding';
     if (investigation?.id.startsWith('fixture:')) return artifact?.kind === 'eidos-evidence-review' ? 'synthetic Eidos receipt' : artifact?.kind === 'synthetic-counterfactual' ? 'synthetic counterfactual' : 'synthetic model-output example';
     return outputEvidence(artifact);
   }
@@ -541,7 +543,12 @@
             {#if artifact.unsupportedCitations.length}<p class="work-notice">Outside the supplied packet: {artifact.unsupportedCitations.map((seq) => `[evidence:${seq}]`).join(', ')}. Support is unverified.</p>{/if}
             {#if artifact.unsupportedArtifactCitations?.length}<p class="work-notice">Results outside the supplied packet: {artifact.unsupportedArtifactCitations.map((id) => `[artifact:${id}]`).join(', ')}. Support is unverified.</p>{/if}
             {#if item.investigation.adoption?.artifactId === artifact.id}<p class="comparison-adoption">Conclusion {item.investigation.adoption.decision === 'adopt' ? 'adopted' : 'rejected'} · {item.investigation.adoption.note || 'No note recorded.'}</p>{/if}
-            <details class="aperture-details"><summary>Inspect binding & provenance</summary><p class="object-ref">Artifact {artifact.id}<br />Context {artifact.contextId}<br />Attempt {artifact.attemptId}</p><p>{artifact.outputEvidence?.kind === 'private-capsule-publication' ? 'Published result records:' : 'Recorded output:'} {artifact.outputSeqs.join(', ') || (artifact.outputEvidence?.kind === 'private-capsule-publication' ? 'No publication sequence recorded' : 'No output sequence recorded')}</p><p>Provider context, native instructions, tools and configuration are not fully observed.</p></details>
+            {#if isAuthoredFinding(artifact)}
+              <p class="work-notice">{findingSupport(artifact)}</p>
+              <details class="aperture-details"><summary>Inspect binding & provenance</summary><p class="object-ref">Authored finding {artifact.id}<br />Context {artifact.contextId}</p><p>Saved in this workbench.</p></details>
+            {:else}
+              <details class="aperture-details"><summary>Inspect binding & provenance</summary><p class="object-ref">Artifact {artifact.id}<br />Context {artifact.contextId}<br />Attempt {artifact.attemptId}</p><p>{artifact.outputEvidence?.kind === 'private-capsule-publication' ? 'Published result records:' : 'Recorded output:'} {artifact.outputSeqs?.join(', ') || (artifact.outputEvidence?.kind === 'private-capsule-publication' ? 'No publication sequence recorded' : 'No output sequence recorded')}</p><p>Provider context, native instructions, tools and configuration are not fully observed.</p></details>
+            {/if}
           {:else}
             <div class="pending-question"><span class="aperture-caption">{['running', 'dispatching'].includes(item.investigation.status) ? 'Question awaiting a result' : item.investigation.status === 'unknown' ? 'Question / outcome unknown' : 'Question in this revision'}</span><Markdown source={item.context.question} /></div>
             <p class="work-muted">{arranged[item.side].artifactId ? 'This exact artifact version is unavailable. Its binding is retained; no other result has been substituted.' : artifacts(item.investigation).length ? 'This arrangement has no pinned result version. Edit the arrangement and select an exact artifact; it will not silently follow the latest result.' : item.investigation.status === 'unknown' ? 'The server has no confirmed outcome. Missing output does not establish that nothing ran.' : item.investigation.status === 'failed' ? 'This attempt failed. No completed artifact is available.' : 'No returned artifact version is bound. Review a result binding when work completes.'}</p>

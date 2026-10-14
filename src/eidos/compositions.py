@@ -47,14 +47,6 @@ def _target(value: Any, *, focus: bool = False) -> dict[str, Any]:
     return target
 
 
-def _artifacts(work: Mapping[str, Any]) -> list[dict[str, Any]]:
-    found = {}
-    for item in (work.get("artifact"), work.get("nativeArtifact"), *work.get("artifactHistory", [])):
-        if item and item["id"] not in found:
-            found[item["id"]] = item
-    return list(found.values())
-
-
 class Compositions:
     def __init__(self, investigations: InvestigationStore) -> None:
         self.investigations = investigations
@@ -137,13 +129,13 @@ class Compositions:
             raise InvestigationError(409, "saved context does not belong to this investigation")
         artifact = None
         if "artifactId" in target:
-            artifact = next((a for a in _artifacts(work) if a["id"] == target["artifactId"] and a["contextId"] == context["id"]), None)
-            if artifact is None:
-                raise InvestigationError(409, "saved artifact does not belong to this exact context")
-            attempt = next((a for a in (work.get("attempt"), *work.get("attemptHistory", []))
-                            if a and a["id"] == artifact.get("attemptId")), None)
-            if attempt is None or attempt["contextId"] != context["id"]:
-                raise InvestigationError(409, "saved artifact/context/attempt provenance mismatch")
+            from .investigation_artifacts import resolve_artifact
+            try:
+                artifact, _, _ = resolve_artifact(work, target["artifactId"], expected_context=context["id"])
+            except InvestigationError as error:
+                if error.status == 404:
+                    raise InvestigationError(409, "saved artifact does not belong to this exact context") from None
+                raise
         if "seq" in target:
             if not any(r["seq"] == target["seq"] and r["threadId"] == target["threadId"] for r in context["records"]):
                 raise InvestigationError(409, "focused record does not belong to this exact context and thread")
@@ -190,7 +182,7 @@ class Compositions:
                 raise InvestigationError(409, "result is not the receipt for this inquiry")
         else:
             lineage = result.get("continuedFrom") or {}
-            actual_attempt = next((a for a in attempts if a["id"] == result["attemptId"]), None)
+            actual_attempt = next((a for a in attempts if a["id"] == result.get("attemptId")), None)
             expected = {"investigationId": work["id"], "continuationId": continuation["id"], "inquiryId": inquiry["id"],
                         "responseId": response["id"], "nativeArtifactId": original["id"], "attemptId": attempt["id"]}
             if (any(lineage.get(k) != v for k, v in expected.items())

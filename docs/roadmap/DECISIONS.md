@@ -351,6 +351,30 @@ The byte CLI now defaults to operation replay; the trusted legacy iterable API k
 source/correlation/count semantics and gains bounded atomicity, without claiming
 original-byte retention or durable idempotency. See the [contract](../agents/HISTORY_IMPORT_TASK.md).
 
+### D35 — Authored findings are reusable knowledge, independent of native completion
+
+**Accepted implementation direction, 2026-10-13**, base `2aae982`. Public repository
+excerpts reproduced a practical gap: an owner's conclusion survived as selection
+rationale but was absent from result discovery. Completing an artifact correctly
+required an attempt. Add an immutable finding to its existing investigation and
+exact saved context, with explicit local-workbench attribution. Reuse the current
+result catalog, source inspection, frozen inputs and plain comparisons. Do not
+manufacture output records, attempts, inquiry state or adoption authority.
+
+An uncited hypothesis is legitimate if labelled. Recognized citations establish
+membership in the directly supplied packet, not entailment or verified truth.
+Citing another finding does not supply its original raw records. A finding keeps
+its original context even after the investigation advances. Revisions are further
+values; source history and old context/prompt/manifest bytes stay intact.
+
+Canonical collection membership, shape and owner-bound content identity distinguish
+authored findings from native results. A copied kind cannot bypass native attempt
+provenance. Dedicated immutable request receipts recover the exact finding after
+lost replies and restart; returning the current mutable owner would be insufficient.
+Submission attribution is not authentication of a human author. These are narrow
+local owner operations, not a new general artifact or permissions framework.
+See the [contract](../agents/AUTHORED_FINDING_TASK.md).
+
 ## Deferred explorations, kept for their potential
 
 ### D22 — Names, routing, locality, and leases

@@ -8,6 +8,7 @@ import json
 from typing import Any, Iterator, Mapping
 
 from .investigation import InvestigationError, InvestigationStore, _json, _text
+from .investigation_artifacts import artifacts, resolve_artifact
 
 
 class InvestigationReads:
@@ -95,12 +96,7 @@ class InvestigationReads:
 
     @staticmethod
     def _artifacts(work: Mapping[str, Any]) -> list[dict[str, Any]]:
-        values = (work.get("artifact"), work.get("nativeArtifact"), *work.get("artifactHistory", []))
-        found = {}
-        for value in values:
-            if value and value["id"] not in found:
-                found[value["id"]] = value
-        return list(found.values())
+        return artifacts(work)
 
     def _refresh(self, identifier: str | None = None) -> None:
         dirty = self.trace.db.execute(
@@ -131,7 +127,7 @@ class InvestigationReads:
                 item = {
                     "investigationId": work["id"], "investigationTitle": work["title"],
                     "artifactId": artifact["id"], "contextId": artifact["contextId"],
-                    "attemptId": artifact["attemptId"], "createdAtMs": work["createdAtMs"],
+                    "attemptId": artifact.get("attemptId"), "createdAtMs": work["createdAtMs"],
                     **{key: artifact[key] for key in ("kind", "executionEvidence", "continuedFrom") if key in artifact},
                 }
                 self.trace.db.execute("INSERT INTO investigation_read_artifacts VALUES (?,?,?,?,?)",
@@ -294,16 +290,8 @@ class InvestigationReads:
         with self._snapshot():
             version = self._version(identifier)
             work = self.investigations._load(identifier)
-            artifact = next((value for value in self._artifacts(work) if value["id"] == artifact_id), None)
-            if artifact is None:
-                raise InvestigationError(404, "exact artifact does not belong to the selected investigation")
-            context = next((c for c in work["contexts"] if c["id"] == artifact["contextId"]), None)
-            attempt = next((a for a in (work.get("attempt"), *work.get("attemptHistory", []))
-                            if a and a["id"] == artifact["attemptId"]), None)
-            if (not context or not attempt or attempt["contextId"] != context["id"]
-                    or expected is not None and expected != context["id"]):
-                raise InvestigationError(409, "artifact/context/attempt provenance mismatch")
-            adoption = work.get("adoption")
+            artifact, context, attempt = resolve_artifact(work, artifact_id, expected_context=expected)
+            adoption = work.get("adoption") if attempt is not None else None
             return {"version": version, "investigationId": identifier, "investigationTitle": work["title"],
                     "artifact": artifact, "context": context, "attempt": attempt,
                     "adoption": adoption if adoption and adoption["artifactId"] == artifact_id else None}

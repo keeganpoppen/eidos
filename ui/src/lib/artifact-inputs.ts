@@ -1,4 +1,5 @@
 import { artifacts, attempts, contexts } from './comparison';
+import { isAuthoredFinding } from './authored-finding';
 import type { ArtifactInputSelection, FrozenArtifactInput, Investigation, InvestigationArtifact } from './types';
 
 export type ArtifactSourceTarget = { investigationId: string; artifactId: string; contextId?: string };
@@ -49,14 +50,22 @@ export function resolveArtifactSource(investigation: Investigation, target: Arti
   const artifact = artifacts(investigation).find((item) => item.id === target.artifactId && (!target.contextId || item.contextId === target.contextId));
   if (!artifact) return null;
   const context = contexts(investigation).find((item) => item.id === artifact.contextId);
+  if (isAuthoredFinding(artifact)) return context && investigation.findings?.includes(artifact) ? { artifact, context, attempt: null } : null;
   const attempt = attempts(investigation).find((item) => item.id === artifact.attemptId && item.contextId === artifact.contextId);
   return context && attempt ? { artifact, context, attempt } : null;
 }
 
 export function artifactKind(artifact: { kind?: string; continuedFrom?: unknown }): string {
+  if (artifact.kind === 'owner-authored-finding') return 'Authored finding';
   if (artifact.kind === 'eidos-evidence-review') return 'Evidence decision receipt';
   if (artifact.kind === 'native-needs-evidence') return 'Specialist evidence inquiry';
   if (artifact.kind === 'native-inquiry-invalid') return 'Invalid evidence inquiry';
   if (artifact.continuedFrom) return 'Follow-up specialist result';
   return artifact.kind ?? 'Specialist result';
+}
+
+/** Authored findings and copied kind labels cannot become native baselines. */
+export function experimentBaselines(investigation: Investigation) {
+  return artifacts(investigation).filter(item => item.kind !== 'eidos-evidence-review' && item.kind !== 'owner-authored-finding'
+    && attempts(investigation).some(attempt => attempt.id === item.attemptId && attempt.contextId === item.contextId));
 }

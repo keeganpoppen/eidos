@@ -1,6 +1,7 @@
 import type { Investigation, InvestigationContext, InvestigationArtifact, InvestigationAttempt, WorkbenchExperiment } from './types';
 import type { InquiryBinding } from './reflection';
 import { resolveInquiryBinding } from './reflection';
+import { isAuthoredFinding } from './authored-finding';
 
 // A surface has one arrangement of scoped views. These are presentation references,
 // never copies of investigations, native continuations, or authority.
@@ -77,11 +78,15 @@ function copyTarget(value: ApertureTarget): ApertureTarget {
 }
 
 export function artifacts(investigation: Investigation | undefined): InvestigationArtifact[] {
-  return [investigation?.artifact, investigation?.nativeArtifact, ...(investigation?.artifactHistory ?? [])].filter((item): item is InvestigationArtifact => !!item)
+  const native = [investigation?.artifact, investigation?.nativeArtifact, ...(investigation?.artifactHistory ?? [])].filter((item) => !!item);
+  const claimed = new Set(native.map(item => item!.id));
+  const authored = (investigation?.findings ?? []).filter(item => isAuthoredFinding(item) && !claimed.has(item.id));
+  return [...native.filter(item => item!.kind !== 'owner-authored-finding'), ...authored].filter((item): item is InvestigationArtifact => !!item)
     .filter((item, index, values) => values.findIndex((other) => other.id === item.id) === index);
 }
 
 export function outputEvidence(artifact: InvestigationArtifact | null | undefined): string {
+  if (isAuthoredFinding(artifact)) return 'Saved in this workbench';
   return artifact?.kind === 'eidos-evidence-review' ? 'Local Eidos decision receipt' : artifact?.executionEvidence === 'synthetic' ? 'Synthetic output · no model called' : artifact?.executionEvidence === 'native-observed' ? 'Observed native output' : 'Recorded output · execution origin unverified';
 }
 

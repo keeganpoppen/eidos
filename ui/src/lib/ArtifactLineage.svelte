@@ -81,7 +81,7 @@
         <ArtifactContent {artifact} {context} onArtifact={follow} />
         {#if adoption}
           <p class="source-adoption">{active.snapshot ? 'Source review when this input was saved' : 'Recorded source review'}: {adoption.decision === 'adopt' ? 'adopted' : 'rejected'}. {adoption.note || 'No note recorded.'} This records a decision about the result, not proof of its claims.</p>
-        {:else}<p class="work-muted">{active.snapshot ? 'No matching adoption decision was included in this frozen input.' : 'No adoption decision is recorded for this exact result.'}</p>{/if}
+        {:else if artifact.kind !== 'owner-authored-finding'}<p class="work-muted">{active.snapshot ? 'No matching adoption decision was included in this frozen input.' : 'No adoption decision is recorded for this exact result.'}</p>{/if}
       {/if}
       {#if context && artifact && resolved}
         <section aria-label="Original result inputs">
@@ -96,7 +96,11 @@
           {/each}
         </section>
         {#if artifact.evidenceContextId}<p class="work-muted">This receipt separately names offered packet {artifact.evidenceContextId}. It does not establish that a native analysis used that offer.</p>{/if}
-        <ContextProvenance investigationId={active.investigationId} contextId={context.id} attemptId={resolved.attempt.id} attemptStatus={resolved.attempt.status} />
+        {#if artifact.kind === 'owner-authored-finding'}
+          <p class="object-ref">Source context manifest {context.manifestId ?? 'not recorded'}</p>
+        {:else}
+          <ContextProvenance investigationId={active.investigationId} contextId={context.id} attemptId={resolved.attempt?.id} attemptStatus={resolved.attempt?.status} />
+        {/if}
       {/if}
     </div>
   {/if}

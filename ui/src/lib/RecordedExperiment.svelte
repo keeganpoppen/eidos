@@ -2,7 +2,8 @@
   import { onMount } from 'svelte';
   import LineDiff from './LineDiff.svelte';
   import ExperimentEvaluation from './ExperimentEvaluation.svelte';
-  import { artifacts, contextText } from './comparison';
+  import { contextText } from './comparison';
+  import { experimentBaselines } from './artifact-inputs';
   import type { Investigation, WorkbenchExperiment } from './types';
 
   let { investigation, onCompare }: { investigation: Investigation; onCompare: (experimentId: string) => void } = $props();
@@ -18,7 +19,7 @@
   let pending = $state<{ path: string; body: Record<string, unknown> } | null>(null);
   const basePath = $derived(`/api/investigations/${encodeURIComponent(investigation.id)}/experiments`);
   const storageKey = $derived(`nema.experiment-request.v1.${investigation.id}`);
-  const availableArtifacts = $derived(artifacts(investigation).filter((item) => item.kind !== 'eidos-evidence-review'));
+  const availableArtifacts = $derived(experimentBaselines(investigation));
   const baselineArtifact = $derived(availableArtifacts.find((item) => item.id === baselineArtifactId));
   const baseline = $derived(investigation.contexts.find((item) => item.id === baselineArtifact?.contextId));
   const alternative = $derived(investigation.contexts.find((item) => item.id === alternativeContextId));

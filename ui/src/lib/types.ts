@@ -196,12 +196,13 @@ export type Investigation = {
   currentContextId: string;
   status: 'draft' | 'dispatching' | 'running' | 'completed' | 'failed' | 'unknown' | 'pending' | 'resuming' | 'needs-evidence' | 'cancelled';
   continuation?: InvestigationContinuation | null;
-  nativeArtifact?: InvestigationArtifact | null;
+  nativeArtifact?: NativeInvestigationArtifact | null;
   attemptHistory?: InvestigationAttempt[];
-  artifactHistory?: InvestigationArtifact[];
+  artifactHistory?: NativeInvestigationArtifact[];
+  findings?: AuthoredFinding[];
   inquiryAdmissionError?: string;
   attempt: InvestigationAttempt | null;
-  artifact: InvestigationArtifact | null;
+  artifact: NativeInvestigationArtifact | null;
   adoption: null | {
     artifactId: string;
     decision: 'adopt' | 'reject';
@@ -234,7 +235,7 @@ export type InvestigationAttempt = {
 export type AttemptSignIn = { verificationUrl: string; userCode: string; expiresAtMs: number };
 export type OwnedAttemptControl = { attemptId: string; owned: boolean; canCancel: boolean; signIn?: AttemptSignIn };
 
-export type InvestigationArtifact = {
+export type NativeInvestigationArtifact = {
   id: string;
   text: string;
   outputSeqs: number[];
@@ -255,6 +256,16 @@ export type InvestigationArtifact = {
   evidenceContextId?: string | null;
   continuedFrom?: InquiryLineage;
 };
+
+export type AuthoredFinding = {
+  id: string; kind: 'owner-authored-finding'; contextId: string; text: string;
+  citations: number[]; unsupportedCitations: number[]; artifactCitations: string[]; unsupportedArtifactCitations: string[];
+  authorship: { kind: 'local-owner'; createdAtMs: number };
+  attemptId?: never; outputSeqs?: never; outputEvidence?: never; executionEvidence?: never; continuedFrom?: never;
+  nativeArtifactId?: never; continuationId?: never; inquiryId?: never; responseId?: never;
+  decisionOccurrenceId?: never; evidenceContextId?: never;
+};
+export type InvestigationArtifact = NativeInvestigationArtifact | AuthoredFinding;
 
 export type PrivateCapsuleRecord = {
   kind: 'private-capsule-record';

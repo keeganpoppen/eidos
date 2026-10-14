@@ -98,6 +98,13 @@ class InvestigationStore:
                   fingerprint TEXT NOT NULL,
                   investigation_id TEXT NOT NULL REFERENCES investigations(id)
                 );
+                CREATE TABLE IF NOT EXISTS investigation_finding_requests(
+                  request_id TEXT PRIMARY KEY,
+                  fingerprint TEXT NOT NULL,
+                  investigation_id TEXT NOT NULL,
+                  finding_id TEXT NOT NULL,
+                  receipt_json TEXT NOT NULL
+                );
                 CREATE TABLE IF NOT EXISTS investigation_native_continuations(
                   continuation_id TEXT PRIMARY KEY,
                   investigation_id TEXT NOT NULL REFERENCES investigations(id),
@@ -170,6 +177,7 @@ class InvestigationStore:
         Names select stored descriptions. No source attempt, continuation or
         adoption decision is copied into the recipient's live state.
         """
+        from .investigation_artifacts import resolve_artifact
         frozen = []
         seen: set[tuple[str, str]] = set()
         for value in inputs:
@@ -181,25 +189,82 @@ class InvestigationStore:
                 raise InvestigationError(400, "select each artifact only once")
             seen.add((identifier, artifact_id))
             source = self._load(identifier)
-            artifact = next((a for a in (source.get("artifact"), source.get("nativeArtifact"),
-                                        *source.get("artifactHistory", []))
-                             if a and a["id"] == artifact_id), None)
-            if artifact is None:
-                raise InvestigationError(404, "exact artifact does not belong to the selected investigation")
-            context = next((c for c in source["contexts"] if c["id"] == artifact.get("contextId")), None)
-            attempt = next((a for a in (source.get("attempt"), *source.get("attemptHistory", []))
-                            if a and a["id"] == artifact.get("attemptId")), None)
-            if not context or not attempt or attempt["contextId"] != context["id"]:
-                raise InvestigationError(409, "artifact/context/attempt provenance mismatch")
-            adoption = source.get("adoption")
+            artifact, context, attempt = resolve_artifact(source, artifact_id)
+            adoption = source.get("adoption") if attempt is not None else None
             frozen.append({
                 "investigationId": identifier, "artifactId": artifact_id, "rationale": rationale,
                 "artifact": artifact, "sourceContextId": context["id"],
                 "sourceManifestId": context.get("manifestId"),
-                "sourceAttemptManifestId": attempt.get("manifestId"),
+                "sourceAttemptManifestId": attempt.get("manifestId") if attempt is not None else None,
                 "sourceAdoption": adoption if adoption and adoption["artifactId"] == artifact_id else None,
             })
         return frozen
+
+    @staticmethod
+    def _finding_request_id(value: Any) -> str:
+        if (not isinstance(value, str) or not 1 <= len(value) <= 128 or not value.strip()
+                or any(not 32 <= ord(c) <= 126 for c in value)):
+            raise InvestigationError(400, "requestId must be 1 to 128 printable ASCII characters")
+        return value
+
+    def get_finding_request(self, investigation_id: str, request_id: str) -> dict[str, Any]:
+        self.trace.require_workbench()
+        request_id = self._finding_request_id(request_id)
+        with self.trace._lock:
+            row = self.trace.db.execute(
+                "SELECT receipt_json FROM investigation_finding_requests WHERE request_id=? AND investigation_id=?",
+                (request_id, investigation_id),
+            ).fetchone()
+            if row is None:
+                raise InvestigationError(404, "finding request not found")
+            return json.loads(row["receipt_json"])["finding"]
+
+    def create_finding(self, investigation_id: str, value: Any) -> tuple[dict[str, Any], bool]:
+        """Admit local prose as immutable data, without a native state transition."""
+        from .investigation_artifacts import artifacts, finding_content, finding_id, validate_finding
+        self.trace.require_workbench()
+        body = _body(value, {"requestId", "contextId", "text"})
+        if set(body) != {"requestId", "contextId", "text"}:
+            raise InvestigationError(400, "finding requires requestId, contextId and text")
+        request_id = self._finding_request_id(body["requestId"])
+        context_id = _text(body["contextId"], "contextId", 200)
+        text = _text(body["text"], "finding text", MAX_ARTIFACT_BYTES)
+        if len(text.encode("utf-8")) > MAX_ARTIFACT_BYTES:
+            raise InvestigationError(400, "finding text exceeds 128 KiB")
+        fingerprint = _digest(_json({"domain": "eidos.authored-finding-request/v1",
+            "investigationId": investigation_id, "contextId": context_id, "text": text}))
+        with self._transaction():
+            existing = self.trace.db.execute(
+                "SELECT fingerprint,receipt_json FROM investigation_finding_requests WHERE request_id=?", (request_id,),
+            ).fetchone()
+            if existing is not None:
+                if existing["fingerprint"] != fingerprint:
+                    raise InvestigationError(409, "requestId was already used with a different finding request")
+                return json.loads(existing["receipt_json"])["finding"], False
+            work = self._load(investigation_id)
+            context = next((c for c in work["contexts"] if c["id"] == context_id), None)
+            if context is None:
+                raise InvestigationError(409, "finding context does not belong to this investigation")
+            content = finding_content(context, text)
+            identifier = finding_id(investigation_id, content)
+            existing_finding = next((a for a in artifacts(work) if a["id"] == identifier), None)
+            finding = existing_finding or {**content, "id": identifier,
+                "authorship": {"kind": "local-owner", "createdAtMs": int(time.time() * 1000)}}
+            validate_finding(work, finding)
+            # Native IDs cannot impersonate the new owner-bound content identity.
+            if existing_finding is not None and existing_finding not in work.get("findings", []):
+                raise InvestigationError(409, "finding identity conflicts with a native artifact")
+            receipt = _json({"finding": finding})
+            if len(receipt.encode("utf-8")) > 256 * 1024:
+                raise InvestigationError(413, "finding receipt exceeds 256 KiB")
+            if existing_finding is None:
+                work.setdefault("findings", []).append(finding)
+                self._save(work)
+            self.trace.db.execute(
+                "INSERT INTO investigation_finding_requests VALUES (?,?,?,?,?)",
+                (request_id, fingerprint, investigation_id, identifier, receipt),
+            )
+            return finding, True
 
     def _context(self, body: Mapping[str, Any], parent: str | None) -> dict[str, Any]:
         question = _text(body.get("question"), "question", 16000)

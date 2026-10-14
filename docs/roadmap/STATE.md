@@ -6,6 +6,31 @@ The baseline GitHub Actions run `38240774514` completed successfully: pytest and
 
 Refresh this file when implementation claims materially change. Keep historical audit IDs instead of quietly relabelling old evidence as current.
 
+## Authored findings with exact support — 2026-10-13
+
+Integration base `2aae982`; [contract](../agents/AUTHORED_FINDING_TASK.md),
+[evidence](../evidence/AUTHORED_FINDING_INTEGRATION.md),
+[D35](DECISIONS.md#d35--authored-findings-are-reusable-knowledge-independent-of-native-completion).
+An owner can save an immutable finding against an exact historical context without
+native dispatch. It is discoverable by result text, inspectable with original
+support, reusable as a frozen result input and comparable in saved arrangements.
+Local submission attribution, unsupported citations and uncited hypotheses are
+explicit. Native attempt/artifact/adoption/inquiry state remains unchanged.
+
+Exact request receipts and separately persisted browser drafts recover a lost save
+reply after context advancement and API restart. Root **1,706 Python passed /55
+explicit native skips**, **220 Bun tests /940 assertions**, clean check/build.
+Actual public-repository browser flow29requests/onePOST, recovery72requests/fivePOSTs,
+second restart20GETs/zeroPOSTs. Final2raw records/2owners/3findings/1comparison retain
+exact original source text/hashes and zero attempts. Desktop/390px inspected.
+Unicode admission and disposed-client late-reply defects were fixed; two harness
+mistakes were preserved and corrected before a fresh complete rerun was accepted.
+
+All owned test services stopped. Bounds128KiBfinding/256KiBreceipt/512KiBbrowser
+slot do not bound whole-owner reads/writes or total database/CPU use. Citations
+establish supplied inputs, not proof. Human benefit and real-account work remain
+unobserved; native-only operations retain their prior gates.
+
 ## Explicit file import with exact recovery — 2026-10-13
 
 Integration base `2386b29`; [contract](../agents/HISTORY_IMPORT_TASK.md),

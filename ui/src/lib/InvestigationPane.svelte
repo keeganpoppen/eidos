@@ -11,6 +11,8 @@
   import EvidenceReview from './EvidenceReview.svelte';
   import ArtifactContent from './ArtifactContent.svelte';
   import ArtifactLineage from './ArtifactLineage.svelte';
+  import AuthoredFindingDraft from './AuthoredFindingDraft.svelte';
+  import { AuthoredFindingClient, emptyFindingState, isAuthoredFinding } from './authored-finding';
   import CatalogPicker from './CatalogPicker.svelte';
   import { savedWork, type ResultSummary } from './saved-work';
   import { AttemptControlClient, type AttemptControlState } from './attempt-control';
@@ -54,6 +56,8 @@
   let lineageTarget = $state<(ArtifactSourceTarget & { snapshot?: FrozenArtifactInput }) | null>(null);
   let controlClient: AttemptControlClient | undefined;
   let inputDraftClient: ContextInputDraftClient | undefined;
+  let findingClient: AuthoredFindingClient | undefined;
+  let findingState = $state(emptyFindingState());
   let inputDraftState = $state<InputDraftState>({ draft: null, sending: false, error: '' });
   let replacementFingerprint = $state<string | null>(null);
   let inspectedInput = $state<InvestigationContext | null>(null);
@@ -128,6 +132,16 @@
       replacementFingerprint = null;
       void tick().then(() => jumpTo('.context-input-draft'));
     }
+  }
+
+  function stageFinding() {
+    if (!ready || busy || !current || !preview || selectedId !== current.id) return;
+    if (findingClient?.stage(current, preview)) void tick().then(() => jumpTo('.authored-finding-draft'));
+  }
+
+  function inspectSavedFinding() {
+    const finding = findingState.finding, source = findingState.draft?.source;
+    if (finding && source) lineageTarget = { investigationId: source.investigationId, contextId: source.contextId, artifactId: finding.id };
   }
 
   async function openInputDraft(confirmed: boolean) {
@@ -333,6 +347,10 @@
   }
 
   onMount(() => {
+    findingClient = new AuthoredFindingClient({
+      getItem: key => localStorage.getItem(key), setItem: (key, value) => localStorage.setItem(key, value), removeItem: key => localStorage.removeItem(key)
+    }, state => findingState = state);
+    findingClient.restore();
     inputDraftClient = new ContextInputDraftClient({
       getItem: key => localStorage.getItem(key), setItem: (key, value) => localStorage.setItem(key, value),
       removeItem: key => localStorage.removeItem(key)
@@ -377,7 +395,7 @@
       }
     })();
     poll = setInterval(() => void refresh(), 1500);
-    return () => { disposed = true; navigation++; controlClient?.dispose(); inputDraftClient?.dispose(); if (poll) clearInterval(poll); };
+    return () => { disposed = true; navigation++; controlClient?.dispose(); inputDraftClient?.dispose(); findingClient?.dispose(); if (poll) clearInterval(poll); };
   });
 
   $effect(() => {
@@ -424,7 +442,8 @@
     {#if selectedId && !current && ready && !busy}<button class="work-secondary" onclick={() => choose(selectedId, restoreAfterLoad)}>Retry selected investigation</button>{/if}
     {#if current}<button class="work-secondary" onclick={() => onCompare(current!.id)}>Compare saved work</button>{/if}
     {#if current?.continuation?.inquiry}<button class="work-secondary" onclick={() => jumpTo('.evidence-review')}>Go to inquiry</button><button class="work-secondary" onclick={() => onCompare(current!.id, 'evidence-chain')}>Follow evidence & response</button>{/if}
-    {#if current && artifacts(current).length}<button class="work-secondary" onclick={() => jumpTo('.recorded-experiments')}>Go to experiments</button>{/if}
+    {#if current && artifacts(current).some(item => !isAuthoredFinding(item) && item.attemptId)}<button class="work-secondary" onclick={() => jumpTo('.recorded-experiments')}>Go to experiments</button>{/if}
+    {#if current?.findings?.length}<button class="work-secondary" onclick={() => jumpTo('.authored-findings')}>Go to authored findings</button>{/if}
   </div>
 
   <section class="context-builder" aria-label="Selected context">
@@ -491,9 +510,13 @@
     onCancel={() => { inputDraftClient?.cancel(); replacementFingerprint = null; }}
     onOpen={openInputDraft} onKeep={() => replacementFingerprint = null} />
 
+  <AuthoredFindingDraft state={findingState} onEdit={value => findingClient?.edit(value)} onSave={() => { void findingClient?.save(); }}
+    onCheck={() => { void findingClient?.checkReceipt(); }} onDismiss={() => findingClient?.dismiss()} onInspect={inspectSavedFinding} />
+
   {#if current && preview}
     <section class="context-preview" aria-label="Saved context preview">
       <h3>Reviewed input</h3>
+      <button class="work-secondary" disabled={!ready || busy || !!findingState.draft || findingState.unavailable} onclick={stageFinding}>Write finding</button>
       <label for="context-revision">Context revision</label>
       <select id="context-revision" bind:value={previewId}>
         {#each current.contexts as context, index (context.id)}
@@ -546,8 +569,8 @@
           <p class="object-ref">{input.artifactId}<br />Original input {input.sourceContextId}</p>
           <button class="source-link" onclick={() => inspectArtifact(input)}>{input.artifact.outputEvidence?.kind === 'private-capsule-publication' ? 'Inspect published result' : 'Inspect result provenance'}</button>
           <details><summary>Read frozen result · {outputEvidence(input.artifact)}</summary><ArtifactContent artifact={input.artifact} /></details>
-          {#if input.sourceAdoption}<p class="source-review">Source review when selected: {input.sourceAdoption.decision === 'adopt' ? 'adopted' : 'rejected'}. {input.sourceAdoption.note} This records a decision, not proof of the result.</p>{:else}<p class="work-muted">No matching source adoption decision was recorded when this input was selected.</p>{/if}
-          <details><summary>Source context and attempt pins</summary><p class="object-ref">Context manifest {input.sourceManifestId ?? 'not recorded'}<br />Attempt manifest {input.sourceAttemptManifestId ?? 'not recorded'}</p></details>
+          {#if input.sourceAdoption}<p class="source-review">Source review when selected: {input.sourceAdoption.decision === 'adopt' ? 'adopted' : 'rejected'}. {input.sourceAdoption.note} This records a decision, not proof of the result.</p>{:else if !isAuthoredFinding(input.artifact)}<p class="work-muted">No matching source adoption decision was recorded when this input was selected.</p>{/if}
+          <details><summary>{isAuthoredFinding(input.artifact) ? 'Source context pin' : 'Source context and attempt pins'}</summary><p class="object-ref">Context manifest {input.sourceManifestId ?? 'not recorded'}{#if !isAuthoredFinding(input.artifact)}<br />Attempt manifest {input.sourceAttemptManifestId ?? 'not recorded'}{/if}</p></details>
         </section>
       {/each}
       <details class="frozen-evidence">
@@ -642,7 +665,7 @@
           {/each}
         </div>
         {#if !displayedArtifact.citations.length && !displayedArtifact.artifactCitations?.length}<p class="work-notice">No supplied-input citations were returned.</p>{/if}
-        {#each artifacts(current).filter((artifact) => artifact.id !== displayedArtifact.id) as historical (historical.id)}
+        {#each artifacts(current).filter((artifact) => artifact.id !== displayedArtifact.id && !isAuthoredFinding(artifact)) as historical (historical.id)}
           <details class="reviewed-artifact" data-result-artifact-id={historical.id}>
             <summary>{artifactKind(historical)} · {outputEvidence(historical)} · retained version</summary>
             <ArtifactContent artifact={historical} context={current.contexts.find((context) => context.id === historical.contextId)} onArtifact={inspectArtifact} />
@@ -666,6 +689,18 @@
       </section>
     {/if}
     {#if current.inquiryAdmissionError}<p class="work-error" role="alert">Inquiry admission: {current.inquiryAdmissionError}</p>{/if}
+    {#if current.findings?.length}
+      <section class="authored-findings" aria-label="Saved authored findings">
+        <h3>Authored findings</h3>
+        {#each artifacts(current).filter(isAuthoredFinding) as finding (finding.id)}
+          <section data-result-artifact-id={finding.id}>
+            <ArtifactContent artifact={finding} context={current.contexts.find(context => context.id === finding.contextId)} onArtifact={inspectArtifact} />
+            <p class="object-ref">Context {finding.contextId}</p>
+            <button class="source-link" onclick={() => lineageTarget = { investigationId: current!.id, artifactId: finding.id, contextId: finding.contextId }}>Inspect finding provenance</button>
+          </section>
+        {/each}
+      </section>
+    {/if}
     {#key current.id}<EvidenceReview investigation={current} {selections} onUpdate={(value) => { if (selectedId === value.id) useInvestigation(value, false, true); }} /><RecordedExperiment investigation={current} onCompare={(experimentId) => onCompare(current!.id, 'alternative-review', experimentId)} />{/key}
   {/if}
 

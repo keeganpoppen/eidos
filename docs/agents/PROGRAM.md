@@ -150,7 +150,7 @@ not mature-world axioms.
 Managed attempts are integrated in `fa7eabf`; `2a62d68` preserves exact legacy
 manifest bytes. Historical-input reuse is integrated in `1698f6a`. The
 [handoff](CURRENT_HANDOFF.md) owns the completed source-discovery and explicit-import slices and current
-integration status. See [D31–D34](../roadmap/DECISIONS.md) and linked evidence.
+integration status. See [D31–D35](../roadmap/DECISIONS.md) and linked evidence.
 
 **Established discriminator: recover evidence from unmapped history (C3/V1-01/04).**
 On the same authored 1,200-turn corpus without maps, baseline needed 27 page
@@ -170,26 +170,32 @@ and second restart pass. Unknown fields and intentional repeated lines survive.
 The original file is retained without a download route;8MiB and no same-thread merge
 are current limits. Real owner archives and human usefulness remain unobserved.
 
-**Next discriminator (C1/C6): finish an owner-authored grounded finding.**
-The owner can now bring in and recover evidence, but cannot finish reusable findings
-without an attempt. An authored API scout shows rationale survives restart and input
-reuse while result discovery cannot find its conclusion; native completion/adoption
-refuse without their proper attempt/artifact. Independently exercise this with public
-repository material, then choose an immutable authored finding tied to an exact
-saved context if existing notes do not cover the action. The loop is write conclusion
-and open questions → save/reopen → inspect original support → reuse in later work.
-Preserve authorship; never fabricate native completion or execution evidence. A
-context advancing from C0 to C1 must not repin F0. Lost reply/restart must recover the
-same finding. Reuse current result discovery/inspection/context conventions where
-an explicit kind branch keeps native invariants intact; avoid a parallel generalized
-artifact system. This opens consequential self-use without account/model access.
-A narrower later candidate is starting a question from a saved aperture's exact
-context; current staged input reuse already supplies the necessary creation path.
+**Established loop (C1/C5/C6): finish an authored finding.**
+Root's public D34/import-code case demonstrated that rationale survives but result
+search misses the conclusion. [Authored finding integration](../evidence/AUTHORED_FINDING_INTEGRATION.md)
+now saves exact-context conclusions and hypotheses independently of native state,
+recovers F0/C0 after C1/restart/lost reply, inspects original support and supplies F0
+to another question. Native invariants and legacy hashes remain intact. Direct
+citations establish supply, not verified truth; inherited raw references remain
+unsupported. Actual desktop/narrow scripted comparison/reopen passes after preserved
+harness corrections. Human benefit and real model quality remain unmeasured.
+
+**Next discriminator (C1/C5): inspect where an exact finding was supplied.**
+Scouts reproduced a relation gap: full-owner download/manual scan finds historical
+B0 and copied-input D, while text search misses D and includes unsupported prose
+mentions. Root should independently verify the six-owner counterexample and choose
+a bounded read-only direct-use index if warranted. Existing frozen artifactInputs
+are the facts; no new dependency ontology is needed. Show saved question/context
+membership, preserve independent editor state, and do not infer transitive effects,
+claim reliance, automatic invalidation or propagation. A newer finding is a separate
+value without an inferred supersedes relation. Existing upstream lineage and exact
+context previews provide the integration points. Recipe activation still needs
+repeated selection friction; broad native matrices cannot establish owner benefit.
 
 The active read index is a replaceable performance adapter, not a second provenance
 authority. Native process/synthetic transport research is independent of production
-admission. Reverse result-use discovery remains a later candidate; further broad
-native matrices cannot establish real-account usability or returning-person benefit.
+admission. Direct result-use discovery remains a proposed next slice; its scope must be tested
+against exact frozen membership rather than inferred semantic dependence.
 
 Historical paging contract: `GET /api/threads/:id` returns at most 40 complete turns.
 `anchorSeq` follows a stable record; `aroundSeq` resolves exact membership in that

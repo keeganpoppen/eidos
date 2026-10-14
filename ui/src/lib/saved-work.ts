@@ -1,11 +1,12 @@
 import type { Investigation, InvestigationArtifact, InvestigationAttempt, InvestigationContext, WorkbenchExperiment } from './types';
 import type { ArtifactSourceTarget } from './artifact-inputs';
+import { checkAuthoredFinding } from './authored-finding';
 
 export type WorkSummary = Pick<Investigation, 'id' | 'title' | 'status' | 'createdAtMs' | 'currentContextId'> & {
   contextCount: number; artifactCount: number; attemptStatus: string | null; hasInquiry: boolean; version: string;
 };
 export type ResultSummary = {
-  investigationId: string; investigationTitle: string; artifactId: string; contextId: string; attemptId: string;
+  investigationId: string; investigationTitle: string; artifactId: string; contextId: string; attemptId: string | null;
   kind?: string; executionEvidence?: string; continuedFrom?: unknown; createdAtMs: number;
   match?: { field: 'title' | 'question' | 'result'; excerpt: string };
 };
@@ -14,7 +15,7 @@ export type CatalogKind = 'catalog' | 'artifacts';
 export type CatalogPage = { version: string; items: CatalogItem[]; nextCursor: string | null };
 export type ArtifactSource = {
   version: string; investigationId: string; investigationTitle: string; artifact: InvestigationArtifact;
-  context: InvestigationContext; attempt: InvestigationAttempt; adoption: Investigation['adoption'];
+  context: InvestigationContext; attempt: InvestigationAttempt | null; adoption: Investigation['adoption'];
 };
 type View = { version?: string; investigation: Investigation };
 type Fetcher = (path: string) => Promise<Response>;
@@ -112,9 +113,12 @@ export class SavedWorkClient {
     const path = `/api/investigations/${encodeURIComponent(target.investigationId)}/artifacts/${encodeURIComponent(target.artifactId)}/source${query}`;
     return this.once(path, async () => {
       const source: ArtifactSource = await this.read(path);
+      const authored = source.artifact?.kind === 'owner-authored-finding';
+      if (authored) await checkAuthoredFinding(source.artifact, target.investigationId);
       if (source.investigationId !== target.investigationId || source.artifact.id !== target.artifactId ||
         (target.contextId && source.context.id !== target.contextId) || source.artifact.contextId !== source.context.id ||
-        source.artifact.attemptId !== source.attempt.id || source.attempt.contextId !== source.context.id) {
+        (authored ? source.attempt !== null || source.adoption !== null
+          : !source.attempt || source.artifact.attemptId !== source.attempt.id || source.attempt.contextId !== source.context.id)) {
         throw new Error('This exact result, source context, or attempt is unavailable. No newer result has been substituted.');
       }
       return source;
