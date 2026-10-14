@@ -2,6 +2,8 @@
   import { onMount, tick } from 'svelte';
   import Markdown from './Markdown.svelte';
   import ContextProvenance from './ContextProvenance.svelte';
+  import ContextInputDraft from './ContextInputDraft.svelte';
+  import { ContextInputDraftClient, createdInputContext, inputDraftOpenDecision, type InputDraftState } from './context-input-draft';
   import RecordedExperiment from './RecordedExperiment.svelte';
   import { artifacts, attempts, outputEvidence } from './comparison';
   import EvidenceReview from './EvidenceReview.svelte';
@@ -45,6 +47,14 @@
   let restoreAfterLoad = true;
   let lineageTarget = $state<(ArtifactSourceTarget & { snapshot?: FrozenArtifactInput }) | null>(null);
   let controlClient: AttemptControlClient | undefined;
+  let inputDraftClient: ContextInputDraftClient | undefined;
+  let inputDraftState = $state<InputDraftState>({ draft: null, sending: false, error: '' });
+  let replacementFingerprint = $state<string | null>(null);
+  let inspectedInput = $state<InvestigationContext | null>(null);
+  let inputInspectBusy = $state(false);
+  let inputInspectError = $state('');
+  let inputInspectGeneration = 0;
+  let inputOpenGeneration = 0;
   let attemptControl = $state<AttemptControlState>({ target: null, control: null, reading: false, sending: false, pending: false, error: '', notice: '' });
   const ownedTarget = $derived(current?.attempt ? JSON.stringify([current.id, current.attempt.id]) : '');
   const lifecycleLabels = { preparing: 'Preparing', 'awaiting-sign-in': 'Awaiting sign-in', checking: 'Checking preparation', running: 'Running', closed: 'Closed locally' };
@@ -63,6 +73,73 @@
   const inputCount = $derived(selections.length + artifactInputs.length);
   const canSave = $derived(title.trim().length > 0 && question.trim().length > 0 && inputCount > 0 && inputCount <= 32 && !busy && ready && (!selectedId || current?.id === selectedId));
   const threadCount = $derived(new Set(selections.map((selection) => selection.threadId)).size);
+  const unsavedEditor = $derived(current ? dirty || title !== current.title || note !== (current.adoption?.note ?? '')
+    : !!(title || question || note || inputCount));
+
+  function editorFingerprint() {
+    return JSON.stringify({ selectedId, previewId, title, question, note, selections, artifactInputs, pendingRequest });
+  }
+
+  function inputDraftKey(state: InputDraftState) { return JSON.stringify(state.draft); }
+
+  function updateInputDraft(state: InputDraftState) {
+    if (inputDraftKey(state) !== inputDraftKey(inputDraftState)) {
+      inputInspectGeneration++;
+      inspectedInput = null; inputInspectBusy = false; inputInspectError = '';
+      replacementFingerprint = null;
+    }
+    inputDraftState = state;
+  }
+
+  async function inspectInputDraft() {
+    const draft = inputDraftState.draft;
+    if (!draft?.saved || inputInspectBusy) return;
+    const generation = ++inputInspectGeneration;
+    inputInspectBusy = true; inputInspectError = ''; inspectedInput = null;
+    try {
+      const work = await savedWork.view(draft.saved.investigationId);
+      const context = createdInputContext(work, draft);
+      if (!disposed && generation === inputInspectGeneration) inspectedInput = context;
+    } catch (cause) {
+      if (!disposed && generation === inputInspectGeneration) inputInspectError = cause instanceof Error ? cause.message : String(cause);
+    } finally { if (!disposed && generation === inputInspectGeneration) inputInspectBusy = false; }
+  }
+
+  function stageHistoricalInputs() {
+    if (!ready || busy || !current || !preview) return;
+    if (inputDraftClient?.stage(current, preview)) {
+      replacementFingerprint = null;
+      void tick().then(() => jumpTo('.context-input-draft'));
+    }
+  }
+
+  async function openInputDraft(confirmed: boolean) {
+    const draft = inputDraftState.draft;
+    if (!active || !draft?.saved) return;
+    const fingerprint = editorFingerprint();
+    const staged = inputDraftKey(inputDraftState);
+    const decision = inputDraftOpenDecision(busy, !!pendingRequest, unsavedEditor, confirmed && replacementFingerprint === fingerprint);
+    if (decision === 'blocked') return;
+    if (decision === 'confirm') { replacementFingerprint = fingerprint; return; }
+    busy = true;
+    error = '';
+    const request = navigation;
+    const generation = inputOpenGeneration;
+    try {
+      const work = await savedWork.view(draft.saved.investigationId);
+      const context = createdInputContext(work, draft);
+      if (disposed || !active || inputOpenGeneration !== generation || navigation !== request || pendingRequest
+          || inputDraftKey(inputDraftState) !== staged || editorFingerprint() !== fingerprint) return;
+      useInvestigation(work, true);
+      previewId = context.id;
+      replacementFingerprint = null;
+      notice = work.currentContextId === context.id
+        ? 'Opened the saved draft. Review its exact input before starting work.'
+        : 'Opened the exact created context preview. This investigation now has a newer current context in the editor.';
+    } catch (cause) {
+      if (!disposed && active && inputOpenGeneration === generation && navigation === request) error = cause instanceof Error ? cause.message : String(cause);
+    } finally { if (!disposed && navigation === request) busy = false; }
+  }
 
   function jumpTo(selector: string) {
     document.querySelector(`.investigation-pane ${selector}`)?.scrollIntoView({ block: 'start', behavior: 'smooth' });
@@ -239,6 +316,11 @@
   }
 
   onMount(() => {
+    inputDraftClient = new ContextInputDraftClient({
+      getItem: key => localStorage.getItem(key), setItem: (key, value) => localStorage.setItem(key, value),
+      removeItem: key => localStorage.removeItem(key)
+    }, updateInputDraft);
+    inputDraftClient.restore();
     controlClient = new AttemptControlClient({
       getItem: (key) => localStorage.getItem(key),
       setItem: (key, value) => localStorage.setItem(key, value),
@@ -278,7 +360,14 @@
       }
     })();
     poll = setInterval(() => void refresh(), 1500);
-    return () => { disposed = true; navigation++; controlClient?.dispose(); if (poll) clearInterval(poll); };
+    return () => { disposed = true; navigation++; controlClient?.dispose(); inputDraftClient?.dispose(); if (poll) clearInterval(poll); };
+  });
+
+  $effect(() => {
+    if (!active) {
+      inputOpenGeneration++;
+      replacementFingerprint = null;
+    }
   });
 
   $effect(() => {
@@ -373,6 +462,13 @@
     <p class="work-muted">Unsaved selections stay in this browser. Saved contexts and results belong to the persisted investigation.</p>
   </section>
 
+  <ContextInputDraft state={inputDraftState} editorBusy={busy} editorPending={!!pendingRequest}
+    inspection={inspectedInput} inspecting={inputInspectBusy} inspectionError={inputInspectError} onInspect={inspectInputDraft}
+    confirmReplacement={replacementFingerprint !== null}
+    onEdit={(field, value) => inputDraftClient?.edit(field, value)} onCreate={() => { void inputDraftClient?.create(); }}
+    onCancel={() => { inputDraftClient?.cancel(); replacementFingerprint = null; }}
+    onOpen={openInputDraft} onKeep={() => replacementFingerprint = null} />
+
   {#if current && preview}
     <section class="context-preview" aria-label="Saved context preview">
       <h3>Reviewed input</h3>
@@ -383,9 +479,18 @@
         {/each}
       </select>
       <p class="object-ref">{preview.id}</p>
+      <button id="context-input-start" class="work-secondary" disabled={busy || !ready || !!inputDraftState.draft} onclick={stageHistoricalInputs}>Start a draft with these inputs</button>
       <div class="saved-question"><Markdown source={preview.question} /></div>
       <p>{preview.records.length} frozen evidence records from {new Set(preview.selections.map((selection) => selection.threadId)).size} threads · {preview.artifactInputs?.length ?? 0} frozen result inputs.</p>
       <p class="coverage-note">This packet captures selected evidence, exact result inputs and the input below. Provider context, native instructions, tools, and configuration are not fully observed.</p>
+      {#if preview.inputOrigin?.version === 1 && preview.inputOrigin.kind === 'historical-context-inputs'}
+        <details class="input-origin">
+          <summary>Historical input origin</summary>
+          <p>This initial context reused frozen inputs for a new question. The source reference grants no execution authority.</p>
+          <p class="object-ref">Source {preview.inputOrigin.investigationId}<br />Context {preview.inputOrigin.contextId}<br />Manifest {preview.inputOrigin.manifestId ?? 'not recorded'}</p>
+          <ContextProvenance investigationId={preview.inputOrigin.investigationId} contextId={preview.inputOrigin.contextId} />
+        </details>
+      {/if}
       {#if baseline}
         {@const resultDiff = artifactInputDiff(baseline.artifactInputs, preview.artifactInputs)}
         {@const changedResults = changedFrozenArtifactInputs(baseline.artifactInputs, preview.artifactInputs)}

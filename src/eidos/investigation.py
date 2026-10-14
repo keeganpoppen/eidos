@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from contextlib import contextmanager
+from copy import deepcopy
 import hashlib
 import json
 import re
@@ -208,9 +209,6 @@ class InvestigationStore:
                 or not 1 <= len(selections) + len(artifact_inputs) <= MAX_SELECTIONS):
             raise InvestigationError(400, f"select between 1 and {MAX_SELECTIONS} evidence ranges or artifacts")
         artifacts = self._artifact_inputs(artifact_inputs)
-        coverage = (COVERAGE.replace("Selected app-server evidence only.",
-                    "Selected app-server records and derived artifacts only.") + ARTIFACT_COVERAGE
-                    if artifacts else COVERAGE)
         frozen: dict[int, dict[str, Any]] = {}
         normalized = []
         for selected in selections:
@@ -248,6 +246,46 @@ class InvestigationStore:
                 raise InvestigationError(400, f"select at most {MAX_RECORDS} records")
             normalized.append({"threadId": thread_id, "startSeq": start, "endSeq": end, "rationale": rationale})
         records = [frozen[seq] for seq in sorted(frozen)]
+        return self._project_context(question, normalized, records, artifacts, parent)
+
+    def _context_from_source(self, body: Mapping[str, Any]) -> dict[str, Any]:
+        """Reuse frozen input data, without resolving current evidence or authority."""
+        if "selections" in body or "artifactInputs" in body:
+            raise InvestigationError(400, "inputSource cannot be combined with selections or artifactInputs")
+        reference = _body(body["inputSource"], {"investigationId", "contextId"})
+        identifier = _text(reference.get("investigationId"), "investigationId", 200)
+        context_id = _text(reference.get("contextId"), "contextId", 200)
+        owner = self._load(identifier)
+        source = next((c for c in owner["contexts"] if c["id"] == context_id), None)
+        if source is None:
+            raise InvestigationError(404, "exact context does not belong to the selected investigation")
+        return self._project_context(
+            _text(body.get("question"), "question", 16000),
+            deepcopy(source["selections"]), deepcopy(source["records"]),
+            deepcopy(source.get("artifactInputs", [])), None,
+            input_origin={"version": 1, "kind": "historical-context-inputs",
+                          "investigationId": identifier, "contextId": context_id,
+                          "manifestId": source.get("manifestId")},
+        )
+
+    def _project_context(
+        self, question: str, selections: list[dict[str, Any]], records: list[dict[str, Any]],
+        artifacts: list[dict[str, Any]], parent: str | None, *,
+        input_origin: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """One canonical projector for resolved inputs and exact historical inputs.
+
+        Recompute prompt and coverage. No source prompt, continuation, runtime or
+        unknown top-level context field enters a new packet through this path.
+        """
+        if (not isinstance(selections, list) or not isinstance(artifacts, list)
+                or not 1 <= len(selections) + len(artifacts) <= MAX_SELECTIONS):
+            raise InvestigationError(400, f"select between 1 and {MAX_SELECTIONS} evidence ranges or artifacts")
+        if not isinstance(records, list) or len(records) > MAX_RECORDS:
+            raise InvestigationError(400, f"select at most {MAX_RECORDS} records")
+        coverage = (COVERAGE.replace("Selected app-server evidence only.",
+                    "Selected app-server records and derived artifacts only.") + ARTIFACT_COVERAGE
+                    if artifacts else COVERAGE)
         prompt_parts = [
             "Answer the bounded question using the selected evidence below. Cite supporting "
             "records as [evidence:N], where N is the supplied sequence number. Distinguish "
@@ -257,7 +295,7 @@ class InvestigationStore:
             "No file changes or external actions are requested.",
             "Coverage: " + coverage,
             "Question:\n" + question,
-            "Selected ranges and inclusion rationale:\n" + _json(normalized),
+            "Selected ranges and inclusion rationale:\n" + _json(selections),
             "Selected historical records:",
         ]
         # Only newly built packets change; historical prompt bytes stay frozen.
@@ -283,25 +321,27 @@ class InvestigationStore:
         content = {
             "parentContextId": parent,
             "question": question,
-            "selections": normalized,
+            "selections": selections,
             "records": records,
             "projectedPrompt": prompt,
             "coverage": coverage,
         }
         if artifacts:
             content["artifactInputs"] = artifacts
+        if input_origin is not None:
+            content["inputOrigin"] = input_origin
         context = {**content, "id": "context_" + _digest(_json(content)), "createdAtMs": int(time.time() * 1000)}
         self.contexts.attach(context)
         return context
 
     def create(self, body: Mapping[str, Any]) -> dict[str, Any]:
-        body = _body(body, {"requestId", "title", "question", "selections", "artifactInputs"})
+        body = _body(body, {"requestId", "title", "question", "selections", "artifactInputs", "inputSource"})
         with self._transaction():
             request_id, fingerprint, prior = self._request(body, "create")
             if prior is not None:
                 return prior
             title = _text(body.get("title"), "title", 200)
-            context = self._context(body, None)
+            context = self._context_from_source(body) if "inputSource" in body else self._context(body, None)
             self.contexts.revision(context, None)
             investigation = {
                 "schemaVersion": 1,

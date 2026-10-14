@@ -61,6 +61,8 @@ class InvestigationContexts:
                 self.store.unknown("Provider input, hidden instructions and request retries are not observed.", boundary=Boundary.PROVIDER),
             ),
         }
+        if "inputOrigin" in context:
+            entries["input/origin"] = self._slot("investigation.input-origin.v1", context["inputOrigin"])
         for record in context["records"]:
             entries[f"evidence/{record['seq']}"] = self._slot("investigation.frozen-record.v1", record)
         for artifact in context.get("artifactInputs", []):

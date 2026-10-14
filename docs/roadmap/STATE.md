@@ -6,6 +6,26 @@ The baseline GitHub Actions run `38240774514` completed successfully: pytest and
 
 Refresh this file when implementation claims materially change. Keep historical audit IDs instead of quietly relabelling old evidence as current.
 
+## New questions from exact historical inputs — 2026-10-13
+
+Integration base `2a62d68`; [contract](../agents/CONTEXT_INPUT_REUSE_TASK.md),
+[evidence](../evidence/CONTEXT_INPUT_REUSE_INTEGRATION.md),
+[D32](DECISIONS.md#d32--reuse-frozen-historical-inputs-through-a-new-canonical-question).
+A historical preview can stage a new question using its frozen records, result
+snapshots and original review metadata. One canonical projection records local
+input origin; old prompt/inquiry/native state is not inherited. A separate saved
+stage preserves the current dirty editor and unresolved save identity. Exact
+retry recovers a lost creation reply; inspection precedes deliberate Open.
+
+Parent **1,559 Python passed / 55 explicit native skips**, **126 Bun tests / 610
+assertions**, clean Svelte check/build. The authored browser performed two identical
+creation POSTs with the first reply lost: one new owner, exact historical snapshots,
+unchanged source/editor recovery state. An actual API restart resolved the same
+saved result with 18 GETs and zero POSTs. Independent review challenged concurrent
+creation, missing original raw data, progressed-owner replay and delayed Open
+navigation. Desktop/390px screenshots inspected; owned services stopped. No native
+or model call, automatic activation or human-usability claim.
+
 ## Opt-in managed attempts — 2026-10-13
 
 Working integration base `8ed2f0a`; [contract](../agents/MANAGED_ATTEMPT_TASK.md),

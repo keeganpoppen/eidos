@@ -1,6 +1,6 @@
 # Continuing development frontier
 
-**Provisional strategic understanding · 2026-10-13 · inspected base `8ed2f0a`.**
+**Provisional strategic understanding · 2026-10-13 · inspected base `2a62d68`.**
 The [current handoff](CURRENT_HANDOFF.md) owns verified status and runnable steps;
 this document owns revisable conjectures and opportunity ordering. It does not
 replace the [destination](../vision/DESTINATION.md) or [V1](../roadmap/V1.md).
@@ -21,7 +21,7 @@ These are hypotheses, not established invariants or additional release gates.
 | C1 | Grounded artifacts compose into larger work without flattening provenance. Exact frozen result inputs now support a synthetic A→B→C chain, original-support recovery and separate adoption snapshots. | Test longer and conflicting chains in useful native work. A cited input proves supply, not its claims. The synthetic chain does not establish answer quality or practical reorientation speed. Copied results carry no continuation authority. |
 | C2 | A small continuation vocabulary supports useful delegation despite opaque native stacks. Named ProcessRuntime protocols exist; the investigation program is fixed Discover→AwaitDiscovery and A2 is a newly admitted attempt. | A local regression now opens two inquiries, receives B before A, reopens the database, refuses A and incorporates both exact receipts under one process identity. Await order remains explicit. Product admission is deliberately singular; expand it only for a demonstrated same-task need, not because the vocabulary can express it. |
 | C3 | Explicit source relationships and attention limits outperform larger undirected context. Weighted hindsight trees and synthetic one-hop selection exist. | Held-out sanitized histories with irrelevant links, conflicting updates and dispersed support must improve controlling-decision recovery without increasing unsupported conclusions. Existing fixture scores are not this evidence. |
-| C4 | Reviewed interpretation changes improve future work while historical pins remain stable. Immutable manifests and experiment reviews exist; adoption currently activates nothing. | First test explicit reuse of one historical context’s input references in a distinct new draft. Omit its old prompt/inquiry instructions and execution authority. Only repeated owner friction would justify a reversible starter for future drafts; historical pins must remain unchanged. |
+| C4 | Reviewed interpretation changes improve future work while historical pins remain stable. Immutable manifests and experiment reviews exist; adoption currently activates nothing. | Exact historical-input reuse is implemented: server copies frozen snapshots into a new canonical question, with a separate staged creation and local origin. Omit the old prompt/inquiry instructions and execution authority. Only repeated owner friction would justify a reversible starter for future drafts; historical pins must remain unchanged. |
 | C5 | Several durable lenses over shared references reduce reorientation work. Frozen bindings exist, and stable server pages now preserve exact evidence under append/reload; named compiled arrangements now persist as immutable same-database snapshots. | The 1,200-turn recovery and 1,000-owner transfer cases now pass. Recorded experiments now retain exact context-only alternatives in saved views. Saved-question preview now exposes exact question, rationale, baseline and raw support before replacing the working arrangement. Next evaluate this with a returning person. Scripted success still does not measure human reorientation. |
 | C6 | Knowledge and action remain separate while useful work still happens. Owner routes and admission checks exist; default-off managed attempts connect fresh sign-in and private evidence. | Copied history and prompt-like source instructions must remain inspectable without granting execution, while one admitted subscription-backed specialist completes useful work. A permanently closed gate cannot establish this conjecture. |
 
@@ -115,14 +115,17 @@ These are hypotheses, not established invariants or additional release gates.
    **C4 scout outcome:** historical context input reuse has a concrete affordance
    gap: New investigation clears inputs, while New alternative from selection
    carries current editable inputs rather than the previewed historical packet.
-   A bounded explicit “Start a draft with these inputs” could preserve exact
-   source/artifact references and rationales, omit the old question/prompt/inquiry
-   text, and save through the existing context builder with origin provenance.
-   This is a source-level candidate, not an implemented action or measured human
-   benefit. Do not rename existing experiment adoption into automatic activation;
+   The [historical-input reuse contract](CONTEXT_INPUT_REUSE_TASK.md) now implements
+   a deliberate “Start a draft with these inputs”: exact frozen source/artifact
+   snapshots and rationales enter one canonical new-question projection, with
+   local origin and separately recoverable staged creation. Thin selectors were
+   rejected because the ordinary resolver refreshes source review metadata.
+   Backend/independent tests and actual browser loss/retry/restart acceptance pass.
+   This is not measured human benefit. Do not rename existing experiment adoption
+   into automatic activation;
    its retention/byte evaluator does not establish instruction quality or future
-   usefulness. Verify actual historical selection behavior before accepting the
-   next slice; defer a global starter/rollback layer until a repeated need exists.
+   usefulness. Next challenge discovery before evidence coordinates are known;
+   defer a global starter/rollback layer until a repeated need exists.
 4. **Established baseline: substantial saved work (C1/C5).** The 1,200-turn history
    and 1,000-owner HTTP/browser cases preserve stable source membership, bounded
    metadata pages, conditional reads, exact artifact detail and dirty draft/retry
@@ -143,12 +146,28 @@ not mature-world axioms.
 
 ## Current integration boundary and next contract
 
-The preceding result-discovery integration is `63cd47f` (public CI passed);
-the [handoff](CURRENT_HANDOFF.md) identifies native worker joining verification and
-the next managed-attempt contract. See [D28–D30](../roadmap/DECISIONS.md)
-and linked evidence. The active
-read index is a derived performance adapter, not a second provenance authority.
-Native process/synthetic transport research is independent of production admission.
+Managed attempts are integrated in `fa7eabf`; `2a62d68` preserves exact legacy
+manifest bytes and passes public CI. The [handoff](CURRENT_HANDOFF.md) owns the
+subsequent historical-input reuse integration and verification. See
+[D31–D32](../roadmap/DECISIONS.md) and linked evidence.
+
+**Next discriminator: recover evidence from unmapped imported history (C3/V1-01/04).**
+The workbench can reopen known references, results and saved questions, but its
+history surface still requires paging or a known record number. Existing long
+history acceptance pre-supplies semantic-map coordinates. Strip only derived maps
+from an isolated authored corpus and attempt remembered-phrase recovery in the
+actual UI before implementing anything. If the gap remains, choose bounded public
+history text discovery → exact source → explicit disjoint selection → canonical
+context/save/reopen. Search must follow displayed projection semantics, preserve
+exact record membership and exclude private/control storage; raw JSON matching
+would find replaced text and miss assembled deltas. Measure discoverability and
+request volume, not human speed or answer quality. A sanitized user-supplied corpus
+would test practical usefulness later; do not silently inspect personal history.
+
+The active read index is a replaceable performance adapter, not a second provenance
+authority. Native process/synthetic transport research is independent of production
+admission. Reverse result-use discovery remains a later candidate; further broad
+native matrices cannot establish real-account usability or returning-person benefit.
 
 Historical paging contract: `GET /api/threads/:id` returns at most 40 complete turns.
 `anchorSeq` follows a stable record; `aroundSeq` resolves exact membership in that

@@ -275,6 +275,31 @@ unchanged. Copying any closure record grants no live capability. Cancellation
 also signals pending startup before waiting for registration locks, so a held
 startup guard cannot launch a child after observing Stop.
 
+### D32 — Reuse frozen historical inputs through a new canonical question
+
+**Accepted implementation direction, 2026-10-13**, base `2a62d68`. A historical
+context can supply its frozen evidence ranges, records and result snapshots to a
+new investigation. This copies data from an exact owner/context, not the current
+editor selection, latest artifact review, old prompt or native continuation.
+One shared projector builds the new question and applies current bounds. Local
+inputOrigin records where those inputs came from; parentContextId remains the
+within-investigation revision relation. Neither describes live authority.
+
+Thin selectors were rejected for this operation because ordinary resolution
+refreshes source adoption/manifests and may lose the snapshot a person reviewed.
+The frozen context can therefore supply inputs even after underlying raw/source
+owners disappear; missing the actual source context still refuses. Original raw
+and unknown fields remain untouched. Later ordinary revisions can change inputs,
+with their parent leading back to the original reuse rather than claiming equality.
+
+Creation is staged separately from the working draft, persists an exact request
+before sending, and recovers without automatically dispatching or opening work.
+An initial created context remains pinned even if a retry returns a newer owner
+revision. Read-only inspection precedes deliberate Open; pending editor saves and
+later navigation cannot be overwritten by a delayed response. This is explicit
+historical data reuse, not automatic adoption/default activation or a native fork.
+See the [contract](../agents/CONTEXT_INPUT_REUSE_TASK.md).
+
 ## Deferred explorations, kept for their potential
 
 ### D22 — Names, routing, locality, and leases

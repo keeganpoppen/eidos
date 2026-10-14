@@ -159,6 +159,7 @@ export type InvestigationContext = {
   projectedPrompt: string;
   coverage: unknown;
   manifestId?: string | null;
+  inputOrigin?: { version: 1; kind: 'historical-context-inputs'; investigationId: string; contextId: string; manifestId: string | null };
   createdAtMs: number;
 };
 
