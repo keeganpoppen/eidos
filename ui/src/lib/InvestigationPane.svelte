@@ -9,6 +9,7 @@
   import { ContextInputDraftClient, createdInputContext, inputDraftOpenDecision, type InputDraftState } from './context-input-draft';
   import RecordedExperiment from './RecordedExperiment.svelte';
   import { artifacts, attempts, outputEvidence } from './comparison';
+  import { suppliedComparisonRequest, type SuppliedComparisonRequest } from './supplied-result-comparison';
   import EvidenceReview from './EvidenceReview.svelte';
   import ArtifactContent from './ArtifactContent.svelte';
   import ArtifactLineage from './ArtifactLineage.svelte';
@@ -21,7 +22,7 @@
   import { sameSelections } from './semantic';
   import type { ArtifactInputSelection, FrozenArtifactInput, EvidenceSelection, EvidenceHit, ThreadSummary, Investigation, InvestigationArtifact, InvestigationContext, InvestigationCapabilities } from './types';
 
-  let { selections = $bindable([]), evidenceEditor = $bindable(null), threads = [], sourceNavigation = 0, active = true, onSource, onShowEvidence, onCompare, onSavedWork }: {
+  let { selections = $bindable([]), evidenceEditor = $bindable(null), threads = [], sourceNavigation = 0, active = true, onSource, onShowEvidence, onCompare, onCompareInput, onSavedWork }: {
     selections: EvidenceSelection[];
     evidenceEditor?: EvidenceEditor | null;
     threads?: ThreadSummary[];
@@ -30,6 +31,7 @@
     onSource: (selection: EvidenceSelection) => void;
     onShowEvidence: (hit: EvidenceHit) => void;
     onCompare: (investigationId: string, intent?: 'comparison' | 'evidence-chain' | 'alternative-review', experimentId?: string) => void;
+    onCompareInput: (request: SuppliedComparisonRequest) => void;
     onSavedWork: () => void;
   } = $props();
 
@@ -100,6 +102,14 @@
 
   function editorFingerprint() {
     return JSON.stringify({ selectedId, previewId, title, question, note, selections, artifactInputs, pendingRequest });
+  }
+
+  function compareSupplied(artifact: InvestigationArtifact, input: FrozenArtifactInput) {
+    if (!active || !current) return;
+    const context = current.contexts.find(value => value.id === artifact.contextId);
+    if (!context) return;
+    try { onCompareInput(suppliedComparisonRequest(current.id, $state.snapshot(artifact), $state.snapshot(context), $state.snapshot(input))); }
+    catch (cause) { error = cause instanceof Error ? cause.message : String(cause); }
   }
 
   function inputDraftKey(state: InputDraftState) { return JSON.stringify(state.draft); }
@@ -648,7 +658,7 @@
     {#if displayedArtifact}
       <section class="investigation-result" aria-label="Specialist result" data-result-artifact-id={displayedArtifact.id}>
         <h3>{displayedArtifact.continuedFrom ? 'Follow-up specialist result' : displayedArtifact.kind === 'native-needs-evidence' ? 'Specialist evidence request' : current.nativeArtifact ? 'Original specialist result' : 'Specialist result'}</h3>
-        <ArtifactContent artifact={displayedArtifact} context={artifactContext} onArtifact={inspectArtifact} />
+        <ArtifactContent artifact={displayedArtifact} context={artifactContext} onArtifact={inspectArtifact} onCompareInput={input => compareSupplied(displayedArtifact!, input)} />
         {#if displayedArtifact.outputEvidence?.kind === 'private-capsule-publication'}<p class="work-notice">Derived publication; original native evidence was recorded privately.</p>{/if}
         <button class="work-secondary" disabled={busy} onclick={() => useResult(current!, displayedArtifact!)}>New investigation using this result</button>
         <button class="source-link" onclick={() => lineageTarget = { investigationId: current!.id, artifactId: displayedArtifact!.id, contextId: displayedArtifact!.contextId }}>Inspect result provenance</button>
@@ -669,7 +679,7 @@
         {#each artifacts(current).filter((artifact) => artifact.id !== displayedArtifact.id && !isAuthoredFinding(artifact)) as historical (historical.id)}
           <details class="reviewed-artifact" data-result-artifact-id={historical.id}>
             <summary>{artifactKind(historical)} · {outputEvidence(historical)} · retained version</summary>
-            <ArtifactContent artifact={historical} context={current.contexts.find((context) => context.id === historical.contextId)} onArtifact={inspectArtifact} />
+            <ArtifactContent artifact={historical} context={current.contexts.find((context) => context.id === historical.contextId)} onArtifact={inspectArtifact} onCompareInput={input => compareSupplied(historical, input)} />
             {#if historical.outputEvidence?.kind === 'private-capsule-publication'}<p class="work-notice">Derived publication; original native evidence was recorded privately.</p>{/if}
             <p class="object-ref">{historical.id}<br />Input {historical.contextId}</p>
             <button class="work-secondary" disabled={busy} onclick={() => useResult(current!, historical)}>New investigation using this result</button>
@@ -695,7 +705,7 @@
         <h3>Authored findings</h3>
         {#each artifacts(current).filter(isAuthoredFinding) as finding (finding.id)}
           <section data-result-artifact-id={finding.id}>
-            <ArtifactContent artifact={finding} context={current.contexts.find(context => context.id === finding.contextId)} onArtifact={inspectArtifact} />
+            <ArtifactContent artifact={finding} context={current.contexts.find(context => context.id === finding.contextId)} onArtifact={inspectArtifact} onCompareInput={input => compareSupplied(finding, input)} />
             <p class="object-ref">Context {finding.contextId}</p>
             <button class="source-link" onclick={() => lineageTarget = { investigationId: current!.id, artifactId: finding.id, contextId: finding.contextId }}>Inspect finding provenance</button>
           </section>

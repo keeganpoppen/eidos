@@ -2,6 +2,7 @@
   import { onMount, tick, untrack } from 'svelte';
   import InvestigationPane from '#lib/InvestigationPane.svelte';
   import ComparisonSurface from '#lib/ComparisonSurface.svelte';
+  import type { SuppliedComparisonRequest } from '#lib/supplied-result-comparison.ts';
   import FocusPane from '#lib/FocusPane.svelte';
   import Markdown from '#lib/Markdown.svelte';
   import SemanticRail from '#lib/SemanticRail.svelte';
@@ -38,6 +39,7 @@
   let comparisonRequest = $state(0);
   let comparisonIntent = $state<'comparison' | 'evidence-chain' | 'alternative-review'>('comparison');
   let comparisonExperimentId = $state('');
+  let suppliedComparison = $state<SuppliedComparisonRequest | null>(null);
   let savedWorkRequest = $state(0);
   let historyAnchorSeq = $state<number | null>(null);
   let recordQuery = $state('');
@@ -405,9 +407,17 @@
   }
 
   function compareInvestigation(id: string, intent: 'comparison' | 'evidence-chain' | 'alternative-review' = 'comparison', experimentId = '') {
+    suppliedComparison = null;
     comparisonSeed = id;
     comparisonIntent = intent;
     comparisonExperimentId = intent === 'alternative-review' ? experimentId : '';
+    comparisonRequest += 1;
+    comparisonOpen = true;
+  }
+
+  function compareSuppliedResult(request: SuppliedComparisonRequest) {
+    suppliedComparison = request;
+    comparisonSeed = '';
     comparisonRequest += 1;
     comparisonOpen = true;
   }
@@ -538,10 +548,10 @@
     </div>
   </aside>
 
-  <ComparisonSurface bind:open={comparisonOpen} initialId={comparisonSeed} requestId={comparisonRequest} requestIntent={comparisonIntent} requestExperimentId={comparisonExperimentId} browseRequest={savedWorkRequest} {selections} />
+  <ComparisonSurface bind:open={comparisonOpen} initialId={comparisonSeed} requestId={comparisonRequest} requestIntent={comparisonIntent} requestExperimentId={comparisonExperimentId} suppliedRequest={suppliedComparison} browseRequest={savedWorkRequest} {selections} />
 
   <div class:hidden-aperture={!workMode || comparisonOpen} class="work-aperture">
-    <InvestigationPane active={workMode && !comparisonOpen} bind:selections bind:evidenceEditor {threads} {sourceNavigation} onSource={returnToSource} onShowEvidence={showEvidence} onCompare={compareInvestigation} onSavedWork={returnToSavedWork} />
+    <InvestigationPane active={workMode && !comparisonOpen} bind:selections bind:evidenceEditor {threads} {sourceNavigation} onSource={returnToSource} onShowEvidence={showEvidence} onCompare={compareInvestigation} onCompareInput={compareSuppliedResult} onSavedWork={returnToSavedWork} />
   </div>
 
   {#if !workMode && !comparisonOpen}

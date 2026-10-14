@@ -5,10 +5,11 @@
   import { isAuthoredFinding, findingSupport } from './authored-finding';
   import type { FrozenArtifactInput, InvestigationArtifact, InvestigationContext } from './types';
 
-  let { artifact, context, onArtifact }: {
+  let { artifact, context, onArtifact, onCompareInput }: {
     artifact: InvestigationArtifact;
     context?: InvestigationContext;
     onArtifact?: (input: FrozenArtifactInput) => void;
+    onCompareInput?: (input: FrozenArtifactInput) => void;
   } = $props();
   let rawOpen = $state(false);
 </script>
@@ -32,6 +33,9 @@
         {#if input && onArtifact}
           <button class="source-link" data-artifact-citation={id} onclick={() => onArtifact?.(input)}>[artifact:{id}] · inspect source result</button>
         {:else}<span class="object-ref">[artifact:{id}]</span>{/if}
+        {#if input && context?.id === artifact.contextId && onCompareInput}
+          <button class="work-secondary" data-compare-supplied-artifact={id} onclick={() => onCompareInput?.(input)}>Compare with this supplied result</button>
+        {/if}
       {/each}
       <p class="work-muted">A citation identifies a supplied result. Its claims and original support remain attributed to that result.</p>
     </div>

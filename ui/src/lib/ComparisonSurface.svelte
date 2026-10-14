@@ -6,6 +6,7 @@
   import LineDiff from './LineDiff.svelte';
   import InquirySurface from './InquirySurface.svelte';
   import ArtifactLineage from './ArtifactLineage.svelte';
+  import { createSuppliedComparisonLoader, suppliedComparisonRequest, validateSuppliedComparison, type SuppliedComparisonRequest, type SuppliedComparisonProposal } from './supplied-result-comparison';
   import { isAuthoredFinding, findingSupport } from './authored-finding';
   import CatalogPicker from './CatalogPicker.svelte';
   import SavedComparisons from './SavedComparisons.svelte';
@@ -20,7 +21,7 @@
   import type { ApertureTarget, Arrangement } from './comparison';
   import type { FrozenArtifactInput, Investigation, InvestigationContext, ContextRecord, InvestigationArtifact, EvidenceSelection, WorkbenchExperiment } from './types';
 
-  let { open = $bindable(false), initialId = '', requestId = 0, requestIntent = 'comparison', requestExperimentId = '', browseRequest = 0, selections = [] }: { open: boolean; initialId?: string; requestId?: number; requestIntent?: 'comparison' | 'evidence-chain' | 'alternative-review'; requestExperimentId?: string; browseRequest?: number; selections?: EvidenceSelection[] } = $props();
+  let { open = $bindable(false), initialId = '', requestId = 0, requestIntent = 'comparison', requestExperimentId = '', suppliedRequest = null, browseRequest = 0, selections = [] }: { open: boolean; initialId?: string; requestId?: number; requestIntent?: 'comparison' | 'evidence-chain' | 'alternative-review'; requestExperimentId?: string; suppliedRequest?: SuppliedComparisonRequest | null; browseRequest?: number; selections?: EvidenceSelection[] } = $props();
   let composition = $state(emptyComposition());
   let savedInvestigations = $state<Investigation[]>([]);
   let fixtureStage = $state<'pending' | 'supplied' | null>(null);
@@ -33,6 +34,12 @@
   let attentionRequest = $state('');
   let intentError = $state('');
   let intentLoading = $state(false);
+  let suppliedLoading = $state(false);
+  let suppliedReview = $state(false);
+  let suppliedProposal = $state<SuppliedComparisonProposal | null>(null);
+  let suppliedAttempt = $state<SuppliedComparisonRequest | null>(null);
+  let suppliedError = $state('');
+  const suppliedLoader = createSuppliedComparisonLoader(savedWork);
   let proposalGeneration = 0;
   let experimentGeneration = 0;
   let experimentViews = $state<Record<string, WorkbenchExperiment>>({});
@@ -82,9 +89,14 @@
   const recordedView = $derived(recordedTarget ? experimentViews[recordedKey(recordedTarget.owner, recordedTarget.id)] : undefined);
   const recordedFailure = $derived(recordedView && arranged ? validateRecordedExperiment(investigations, recordedView) ?? (!matchesExperiment(arranged, recordedView) ? 'The saved experiment does not match these exact comparison targets. No evaluation has been substituted.' : '') : '');
   const activeRecordedExperiment = $derived(recordedView && !recordedFailure ? recordedView : null);
+  const suppliedPair = $derived(arranged?.lens === 'result' && !arranged.intent && !arranged.experimentId
+    && left.artifact && right.artifact && left.context?.id === left.artifact.contextId && right.context?.id === right.artifact.contextId
+    && right.context?.artifactInputs?.some(input => input.investigationId === arranged.left.investigationId
+      && input.sourceContextId === arranged.left.contextId && input.artifactId === arranged.left.artifactId
+      && right.artifact?.artifactCitations?.includes(input.artifactId)));
   const sides = $derived([
-    { side: 'left' as const, label: 'A / Baseline', ...left },
-    { side: 'right' as const, label: 'B / Competing reading', ...right }
+    { side: 'left' as const, label: suppliedPair ? 'A / Supplied result' : 'A / Baseline', ...left },
+    { side: 'right' as const, label: suppliedPair ? 'B / Result using this input' : 'B / Competing reading', ...right }
   ]);
 
   function label(ref: ApertureTarget | null | undefined): string {
@@ -106,7 +118,33 @@
     return draft.lens === 'result' && item.artifact ? item.artifact.contextId : item.currentContextId;
   }
 
-  function cancelProposalLoad() { proposalGeneration++; intentLoading = false; }
+  function cancelProposalLoad(keepReview = false) {
+    proposalGeneration++; intentLoading = false; suppliedLoader.cancel(); suppliedLoading = false; suppliedAttempt = null; suppliedError = '';
+    if (!keepReview) { suppliedReview = false; suppliedProposal = null; reviewing = false; }
+  }
+
+  async function stageSupplied(request: SuppliedComparisonRequest) {
+    cancelProposalLoad(true); targetRequests.cancel();
+    suppliedAttempt = $state.snapshot(request);
+    const generation = proposalGeneration, incoming = requestId;
+    const isCurrent = () => !disposed && open && generation === proposalGeneration && incoming === requestId;
+    suppliedLoading = true;
+    try {
+      const result = await suppliedLoader.load($state.snapshot(request));
+      if (!result || !isCurrent()) return;
+      for (const owner of result.owners) receiveInvestigation(owner);
+      draft = result.arrangement; editing = true; suppliedReview = true; suppliedProposal = result; receipt = ''; intentError = '';
+      reviewBase = JSON.stringify(arranged); reviewing = true;
+      await tick();
+      if (isCurrent()) { const heading = document.getElementById('supplied-result-review-title'); heading?.scrollIntoView({ block: 'start' }); heading?.focus(); }
+    } catch (cause) { if (isCurrent()) suppliedError = cause instanceof Error ? cause.message : String(cause); }
+    finally { if (isCurrent()) suppliedLoading = false; }
+  }
+
+  function compareSupplied(owner: Investigation, artifact: InvestigationArtifact, context: InvestigationContext, input: FrozenArtifactInput) {
+    try { void stageSupplied(suppliedComparisonRequest(owner.id, $state.snapshot(artifact), $state.snapshot(context), $state.snapshot(input))); }
+    catch (cause) { intentError = cause instanceof Error ? cause.message : String(cause); }
+  }
 
   function editBindings() {
     cancelProposalLoad();
@@ -163,6 +201,8 @@
   }
 
   function reviewDraft() {
+    const reviewed = suppliedReview, proposal = suppliedProposal;
+    cancelProposalLoad(); suppliedReview = reviewed; suppliedProposal = proposal;
     targetRequests.cancel();
     reviewBase = JSON.stringify(arranged);
     reviewing = true;
@@ -174,6 +214,7 @@
   }
 
   async function previewRequest() {
+    cancelProposalLoad();
     targetRequests.cancel();
     const generation = ++proposalGeneration;
     const requested = attentionRequest;
@@ -277,7 +318,7 @@
       for (const side of ['left', 'right'] as const) {
         if (draft[side].investigationId && !draft[side].contextId && investigations.some((item) => item.id === draft[side].investigationId)) bindTarget(side, draft[side].investigationId);
       }
-      if (!arranged && !draft.left.investigationId && !intentLoading && !browseRequest) beginEdit(initialId);
+      if (!arranged && !draft.left.investigationId && !intentLoading && !suppliedLoading && !suppliedRequest && !browseRequest) beginEdit(initialId);
     } catch (cause) {
       if (!disposed) error = cause instanceof Error ? cause.message : String(cause);
     } finally {
@@ -289,6 +330,10 @@
   async function apply() {
     if (!canReview) return;
     if (!reviewing || reviewBase !== JSON.stringify(arranged)) { intentError = 'The arrangement changed after review. Review this proposal again.'; reviewing = false; return; }
+    if (suppliedProposal) {
+      try { validateSuppliedComparison(suppliedProposal.request, suppliedProposal.consumer, suppliedProposal.supplied, investigations); }
+      catch (cause) { suppliedError = cause instanceof Error ? cause.message : String(cause); return; }
+    }
     const failure = validateEvidenceChain(investigations, draft);
     if (failure) { intentError = failure; return; }
     if (draft.experimentId) {
@@ -362,14 +407,14 @@
     ready = true;
     void refresh();
     const timer = setInterval(() => { if (open) void refresh(); }, 5000);
-    return () => { disposed = true; proposalGeneration++; experimentGeneration++; clearInterval(timer); };
+    return () => { disposed = true; suppliedLoader.dispose(); proposalGeneration++; experimentGeneration++; clearInterval(timer); };
   });
 
   const experimentKey = $derived(recordedTarget ? recordedKey(recordedTarget.owner, recordedTarget.id) : '');
   $effect(() => {
     void experimentKey;
     if (ready && open) untrack(() => void refreshExperiment());
-    else untrack(() => { experimentGeneration++; experimentLoading = false; cancelProposalLoad(); targetRequests.cancel(); });
+    else untrack(() => { experimentGeneration++; experimentLoading = false; cancelProposalLoad(true); targetRequests.cancel(); });
   });
 
   const ownerKey = $derived(JSON.stringify(referencedOwners()));
@@ -385,7 +430,10 @@
     try { if (fixtureStage) localStorage.setItem('nema.reflection-fixture.v1', fixtureStage); else localStorage.removeItem('nema.reflection-fixture.v1'); } catch { storageError = true; }
   });
   $effect(() => {
-    if (ready && initialId && requestId !== seenRequest && (requestIntent !== 'comparison' || investigations.some((i) => i.id === initialId))) {
+    if (ready && open && suppliedRequest && requestId !== seenRequest) {
+      seenRequest = requestId;
+      untrack(() => void stageSupplied(suppliedRequest!));
+    } else if (ready && initialId && !suppliedRequest && requestId !== seenRequest && (requestIntent !== 'comparison' || investigations.some((i) => i.id === initialId))) {
       seenRequest = requestId;
       if (requestIntent === 'alternative-review') stageIntent('alternative-review', initialId, requestExperimentId);
       else if (requestIntent === 'evidence-chain') stageIntent('evidence-chain', initialId); else beginEdit(initialId);
@@ -415,15 +463,20 @@
     <div class="intent-copy"><span class="eyebrow">Arrange attention</span><p>{previewVersion && activeFixtureExperiment ? 'Presentation preview · evidence before interpretation' : 'Choose a relation to bring into view.'}</p></div>
     <div class="intent-actions">
       <button id="arrange-evidence-chain" disabled={!activeSubject} onclick={() => stageIntent('evidence-chain')}>Original evidence → request → result</button>
-      <button id="arrange-alternative" disabled={!fixture} onclick={() => stageIntent('alternative-review')}>Compare the named alternative</button>
     </div>
-    <details class="structured-attention"><summary>Structured attention request</summary><p>Versioned presentation intent. Preview resolves exact saved bindings; it grants no execution authority.</p><label for="arrangement-request">Request JSON</label><textarea id="arrangement-request" bind:value={attentionRequest} oninput={cancelProposalLoad} rows="5" placeholder={'{"version":1,"intent":"evidence-chain","investigationId":"…"}'}></textarea><button onclick={previewRequest}>Preview attention request</button></details>
+    <details class="structured-attention"><summary>Structured attention request</summary><p>Versioned presentation intent. Preview resolves exact saved bindings; it grants no execution authority.</p><label for="arrangement-request">Request JSON</label><textarea id="arrangement-request" bind:value={attentionRequest} oninput={() => cancelProposalLoad()} rows="5" placeholder={'{"version":1,"intent":"evidence-chain","investigationId":"…"}'}></textarea><button onclick={previewRequest}>Preview attention request</button></details>
+    <details class="synthetic-examples"><summary>Examples</summary>
+    <p>Authored demonstrations with separate synthetic results.</p>
+    <button id="arrange-alternative" disabled={!fixture} onclick={() => stageIntent('alternative-review')}>Compare the named alternative</button>
     {#if !fixture}
       <div class="fixture-entry"><button onclick={() => openFixture()}>Open synthetic inquiry & experiment</button><span>Authored example · no model or live investigation is created.</span></div>
     {:else}
       <div class="fixture-entry" data-fixture-stage={fixtureStage}><strong>Synthetic inquiry & experiment</strong><span>Explicit fixture · {fixtureStage} stage · no native model run.</span><button onclick={() => { fixtureStage = null; receipt = 'Fixture closed. Saved fixture bindings remain unresolved until it is reopened.'; }}>Close synthetic example</button></div>
     {/if}
+    </details>
     {#if intentLoading}<p role="status">Loading the exact saved experiment and source references…</p>{/if}
+    {#if suppliedLoading}<p role="status">Checking the exact result and supplied input…</p>{/if}
+    {#if suppliedError}<p class="work-error" role="alert" data-supplied-comparison-error>{suppliedError} {#if suppliedAttempt || suppliedProposal}<button onclick={() => { const request = suppliedAttempt ?? suppliedProposal?.request; if (request) void stageSupplied(request); }}>Retry exact comparison</button>{/if}</p>{/if}
     {#if intentError}<p class="work-error" role="alert">{intentError} <button onclick={previewRequest}>Retry attention preview</button></p>{/if}
   </section>
 
@@ -466,8 +519,9 @@
           {#if arranged}<button onclick={cancelEdit}>Cancel changes</button>{/if}
         </div>
         {#if reviewing}
-          <div class="arrangement-review" aria-label="Review arrangement change">
-            <h3>Presentation change</h3>
+          <div class="arrangement-review" aria-label="Review arrangement change" data-supplied-result-review={suppliedReview ? 'true' : undefined}>
+            <h3 id={suppliedReview ? 'supplied-result-review-title' : undefined} tabindex="-1">Presentation change</h3>
+            {#if suppliedReview}<p>Place the cited supplied result beside the result that used it. This relationship records supplied input, not agreement, approval or execution.</p>{/if}
             {#if draft.intent}<p class="intent-rationale">{draft.intent === 'evidence-chain' ? 'Show the original evidence for this conclusion, the additional evidence requested, and the result after it was supplied.' : 'Compare this interpretation with the named alternative. Keep context changes, evidential support, and evaluation together.'}</p>{/if}
             <div class="proposal-lines"><p><span>−</span> {arranged ? `${label(arranged.left)} / ${label(arranged.right)} · ${arranged.lens} · ${arranged.layout}` : 'No comparison on this surface'}</p><p><span>+</span> {label(draft.left)} / {label(draft.right)} · {draft.lens} · {draft.layout}</p></div>
             <p>Retain {composition.focus ? `focus on ${label(composition.focus)}` : 'the current investigation and source focus'}. Applies only to this browser’s arrangement; no task is launched or conclusion adopted.</p>
@@ -540,6 +594,9 @@
             {#if artifact.outputEvidence?.kind === 'private-capsule-publication'}<p class="work-notice">Derived publication; original native evidence was recorded privately.</p>{/if}
             <WorkContent source={artifact.text} focusedBlockId={presentationFocus?.artifactId === artifact.id ? presentationFocus.blockId : undefined} onFocus={(block) => focusBlock(item.investigation!, artifact, block)} />
             <button onclick={() => lineageTarget = { investigationId: item.investigation!.id, artifactId: artifact.id, contextId: artifact.contextId }}>{artifact.outputEvidence?.kind === 'private-capsule-publication' ? 'Inspect published result' : 'Inspect result provenance'}</button>
+            {#each item.context.artifactInputs?.filter(input => artifact.artifactCitations?.includes(input.artifactId)) ?? [] as input}
+              <div class="supplied-result-action"><p class="supplied-result-excerpt">{input.artifact.text.slice(0, 180)}{input.artifact.text.length > 180 ? '…' : ''}</p><p>{input.rationale || 'Cited result supplied to this finding.'}</p><button data-compare-supplied-artifact={input.artifactId} onclick={() => compareSupplied(item.investigation!, artifact, item.context!, input)}>Compare with this supplied result</button><button onclick={() => inspectArtifact(input)}>Inspect supplied result</button></div>
+            {/each}
             {#if artifact.unsupportedCitations.length}<p class="work-notice">Outside the supplied packet: {artifact.unsupportedCitations.map((seq) => `[evidence:${seq}]`).join(', ')}. Support is unverified.</p>{/if}
             {#if artifact.unsupportedArtifactCitations?.length}<p class="work-notice">Results outside the supplied packet: {artifact.unsupportedArtifactCitations.map((id) => `[artifact:${id}]`).join(', ')}. Support is unverified.</p>{/if}
             {#if item.investigation.adoption?.artifactId === artifact.id}<p class="comparison-adoption">Conclusion {item.investigation.adoption.decision === 'adopt' ? 'adopted' : 'rejected'} · {item.investigation.adoption.note || 'No note recorded.'}</p>{/if}
@@ -630,6 +687,12 @@
   .fixture-entry { display:flex; align-items:center; flex-wrap:wrap; gap:10px; font-size:13px; color:var(--muted); margin-top:14px; }
   .fixture-entry strong { color:var(--accent); font-weight:500; }
   .structured-attention { margin-top:12px; }
+  .synthetic-examples { margin-top:14px; }
+  .synthetic-examples p { font-size:13px; color:var(--muted); }
+  .supplied-result-action { margin:14px 0; padding:10px 12px; border-left:2px solid var(--line-dark); }
+  .supplied-result-action p { font-size:13px; line-height:1.55; }
+  .supplied-result-action button { margin:4px 8px 4px 0; max-width:100%; white-space:normal; }
+  .supplied-result-excerpt { white-space:pre-wrap; }
   .structured-attention p { font-size:14px; color:var(--muted); }
   .structured-attention label { display:block; font-size:13px; }
   textarea { display:block; width:100%; box-sizing:border-box; max-width:760px; font:13px/1.5 monospace; margin:8px 0; padding:10px; }

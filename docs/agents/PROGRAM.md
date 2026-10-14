@@ -1,6 +1,6 @@
 # Continuing development frontier
 
-**Provisional strategic understanding · 2026-10-14 · inspected base `d2b5fdb`.**
+**Provisional strategic understanding · 2026-10-14 · inspected base `3d4f396`.**
 The [current handoff](CURRENT_HANDOFF.md) owns verified status and runnable steps;
 this document owns revisable conjectures and opportunity ordering. It does not
 replace the [destination](../vision/DESTINATION.md) or [V1](../roadmap/V1.md).
@@ -197,22 +197,35 @@ findings and a saved comparison support a retained review after restart/source l
 A fresh participant reconstructed the judgment and its limits from saved work only.
 No new experiment ontology or relaxation of the native-only gate was needed.
 
-**Next discriminator (C4/V1-11): distinguish recoverable reasoning from reproducibility.**
-The fresh review identified missing exact harness/input/runtime identity and an
-ambiguous rollback parent. Supply those using existing text evidence and findings,
-then test whether another participant can reconstruct the precise local check
-without original chat or ambient repository assumptions. Preserve the older limited
-finding; do not silently replace it or turn a new file receipt into execution proof.
-Only a demonstrated missing relation should motivate an execution representation.
-If ordinary Values suffice again, simplify the fixture-only improvement presentation
-instead of maintaining a separate simulated product ontology. Human usefulness,
-performance and real native model quality still require different observations.
+**Established discriminator (C4/V1-11): precise repeatability using ordinary Values.**
+The [saved reproduction](../evidence/IMPORT_REPRODUCTION_EXPERIMENT.md) supplies the
+exact runner, inputs, public revision relationships and recorded runtime. A fresh
+participant reconstructed the entire execution record/stdout byte-for-byte on the
+matching available host. Earlier limited findings remain exact. Modified source
+and ignored bytecode refuse. This is a new bounded check, not authenticated original
+execution or full environment closure. No new execution entity was needed.
+[Supplied-result comparison](../evidence/SUPPLIED_RESULT_COMPARISON_INTEGRATION.md)
+now brings the displayed finding and its exact cited input into a reviewed ordinary
+arrangement; irrelevant fixture/native guidance is demoted while recovery remains.
+
+**Next discriminator (C3/C5, V1-01/04/11): recover a useful repair without an answer packet.**
+The bespoke reproduction bundle provided traversal convenience; the existing
+projected prompt already contains every complete reproduction file. Test a different
+public-code incident through existing discovery and context reads before adding
+export, recipe activation or another semantic lens. A fresh participant should find
+the controlling historical identity contract among conflicting reports, freeze its
+support and propose the minimal repair. Root independently checks the proposal in
+an isolated historical checkout. Withhold the known correction and coordinator-
+selected source coordinates; record assistance and omissions. Retrieval failure,
+context assembly failure, byte-transfer friction and reasoning error warrant
+different responses. This remains a retrospective developer-participant experiment;
+human usefulness and real native model quality require different observations.
 
 The active read index is a replaceable performance adapter, not a second provenance
 authority. Native process/synthetic transport research is independent of production
 admission. Direct result-use discovery is established for exact saved membership;
-the next reflective episode must test whether preserved support permits a precise
-next action, rather than treating an understandable review as reproducibility.
+the next reflective episode tests whether a participant can discover support and
+choose a useful next action, beyond replaying an already prepared recipe.
 
 Historical paging contract: `GET /api/threads/:id` returns at most 40 complete turns.
 `anchorSeq` follows a stable record; `aroundSeq` resolves exact membership in that

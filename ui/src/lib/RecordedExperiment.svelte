@@ -69,6 +69,7 @@
   }
 </script>
 
+{#if !ready || busy || availableArtifacts.length || experiments.length || pending || error}
 <section class="recorded-experiments" aria-label="Controlled context experiment">
   <h3>Evaluate a context alternative</h3>
   <p>Keep an exact baseline and test a saved alternative input. The evaluator measures evidence selection and input size. It runs no model and does not grade the answer.</p>
@@ -87,7 +88,8 @@
     {#if staged && baseline && alternative}
       <div class="experiment-preview"><h4>Frozen inputs for comparison</h4><p class="object-ref">Baseline {baseline.id}<br />Artifact {baselineArtifactId}<br />Alternative {alternative.id}</p><LineDiff before={contextText(baseline)} after={contextText(alternative)} /><p>This records a named experiment and a deterministic evaluation. A passing check grants no adoption or execution authority.</p><button disabled={busy || !!pending} onclick={evaluate}>Evaluate saved inputs</button><button onclick={() => staged = false}>Cancel experiment preview</button></div>
     {/if}
-  {:else}<p class="work-muted">An exact returned artifact and a second saved input are required. Respond to a specialist inquiry to prepare a separately frozen follow-up input.</p>{/if}
+  {:else if availableArtifacts.length}<p class="work-muted">An exact returned artifact and a second saved input are required. Respond to a specialist inquiry to prepare a separately frozen follow-up input.</p>
+  {:else if !ready}<p role="status">Checking saved experiments…</p>{/if}
 
   {#each experiments as experiment (experiment.id)}
     <article class="recorded-experiment" data-experiment-id={experiment.id} data-experiment-status={experiment.status}>
@@ -107,6 +109,7 @@
   {#if pending}<p role="status">A saved request awaits confirmation. Its scope and retry identity are retained.</p><button disabled={busy} onclick={() => pending && send(pending)}>Retry saved experiment action</button>{/if}
   {#if error}<p class="work-error" role="alert">{error}</p>{/if}
 </section>
+{/if}
 
 <style>
   .recorded-experiments { margin-top:24px; padding-top:18px; border-top:1px solid var(--line-dark); font-size:14px; line-height:1.6; min-width:0; overflow-wrap:anywhere; }

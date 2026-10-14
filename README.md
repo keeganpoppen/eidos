@@ -88,6 +88,12 @@ identify supplied sources; uncited hypotheses are labelled. A lost save reply ca
 be recovered with **Check finding receipt** or an exact retry. The
 [contract](docs/agents/AUTHORED_FINDING_TASK.md) describes its attribution and recovery.
 
+Beside a cited result input, choose **Compare with this supplied result** to review
+the exact supplied result alongside the finding that used it. Apply the arrangement,
+then save it to reopen the same versions later. An unavailable original leaves the
+frozen input readable through provenance. Authored demonstrations live under
+**Examples** in the comparison view.
+
 Managed attempts are explicitly enabled when starting the API:
 
 ```bash

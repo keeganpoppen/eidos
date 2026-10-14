@@ -6,6 +6,31 @@ The baseline GitHub Actions run `38240774514` completed successfully: pytest and
 
 Refresh this file when implementation claims materially change. Keep historical audit IDs instead of quietly relabelling old evidence as current.
 
+## Exact supplied-result comparison and repeatable review — 2026-10-14
+
+Integration base `3d4f396`; [comparison evidence](../evidence/SUPPLIED_RESULT_COMPARISON_INTEGRATION.md),
+[reproduction evidence](../evidence/IMPORT_REPRODUCTION_EXPERIMENT.md).
+A displayed result can stage a reviewed comparison with its exact cited frozen
+input. Original sources, content and manifests must agree; current review metadata
+may differ. Apply/Save/reopen reuse existing arrangements. Synthetic examples are
+disclosed separately; authored-only work hides irrelevant native guidance while
+retaining pending/error/saved-experiment recovery. No schema or native gate changes.
+
+Parent **1,798 Python passed / 55 explicit native skips**, **290 UI tests / 1,264
+assertions**, clean check/build. Actual browser historical/same-owner pairs,
+read failure, late delivery after close/manual edit/saved Open/new request,
+pending experiment recovery, existing experiments and restart/reopen pass.
+Desktop/390px inspected; canonical owners unchanged, only one composition POST.
+Owned services stopped and temporary config removed.
+
+The independent pinned local reproduction matched the entire execution record and
+stdout using saved ordinary evidence and named public Git sources. Modified source
+and ignored bytecode caches refuse. Same available runtime only, not authenticated
+past execution or cross-machine portability. Existing context projection contains
+the needed raw files; the custom bundle has not established an export requirement.
+Human benefit, useful blind next-action selection and real native account work remain
+unobserved.
+
 ## Supplied text and a recoverable engineering review — 2026-10-14
 
 Integration base `d2b5fdb`; [contract](../agents/SUPPLIED_TEXT_TASK.md),
