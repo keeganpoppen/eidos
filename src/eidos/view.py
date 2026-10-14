@@ -14,6 +14,7 @@ class ItemView:
     item_type: str | None = None
     final_item: dict[str, Any] | None = None
     events: list[TraceRecord] = field(default_factory=list)
+    final_event: TraceRecord | None = None
 
 
 @dataclass
@@ -77,7 +78,7 @@ def project_records(thread_id: str, records: list[TraceRecord]) -> ThreadView:
             turn.items[item_id] = ItemView(
                 item_id, "privateResultPublication",
                 {**params, "id": item_id, "type": "privateResultPublication"},
-                [record],
+                [record], record,
             )
         if record.item_id is not None:
             item = turn.items.setdefault(record.item_id, ItemView(record.item_id, record.item_type))
@@ -88,6 +89,7 @@ def project_records(thread_id: str, records: list[TraceRecord]) -> ThreadView:
                 if isinstance(raw_item, dict):
                     if record.method in {"item/completed", "$history/item"} or item.final_item is None:
                         item.final_item = raw_item
+                        item.final_event = record
     return ThreadView(thread_id=thread_id, turns=[turns[t] for t in turn_order], unscoped=unscoped)
 
 

@@ -16,6 +16,7 @@ from .investigation_continuations import InvestigationContinuations
 from .investigation_inquiries import terminal_inquiry
 from .investigation_experiments import InvestigationExperiments
 from .investigation_reads import InvestigationReads
+from .evidence_discovery import EvidenceDiscovery
 from .compositions import Compositions
 from .history import (
     PAGE_SIZE, SourceRecordNotFound, history_snapshot, history_version,
@@ -25,7 +26,8 @@ from .semantic_tree import SemanticTreeBuilder
 from .trace import TraceStore
 from .private_investigation import PrivateInvestigationWorker
 from .native_managed_contract import DEVICE_VERIFICATION_URL
-from .view import ItemView, project_records
+from .view import project_records
+from .history_projection import _item_bounds, _join_deltas, _reasoning_parts, _project_item
 
 
 def _json_body(handler: Any, *, max_bytes: int = 256 * 1024) -> dict[str, Any]:
@@ -40,93 +42,6 @@ def _json_body(handler: Any, *, max_bytes: int = 256 * 1024) -> dict[str, Any]:
         raise ValueError("request body must be a JSON object")
     return value
 
-
-def _item_bounds(item: ItemView) -> tuple[int, int]:
-    if not item.events:
-        return (0, 0)
-    return min(event.seq for event in item.events), max(event.seq for event in item.events)
-
-
-def _join_deltas(item: ItemView, method: str) -> str:
-    chunks: list[str] = []
-    for event in item.events:
-        if event.method != method:
-            continue
-        params = event.message.get("params")
-        if isinstance(params, Mapping) and isinstance(params.get("delta"), str):
-            chunks.append(str(params["delta"]))
-    return "".join(chunks)
-
-
-def _reasoning_parts(item: ItemView, *, summary: bool) -> list[str]:
-    raw = item.final_item or {}
-    key = "summary" if summary else "content"
-    final = raw.get(key)
-    if isinstance(final, list) and final:
-        return [str(value) for value in final]
-
-    prefix = "item/reasoning/summary" if summary else "item/reasoning/text"
-    index_key = "summaryIndex" if summary else "contentIndex"
-    parts: dict[int, str] = {}
-    for event in item.events:
-        if not event.method or not event.method.startswith(prefix):
-            continue
-        params = event.message.get("params")
-        if not isinstance(params, Mapping) or not isinstance(params.get(index_key), int):
-            continue
-        index = int(params[index_key])
-        parts.setdefault(index, "")
-        if isinstance(params.get("delta"), str):
-            parts[index] += str(params["delta"])
-    return [parts[index] for index in sorted(parts) if parts[index]]
-
-
-def _project_item(item: ItemView) -> dict[str, Any] | None:
-    raw = item.final_item or {}
-    kind = item.item_type or str(raw.get("type") or "item")
-    start, end = _item_bounds(item)
-    projected: dict[str, Any] = {
-        "id": item.item_id,
-        "type": kind,
-        "startSeq": start,
-        "endSeq": end,
-        "recordSeqs": [event.seq for event in item.events],
-        "complete": any(event.method in {"item/completed", "$history/item"} for event in item.events),
-        "raw": raw,
-    }
-    if kind == "privateResultPublication":
-        projected["text"] = raw["text"]
-        projected["complete"] = True
-        projected["provenance"] = raw["provenance"]
-    elif kind == "agentMessage":
-        text = raw.get("text")
-        if not isinstance(text, str) or not text:
-            text = _join_deltas(item, "item/agentMessage/delta")
-        projected["text"] = text or ""
-        projected["phase"] = raw.get("phase")
-    elif kind == "reasoning":
-        summary = _reasoning_parts(item, summary=True)
-        content = _reasoning_parts(item, summary=False)
-        if not summary and not content:
-            return None
-        projected["summary"] = summary
-        projected["content"] = content
-    elif kind == "commandExecution":
-        projected["command"] = str(raw.get("command") or "")
-        output = raw.get("aggregatedOutput")
-        if not isinstance(output, str) or not output:
-            output = _join_deltas(item, "item/commandExecution/outputDelta")
-        projected["output"] = output or ""
-        projected["status"] = raw.get("status")
-        projected["exitCode"] = raw.get("exitCode")
-    elif kind == "fileChange":
-        projected["changes"] = raw.get("changes") or []
-        projected["status"] = raw.get("status")
-    elif kind == "userMessage":
-        projected["content"] = raw.get("content") or []
-    elif kind in {"mcpToolCall", "dynamicToolCall", "collabAgentToolCall", "functionCallOutput", "webSearch"}:
-        projected["detail"] = raw
-    return projected
 
 
 def _thread_preview(store: TraceStore, thread_id: str) -> str:
@@ -313,6 +228,7 @@ class EidosAPI:
         self._jobs_lock = threading.RLock()
         self.investigations = InvestigationStore(store)
         self.investigation_reads = InvestigationReads(self.investigations)
+        self.evidence_discovery = EvidenceDiscovery(store)
         self.investigation_experiments = InvestigationExperiments(self.investigations)
         self.compositions = Compositions(self.investigations)
         self.investigation_continuations = InvestigationContinuations(self.investigations)
@@ -370,6 +286,17 @@ class EidosAPI:
 
     def dispatch(self, handler: Any, method: str, path: str, query: dict[str, list[str]]) -> tuple[int, Any]:
         parts = [unquote(part) for part in path.split("/") if part]
+        if parts[:2] == ["api", "evidence"]:
+            try:
+                if method == "GET" and parts == ["api", "evidence", "search"]:
+                    return 200, self.evidence_discovery.search(query)
+                if method == "GET" and len(parts) == 4 and parts[2] == "hits":
+                    return 200, self.evidence_discovery.inspect(parts[3], query)
+                return 404, {"error": "not found"}
+            except InvestigationError as exc:
+                return exc.status, {"error": exc.message}
+            except (ValueError, TypeError, UnicodeError, RecursionError):
+                return 400, {"error": "invalid evidence discovery request or source text"}
         if parts[:2] == ["api", "compositions"]:
             try:
                 if len(parts) == 2:

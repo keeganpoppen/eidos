@@ -300,6 +300,30 @@ later navigation cannot be overwritten by a delayed response. This is explicit
 historical data reuse, not automatic adoption/default activation or a native fork.
 See the [contract](../agents/CONTEXT_INPUT_REUSE_TASK.md).
 
+### D33 — Discover recorded text through exact source contributors
+
+**Accepted implementation direction, 2026-10-13**, base `1698f6a`. Text discovery
+uses the same final/delta projection rules as history display, applied to an
+explicit eligible public-record subset. It indexes typed text fields, not generic
+raw JSON or hidden/private/control records. An excluded provider/control row cannot
+replace eligible text by borrowing its item coordinates. Literal matching discovers
+candidate evidence; it does not establish a claim or choose a conclusion.
+
+The disposable index records exact contributors and source versions. A cursor binds
+its query and generation; changed history requires refresh. Exact raw inspection
+requires the selected hit version. Surrounding current history remains a separate
+view and may differ. Excerpt limits alone do not bound imported metadata, so both
+search and inspection envelopes have an explicit size refusal. Cold/dirty indexing
+and literal scans remain corpus-dependent work.
+
+Explicit Add stages exact record membership, never an item's min/max extent.
+Existing semantic support ranges retain their intentional range meaning. Busy or
+pending editor saves block source additions; read-only discovery stays available.
+Canonical Save freezes selected references using the existing builder; an unsaved
+inspection is not a new source-hash precondition or live capability. This closes a
+27-page recovery case without claiming human-speed or model-quality improvement.
+See the [contract](../agents/EVIDENCE_DISCOVERY_TASK.md).
+
 ## Deferred explorations, kept for their potential
 
 ### D22 — Names, routing, locality, and leases

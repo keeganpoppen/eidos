@@ -1,80 +1,82 @@
-# Current handoff — historical input reuse integrated; unmapped recovery next
+# Current handoff — discover evidence before knowing its coordinates
 
-**2026-10-13 · integration base `2a62d681e38f34b1172640d89489f75ea3980335`.**
-The commit containing this handoff integrates the following verified slice.
-Prior managed attempts `fa7eabf` and legacy manifest correction `2a62d68` are
-pushed; [CI38490354738](https://github.com/keeganpoppen/eidos/actions/runs/38490354738)
-passed both jobs. The continuing autonomous mission remains active.
+**2026-10-13 · integration base `1698f6abb74523a3d04b54e840bd38057f55c2a9`.**
+This snapshot accompanies the completed evidence-discovery integration. Historical
+input reuse at that base is pushed and [CI38491870455](https://github.com/keeganpoppen/eidos/actions/runs/38491870455)
+passed. The continuing autonomous mission remains active; a completed slice is not
+its completion. No real account, private history, model or upstream call authorized.
 
-## Completed C1/C4/C5 slice — V1-04/08/09
+## Completed C3/C5 slice — V1-01/04/08
 
-[Contract](CONTEXT_INPUT_REUSE_TASK.md), [acceptance](../evidence/CONTEXT_INPUT_REUSE_INTEGRATION.md),
-[D32](../roadmap/DECISIONS.md#d32--reuse-frozen-historical-inputs-through-a-new-canonical-question).
-A historical context preview can stage a blank new question with exact frozen
-records, selections, result snapshots and their old review metadata. Existing
-POST /api/investigations accepts inputSource={investigationId,contextId} instead
-of fresh selectors. The request ledger resolves replay before source lookup.
-One canonical projector recomputes prompt/coverage and records hash-covered local
-inputOrigin; parent=null keeps new-owner origin distinct from ordinary revisions.
-Old prompt, inquiry, native state and unknown top-level fields are not inherited.
-Unknown frozen raw/envelope fields remain intact. Frozen context suffices even if
-original raw rows/result owner are gone; missing exact context refuses.
+[Contract](EVIDENCE_DISCOVERY_TASK.md), [acceptance](../evidence/EVIDENCE_DISCOVERY_INTEGRATION.md),
+[D33](../roadmap/DECISIONS.md#d33--discover-recorded-text-through-exact-source-contributors).
+Remembered text now finds eligible history before semantic maps or known record
+coordinates. Shared projection precedence excludes replaced text; exact inspection
+shows contributing raw records. Provider/control rows are filtered before projection,
+even when reusing public item IDs. Excerpts and full response envelopes are bounded;
+stale cursors/hits refuse. Disposable SQL index tracks cross-connection mutations.
+Cold rebuild, dirty-thread projection and literal scans remain corpus-scaled.
 
-Separate browser staging persists the exact request before send. Lost replies
-retain exact retry; reload never sends. Saved input inspection pins the initial
-context even if the replayed owner has progressed. Open is deliberate: pending
-editor save blocks it, dirty content requires a replacement choice, and changed
-editor/preview/navigation/visibility cancels a delayed response. No dispatch,
-adoption, activation, native fork or inherited authority.
+Explicit Add stages exact disjoint membership, correcting the prior [1,3]→1–3
+selection error. Current busy/pending-save gates cover discovery and legacy item
+Add. Read-only search/inspection preserves dirty and pending drafts; late responses
+cannot revive after query, navigation or aperture changes. Canonical Save remains
+the source freeze boundary: inspected hashes are not a new Save precondition.
 
-Integrated lanes: backend `62fcb32`, independent acceptance `8a451ba`, UI `0915378`,
-visibility fix `96ee184`, style-only `c66796f`. Root owns scripts, docs and integration.
+Integrated lanes: backend `a65be27` + `398bdd7`, UI `720355e`, independent acceptance
+`06867e4` + `65b98d1`. Root owns public authored fixture/browser scripts, count
+pluralization, docs and final integration. Prior [historical input reuse](../evidence/CONTEXT_INPUT_REUSE_INTEGRATION.md)
+and [managed attempt](../evidence/MANAGED_ATTEMPT_INTEGRATION.md) evidence remains linked.
+Preserve the legacy policy literal identified in `2a62d68`; it hashes into manifests.
 
 ## Verification and cleanup
 
-Parent 42 focused checks passed; full Python **1,559 passed / 55 explicit native
-skips in 57.51s**, `/tmp/nema-context-reuse-parent-full.log`. UI **126 tests / 610
-assertions**, zero Svelte errors/warnings, clean build; final CSS also check/build
-clean. Independent review accepted database concurrency, deleted underlying data,
-progressed-owner retry and UI response guards.
+Full Python **1,602 passed / 55 explicit native skips in 59.13s**; UI **146 tests /
+689 assertions**, zero Svelte errors/warnings, clean build. Final text-only correction
+also passed check/build and restart browser inspection. Independent review accepted
+source and scripts; Unicode metadata demonstrated and closed a response-size gap.
 
-Actual authored browser baseline: 18 reads, no reuse affordance. Flow: 67 requests,
-exactly two identical creation POSTs (first committed reply deliberately lost),
-one new owner. Historical snapshots and old review remain exact; dirty editor and
-pending-save bytes unchanged. Keep/replacement, exact-prompt inspection and delayed
-Open across Compare were exercised. Actual API restart: 18 GETs, zero POSTs,
-explicit restoration of prior authored storage snapshots resolves same saved work.
-Final appearance capture: 28 GETs, zero POSTs; desktop/390px inspected, no document
-or new-component horizontal overflow. Report hashes are in the acceptance document.
-Scripts: `scripts/context_input_reuse_demo.py`, `scripts/context_input_reuse_browser.mjs`.
-Raw evidence remains `/tmp/nema-context-reuse-browser-20261013-*`.
+Same authored 1,200-turn corpus, with maps removed: baseline 27 page advances,
+36 GETs/zero POSTs, 1,201,333 long-thread response bytes. Changed remembered-decision
+phase: 3 GETs/45,393 bytes, no supplied source coordinates. Whole flow: 57 requests,
+one canonical draft POST, exactly four inspected records across two threads and
+no interleaved neighbor. Dirty/pending draft bytes unchanged. Actual API restart,
+pagination and filtering: 38 GETs/zero POSTs; saved context and separate pending
+editor restored exactly. Desktop/390px screenshots inspected, no horizontal overflow.
+First restart harness race is preserved separately; settling initial reads before
+restoration/reload corrected the harness, with no product logic change.
 
-All owned API/Vite/Chromium processes and recorded crash handlers stopped;
-8767/5173/9233 closed. Temporary Vite config removed. No native/model/account call
-was made for this slice. Scripted identity preservation does not measure human
-speed, useful answers or real subscription service availability.
+Scripts: `scripts/evidence_discovery_demo.py`, `scripts/evidence_discovery_browser.mjs`.
+Reports/hashes: [acceptance](../evidence/EVIDENCE_DISCOVERY_INTEGRATION.md), raw captures
+`/tmp/nema-evidence-discovery-browser-20261013-*`. Fixture2,605 records, one owner,
+one request mapping, zero attempts. Source raw hash unchanged. All owned API/Vite/
+Chromium roots, descendants and recorded crash handlers stopped; 8767/5173/9233
+closed, temporary Vite config removed. No native call. Scripted retrieval does not
+measure human speed or answer quality.
 
-## Next runnable discriminator — C3 / V1-01/04
+## Next discriminator and ownership
 
-[PROGRAM](PROGRAM.md) records strategic ordering. Find remembered support in
-unmapped imported history before knowing record numbers. Existing substantial
-history proof supplies semantic-map coordinates; current history UI otherwise
-requires paging or numeric Go to record. Exact result search deliberately excludes
-raw history and cannot help before a first result exists.
+Independent scouts converge on reliable explicit-file history ingestion. Existing
+`import-jsonl` already accepts one direction/source for a file; it is an append loop,
+not a missing feature. A malformed tail leaves a committed prefix, and retrying it
+duplicates a delta. Unsupported objects can report success without visible threads.
+Start with a root reproduction and fresh-empty-browser baseline. Freeze a bounded
+preflight → atomic commit → durable exact-operation receipt contract before exposing
+upload. Retain original bytes, unknown fields and line-to-sequence mapping; preserve
+intentional repeated lines. Retry after lost reply/restart must return original
+membership. Do not scan directories, infer mixed traffic directions, call codex-sync
+or claim arbitrary exports are supported. Use only authored/supplied public fixtures.
 
-Root: seed an isolated authored 1,200-turn history from
-`scripts/investigation_demo.py`, remove only derived maps, demonstrate current UI
-recovery limitations, preserve baseline. Then freeze a bounded contract for public
-displayed-text discovery → exact source inspection → explicit disjoint selection
-→ canonical save/reopen. Never inspect personal traces silently. Search raw JSON
-is not equivalent: final items can replace earlier deltas, while split deltas can
-assemble a match. Exact contributing membership and private/control-store exclusion
-must remain explicit. No semantic ranking/model/indexing call is needed.
+Root next: inspect `src/eidos/trace.py:import_jsonl`, `src/eidos/cli.py` and empty
+`ui/src/routes/+page.svelte`, then establish contract and disjoint fresh worktrees.
+Completed discovery worktrees remain clean under `/tmp/nema-evidence-discovery-`
+`backend`, `ui`, `review`. Backend/UI agents are now assigned read-only ingestion
+contract refinement; no new implementation assigned yet. Older managed worktrees
+may contain historical unintegrated changes and must not be swept into main.
 
-Read-only scouts active at this checkpoint: history_ui inspects backend projection,
-index and store boundaries; native_frontier challenges product priority and UI
-navigation/selection seams; native_frontier/gateway_review reviews root acceptance
-scripts and proposes independent search counterexamples. No next implementation
-ownership or native-resource contract has been assigned yet. Prior worktrees
-`/tmp/nema-context-inputs-{backend,ui,review}` preserve completed lane commits.
-Older managed worktrees contain historical uncommitted seams: do not integrate them.
+Independent alternative worth testing after entry integrity: complete and reopen
+an owner-authored evidence-backed finding without fabricating a native attempt.
+Existing rationale/review notes may or may not cover that need; establish an actual
+workflow gap before adding another artifact type. Aperture-to-new-question input
+reuse is another narrow composition candidate. Real owner usability and authorized
+subscription-backed useful work remain unobserved.

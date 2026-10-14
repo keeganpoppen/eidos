@@ -8,6 +8,16 @@ export type ThreadSummary = {
   hasSemanticMap: boolean;
 };
 
+export type EvidenceHit = {
+  id: string; version: string; threadId: string; turnId: string; itemId: string | null;
+  field: string; anchorSeq: number; recordSeqs: number[]; excerpt: string;
+};
+export type EvidenceSearchPage = {
+  scope: 'displayed-history-text/v1'; version: string; unchanged: false;
+  hits: EvidenceHit[]; nextCursor: string | null;
+};
+export type EvidenceHitSource = { scope: 'displayed-history-text/v1'; hit: EvidenceHit; records: ContextRecord[] };
+
 export type SupportSpan = {
   start: number;
   end: number;

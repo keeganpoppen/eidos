@@ -3,6 +3,8 @@
   import Markdown from './Markdown.svelte';
   import ContextProvenance from './ContextProvenance.svelte';
   import ContextInputDraft from './ContextInputDraft.svelte';
+  import EvidenceDiscovery from './EvidenceDiscovery.svelte';
+  import { addEvidence, evidenceEditReason, type EvidenceAddition, type EvidenceEditor } from './evidence-selection';
   import { ContextInputDraftClient, createdInputContext, inputDraftOpenDecision, type InputDraftState } from './context-input-draft';
   import RecordedExperiment from './RecordedExperiment.svelte';
   import { artifacts, attempts, outputEvidence } from './comparison';
@@ -14,12 +16,16 @@
   import { AttemptControlClient, type AttemptControlState } from './attempt-control';
   import { artifactInputDiff, artifactInputKey, artifactKind, changedFrozenArtifactInputs, readArtifactInputs, sameArtifactInputs, type ArtifactSourceTarget } from './artifact-inputs';
   import { sameSelections } from './semantic';
-  import type { ArtifactInputSelection, FrozenArtifactInput, EvidenceSelection, Investigation, InvestigationArtifact, InvestigationContext, InvestigationCapabilities } from './types';
+  import type { ArtifactInputSelection, FrozenArtifactInput, EvidenceSelection, EvidenceHit, ThreadSummary, Investigation, InvestigationArtifact, InvestigationContext, InvestigationCapabilities } from './types';
 
-  let { selections = $bindable([]), active = true, onSource, onCompare, onSavedWork }: {
+  let { selections = $bindable([]), evidenceEditor = $bindable(null), threads = [], sourceNavigation = 0, active = true, onSource, onShowEvidence, onCompare, onSavedWork }: {
     selections: EvidenceSelection[];
+    evidenceEditor?: EvidenceEditor | null;
+    threads?: ThreadSummary[];
+    sourceNavigation?: number;
     active?: boolean;
     onSource: (selection: EvidenceSelection) => void;
+    onShowEvidence: (hit: EvidenceHit) => void;
     onCompare: (investigationId: string, intent?: 'comparison' | 'evidence-chain' | 'alternative-review', experimentId?: string) => void;
     onSavedWork: () => void;
   } = $props();
@@ -42,7 +48,7 @@
   let artifactChoice = $state('');
   let artifactChoiceSummary = $state<ResultSummary | undefined>();
   let resultLabels = $state<ResultSummary[]>([]);
-  let navigation = 0;
+  let navigation = $state(0);
   let disposed = false;
   let restoreAfterLoad = true;
   let lineageTarget = $state<(ArtifactSourceTarget & { snapshot?: FrozenArtifactInput }) | null>(null);
@@ -75,6 +81,17 @@
   const threadCount = $derived(new Set(selections.map((selection) => selection.threadId)).size);
   const unsavedEditor = $derived(current ? dirty || title !== current.title || note !== (current.adoption?.note ?? '')
     : !!(title || question || note || inputCount));
+  const evidenceReason = $derived(evidenceEditReason(ready, busy, !!pendingRequest));
+
+  function addToContext(addition: EvidenceAddition): boolean {
+    const reason = evidenceEditReason(ready, busy, !!pendingRequest);
+    if (reason) { error = reason; return false; }
+    try {
+      selections = addEvidence(selections, artifactInputs.length, addition);
+      error = '';
+      return true;
+    } catch (cause) { error = cause instanceof Error ? cause.message : 'These source references could not be added.'; return false; }
+  }
 
   function editorFingerprint() {
     return JSON.stringify({ selectedId, previewId, title, question, note, selections, artifactInputs, pendingRequest });
@@ -364,6 +381,10 @@
   });
 
   $effect(() => {
+    evidenceEditor = { disabled: !!evidenceReason, reason: evidenceReason, add: addToContext };
+  });
+
+  $effect(() => {
     if (!active) {
       inputOpenGeneration++;
       replacementFingerprint = null;
@@ -413,6 +434,7 @@
     <textarea id="investigation-question" bind:value={question} disabled={busy} rows="4" placeholder="Compare the approaches using this evidence. Explain what remains unknown."></textarea>
 
     <div class="context-count">{selections.length} ranges from {threadCount} {threadCount === 1 ? 'thread' : 'threads'} · {artifactInputs.length} exact result{artifactInputs.length === 1 ? '' : 's'}</div>
+    <EvidenceDiscovery {active} navigationKey={`${sourceNavigation}:${navigation}:${selectedId}`} {threads} addDisabled={!!evidenceReason} addReason={evidenceReason} onAdd={addToContext} onShow={onShowEvidence} />
     {#if !inputCount}
       <p class="work-empty">Use “Add to context” on messages, or select an outline entry and add its evidence. Switch threads to collect another source.</p>
     {/if}

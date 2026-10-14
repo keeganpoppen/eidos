@@ -6,6 +6,29 @@ The baseline GitHub Actions run `38240774514` completed successfully: pytest and
 
 Refresh this file when implementation claims materially change. Keep historical audit IDs instead of quietly relabelling old evidence as current.
 
+## Discover source evidence before knowing its coordinates — 2026-10-13
+
+Integration base `1698f6a`; [contract](../agents/EVIDENCE_DISCOVERY_TASK.md),
+[evidence](../evidence/EVIDENCE_DISCOVERY_INTEGRATION.md),
+[D33](DECISIONS.md#d33--discover-recorded-text-through-exact-source-contributors).
+Recorded-text discovery searches eligible public message, reasoning, command/output
+and file-path fields across unmapped history. Exact raw contributors remain distinct
+from surrounding current history. Source selection preserves noncontiguous membership
+and cannot alter a pending editor save. Canonical Save remains the freeze boundary.
+
+Parent **1,602 Python passed / 55 explicit native skips**, **146 Bun tests / 689
+assertions**, clean check/build. Same authored 1,200-turn browser case: baseline 27
+page advances and 1,201,333 long-thread bytes; changed remembered-decision phase 3
+reads/45,393 bytes. Whole flow 57 requests/one draft POST freezes exactly 4 inspected
+records across 2 threads, excluding an interleaved neighbor. Restart/pagination/
+filter run 38 GETs/zero POSTs after a separately retained harness reload race was
+fixed. Exact source/editor recovery and desktop/390px presentation verified.
+
+Read index/cursors track source generation; stale exact inspection refuses.
+Search and raw-detail envelopes explicitly refuse beyond 128KiB, including large
+metadata. Cold/changed-thread indexing and literal scans remain corpus-scaled.
+No native/model call or measured human-speed/answer-quality claim.
+
 ## New questions from exact historical inputs — 2026-10-13
 
 Integration base `2a62d68`; [contract](../agents/CONTEXT_INPUT_REUSE_TASK.md),

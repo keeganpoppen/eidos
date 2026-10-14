@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount, tick } from 'svelte';
+  import { onMount, tick, untrack } from 'svelte';
   import InvestigationPane from '#lib/InvestigationPane.svelte';
   import ComparisonSurface from '#lib/ComparisonSurface.svelte';
   import FocusPane from '#lib/FocusPane.svelte';
@@ -7,8 +7,10 @@
   import SemanticRail from '#lib/SemanticRail.svelte';
   import ThreadItemCard from '#lib/ThreadItem.svelte';
   import { createHistoryRequests, hasSourceEvidence, historyQuery, readSourceFocus, retainThread, sourceTarget } from '#lib/history.ts';
+  import { itemRecords, recordsSelected, type EvidenceEditor } from '#lib/evidence-selection.ts';
   import type {
     EvidenceSelection,
+    EvidenceHit,
     InvestigationCapabilities,
     ObserverJob,
     ObserverJobEvent,
@@ -25,6 +27,8 @@
   const liveAvailable = $derived(capabilities?.legacyLiveActions?.available === true);
   const liveReason = $derived(capabilities?.legacyLiveActions?.reason ?? 'Live model actions require separate resource authorization.');
   let selections = $state<EvidenceSelection[]>([]);
+  let evidenceEditor = $state<EvidenceEditor | null>(null);
+  let sourceNavigation = $state(0);
   let workMode = $state(true);
   let comparisonOpen = $state(false);
   let comparisonSeed = $state('');
@@ -37,6 +41,8 @@
   let historyNotice = $state('');
   let workspaceReady = $state(false);
   const historyRequests = createHistoryRequests();
+  function navigateHistory() { sourceNavigation++; return historyRequests.navigate(); }
+  let historyView = '';
   let threadLoads = 0;
   let selectedThread = $state('');
   let thread = $state<ThreadPayload | null>(null);
@@ -134,7 +140,7 @@
   }
 
   async function chooseThread(id: string, aroundSeq?: number): Promise<(() => boolean) | null> {
-    const isCurrent = historyRequests.navigate();
+    const isCurrent = navigateHistory();
     selectedThread = id;
     thread = null;
     selectedRevision = '';
@@ -154,7 +160,7 @@
         method: 'POST',
         body: JSON.stringify({ cwd: cwd.trim() || undefined })
       });
-      historyRequests.navigate();
+      navigateHistory();
       selectedThread = result.threadId;
       thread = null;
       selectedRevision = '';
@@ -211,7 +217,7 @@
   }
 
   function clearFocus() {
-    historyRequests.navigate();
+    navigateHistory();
     focusSpans = [];
     selectedNodeId = null;
     historyNotice = '';
@@ -233,7 +239,7 @@
   }
 
   async function selectSemanticNode(node: SemanticNode | null) {
-    historyRequests.navigate();
+    navigateHistory();
     historyNotice = '';
     selectedNodeId = node?.node_id ?? null;
     // A node belongs to an immutable interpretation, not whichever map is latest.
@@ -247,14 +253,14 @@
   }
 
   async function revealSupport(span: SupportSpan) {
-    const isCurrent = historyRequests.navigate();
+    const isCurrent = navigateHistory();
     if (!await loadThread({ aroundSeq: span.start }) || !isCurrent()) return;
     historyNotice = '';
     await focusSource(span, isCurrent);
   }
 
   async function selectRevision(revision: string) {
-    historyRequests.navigate();
+    navigateHistory();
     selectedRevision = revision;
     selectedNodeId = null;
     focusSpans = [];
@@ -262,7 +268,7 @@
   }
 
   async function jumpToItem(item: ThreadItem) {
-    const isCurrent = historyRequests.navigate();
+    const isCurrent = navigateHistory();
     if (!await loadThread({ aroundSeq: item.startSeq }) || !isCurrent()) return;
     await tick();
     if (!isCurrent()) return;
@@ -327,32 +333,30 @@
     }
   }
 
-  function selectionKey(selection: EvidenceSelection): string {
-    return `${selection.threadId}:${selection.startSeq}:${selection.endSeq}`;
-  }
-
   function addItem(item: ThreadItem) {
-    if (!thread) return;
-    const source = { threadId: thread.id, startSeq: item.startSeq, endSeq: item.endSeq, rationale: '' };
-    const exists = selections.some((selection) => selectionKey(selection) === selectionKey(source));
-    selections = exists
-      ? selections.filter((selection) => selectionKey(selection) !== selectionKey(source))
-      : [...selections, source];
-    workMode = true;
+    if (!thread || !evidenceEditor || evidenceEditor.disabled) return;
+    if (evidenceEditor.add({ threadId: thread.id, recordSeqs: itemRecords(item) })) workMode = true;
   }
 
   function itemSelected(item: ThreadItem): boolean {
-    return selections.some((selection) => selection.threadId === thread?.id && selection.startSeq === item.startSeq && selection.endSeq === item.endSeq);
+    return !!thread && recordsSelected(selections, thread.id, itemRecords(item));
   }
 
   function addSemanticEvidence() {
-    if (!thread || !selectedSemanticNode) return;
+    if (!thread || !selectedSemanticNode || !evidenceEditor || evidenceEditor.disabled) return;
     const added = focusSpans.map((span) => ({
       threadId: thread!.id, startSeq: span.start, endSeq: span.end,
       rationale: selectedSemanticNode!.title
     }));
-    selections = [...selections, ...added.filter((source) => !selections.some((selection) => selectionKey(selection) === selectionKey(source)))];
-    workMode = true;
+    if (evidenceEditor.add({ ranges: added })) workMode = true;
+  }
+
+  async function showEvidence(hit: EvidenceHit) {
+    const isCurrent = await chooseThread(hit.threadId, hit.anchorSeq);
+    if (!isCurrent?.() || comparisonOpen) return;
+    focusSpans = hit.recordSeqs.map(seq => ({ start: seq, end: seq, weight: 1 }));
+    historyNotice = 'Surrounding history for the inspected source. Later updates may differ from the exact inspected records.';
+    await focusSource(focusSpans[0], isCurrent);
   }
 
   async function returnToSource(selection: EvidenceSelection) {
@@ -364,7 +368,7 @@
   }
 
   async function goToRecord() {
-    const isCurrent = historyRequests.navigate();
+    const isCurrent = navigateHistory();
     const seq = Number(recordQuery);
     if (!Number.isSafeInteger(seq) || seq < 1) {
       historyNotice = 'Enter a positive record sequence.';
@@ -386,7 +390,7 @@
   async function moveHistory(delta: number) {
     const anchorSeq = delta < 0 ? thread?.window.previousAnchorSeq : thread?.window.nextAnchorSeq;
     if (anchorSeq == null) return;
-    const isCurrent = historyRequests.navigate();
+    const isCurrent = navigateHistory();
     if (!await loadThread({ anchorSeq }) || !isCurrent()) return;
     historyNotice = '';
     await tick();
@@ -425,10 +429,11 @@
         historyAnchorSeq = saved.anchorSeq;
       }
     } catch { /* The trace remains available when browser storage is disabled. */ }
+    historyView = `${workMode}:${comparisonOpen}`;
     workspaceReady = true;
     void loadThreads();
     if (selectedThread) {
-      const isCurrent = historyRequests.navigate();
+      const isCurrent = navigateHistory();
       void loadThread({ aroundSeq: historyAnchorSeq === null ? focusSpans[0]?.start : undefined }).then((loaded) => {
         if (!loaded || !isCurrent()) return;
         const span = focusSpans.find((candidate) => sourceTarget(thread?.turns ?? [], candidate));
@@ -439,10 +444,16 @@
     listPoll = setInterval(() => void loadThreads(), 4000);
 
     return () => {
-      historyRequests.navigate();
+      navigateHistory();
       if (threadPoll) clearInterval(threadPoll);
       if (listPoll) clearInterval(listPoll);
     };
+  });
+
+  $effect(() => {
+    const view = `${workMode}:${comparisonOpen}`;
+    if (historyView && historyView !== view) untrack(() => navigateHistory());
+    historyView = view;
   });
 
   $effect(() => {
@@ -498,7 +509,7 @@
   <ComparisonSurface bind:open={comparisonOpen} initialId={comparisonSeed} requestId={comparisonRequest} requestIntent={comparisonIntent} requestExperimentId={comparisonExperimentId} browseRequest={savedWorkRequest} {selections} />
 
   <div class:hidden-aperture={!workMode || comparisonOpen} class="work-aperture">
-    <InvestigationPane active={workMode && !comparisonOpen} bind:selections onSource={returnToSource} onCompare={compareInvestigation} onSavedWork={returnToSavedWork} />
+    <InvestigationPane active={workMode && !comparisonOpen} bind:selections bind:evidenceEditor {threads} {sourceNavigation} onSource={returnToSource} onShowEvidence={showEvidence} onCompare={compareInvestigation} onSavedWork={returnToSavedWork} />
   </div>
 
   {#if !workMode && !comparisonOpen}
@@ -551,7 +562,7 @@
               >{span.start}–{span.end}{#if span.label} · {span.label}{/if}</button>
             {/each}
             <button class="inline-control" onclick={clearFocus}>Clear focus</button>
-            {#if selectedSemanticNode}<button class="inline-control" onclick={addSemanticEvidence}>Add selected evidence to context</button>{/if}
+            {#if selectedSemanticNode}<button class="inline-control" disabled={!evidenceEditor || evidenceEditor.disabled} title={evidenceEditor?.reason} onclick={addSemanticEvidence}>Add selected evidence to context</button>{/if}
           </div>
         {/if}
       </header>
@@ -595,6 +606,8 @@
               highlighted={isHighlighted(item)}
               semanticFocus={selectedSemanticNode !== null}
               selected={itemSelected(item)}
+              selectionDisabled={!evidenceEditor || evidenceEditor.disabled}
+              selectionReason={evidenceEditor?.reason}
               onSelect={addItem}
             />
           {/each}

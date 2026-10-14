@@ -1,6 +1,6 @@
 # Continuing development frontier
 
-**Provisional strategic understanding · 2026-10-13 · inspected base `2a62d68`.**
+**Provisional strategic understanding · 2026-10-13 · inspected base `1698f6a`.**
 The [current handoff](CURRENT_HANDOFF.md) owns verified status and runnable steps;
 this document owns revisable conjectures and opportunity ordering. It does not
 replace the [destination](../vision/DESTINATION.md) or [V1](../roadmap/V1.md).
@@ -124,8 +124,9 @@ These are hypotheses, not established invariants or additional release gates.
    This is not measured human benefit. Do not rename existing experiment adoption
    into automatic activation;
    its retention/byte evaluator does not establish instruction quality or future
-   usefulness. Next challenge discovery before evidence coordinates are known;
-   defer a global starter/rollback layer until a repeated need exists.
+   usefulness. [Recorded-text discovery](../evidence/EVIDENCE_DISCOVERY_INTEGRATION.md)
+   now recovers exact source contributors before coordinates or maps are known.
+   Defer a global starter/rollback layer until a repeated need exists.
 4. **Established baseline: substantial saved work (C1/C5).** The 1,200-turn history
    and 1,000-owner HTTP/browser cases preserve stable source membership, bounded
    metadata pages, conditional reads, exact artifact detail and dirty draft/retry
@@ -147,22 +148,39 @@ not mature-world axioms.
 ## Current integration boundary and next contract
 
 Managed attempts are integrated in `fa7eabf`; `2a62d68` preserves exact legacy
-manifest bytes and passes public CI. The [handoff](CURRENT_HANDOFF.md) owns the
-subsequent historical-input reuse integration and verification. See
-[D31–D32](../roadmap/DECISIONS.md) and linked evidence.
+manifest bytes. Historical-input reuse is integrated in `1698f6a`. The
+[handoff](CURRENT_HANDOFF.md) owns the completed source-discovery slice and current
+integration status. See [D31–D33](../roadmap/DECISIONS.md) and linked evidence.
 
-**Next discriminator: recover evidence from unmapped imported history (C3/V1-01/04).**
-The workbench can reopen known references, results and saved questions, but its
-history surface still requires paging or a known record number. Existing long
-history acceptance pre-supplies semantic-map coordinates. Strip only derived maps
-from an isolated authored corpus and attempt remembered-phrase recovery in the
-actual UI before implementing anything. If the gap remains, choose bounded public
-history text discovery → exact source → explicit disjoint selection → canonical
-context/save/reopen. Search must follow displayed projection semantics, preserve
-exact record membership and exclude private/control storage; raw JSON matching
-would find replaced text and miss assembled deltas. Measure discoverability and
-request volume, not human speed or answer quality. A sanitized user-supplied corpus
-would test practical usefulness later; do not silently inspect personal history.
+**Established discriminator: recover evidence from unmapped history (C3/V1-01/04).**
+On the same authored 1,200-turn corpus without maps, baseline needed 27 page
+advances; recorded-text discovery now reaches the remembered decision, its exact
+raw evidence and surrounding page in three reads. Explicit disjoint selections
+freeze into a canonical saved context and reopen after restart. Unknown, replaced,
+private/control and hidden text cannot supply search matches. This establishes
+scripted recovery, not returning-person speed or useful answers.
+
+**Next discriminator: reliable entry of explicitly supplied work (C3/C5).**
+The existing CLI importer commits each line separately: a malformed tail leaves a
+prefix, and retry duplicates it. A browser file chooser alone would expose that
+failure more conveniently. Reproduce against current main and test fresh-empty
+startup. Pin one documented offline format with explicit source/direction, bounded
+preflight, atomic publication and an exact-operation receipt. Retain original file
+bytes and line-to-record mapping; preserve repeated events within the file. A lost
+reply/restart retry must recover original membership. Then connect explicit file
+preview/commit to discovery → inspection → question → reopen. No directory scanning,
+private-history access, guessed format conversion or native sync substitutes.
+Human usefulness still needs a deliberately supplied sanitized corpus and observation.
+
+**Independent next-use candidate (C1/C6): an owner-authored grounded finding.**
+The owner should be able to finish useful evidence-backed work without dispatch.
+Current native results require an attempt; test whether existing rationale/review
+notes suffice to write, reopen and reuse a conclusion plus its support and remaining
+question. If not, distinguish authored findings from native output rather than
+inventing a completed attempt. This may enable consequential self-use with public
+repository evidence while account/model availability remains unobserved. A narrower
+composition candidate is starting a question directly from a saved aperture's exact
+context; reuse the existing staged contract if an actual workflow justifies it.
 
 The active read index is a replaceable performance adapter, not a second provenance
 authority. Native process/synthetic transport research is independent of production

@@ -9,6 +9,8 @@
     compact = false,
     semanticFocus = false,
     selected = false,
+    selectionDisabled = false,
+    selectionReason = '',
     onSelect
   }: {
     item: ThreadItem;
@@ -17,6 +19,8 @@
     compact?: boolean;
     semanticFocus?: boolean;
     selected?: boolean;
+    selectionDisabled?: boolean;
+    selectionReason?: string;
     onSelect?: (item: ThreadItem) => void;
   } = $props();
 
@@ -82,7 +86,7 @@
     <span>{item.type === 'privateResultPublication' ? 'Published result' : item.type}</span>
     <code>{item.id}</code>
     {#if onSelect && item.startSeq > 0}
-      <button class="source-select" class:selected aria-pressed={selected} onclick={() => onSelect?.(item)}>
+      <button class="source-select" class:selected aria-pressed={selected} disabled={selectionDisabled || selected} title={selectionReason || (selected ? 'Remove selected source ranges in the Investigation editor.' : '')} onclick={() => onSelect?.(item)}>
         {selected ? "Selected for context" : "Add to context"}
       </button>
     {/if}
